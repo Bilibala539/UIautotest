@@ -1,0 +1,46 @@
+# 核心测试框架
+pytest>=7.4.0
+pytest-html>=3.2.0
+pytest-xdist>=3.3.1
+pytest-rerunfailures>=12.0
+
+# Appium自动化核心
+Appium-Python-Client>=3.0.0
+selenium>=4.15.0
+
+# 图像识别依赖
+opencv-python>=4.8.0
+numpy>=1.24.0
+
+# OCR文字识别
+paddleocr>=2.6.0
+Pillow>=9.5.0
+
+# PaddleOCR依赖（自动安装，但明确列出便于管理）
+shapely>=1.8.0
+scipy>=1.9.0
+matplotlib>=3.6.0
+
+# 图像处理增强
+scikit-image>=0.21.0
+imutils>=0.5.4
+
+# 工具类库
+python-dotenv>=1.0.0
+requests>=2.31.0
+PyYAML>=6.0
+pandas>=2.0.0
+
+# 日志与报告
+loguru>=0.7.0
+allure-pytest>=2.13.0
+
+# 开发工具
+black>=23.0.0
+flake8>=6.0.0
+
+# 系统依赖说明
+# - PaddleOCR 需要较大的磁盘空间（首次运行会下载模型，约200MB+）
+# - GPU支持需要安装 paddlepaddle-gpu 而非 paddlepaddle
+# - Appium Server 需要单独安装: npm install -g appium
+# - Android SDK 需要配置环境变量

@@ -12,7 +12,7 @@ from appium import webdriver
 # 导入配置
 from config.appium_config import DESIRED_CAPABILITIES, APPIUM_SERVER_CONFIG
 # 导入新的测试数据管理器
-from config.test_data import get_random_test_user
+from config.user_data import UserManager
 
 # 配置日志
 log_dir = "logs"
@@ -27,6 +27,7 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(__name__)
+
 
 @pytest.fixture(scope="session")
 def appium_driver():
@@ -45,35 +46,6 @@ def appium_driver():
             logger.info("关闭Appium WebDriver...")
             driver.quit()
 
-@pytest.fixture(scope="function")
-def driver_with_random_account(appium_driver):
-    """
-    函数级别的driver fixture，每次测试使用随机账号
-    使用新的用户数据管理器
-    """
-    # 随机选择活跃用户
-    current_user = get_random_test_user(status="active")
-
-    if current_user is None:
-        pytest.skip("没有可用的活跃测试用户")
-
-    logger.info(f"本次测试使用用户: {current_user.name} ({current_user.username})")
-
-    # 将用户对象附加到driver上
-    appium_driver.current_user = current_user
-
-    yield appium_driver
-
-    # 测试后清理（可选）
-    # 可以在这里添加登出操作或其他清理逻辑
-
-@pytest.fixture(scope="function")
-def base_page(driver_with_random_account):
-    """
-    提供BasePage实例的fixture
-    """
-    from pages.base_page import BasePage
-    return BasePage(driver_with_random_account)
 
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
 def pytest_runtest_makereport(item, call):
@@ -95,9 +67,11 @@ def pytest_runtest_makereport(item, call):
         if driver:
             screenshot_dir = "screenshots"
             os.makedirs(screenshot_dir, exist_ok=True)
-            screenshot_path = os.path.join(screenshot_dir, f"{item.name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png")
+            screenshot_path = os.path.join(screenshot_dir,
+                                           f"{item.name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png")
             driver.save_screenshot(screenshot_path)
             logger.info(f"失败截图已保存: {screenshot_path}")
+
 
 def pytest_configure(config):
     """
@@ -109,3 +83,8 @@ def pytest_configure(config):
     os.makedirs("templates", exist_ok=True)
     # 确保配置目录存在
     os.makedirs("config", exist_ok=True)
+
+
+@pytest.fixture(scope="session")
+def test_user_manager():
+    return UserManager("config/users_info.json")

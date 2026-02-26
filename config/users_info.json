@@ -1,0 +1,32 @@
+[
+  {
+    "uid": "zhang.wei@company.com",
+    "password": "Zw#2026Secure!",
+    "name": "张伟",
+    "name_en": "Wei Zhang",
+    "name_jp": "チャン・ウェイ",
+    "phone": "+8613812345678",
+    "role": "正职",
+    "department": "软件开发部"
+  },
+  {
+    "uid": "tanaka.yuki@partner.co.jp",
+    "password": "Tyk!987Partner",
+    "name": "田中由纪",
+    "name_en": "Yuki Tanaka",
+    "name_jp": "田中 由紀",
+    "phone": "+819012345678",
+    "role": "外包",
+    "department": "UI/UX设计组"
+  },
+  {
+    "uid": "li.na@company.com",
+    "password": "Ln@2026HRpass",
+    "name": "李娜",
+    "name_en": "Na Li",
+    "name_jp": "リー・ナー",
+    "phone": "+8613987654321",
+    "role": "正职",
+    "department": "人力资源部"
+  }
+]

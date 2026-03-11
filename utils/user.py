@@ -1,20 +1,15 @@
 """
 用户和设备定义模块
 提供PPUser和PPDevice类用于测试用户和MuMu模拟器设备管理
+
+用户通过 user.aw.xxx() 方式调用AW方法
 """
 import logging
-import subprocess
-import time
 from typing import Optional
 
-from utils.devices import ADB_PATH
+from utils.aw import AWHelper
 
 logger = logging.getLogger(__name__)
-
-# 网易POPO应用包名和启动Activity
-APP_NAME = "网易popo"
-POPO_PACKAGE = "com.netease.popo"
-POPO_ACTIVITY = "com.netease.popo.MainActivity"
 
 
 class PPDevice:
@@ -31,6 +26,12 @@ class PPDevice:
         self.device_port = device_port
         self.instance_id = instance_id
         self.device_serial = f"127.0.0.1:{device_port}"
+        
+        # 设备窗口信息（由devices.py设置）
+        self.pos = (0, 0)
+        self.size = (540, 960)
+        self.window_name = ""
+        self.is_ready = False
 
     @property
     def adb_address(self) -> str:
@@ -47,9 +48,27 @@ class PPDevice:
 
 
 class PPUser:
-    """测试用户类"""
+    """
+    测试用户类
+    
+    通过 user.aw 属性访问所有AW方法
+    
+    使用示例:
+        user = PPUser(uid="test@example.com", password="123456", device=device)
+        
+        # 低级操作
+        user.aw.tap(100, 200)
+        user.aw.input("hello")
+        
+        # 中级操作
+        user.aw.click_text("登录")
+        user.aw.input_text("输入邮箱", user.uid)
+        
+        # 高级操作
+        user.aw.login(user.uid, user.password)
+    """
 
-    def __init__(self, uid: str, password: str, device: None, env: str = "test3",
+    def __init__(self, uid: str, password: str, device: PPDevice, env: str = "test3",
                  name: str = "", name_en: str = "", name_jp: str = "",
                  phone: str = "", role: str = "", department: str = "",
                  need_login: bool = True):
@@ -81,73 +100,47 @@ class PPUser:
         self.env = env
         self.need_login = need_login
         self._logged_in = False
-
-    def _run_adb_command(self, *args) -> subprocess.CompletedProcess:
-        """
-        执行ADB命令
         
-        Args:
-            *args: ADB命令参数
-            
-        Returns:
-            subprocess.CompletedProcess: 命令执行结果
-        """
-        cmd = [ADB_PATH, "-s", self.device.device_serial] + list(args)
-        return subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        # 初始化AW Helper（通过aw属性访问所有AW方法）
+        self._aw: Optional[AWHelper] = None
 
-    def _start_popo_app(self) -> bool:
+    @property
+    def aw(self) -> AWHelper:
         """
-        启动网易POPO应用`
+        获取AW Helper实例
+        
+        通过此属性访问所有AW方法:
+        - user.aw.tap(x, y)
+        - user.aw.click_text("登录")
+        - user.aw.login(uid, password)
         
         Returns:
-            bool: 启动是否成功
+            AWHelper: AW帮助类实例
         """
-        try:
-            logger.info(f"📱 正在启动 {APP_NAME}...")
-            
-            # 使用 am start 命令启动应用
-            # 命令格式: adb shell am start -n 包名/Activity名
-            self._run_adb_command(
-                "shell", "am", "start", "-n", f"{APP_NAME}/{POPO_ACTIVITY}"
-            )
-
-            logger.info(f"✅ {APP_NAME} 启动成功")
-            # 等待应用启动
-            time.sleep(1)
-            return True
-                    
-        except subprocess.TimeoutExpired:
-            logger.error(f"{APP_NAME} 启动超时")
-            assert False
-        except Exception as e:
-            logger.error(f"{APP_NAME} 启动异常: {e}")
-            assert False
+        if self._aw is None:
+            self._aw = AWHelper(self.device.instance_id)
+        return self._aw
 
     def login(self) -> bool:
         """
         执行用户登录
         
-        步骤:
-        1. 启动网易POPO应用
-        2. 等待应用加载完成
-        3. TODO: 输入账号密码并登录
+        使用AW高级方法完成登录流程
         
         Returns:
             bool: 登录是否成功
         """
         logger.info(f"🔐 {self.uid} 正在登录到设备 {self.device.device_serial}")
         
-        # 第一步：启动POPO应用
-        if not self._start_popo_app():
-            logger.error(f"❌ {self.uid} 登录失败：无法启动POPO应用")
-            return False
+        result = self.aw.login(self.uid, self.password)
         
-        # TODO: 后续实现账号密码输入和登录逻辑
-        # 可以使用图像识别或OCR定位输入框，然后使用ADB输入
+        if result:
+            self._logged_in = True
+            logger.info(f"✅ {self.uid} 登录成功")
+        else:
+            logger.error(f"❌ {self.uid} 登录失败")
         
-        self._logged_in = True
-        logger.info(f"✅ {self.uid} 登录成功")
-        return True
+        return result
 
     def logout(self) -> bool:
         """
@@ -156,10 +149,15 @@ class PPUser:
         Returns:
             bool: 退出是否成功
         """
-        # TODO: 实现具体的退出登录逻辑
-        logger.info(f"🚪 {self.uid} 已退出登录")
-        self._logged_in = False
-        return True
+        logger.info(f"🚪 {self.uid} 正在退出登录")
+        
+        result = self.aw.logout()
+        
+        if result:
+            self._logged_in = False
+            logger.info(f"✅ {self.uid} 已退出登录")
+        
+        return result
 
     @property
     def is_logged_in(self) -> bool:
@@ -174,7 +172,7 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
 
     # 测试示例
-    device = PPDevice(device_port=7555, instance_id=0)
+    device = PPDevice(device_port=16384, instance_id=0)
     user = PPUser(
         uid="test@example.com",
         password="password123",
@@ -182,5 +180,8 @@ if __name__ == '__main__':
         env="test03"
     )
     print(user)
-    user.login()
-    print(f"已登录: {user.is_logged_in}")
+    print(f"AW Helper: {user.aw}")
+    
+    # 测试AW方法调用
+    # user.aw.click_text("登录")
+    # user.aw.input_text("输入邮箱", "test@example.com")

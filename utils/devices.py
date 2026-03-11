@@ -14,6 +14,8 @@ import urllib.request
 from dataclasses import dataclass
 from typing import List, Optional
 
+from utils.window_manager import WindowManager
+
 # ==================【配置区】==================
 MUMU_INSTALL_PATH = r"D:\MuMuPlayer\nx_main"  # MuMu12安装目录
 DOWNLOAD_URL = r"http://10.220.28.153/client_android/popo_origin-feature_robot_warn_notify_8867_dev.apk"  # 包体的下载链接
@@ -91,6 +93,10 @@ def get_adb_port(instance_id: int) -> int:
     """获取MuMu12实例的ADB端口: 16384 + (instance_id * 32)"""
     return 16384 + (instance_id * 32)
 
+# 别名函数，兼容aw_business.py的导入
+def get_device_port_by_instance(instance_id: int) -> int:
+    """获取MuMu12实例的ADB端口（get_adb_port的别名）"""
+    return get_adb_port(instance_id)
 
 def get_player_path() -> str:
     """获取MuMu模拟器程序路径"""
@@ -456,6 +462,15 @@ def start_devices(count: int = DEVICE_COUNT) -> List[Device]:
 
     # 安装APK到所有设备
     install_apk_to_all_devices(devices)
+
+    # 激活所有设备窗口至前台（获得焦点）
+    print("🪟 激活设备窗口至前台...")
+    for device in devices:
+        WindowManager.focus_window(device.instance_id)
+    
+    # 激活第一个窗口（确保有焦点）
+    if devices:
+        WindowManager.focus_window(devices[0].instance_id)
 
     return devices
 

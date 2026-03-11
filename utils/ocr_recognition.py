@@ -17,8 +17,12 @@ from utils.devices import ADB_PATH
 # 使用PaddleOCR替代pytesseract
 try:
     from paddleocr import PaddleOCR
+    PADDLEOCR_AVAILABLE = True
 except ImportError:
-    raise ImportError("PaddleOCR未安装，请运行: pip install paddleocr>=2.6.0")
+    PADDLEOCR_AVAILABLE = False
+    PaddleOCR = None
+    logger = logging.getLogger(__name__)
+    logger.warning("⚠️ PaddleOCR未安装，OCR功能将不可用。请运行: pip install paddleocr>=2.6.0")
 
 logger = logging.getLogger(__name__)
 
@@ -42,16 +46,20 @@ class OCRRecognition:
         self.device_serial = f"127.0.0.1:{device_port}"
         self.lang = lang
         self.use_gpu = use_gpu
+        self.ocr_engine = None
 
         # 初始化PaddleOCR引擎（只初始化一次）
-        self.ocr_engine = PaddleOCR(
-            use_angle_cls=True,
-            lang=lang,
-            use_gpu=use_gpu,
-            det_db_box_thresh=det_db_box_thresh,
-            det_db_unclip_ratio=det_db_unclip_ratio,
-            show_log=False  # 关闭PaddleOCR内部日志，避免干扰
-        )
+        if PADDLEOCR_AVAILABLE and PaddleOCR is not None:
+            self.ocr_engine = PaddleOCR(
+                use_angle_cls=True,
+                lang=lang,
+                use_gpu=use_gpu,
+                det_db_box_thresh=det_db_box_thresh,
+                det_db_unclip_ratio=det_db_unclip_ratio,
+                show_log=False  # 关闭PaddleOCR内部日志，避免干扰
+            )
+        else:
+            logger.warning("⚠️ PaddleOCR未安装，OCR功能不可用")
 
     def _run_adb_command(self, *args) -> Optional[bytes]:
         """

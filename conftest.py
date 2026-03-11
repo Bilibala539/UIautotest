@@ -8,6 +8,7 @@ pytest fixture 配置文件
 """
 import time
 
+import pyautogui
 import pytest
 import os
 import logging
@@ -19,19 +20,38 @@ from config.user_data import UserManager
 from utils.user import PPUser, PPDevice
 from utils.devices import adb_connect, start_devices, Device
 
-# 配置日志
-log_dir = "logs"
+# ==================== 配置日志 ====================
+# 使用项目根目录下的logs文件夹
+log_dir = r"E:\UIAutotest\logs"
 os.makedirs(log_dir, exist_ok=True)
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler(f"{log_dir}/test_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"),
-        logging.StreamHandler()
-    ]
-)
+
+# 创建日志文件路径
+log_file = os.path.join(log_dir, f"test_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
+
+# 获取根日志记录器并清除已有的handlers（解决basicConfig不生效的问题）
+root_logger = logging.getLogger()
+root_logger.setLevel(logging.INFO)
+
+# 清除已有的handlers
+for handler in root_logger.handlers[:]:
+    root_logger.removeHandler(handler)
+
+# 创建文件handler
+file_handler = logging.FileHandler(log_file, encoding='utf-8')
+file_handler.setLevel(logging.INFO)
+file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+
+# 创建控制台handler
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.INFO)
+console_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+
+# 添加handlers到根日志记录器
+root_logger.addHandler(file_handler)
+root_logger.addHandler(console_handler)
 
 logger = logging.getLogger(__name__)
+logger.info(f"📝 日志文件: {log_file}")
 
 
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
@@ -301,13 +321,16 @@ def device_manager():
     整个测试Session共享同一个设备管理器，
     设备只启动一次。
     """
+    pyautogui.hotkey('win', 'd')
+    time.sleep(0.5)
     manager = get_device_manager()
     yield manager
+
     logger.info("📱 Session结束，设备管理器清理完成")
 
 
 @pytest.fixture(scope="function")
-def users(device_manager):
+def users(device_manager, request):
     """
     用户工厂 fixture - Function级别
     
@@ -315,16 +338,17 @@ def users(device_manager):
     用户状态不会跨用例共享。
     
     使用方式:
-        def test_example(users):
-            UserA = users("userA")  # 创建用户A
-            UserB = users("userB")  # 创建用户B
+        class TestExample:
+            def setup(self):
+                self.userA = self.users("userA")  # 通过 self.users 访问
+                self.userA.login()
             
-            UserA.login()  # 登录
-            # ... 测试逻辑 ...
-        
-        def test_another(users):
-            UserA = users("userA")  # 这是一个全新的UserA实例！
-            # UserA 是未登录状态
+            def test_example(self):
+                # 测试逻辑
+                pass
+            
+            def teardown(self):
+                self.userA.logout()
     
     Yields:
         UsersFactory: 用户工厂实例
@@ -332,11 +356,41 @@ def users(device_manager):
     factory = UsersFactory(device_manager)
     logger.info("👤 ===== 新用例开始，创建新的UsersFactory =====")
     
+    # 自动注入到测试类实例 (支持 setup/teardown 使用)
+    if request.instance is not None:
+        request.instance.users = factory
+    
     yield factory
     
     # 清理当前用例的用户
     logger.info("👤 ===== 用例结束，清理用户状态 =====")
     factory.cleanup()
+
+
+@pytest.fixture(scope="function", autouse=True)
+def _inject_users_and_run_setup_teardown(users, request):
+    """
+    自动注入 users 到测试类实例，并执行 setup/teardown 方法
+    autouse=True 确保自动执行
+    """
+    instance = request.instance
+    
+    if instance is not None:
+        # 注入 users 到测试类实例
+        instance.users = users
+        
+        # 执行 setup 方法（如果存在）
+        if hasattr(instance, 'setup') and callable(getattr(instance, 'setup')):
+            logger.info("🔧 执行 setup() 方法")
+            instance.setup()
+    
+    yield
+    
+    # 执行 teardown 方法（如果存在）
+    if instance is not None:
+        if hasattr(instance, 'teardown') and callable(getattr(instance, 'teardown')):
+            logger.info("🧹 执行 teardown() 方法")
+            instance.teardown()
 
 
 @pytest.fixture(scope="session")

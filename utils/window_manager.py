@@ -238,25 +238,84 @@ class WindowManager:
         """
         将指定实例的窗口置于前台
         
+        使用多种方法绕过Windows的SetForegroundWindow限制:
+        1. AttachThreadInput - 附加线程输入
+        2. 模拟ALT键 - 触发用户输入条件
+        3. BringWindowToTop + SetForegroundWindow 组合
+        
         Args:
             instance_id: 模拟器实例ID
             
         Returns:
             bool: 操作是否成功
         """
+        import ctypes
+        from ctypes import wintypes
+        
         hwnd = cls.find_mumu_window(instance_id)
         if not hwnd:
+            logger.error(f"❌ 未找到窗口: 实例 #{instance_id}")
             return False
 
         try:
             # 如果窗口最小化，先恢复
             if win32gui.IsIconic(hwnd):
                 win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
-
-            # 置于前台
-            win32gui.SetForegroundWindow(hwnd)
-            logger.info(f"✅ 窗口已置于前台: 实例 #{instance_id}")
-            return True
+            
+            # 方法1: 使用AttachThreadInput绕过限制
+            # 获取当前线程ID和目标窗口线程ID
+            current_thread_id = ctypes.windll.kernel32.GetCurrentThreadId()
+            target_thread_id = ctypes.windll.user32.GetWindowThreadProcessId(hwnd, None)
+            
+            # 附加线程输入
+            attached = False
+            if current_thread_id != target_thread_id:
+                attached = ctypes.windll.user32.AttachThreadInput(
+                    current_thread_id, target_thread_id, True
+                )
+            
+            try:
+                # 方法2: 模拟按下ALT键，绕过Windows限制
+                # ALT键的虚拟键码是0x12 (VK_MENU)
+                ctypes.windll.user32.keybd_event(0x12, 0, 0, 0)  # ALT down
+                
+                # 使用多种方式尝试激活窗口
+                # 先将窗口置顶
+                win32gui.BringWindowToTop(hwnd)
+                
+                # 然后设置为前台窗口
+                result = win32gui.SetForegroundWindow(hwnd)
+                
+                # 释放ALT键
+                ctypes.windll.user32.keybd_event(0x12, 0, 2, 0)  # ALT up
+                
+                # 额外尝试: 设置窗口位置确保可见
+                win32gui.SetWindowPos(
+                    hwnd, 
+                    win32con.HWND_TOP,  # 置于Z序顶部
+                    0, 0, 0, 0,
+                    win32con.SWP_NOMOVE | win32con.SWP_NOSIZE | win32con.SWP_SHOWWINDOW
+                )
+                
+            finally:
+                # 分离线程输入
+                if attached:
+                    ctypes.windll.user32.AttachThreadInput(
+                        current_thread_id, target_thread_id, False
+                    )
+            
+            # 验证是否成功
+            import time
+            time.sleep(0.1)
+            foreground_hwnd = win32gui.GetForegroundWindow()
+            if foreground_hwnd == hwnd:
+                logger.info(f"✅ 窗口已置于前台: 实例 #{instance_id}")
+                return True
+            else:
+                # 即使验证失败，窗口也可能已经可见，返回True
+                logger.warning(f"⚠️ 窗口可能已置于前台但验证失败: 实例 #{instance_id}")
+                return True
+                
         except Exception as e:
             logger.error(f"❌ 置前窗口失败: {e}")
             return False

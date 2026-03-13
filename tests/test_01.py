@@ -24,40 +24,11 @@ class Test01:
         1. 等待登录页面出现
         2. 点击邮箱Tab
         3. 点击邮箱输入框，输入邮箱
-        4. 点击密码输入框，输入密码  
+        4. 点击密码输入框，输入密码
         5. 勾选协议复选框
         6. 点击登录按钮
         7. 验证登录成功
         """
-        print("假装执行用例")
-        print("假装执行用例")
-        sleep(1)
-        print("假装执行用例")
-        print("假装执行用例")
-        sleep(1)
-        print("假装执行用例")
-        print("假装执行用例")
-        sleep(1)
-        print("假装执行用例")
-        print("假装执行用例")
-        sleep(1)
-        print("假装执行用例")
-        print("假装执行用例")
-        sleep(1)
-        print("假装执行用例")
-        print("假装执行用例")
-        sleep(1)
-        print("假装执行用例")
-        print("假装执行用例")
-        sleep(1)
-        print("假装执行用例")
-        print("假装执行用例")
-        sleep(1)
-        print("假装执行用例")
-        print("假装执行用例")
-        sleep(1)
-        print("假装执行用例")
-        print("假装执行用例")
 
     def teardown(self):
         """测试后清理"""

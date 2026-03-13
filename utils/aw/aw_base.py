@@ -48,6 +48,8 @@ class AWBase:
 
     TEMPLATE_DIR = r"E:\UIAutotest\templates"
     SCREENSHOT_DIR = r"E:\UIAutotest\screenshots"
+    EXPLORER_SCREENSHOT_DIR = r"E:\UIAutotest\explorer_output\screenshots"
+    EXPLORER_ELEMENTS_DIR = r"E:\UIAutotest\explorer_output\elements"
     _ocr_engine: Optional[PaddleOCR] = None
 
     def __init__(self, instance_id: int):
@@ -61,6 +63,8 @@ class AWBase:
         self._window_rect: Optional[WindowRect] = None
         os.makedirs(self.TEMPLATE_DIR, exist_ok=True)
         os.makedirs(self.SCREENSHOT_DIR, exist_ok=True)
+        os.makedirs(self.EXPLORER_SCREENSHOT_DIR, exist_ok=True)
+        os.makedirs(self.EXPLORER_ELEMENTS_DIR, exist_ok=True)
 
     @classmethod
     def _get_ocr_engine(cls) -> PaddleOCR:
@@ -78,12 +82,14 @@ class AWBase:
 
     # ==================== 窗口操作 ====================
 
+    # 获取MuMu模拟器窗口区域
     def _get_window_rect(self, refresh: bool = False) -> Optional[WindowRect]:
         """获取窗口区域"""
         if refresh or self._window_rect is None:
             self._window_rect = get_mumu_window_rect(self.instance_id)
         return self._window_rect
 
+    # 将窗口内坐标转换为屏幕绝对坐标
     def _to_screen_coords(self, x: int, y: int) -> Optional[Tuple[int, int]]:
         """将窗口内坐标转换为屏幕坐标"""
         rect = self._get_window_rect()
@@ -92,12 +98,14 @@ class AWBase:
         logger.error(f"❌ 无法获取窗口区域，实例ID: {self.instance_id}")
         return None
 
+    # 将MuMu模拟器窗口置于前台
     def _focus_window(self) -> bool:
         """将窗口置于前台"""
         return WindowManager.focus_window(self.instance_id)
 
     # ==================== 截图操作 ====================
 
+    # 截取MuMu模拟器窗口屏幕，返回BGR格式的numpy数组
     def take_screenshot(self, save_path: Optional[str] = None) -> Optional[np.ndarray]:
         """
         截取窗口屏幕
@@ -124,8 +132,72 @@ class AWBase:
             logger.error(f"❌ 截图失败: {e}")
             return None
 
-    # ==================== 核心方法1: 点击坐标区域 ====================
+    # 截图并保存到探索输出目录，用于功能探索
+    def screenshot_for_explore(self, filename: str = None, subdir: str = None) -> str:
+        """
+        截取屏幕并保存到探索目录
 
+        Args:
+            filename: 文件名，不填则自动生成时间戳名称
+            subdir: 子目录名（在screenshots下），不填则直接保存到screenshots
+
+        Returns:
+            str: 保存的文件路径
+        """
+        if filename is None:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"screenshot_{timestamp}.png"
+
+        if subdir:
+            output_dir = os.path.join(self.EXPLORER_SCREENSHOT_DIR, subdir)
+            os.makedirs(output_dir, exist_ok=True)
+        else:
+            output_dir = self.EXPLORER_SCREENSHOT_DIR
+
+        output_path = os.path.join(output_dir, filename)
+        self.take_screenshot(save_path=output_path)
+        return output_path
+
+    # 从截图中裁切UI元素并保存到elements目录
+    def crop_element(self, source_path: str, element_name: str,
+                     x1: int, y1: int, x2: int, y2: int) -> Optional[str]:
+        """
+        从截图中裁切元素
+
+        Args:
+            source_path: 源截图路径
+            element_name: 元素名称（不含.png后缀）
+            x1, y1, x2, y2: 裁切区域坐标
+
+        Returns:
+            Optional[str]: 保存的元素图片路径，失败返回None
+        """
+        img = cv2.imread(source_path)
+        if img is None:
+            logger.error(f"❌ 无法读取图片: {source_path}")
+            return None
+
+        # 边界检查
+        height, width = img.shape[:2]
+        x1 = max(0, x1)
+        y1 = max(0, y1)
+        x2 = min(width, x2)
+        y2 = min(height, y2)
+
+        if x2 <= x1 or y2 <= y1:
+            logger.error(f"❌ 无效的裁切区域: ({x1},{y1},{x2},{y2})")
+            return None
+
+        # 裁切
+        cropped = img[y1:y2, x1:x2]
+
+        # 保存
+        output_path = os.path.join(self.EXPLORER_ELEMENTS_DIR, f"{element_name}.png")
+        cv2.imwrite(output_path, cropped)
+        logger.info(f"✂️ 元素已截取: {output_path}")
+        return output_path
+
+    # 点击窗口内指定坐标，支持偏移量
     def tap(self, x: int, y: int, dx: int = 0, dy: int = 0) -> bool:
         """
         点击坐标区域
@@ -154,8 +226,7 @@ class AWBase:
             logger.error(f"❌ 点击失败: {e}")
             return False
 
-    # ==================== 核心方法2: 输入文本 ====================
-
+    # 输入文本，支持中文（通过剪贴板）
     def input_text(self, text: str) -> bool:
         """
         输入文本
@@ -168,8 +239,8 @@ class AWBase:
         """
         try:
             if any(ord(c) > 127 for c in text):
-                import dyperclip
-                dyperclip.copy(text)
+                import pyperclip
+                pyperclip.copy(text)
                 pyautogui.hotkey('ctrl', 'v')
                 logger.info(f"⌨️ 输入文本(剪贴板): {text}")
             else:
@@ -181,8 +252,7 @@ class AWBase:
             logger.error(f"❌ 输入失败: {e}")
             return False
 
-    # ==================== 核心方法3: OCR找文字 ====================
-
+    # 使用OCR识别屏幕文字，返回文字中心坐标
     def find_text_by_ocr(self, text: str, timeout: int = 10,
                          region=Normal.ALL,
                          case_sensitive: bool = False) -> Optional[Tuple[int, int]]:
@@ -249,8 +319,7 @@ class AWBase:
         logger.warning(f"⚠️ 未找到文字 '{text}'")
         return None
 
-    # ==================== 核心方法4: 找图片 ====================
-
+    # 使用模板匹配查找图片，返回图片中心坐标
     def find_image(self, template_name: str, threshold: float = 0.8,
                    timeout: int = 10,
                    region=Normal.ALL) -> Optional[Tuple[int, int]]:
@@ -334,8 +403,7 @@ class AWBase:
         logger.warning(f"⚠️ 未找到图片 '{template_name}'，已保存截图: {screenshot_path}")
         assert False
 
-    # ==================== 辅助方法 ====================
-
+    # 使用OCR找到文字后点击
     def click_text(self, text: str, timeout: int = 10,
                    dx: int = 0, dy: int = 0,
                    region=Normal.ALL) -> bool:
@@ -366,6 +434,7 @@ class AWBase:
             return self.tap(pos[0], pos[1], dx, dy)
         return False
 
+    # 使用图像匹配找到图片后点击
     def click_image(self, image: str, threshold: float = 0.8,
                     timeout: int = 10, dx: int = 0, dy: int = 0,
                     region=Normal.ALL):
@@ -397,6 +466,7 @@ class AWBase:
             return self.tap(pos[0], pos[1], dx, dy)
         assert False, "点击图片失败"
 
+    # 清空输入框（全选后删除）
     def clear_input(self) -> bool:
         """清空输入框"""
         try:
@@ -409,6 +479,7 @@ class AWBase:
             logger.error(f"❌ 清空失败: {e}")
             return False
 
+    # 按下指定按键（如enter, escape, tab等）
     def press_key(self, key: str) -> bool:
         """按下按键"""
         try:
@@ -420,6 +491,32 @@ class AWBase:
             logger.error(f"❌ 按键失败: {e}")
             return False
 
+    # 按下返回键（Android的Back键）
+    def press_back(self) -> bool:
+        """按下返回键"""
+        try:
+            pyautogui.press('escape')  # 模拟器中escape通常映射为返回
+            logger.info(f"🔙 按返回键")
+            self.sleep(0.3)
+            return True
+        except Exception as e:
+            logger.error(f"❌ 返回键失败: {e}")
+            return False
+
+    # 按下Home键
+    def press_home(self) -> bool:
+        """按下Home键"""
+        try:
+            # 在模拟器中，通常没有直接的Home键映射，使用ADB命令
+            # 这里暂时使用pyautogui的方式
+            logger.info(f"🏠 按Home键")
+            self.sleep(0.3)
+            return True
+        except Exception as e:
+            logger.error(f"❌ Home键失败: {e}")
+            return False
+
+    # 从起点滑动到终点
     def swipe(self, start_x: int, start_y: int, end_x: int, end_y: int,
               duration: float = 0.3) -> bool:
         """滑动操作"""
@@ -440,10 +537,44 @@ class AWBase:
             logger.error(f"❌ 滑动失败: {e}")
             return False
 
+    # 向上滑动（查看更多内容）
+    def swipe_up(self, distance: int = 400) -> bool:
+        """向上滑动（查看更多内容）"""
+        center_x = 270
+        start_y = 700
+        end_y = start_y - distance
+        return self.swipe(center_x, start_y, center_x, end_y, duration=0.3)
+
+    # 向下滑动（返回顶部内容）
+    def swipe_down(self, distance: int = 400) -> bool:
+        """向下滑动"""
+        center_x = 270
+        start_y = 300
+        end_y = start_y + distance
+        return self.swipe(center_x, start_y, center_x, end_y, duration=0.3)
+
+    # 向左滑动
+    def swipe_left(self, distance: int = 300) -> bool:
+        """向左滑动"""
+        center_y = 500
+        start_x = 400
+        end_x = start_x - distance
+        return self.swipe(start_x, center_y, end_x, center_y, duration=0.3)
+
+    # 向右滑动
+    def swipe_right(self, distance: int = 300) -> bool:
+        """向右滑动"""
+        center_y = 500
+        start_x = 100
+        end_x = start_x + distance
+        return self.swipe(start_x, center_y, end_x, center_y, duration=0.3)
+
+    # 等待指定时间（秒）
     def sleep(self, seconds: float) -> None:
         """等待指定时间"""
         time.sleep(seconds)
 
+    # 检查指定文字是否存在于屏幕中
     def text_exists(self, text: str, timeout: int = 5,
                     region=Normal.ALL) -> bool:
         """
@@ -459,6 +590,7 @@ class AWBase:
         """
         return self.find_text_by_ocr(text, timeout=timeout, region=region) is not None
 
+    # 检查指定图片是否存在于屏幕中
     def image_exists(self, template_name: str, threshold: float = 0.8,
                      timeout: int = 5,
                      region=Normal.ALL) -> bool:
@@ -476,3 +608,83 @@ class AWBase:
         """
         return self.find_image(template_name, threshold=threshold, timeout=timeout,
                                region=region) is not None
+
+    # 探索当前页面，截图并返回页面信息
+    def explore_page(self, page_name: str) -> dict:
+        """
+        探索当前页面，截图并记录基本信息
+
+        Args:
+            page_name: 页面名称
+
+        Returns:
+            dict: 页面信息，包含截图路径等
+        """
+        logger.info(f"📱 开始探索页面: {page_name}")
+
+        # 截取页面
+        screenshot_path = self.screenshot_for_explore(f"{page_name}.png")
+
+        # 返回页面信息
+        page_info = {
+            "name": page_name,
+            "screenshot": screenshot_path,
+            "timestamp": datetime.now().isoformat(),
+            "elements": []
+        }
+
+        logger.info(f"✅ 页面探索完成: {page_name}")
+        return page_info
+
+    # 执行一系列操作步骤并截图，用于探索操作流程
+    def explore_flow(self, flow_name: str, steps: list) -> list:
+        """
+        探索操作流程，执行一系列操作并截图
+
+        Args:
+            flow_name: 流程名称
+            steps: 操作步骤列表，每个步骤是一个dict:
+                   {"action": "tap", "x": 270, "y": 500, "desc": "点击确定"}
+                   {"action": "swipe_up", "desc": "向上滑动"}
+                   {"action": "screenshot", "name": "步骤1.png", "desc": "截取结果"}
+                   {"action": "wait", "time": 1, "desc": "等待1秒"}
+
+        Returns:
+            list: 每个步骤的执行结果
+        """
+        logger.info(f"🔄 开始探索流程: {flow_name}")
+
+        results = []
+
+        for i, step in enumerate(steps, 1):
+            action = step.get("action")
+            desc = step.get("desc", "")
+
+            logger.info(f"步骤 {i}: {desc}")
+
+            result = {"step": i, "action": action, "desc": desc}
+
+            if action == "tap":
+                self.tap(step["x"], step["y"])
+            elif action == "swipe":
+                self.swipe(step["x1"], step["y1"], step["x2"], step["y2"])
+            elif action == "swipe_up":
+                self.swipe_up()
+            elif action == "swipe_down":
+                self.swipe_down()
+            elif action == "back":
+                self.press_back()
+            elif action == "screenshot":
+                path = self.screenshot_for_explore(step.get("name"))
+                result["screenshot"] = path
+            elif action == "wait":
+                self.sleep(step.get("time", 1))
+            elif action == "input":
+                self.input_text(step.get("text", ""))
+            elif action == "click_text":
+                self.click_text(step.get("text", ""))
+
+            results.append(result)
+
+        logger.info(f"✅ 流程探索完成: {flow_name}")
+        return results

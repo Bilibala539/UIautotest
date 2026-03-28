@@ -13,12 +13,11 @@ import tempfile
 import urllib.request
 from dataclasses import dataclass
 from typing import List, Optional
-
 from utils.window_manager import WindowManager
 
 # ==================【配置区】==================
 MUMU_INSTALL_PATH = r"D:\MuMuPlayer\nx_main"  # MuMu12安装目录
-DOWNLOAD_URL = r"http://10.220.28.153/client_android/popo_origin-feature_robot_warn_notify_8867_dev.apk"  # 包体的下载链接
+DOWNLOAD_URL = r"http://10.220.28.153/client_android/popo_origin-release_4.20.5_8916_online.apk"  # 包体的下载链接
 
 DEVICE_COUNT = 1  # 启动设备数量（1-3）
 LAUNCH_WAIT = 25  # 启动等待时间（秒）

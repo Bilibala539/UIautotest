@@ -1,99 +1,54 @@
 """
-AW Helper - 用户调用入口
-提供统一的AW方法调用接口，用户通过 user.aw.xxx() 方式调用
+统一 AW Helper - 用户调用入口
 
-AWHelper 继承自 AWBusiness，包含所有层级的AW方法：
-- 低级AW (AWBase): tap, input, press_key 等
-- 中级AW (AWAction): click_text, click_image, input_text 等
-- 高级AW (AWBusiness): login, logout, send_message 等
+根据 platform 参数自动选择:
+  - 底层驱动 (MuMuDriver / PCDriver)
+  - 业务实现 (MuMuBusiness / PCBusiness)
 
 使用方式:
-    user.aw = AWHelper(user.device.instance_id)
-    user.aw.click_text("登录")
-    user.aw.login(uid, password)
+    aw = AWHelper(platform="mumu", instance_id=0)
+    aw.login(uid, password)      # → MuMuBusiness.login()
+    aw.click_text("消息")        # → AWBase.click_text() (共用)
+
+    aw = AWHelper(platform="pc")
+    aw.login(uid, password)      # → PCBusiness.login()
+    aw.click_text("消息")        # → AWBase.click_text() (共用)
 """
 import logging
-from utils.aw.aw_business import AWBusiness
+from typing import Optional, List, Union
+
+from utils.aw.business.mumu import MuMuBusiness
+from utils.aw.business.pc import PCBusiness
+from utils.aw.driver.base_driver import BasePlatformDriver
+from utils.aw.driver.mumu_driver import MuMuDriver
+from utils.aw.driver.pc_driver import PCDriver
 
 logger = logging.getLogger(__name__)
 
+# AWHelper 的类型: MuMuBusiness 或 PCBusiness
+AWHelper = Union[MuMuBusiness, PCBusiness]
 
-class AWHelper(AWBusiness):
+
+def create_aw(platform: str, instance_id: int = 0,
+              window_keywords: Optional[List[str]] = None) -> AWHelper:
     """
-    AW帮助类 - 用户调用入口
-    
-    继承层级:
-    AWHelper -> AWBusiness -> AWAction -> AWBase
-    
-    包含所有AW方法：
-    
-    低级AW (来自 AWBase):
-        - tap(x, y): 点击坐标
-        - long_press(x, y, duration): 长按
-        - double_tap(x, y): 双击
-        - swipe(...): 滑动
-        - swipe_up/down/left/right(): 方向滑动
-        - input(text): 输入文本（支持中文）
-        - clear_input(length): 清空输入框
-        - press_key(keycode): 按键
-        - press_back/home/enter(): 常用按键
-        - sleep(seconds): 等待
-        - screenshot(filename): 截图
-    
-    中级AW (来自 AWAction):
-        - find_text(text, timeout): 查找文本
-        - click_text(text, timeout): 点击文本
-        - long_press_text(text, duration, timeout): 长按文本
-        - double_click_text(text, timeout): 双击文本
-        - text_exists(text, timeout): 检查文本是否存在
-        - wait_text(text, timeout): 等待文本出现
-        - wait_text_disappear(text, timeout): 等待文本消失
-        - get_screen_text(): 获取屏幕文本
-        - input_text(label, value, timeout): 在标签输入框输入
-        - find_image(template, threshold, timeout): 查找图像
-        - click_image(template, threshold, timeout): 点击图像
-        - long_press_image(...): 长按图像
-        - image_exists(template, threshold, timeout): 检查图像是否存在
-        - wait_image(template, threshold, timeout): 等待图像出现
-        - assert_text_not_exists(): 断言文本不存在
-        - assert_image_not_exists(): 断言图像不存在
-    
-    高级AW (来自 AWBusiness):
-        - start_app(package, activity): 启动应用
-        - stop_app(package): 停止应用
-        - restart_app(package, activity): 重启应用
-        - clear_app_data(package): 清除应用数据
-        - login(uid, password): 登录
-        - logout(): 退出登录
-        - send_message(recipient, message): 发送消息
-        - create_team(team_name): 创建团队
-        - go_to_home/contacts/messages/settings(): 页面导航
-    
-    使用示例:
-        # 在PPUser类中
-        self.aw = AWHelper(self.device.instance_id)
-        
-        # 低级操作
-        self.aw.tap(100, 200)
-        self.aw.input("hello")
-        
-        # 中级操作
-        self.aw.click_text("登录")
-        self.aw.input_text("输入邮箱", "test@example.com")
-        
-        # 高级操作
-        self.aw.login("test@example.com", "password")
+    创建 AW 实例
+
+    根据 platform 参数自动选择对应的驱动和业务类。
+
+    Args:
+        platform: 'mumu' 或 'pc'
+        instance_id: MuMu 模拟器实例ID (仅 mumu 使用)
+        window_keywords: PC 端窗口标题关键词 (仅 pc 使用)
+
+    Returns:
+        MuMuBusiness 或 PCBusiness 实例
     """
-    
-    def __init__(self, instance_id: int):
-        """
-        初始化AW Helper
-        
-        Args:
-            instance_id: MuMu模拟器实例ID (0, 1, 2...)
-        """
-        super().__init__(instance_id)
-        logger.debug(f"AWHelper 初始化完成，实例ID: {instance_id}")
-    
-    def __repr__(self):
-        return f"AWHelper(instance_id={self.instance_id})"
+    if platform == "mumu":
+        driver = MuMuDriver(instance_id=instance_id)
+        return MuMuBusiness(driver)
+    elif platform == "pc":
+        driver = PCDriver(window_keywords=window_keywords)
+        return PCBusiness(driver)
+    else:
+        raise ValueError(f"❌ 不支持的平台: '{platform}'，可选: 'mumu', 'pc'")

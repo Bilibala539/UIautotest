@@ -5,6 +5,11 @@ pytest fixture 配置文件
 设计说明：
 - 设备(Device): Session级别，整个测试过程只启动一次
 - 用户(User): Function级别，每个测试用例独立创建，不共享状态
+
+平台选择规则 (优先级从高到低):
+1. marker 标记: @pytest.mark.mumu 或 @pytest.mark.pc
+2. 文件夹自动判断: tests/mumu/ → mumu, tests/win/ → pc
+3. 默认值: mumu
 """
 import time
 
@@ -19,6 +24,42 @@ from typing import Optional, List, Dict
 from config.user_data import UserManager
 from utils.user import PPUser, PPDevice
 from utils.devices import adb_connect, start_devices, Device
+from typing import TYPE_CHECKING
+
+
+# ==================== 平台判断工具函数 ====================
+
+def _detect_platform(item) -> str:
+    """
+    检测测试用例的目标平台
+
+    优先级:
+    1. @pytest.mark.mumu / @pytest.mark.pc  (marker 标记优先)
+    2. 文件路径中的 tests/win/ 或 tests/mumu/ (文件夹自动判断)
+    3. 默认 "mumu"
+
+    Args:
+        item: pytest item (test node)
+
+    Returns:
+        str: "mumu" 或 "pc"
+    """
+    # 1. 检查 marker
+    markers = [m.name for m in item.iter_markers()]
+    if "pc" in markers:
+        return "pc"
+    if "mumu" in markers:
+        return "mumu"
+
+    # 2. 检查文件路径
+    fspath = str(item.fspath).replace("\\", "/")
+    if "/tests/win/" in fspath or "/tests/pc/" in fspath:
+        return "pc"
+    if "/tests/mumu/" in fspath:
+        return "mumu"
+
+    # 3. 默认
+    return "mumu"
 
 # ==================== 配置日志 ====================
 # 使用项目根目录下的logs文件夹
@@ -172,13 +213,14 @@ class UsersFactory:
     - 每个测试用例创建新的工厂实例
     - 用户状态不会跨用例共享
     - 设备从全局DeviceManager获取
+    - 自动根据 platform 参数选择 MuMu / PC 平台
     """
-    
+
     # 预定义的用户配置
     USER_CONFIGS: Dict[str, dict] = {
         "userA": {
-            "uid": "grp.popoqa125@corp.netease.com",
-            "password": "popoGrp@2020",
+            "uid": "grp.popoqa67@corp.netease.com",
+            "password": "Lazermlfy1@",
             "env": "test03",
             "name": "测试用户A"
         },
@@ -226,17 +268,19 @@ class UsersFactory:
         }
     }
     
-    def __init__(self, device_manager: DeviceManager):
+    def __init__(self, device_manager: DeviceManager, platform: str = "mumu"):
         """
         初始化用户工厂
         
         Args:
             device_manager: 设备管理器实例
+            platform: 目标平台 ('mumu' 或 'pc')
         """
         self._device_manager = device_manager
+        self._platform = platform
         self._created_users: Dict[str, PPUser] = {}
         self._device_index: int = 0
-        logger.debug("👤 UsersFactory 新实例创建")
+        logger.debug(f"👤 UsersFactory 新实例创建 (platform={platform})")
     
     def __call__(self, user_key: str) -> PPUser:
         """
@@ -259,29 +303,30 @@ class UsersFactory:
         if user_key not in self.USER_CONFIGS:
             raise ValueError(f"❌ 未找到用户配置: {user_key}，可用配置: {list(self.USER_CONFIGS.keys())}")
         
-        # 确保有足够的设备
-        needed_devices = self._device_index + 1
-        self._device_manager.ensure_devices(needed_devices)
-        
-        # 获取设备
-        device = self._device_manager.get_device(self._device_index)
-        self._device_index += 1
-        
         # 获取用户配置
         config = self.USER_CONFIGS[user_key]
         
-        # 创建PPDevice对象
-        pp_device = PPDevice(device_port=device.adb_port, instance_id=device.instance_id)
-        pp_device.pos = device.pos
-        pp_device.size = device.size
-        pp_device.window_name = device.window_name
-        pp_device.is_ready = device.is_ready
+        # 根据平台决定是否需要设备
+        pp_device = None
+        if self._platform == "mumu":
+            # MuMu 端需要启动模拟器设备
+            needed_devices = self._device_index + 1
+            self._device_manager.ensure_devices(needed_devices)
+            device = self._device_manager.get_device(self._device_index)
+            self._device_index += 1
+            
+            pp_device = PPDevice(device_port=device.adb_port, instance_id=device.instance_id)
+            pp_device.pos = device.pos
+            pp_device.size = device.size
+            pp_device.window_name = device.window_name
+            pp_device.is_ready = device.is_ready
         
-        # 创建用户实例
+        # 创建用户实例（带 platform 参数）
         user = PPUser(
             uid=config["uid"],
             password=config["password"],
             device=pp_device,
+            platform=self._platform,
             env=config["env"],
             name=config.get("name", ""),
             need_login=True
@@ -290,7 +335,10 @@ class UsersFactory:
         # 缓存用户（同一用例内）
         self._created_users[user_key] = user
         
-        logger.info(f"✅ 创建用户 {user_key}: {user.uid} -> 设备 {pp_device.adb_address}")
+        if self._platform == "mumu":
+            logger.info(f"✅ 创建用户 {user_key}: {user.uid} -> 设备 {pp_device.adb_address} (MuMu)")
+        else:
+            logger.info(f"✅ 创建用户 {user_key}: {user.uid} (PC)")
         
         return user
     
@@ -309,6 +357,26 @@ class UsersFactory:
                 user.logout()
         self._created_users.clear()
         self._device_index = 0
+
+
+# ==================== 测试基类 ====================
+
+class BaseTest:
+    """
+    测试基类 - 所有测试类继承此类
+
+    提供 self.users 类型声明，使 IDE 能正确识别：
+    - self.users("userA") → PPUser
+    - self.userA.login() / self.userA.aw.click_text() 等全链路提示
+
+    使用方式:
+        class TestXXX(BaseTest):
+            def setup(self):
+                self.userA = self.users("userA")
+                self.userA.login()
+    """
+
+    users: "UsersFactory"
 
 
 # ==================== Pytest Fixtures ====================
@@ -334,17 +402,19 @@ def users(device_manager, request):
     """
     用户工厂 fixture - Function级别
     
-    每个测试用例（function）获得独立的用户工厂，
-    用户状态不会跨用例共享。
+    自动根据文件夹位置或marker标记判断平台:
+    - tests/mumu/ 下的用例 → platform="mumu"
+    - tests/win/ 下的用例 → platform="pc"
+    - @pytest.mark.mumu → platform="mumu"
+    - @pytest.mark.pc → platform="pc"
     
     使用方式:
         class TestExample:
             def setup(self):
-                self.userA = self.users("userA")  # 通过 self.users 访问
+                self.userA = self.users("userA")
                 self.userA.login()
             
             def test_example(self):
-                # 测试逻辑
                 pass
             
             def teardown(self):
@@ -353,8 +423,12 @@ def users(device_manager, request):
     Yields:
         UsersFactory: 用户工厂实例
     """
-    factory = UsersFactory(device_manager)
-    logger.info("👤 ===== 新用例开始，创建新的UsersFactory =====")
+    # 自动检测平台
+    platform = _detect_platform(request.node)
+    logger.info(f"🎯 检测到平台: {platform} (用例: {request.node.nodeid})")
+
+    factory = UsersFactory(device_manager, platform=platform)
+    logger.info(f"👤 ===== 新用例开始，创建新的UsersFactory (platform={platform}) =====")
     
     # 自动注入到测试类实例 (支持 setup/teardown 使用)
     if request.instance is not None:

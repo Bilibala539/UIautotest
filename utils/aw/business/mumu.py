@@ -207,11 +207,12 @@ class MuMuBusiness(CommonBusiness):
         pass
 
     # ==================== 搜索相关 ====================
-    def search(self, tab="全部", text=""):
+    def search(self, tab, text):
         """创建群组"""
 
         self.click_image(MESSAGE_TAB_SEARCH, region=Normal.HALF_UP)
         self.image_exists(SEARCH_EMPTY)
+        self.click_image(SELECT_SEARCH, dx=10)
         self.input_text(str(text))
 
         if tab in ["全部", "联系人", "群", "消息", "日程"]:

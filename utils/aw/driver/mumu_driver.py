@@ -120,22 +120,25 @@ class MuMuDriver(BasePlatformDriver):
 
         # 方案: 通过 ADB input text 输入纯 ASCII，
         #       通过 ADB 剪贴板 + 粘贴输入包含非ASCII的文字
-        if all(ord(c) < 128 and c not in ' \t\n\r' for c in text_str):
-            # 纯 ASCII 且无空格: adb shell input text 最可靠
-            self._adb("shell", "input", "text", text_str)
-            logger.info(f"⌨️ 输入文本(ADB input): {text_str}")
-        else:
-            # 含中文/空格等: 通过 ADB 设置剪贴板 → 粘贴
-            # 使用 am broadcast 设置剪贴板内容
-            self._adb(
-                "shell", "am", "broadcast",
-                "-a", "clipper.set",
-                "-e", "text", text_str
-            )
-            time.sleep(0.2)
-            # KEYCODE_PASTE (279) 粘贴
-            self._adb("shell", "input", "keyevent", "279")
-            logger.info(f"⌨️ 输入文本(ADB剪贴板): {text_str}")
+        # if all(ord(c) < 128 and c not in ' \t\n\r' for c in text_str):
+        #     # 纯 ASCII 且无空格: adb shell input text 最可靠
+        #     self._adb("shell", "input", "text", text_str)
+        #     logger.info(f"⌨️ 输入文本(ADB input): {text_str}")
+        # else:
+        #     # 含中文/空格等: 通过 ADB 设置剪贴板 → 粘贴
+        #     # 使用 am broadcast 设置剪贴板内容
+        #     self._adb(
+        #         "shell", "am", "broadcast",
+        #         "-a", "clipper.set",
+        #         "-e", "text", text_str
+        #     )
+        #     time.sleep(0.2)
+        #     # KEYCODE_PASTE (279) 粘贴
+        #     self._adb("shell", "input", "keyevent", "279")
+        #     logger.info(f"⌨️ 输入文本(ADB剪贴板): {text_str}")
+
+        self._adb("shell", "input", "text", text_str)
+        logger.info(f"⌨️ 输入文本(ADB input): {text_str}")
 
         return True
 

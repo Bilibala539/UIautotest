@@ -164,7 +164,7 @@ class PPUser:
         """发送消息"""
         # return self.aw.send_p2p_message(recipient, message)
 
-    def search(self, tab, text):
+    def search(self, tab="全部", text=""):
         """大搜"""
         return self.aw.search(tab, text)
 

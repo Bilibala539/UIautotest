@@ -40,6 +40,7 @@ class Normal:
     HALF_DOWN = (0, int(y/2), x, int(y/2))
     HALF_LEFT = (0, 0, int(x/2), y)
     HALF_RIGHT = (int(x/2), 0, int(x/2), y)
+    MIDDLE = (0, int(y/4), x, int(y*3/4))
 
 
 # ==================== V: 垂直分区 (左/右) ====================

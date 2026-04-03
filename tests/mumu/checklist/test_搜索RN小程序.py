@@ -1,13 +1,12 @@
-"""
-测试用例: 创建群组功能测试
-"""
+
+import time
+
 from conftest import BaseTest
 from image.image_name_mapping import *
 from utils.aw.search_region import Normal
 
 
 class TestCreateTeam(BaseTest):
-    """创建群组功能测试类"""
 
     def setup(self):
         """
@@ -31,11 +30,17 @@ class TestCreateTeam(BaseTest):
         """
         self.userA.search(text="网易KM")
         self.userA.image_exists(SEARCH_RESULT_KM, region=Normal.HALF_UP)
+        self.userA.click_image(KM_ICON, region=Normal.HALF_UP)
+        time.sleep(5)
+        self.userA.click_image(RN_CLOSE, region=Normal.HALF_UP)
+        self.userA.click_image(SEARCH_CANCEL, region=Normal.HALF_UP)
 
     def teardown(self):
         """
         测试后清理
         - 用户退登
         """
-        if hasattr(self, 'userA') and self.userA.is_logged_in:
+        try:
             self.userA.logout()
+        finally:
+            self.userA.aw.stop_app()

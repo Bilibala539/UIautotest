@@ -111,10 +111,13 @@ class MuMuBusiness(CommonBusiness):
         self.click_text("邮箱", timeout=3)
         self.sleep(0.5)
 
-        self.click_text("输入邮箱", timeout=5)
-        self.sleep(0.5)
-        self.input_text(str(uid))
-        self.click_text("邮箱", timeout=5, dx=50, dy=180)
+        try:
+            self.click_text("输入邮箱", timeout=5)
+            self.sleep(0.5)
+            self.input_text(str(uid))
+            self.click_text("邮箱", timeout=5, dx=50, dy=180)
+        except:
+            self.text_exists("grp", region=Normal.HALF_UP)
 
         if self.click_text("输入密码", timeout=5):
             self.sleep(0.3)
@@ -145,7 +148,7 @@ class MuMuBusiness(CommonBusiness):
 
         self.click_image(MESSAGE_TAB_MSG_TEXT, dx=-70)
         time.sleep(0.3)
-        self.click_image(SIDEBAR_SETTINGS)
+        self.click_text("设置", region=Normal.HALF_DOWN)
         time.sleep(0.3)
         self.click_image(SETTINGS_LOGOUT)
         time.sleep(0.3)

@@ -22,10 +22,20 @@ SETTINGS_LOGOUT_CONFIRM = os.path.join(path, "退登确认弹窗-退出登录.pn
 # 中心弹窗
 POPO_POP = os.path.join(path, "中心弹窗-悬浮窗权限弹窗.png")
 POPO_POP_CANCEL = os.path.join(path, "中心弹窗-悬浮窗权限弹窗-取消按钮.png")
+OPEN_DOOR_BLUETOOTH_POP_CANCEL = os.path.join(path, "移动开门-蓝牙弹窗-取消按钮.png")
 
 # 会话列表页
 SESSIONLIST_PLUS_BUTTON = os.path.join(path, "会话列表页右上角+按钮.png")
 SESSIONLIST_PLUS_BUTTON_CREATETEAM = os.path.join(path, "会话列表页右上角+菜单-创建群聊.png")
+ICON_FUWUHAO = os.path.join(path, "服务号标签icon.png")
+
+# 小程序
+KM_ICON = os.path.join(path, "网易KM-头像.png")
+KM_LOGO = os.path.join(path, "网易KM-logo.png")
+RN_CLOSE = os.path.join(path, "RN小程序-关闭按钮.png")
+OPEN_DOOR_ICON = os.path.join(path, "移动开门icon.png")
+OPEN_DOOR_LOGO = os.path.join(path, "移动开门-logo.png")
+OPEN_DOOR_CLOSE = os.path.join(path, "移动开门-关闭按钮.png")
 
 # 选人组件
 SELECT_TITLE_ADD_TEAM_MUNBER = os.path.join(path, "选人组件头部-添加群成员.png")
@@ -56,3 +66,6 @@ SEARCH_ALL_MSG = os.path.join(path, "搜索结果页-全部tab-消息部分.png"
 SEARCH_ALL_YKJ = os.path.join(path, "搜索结果页-全部tab-云空间部分.png")
 
 SEARCH_RESULT_KM = os.path.join(path, "网易KM搜索结果.png")
+SEARCH_RESULT_OPEN_DOOR = os.path.join(path, "移动开门搜索结果.png")
+SEARCH_RESULT_AYU = os.path.join(path, "阿鱼搜索结果.png")
+SEARCH_RESULT_GZXZZS = os.path.join(path, "广州行政助手搜索结果.png")

@@ -105,7 +105,11 @@ class AWBase:
         """
         img = self.driver.take_screenshot()
         if img is not None and save_path:
-            cv2.imwrite(save_path, img)
+            # 使用 imencode + tofile 替代 imwrite，正确支持中文路径
+            ext = os.path.splitext(save_path)[1] if os.path.splitext(save_path)[1] else '.png'
+            success, buf = cv2.imencode(ext, img)
+            if success:
+                buf.tofile(save_path)
             logger.info(f"📸 截图已保存: {save_path}")
         return img
 
@@ -128,7 +132,8 @@ class AWBase:
     def crop_element(self, source_path: str, element_name: str,
                      x1: int, y1: int, x2: int, y2: int) -> Optional[str]:
         """从截图中裁切UI元素"""
-        img = cv2.imread(source_path)
+        # 使用 imdecode + fromfile 替代 imread，正确支持中文路径
+        img = cv2.imdecode(np.fromfile(source_path, dtype=np.uint8), cv2.IMREAD_COLOR)
         if img is None:
             logger.error(f"❌ 无法读取图片: {source_path}")
             return None
@@ -143,7 +148,10 @@ class AWBase:
 
         cropped = img[y1:y2, x1:x2]
         output_path = os.path.join(self.EXPLORER_ELEMENTS_DIR, f"{element_name}.png")
-        cv2.imwrite(output_path, cropped)
+        # 使用 imencode + tofile 替代 imwrite，正确支持中文路径
+        success, buf = cv2.imencode('.png', cropped)
+        if success:
+            buf.tofile(output_path)
         logger.info(f"✂️ 元素已截取: {output_path}")
         return output_path
 
@@ -260,16 +268,22 @@ class AWBase:
                         center_x = int((box[0][0] + box[2][0]) / 2) + dx
                         center_y = int((box[0][1] + box[2][1]) / 2) + dy
                         logger.info(f"🔍 找到文字 '{text}' @ ({center_x}, {center_y})")
-                        return (center_x, center_y)
+                        return center_x, center_y
+
             self.sleep(0.5)
+            break
 
         logger.warning(f"⚠️ 未找到文字 '{text}'")
         return None
 
     def text_exists(self, text: str, timeout: int = 5,
-                    region=Normal.ALL) -> bool:
+                    region=Normal.ALL):
         """检查文字是否存在"""
-        return self.find_text_by_ocr(text, timeout=timeout, region=region) is not None
+        pos = self.find_text_by_ocr(text, timeout=timeout, region=region)
+        if pos is not None:
+            return pos
+        else:
+            assert False
 
     # ==================== 图像模板匹配 ====================
 
@@ -347,9 +361,9 @@ class AWBase:
 
     def click_text(self, text: str, timeout: int = 10,
                    dx: int = 0, dy: int = 0,
-                   region=Normal.ALL) -> bool:
+                   region=Normal.ALL):
         """OCR 找到文字后点击"""
-        pos = self.find_text_by_ocr(text, timeout=timeout, region=region)
+        pos = self.text_exists(text, timeout=timeout, region=region)
         if pos:
             return self.tap(pos[0], pos[1], dx, dy)
         return False

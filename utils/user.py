@@ -170,9 +170,9 @@ class PPUser:
 
     # ==================== 断言方法 ====================
     def click_image(self, image_name: str, threshold: float = 0.8,
-                    timeout: int = 10, dx: int = 0, dy: int = 0) -> bool:
+                    timeout: int = 10, dx: int = 0, dy: int = 0, region=Normal.ALL) -> bool:
         """点击图片"""
-        return self.aw.click_image(image_name, threshold, timeout, dx, dy)
+        return self.aw.click_image(image_name, threshold, timeout, dx, dy, region)
 
     def image_exists(self, template_name: str, threshold: float = 0.8,
                      timeout: int = 5,
@@ -181,9 +181,9 @@ class PPUser:
         return self.aw.image_exists(template_name, threshold, timeout, region)
 
     def click_text(self, text: str, timeout: int = 10,
-                   dx: int = 0, dy: int = 0) -> bool:
+                   dx: int = 0, dy: int = 0, region=Normal.ALL) -> bool:
         """点击文字"""
-        return self.aw.click_text(text, timeout, dx, dy)
+        return self.aw.click_text(text, timeout, dx, dy, region=region)
 
     def text_exists(self, text: str, timeout: int = 5,
                     region=Normal.ALL):

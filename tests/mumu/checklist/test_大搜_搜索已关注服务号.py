@@ -17,7 +17,7 @@ class TestCreateTeam(BaseTest):
 
     def test_create_team(self):
 
-        self.userA.search(text="广州行政助手")
+        self.userA.search(text="广州行政助手", isclose=False)
         self.userA.image_exists(SEARCH_RESULT_GZXZZS)
         self.userA.click_image(SEARCH_CANCEL, region=Normal.HALF_UP)
 

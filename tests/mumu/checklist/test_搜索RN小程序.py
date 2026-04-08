@@ -28,7 +28,7 @@ class TestCreateTeam(BaseTest):
         4. 确认创建
         5. 验证群聊创建成功（页面出现"发起群聊"、"并邀请"、"加入群聊"文案）
         """
-        self.userA.search(text="网易KM")
+        self.userA.search(text="网易KM", isclose=False)
         self.userA.image_exists(SEARCH_RESULT_KM, region=Normal.HALF_UP)
         self.userA.click_image(KM_ICON, region=Normal.HALF_UP)
         time.sleep(5)

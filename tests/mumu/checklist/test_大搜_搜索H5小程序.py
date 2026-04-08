@@ -20,11 +20,10 @@ class TestCreateTeam(BaseTest):
         self.userA = self.users("userA")
         self.userA.login()
 
-    def test_create_team(self):
+    def test_search_H5(self):
 
-        self.userA.search(text="移动开门")
-        self.userA.image_exists(SEARCH_RESULT_OPEN_DOOR, region=Normal.HALF_UP)
-        self.userA.click_image(OPEN_DOOR_ICON, region=Normal.HALF_UP)
+        self.userA.search(text="移动开门", isclose=False)
+        self.userA.click_image(SEARCH_RESULT_OPEN_DOOR, region=Normal.HALF_UP)
         time.sleep(5)
         self.userA.click_text("取消", region=Normal.MIDDLE)
         self.userA.image_exists(OPEN_DOOR_LOGO, region=Normal.HALF_UP)

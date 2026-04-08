@@ -8,6 +8,7 @@
 import logging
 from typing import Optional
 
+from image.image_name_mapping import *
 from utils.aw import create_aw, AWHelper
 from utils.aw.search_region import Normal
 
@@ -151,6 +152,21 @@ class PPUser:
         return self._logged_in
 
     # ==================== 便捷业务方法 ====================
+    def sent_msg(self, type="", to_user="grp.popoqa", msg="自动化发"):
+        if type is "p2p":
+            self.search_people(text=to_user)
+            self.click_image(SEARCH_GRPPOPOQA_BLUE)
+            self.image_exists(MSG_P2P_UNDER_BOTTON)
+            self.image_exists(MSG_P2P_CELL_BOTTON)
+
+            self.click_text()
+        elif type is "group":
+            pass
+        elif type is "fuwuhao":
+            pass
+        elif type is "robot":
+
+            pass
 
     def create_team(self) -> bool:
         """创建群组"""
@@ -164,9 +180,67 @@ class PPUser:
         """发送消息"""
         # return self.aw.send_p2p_message(recipient, message)
 
-    def search(self, tab="全部", text=""):
+    def search(self, tab="全部", text="", isclose=True):
         """大搜"""
-        return self.aw.search(tab, text)
+        return self.aw.search(tab=tab, text=text, isclose=isclose)
+
+    def search_all(self, tab="全部", text=""):
+        """搜全部"""
+        self.aw.search(tab, text)
+
+    def search_people(self, tab="联系人", text="贾勇"):
+        """搜人"""
+        self.aw.search(tab, text, isclose=False)
+        if self.image_exists(SEARCH_EMPTY):
+            assert False, f"没找到 {text}"
+        # 具体例子-搜索 贾勇
+        if text in ["贾勇", "jiayong", "jy", "jabin"]:
+            if text is "jabin":
+                self.aw.image_exists(SEARCH_JABIN_BLUE)
+            self.aw.image_exists(SEARCH_JIAYONG_BLUE)
+            self.aw.image_exists(SEARCH_JIAYONG_HEAD)
+            self.text_exists("效率工程部", region=Normal.HALF_UP)
+            self.text_exists("总监办公室", region=Normal.HALF_UP)
+            self.text_exists("已加载全部", region=Normal.HALF_UP)
+            self.click_image(SEARCH_CANCEL, region=Normal.HALF_UP)
+
+    def search_group(self, tab="群", text="测试测试"):
+        """搜群"""
+        self.aw.search(tab, text, isclose=False)
+        # 具体例子-搜索 测试
+        if text is "测试测试":
+            self.aw.image_exists(SEARCH_CESHI_BLUE)
+            self.aw.image_exists(SEARCH_TAB3_BOTTON)
+        self.click_image(SEARCH_CANCEL, region=Normal.HALF_UP)
+
+    def search_msg(self, tab="消息", text=""):
+        """搜消息"""
+        self.aw.search(tab, text, isclose=False)
+        # 具体例子-搜索 测试
+        if text is "123":
+            self.aw.image_exists(SEARCH_123_BLUE)
+            self.aw.image_exists(SEARCH_TAB4_BOTTON)
+        self.click_image(SEARCH_CANCEL, region=Normal.HALF_UP)
+
+    def search_fuwuhao(self, tab="消息", text=""):
+        """搜服务号"""
+        self.aw.search(tab, text)
+
+    def search_xiaochengxu(self, tab="日程", text=""):
+        """搜小程序"""
+        self.aw.search(tab, text)
+
+    def search_cloude(self, tab="云空间", text=""):
+        """搜云空间"""
+        self.aw.search(tab, text)
+
+    def search_mession(self, tab="任务", text=""):
+        """搜任务"""
+        self.aw.search(tab, text)
+
+    def search_app(self, tab="应用", text=""):
+        """搜应用"""
+        self.aw.search(tab, text)
 
     # ==================== 断言方法 ====================
     def click_image(self, image_name: str, threshold: float = 0.8,

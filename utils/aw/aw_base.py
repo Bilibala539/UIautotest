@@ -401,9 +401,9 @@ class AWBase:
         """向下滑动"""
         return self.swipe(270, 300, 270, 300 + distance)
 
-    def swipe_left(self, distance: int = 300) -> bool:
+    def swipe_left(self, start_coords, distance: int = 300) -> bool:
         """向左滑动"""
-        return self.swipe(400, 500, 400 - distance, 500)
+        return self.swipe(start_coords[0], start_coords[1], (start_coords[0] - distance), start_coords[1])
 
     def swipe_right(self, distance: int = 300) -> bool:
         """向右滑动"""

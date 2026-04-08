@@ -210,30 +210,25 @@ class MuMuBusiness(CommonBusiness):
         pass
 
     # ==================== 搜索相关 ====================
-    def search(self, tab, text):
+    def search(self, tab, text, isclose=True):
         """创建群组"""
 
         self.click_image(MESSAGE_TAB_SEARCH, region=Normal.HALF_UP)
         self.image_exists(SEARCH_EMPTY)
+
+        # tab左滑翻页
+        if tab in ["云空间", "任务", "应用"]:
+            self.swipe_left(self.text_exists("日程"), 230)
+        img_name = f"搜索页面-{tab}tab.png"
+        img_name_miss = f"搜索页面-{tab}tab-未选中.png"
+        if tab == "全部":
+            pass
+        else:
+            logger.info(f"tab是：{tab}")
+            self.click_image(os.path.join(path, img_name_miss))
+        self.image_exists(img_name, region=Normal.HALF_UP)
         self.click_image(SELECT_SEARCH, dx=10)
         self.input_text(str(text))
-
-        if tab in ["全部", "联系人", "群", "消息", "日程"]:
-            self.click_text(tab)
-            time.sleep(0.3)
-            if tab is "全部":
-                self.image_exists(SEARCH_TAB1, region=Normal.HALF_UP)
-            elif tab is "联系人":
-                self.image_exists(SEARCH_TAB2, region=Normal.HALF_UP)
-            elif tab is "群":
-                self.image_exists(SEARCH_TAB3, region=Normal.HALF_UP)
-            elif tab is "消息":
-                self.image_exists(SEARCH_TAB4, region=Normal.HALF_UP)
-            elif tab is "日程":
-                self.image_exists(SEARCH_TAB5, region=Normal.HALF_UP)
-
-
-
-        else:
-            # 云空间、任务、应用
-            pass
+        if isclose:
+            # 点击取消按钮，退出搜索页面
+            self.click_image(SEARCH_CANCEL, region=Normal.HALF_UP)

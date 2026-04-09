@@ -484,6 +484,85 @@ class AWBase:
         """向下滚动（鼠标滚轮）"""
         return self.scroll_up(-clicks)
 
+    # ==================== 开关状态检测 ====================
+
+    def is_switch_on(self, text: str, timeout: int = 5,
+                     region=Normal.ALL) -> bool:
+        """
+        检测指定文字旁边的开关是否为开启状态（蓝色）
+
+        通过OCR找到开关标题文字的y坐标，然后扫描右侧区域是否存在蓝色像素
+        （POPO蓝色开关 RGB≈(47,143,255), BGR≈(255,143,47)）。
+
+        Args:
+            text: 开关标题文字
+            timeout: OCR查找超时时间
+            region: 搜索区域
+
+        Returns:
+            bool: True=开启(蓝色), False=关闭(白色/灰色)
+        """
+        pos = self.find_text_by_ocr(text, timeout=timeout, region=region)
+        if pos is None:
+            logger.warning(f"⚠️ 未找到开关文字 '{text}'，无法判断状态")
+            return False
+
+        img = self.take_screenshot()
+        if img is None:
+            return False
+
+        h, w = img.shape[:2]
+        base_y = pos[1]
+
+        # 扫描开关区域: 文字右侧 x=420~490, y=base_y-20~base_y+20
+        for y in range(max(0, base_y - 20), min(h, base_y + 20)):
+            for x in range(420, min(490, w)):
+                b, g, r = img[y, x]
+                # 蓝色开关: B>220, G>100, R<100
+                if b > 220 and g > 100 and r < 100:
+                    logger.info(f"🔵 开关 '{text}' 状态: 开启")
+                    return True
+
+        logger.info(f"⚪ 开关 '{text}' 状态: 关闭")
+        return False
+
+    def toggle_switch(self, text: str, target_state: bool,
+                      timeout: int = 5, region=Normal.ALL) -> bool:
+        """
+        设置开关到指定状态
+
+        检查当前开关状态，如果与目标状态不一致则点击切换。
+
+        Args:
+            text: 开关标题文字
+            target_state: 目标状态 True=开启, False=关闭
+            timeout: OCR查找超时时间
+            region: 搜索区域
+
+        Returns:
+            bool: 操作是否成功
+        """
+        current_state = self.is_switch_on(text, timeout=timeout, region=region)
+
+        if current_state == target_state:
+            state_name = "开启" if target_state else "关闭"
+            logger.info(f"✅ 开关 '{text}' 已经是{state_name}状态，无需操作")
+            return True
+
+        # 点击开关文字来切换
+        self.click_text(text, timeout=timeout, region=region)
+        self.sleep(0.5)
+
+        # 验证状态已切换
+        new_state = self.is_switch_on(text, timeout=3, region=region)
+        if new_state == target_state:
+            state_name = "开启" if target_state else "关闭"
+            logger.info(f"✅ 开关 '{text}' 已切换为{state_name}")
+            return True
+        else:
+            logger.error(f"❌ 开关 '{text}' 切换失败")
+            return False
+
     # ==================== 工具方法 ====================
 
     @staticmethod

@@ -111,32 +111,27 @@ SIDEBAR_SERVICE_DESK = os.path.join(path, "侧边栏-服务台.png")
 # 个人资料页
 PROFILE_PAGE_NAME = os.path.join(path, "个人资料页-用户名.png")
 
-# ==================== 群设置页（草稿 - 待验证） ====================
-GROUP_SETTINGS_BACK_ARROW = os.path.join(test_path, "群设置页-返回箭头.png")
-GROUP_SETTINGS_AVATAR = os.path.join(test_path, "群设置页-群头像.png")
-GROUP_SETTINGS_NAME_AREA = os.path.join(test_path, "群设置页-群名称区域.png")
-GROUP_SETTINGS_MEMBER_TITLE = os.path.join(test_path, "群设置页-群成员标题行.png")
-GROUP_SETTINGS_ADD_MEMBER = os.path.join(test_path, "群设置页-添加成员图标.png")
-GROUP_SETTINGS_REMOVE_MEMBER = os.path.join(test_path, "群设置页-移除成员图标.png")
-GROUP_SETTINGS_SEARCH_CHAT = os.path.join(test_path, "群设置页-搜索聊天内容行.png")
-GROUP_SETTINGS_CONTENT_FILTER = os.path.join(test_path, "群设置页-内容筛选标签栏.png")
-GROUP_SETTINGS_ANNOUNCEMENT = os.path.join(test_path, "群设置页-群公告行.png")
-GROUP_SETTINGS_TAG_PAGE = os.path.join(test_path, "群设置页-标签页行.png")
-GROUP_SETTINGS_MANAGEMENT = os.path.join(test_path, "群设置页-群管理行.png")
-
-# ==================== 通讯录页（草稿 - 待验证） ====================
-CONTACTS_TITLE_TEXT = os.path.join(test_path, "通讯录页-左上角通讯录文案.png")
-CONTACTS_SEARCH_BUTTON = os.path.join(test_path, "通讯录页-搜索按钮.png")
-CONTACTS_ADD_BUTTON = os.path.join(test_path, "通讯录页-添加按钮.png")
-CONTACTS_GROUP_ENTRY = os.path.join(test_path, "通讯录页-联系人分组入口.png")
-CONTACTS_TEAM_ENTRY = os.path.join(test_path, "通讯录页-群组入口.png")
-CONTACTS_SERVICE_ENTRY = os.path.join(test_path, "通讯录页-服务号入口.png")
-CONTACTS_ALPHABET_BAR = os.path.join(test_path, "通讯录页-字母索引栏.png")
+# ==================== 通讯录页 ====================
+CONTACTS_TITLE_TEXT = os.path.join(path, "通讯录页-左上角通讯录文案.png")
+CONTACTS_SEARCH_BUTTON = os.path.join(path, "通讯录页-搜索按钮.png")
+CONTACTS_ADD_BUTTON = os.path.join(path, "通讯录页-添加按钮.png")
+CONTACTS_GROUP_ENTRY = os.path.join(path, "通讯录页-联系人分组入口.png")
+CONTACTS_TEAM_ENTRY = os.path.join(path, "通讯录页-群组入口.png")
+CONTACTS_SERVICE_ENTRY = os.path.join(path, "通讯录页-服务号入口.png")
+CONTACTS_ALPHABET_BAR = os.path.join(path, "通讯录页-字母索引栏.png")
 
 # 通讯录页 - 底部导航栏
-CONTACTS_NAV_MESSAGE_TAB = os.path.join(test_path, "通讯录页-底部导航栏消息tab.png")
-CONTACTS_NAV_CALENDAR_TAB = os.path.join(test_path, "通讯录页-底部导航栏日历tab.png")
-CONTACTS_NAV_CLOUD_TAB = os.path.join(test_path, "通讯录页-底部导航栏云空间tab.png")
-CONTACTS_NAV_WORKSPACE_TAB = os.path.join(test_path, "通讯录页-底部导航栏工作台tab.png")
-CONTACTS_NAV_ELIFE_TAB = os.path.join(test_path, "通讯录页-底部导航栏易生活tab.png")
-CONTACTS_NAV_MORE_TAB = os.path.join(test_path, "通讯录页-底部导航栏更多tab.png")
+CONTACTS_NAV_MESSAGE_TAB = os.path.join(path, "通讯录页-底部导航栏消息tab.png")
+CONTACTS_NAV_CALENDAR_TAB = os.path.join(path, "通讯录页-底部导航栏日历tab.png")
+CONTACTS_NAV_CLOUD_TAB = os.path.join(path, "通讯录页-底部导航栏云空间tab.png")
+CONTACTS_NAV_WORKSPACE_TAB = os.path.join(path, "通讯录页-底部导航栏工作台tab.png")
+CONTACTS_NAV_ELIFE_TAB = os.path.join(path, "通讯录页-底部导航栏易生活tab.png")
+CONTACTS_NAV_MORE_TAB = os.path.join(path, "通讯录页-底部导航栏更多tab.png")
+
+# ==================== 设置页 - 消息入口 ====================
+SETTINGS_MESSAGE_ENTRY = os.path.join(test_path, "设置页-消息入口.png")
+
+# ==================== 消息设置页 ====================
+MSG_SETTINGS_TITLE = os.path.join(test_path, "消息设置页-页面标题消息.png")
+MSG_SETTINGS_SWITCH_ON = os.path.join(test_path, "消息设置页-开关-开启状态.png")
+MSG_SETTINGS_SWITCH_OFF = os.path.join(test_path, "消息设置页-开关-关闭状态.png")

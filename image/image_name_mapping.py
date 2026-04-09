@@ -1,6 +1,8 @@
 import os
 
 path = r"E:\UIAutotest\image"
+test_path = r"E:\UIAutotest\image_ai"
+
 
 LOGIN_POPO_TEXT = os.path.join(path, "登录页-网易popo文案.png")
 HOME_POPO_LOGO = os.path.join(path, "桌面-logo.png")
@@ -32,6 +34,11 @@ ICON_FUWUHAO = os.path.join(path, "服务号标签icon.png")
 # 会话窗口页
 MSG_P2P_UNDER_BOTTON = os.path.join(path, "p2p底部快捷按钮.png")
 MSG_P2P_CELL_BOTTON = os.path.join(path, "p2p-右上角音视频icon.png")
+MSG_RECELL_POP = os.path.join(path, "撤回消息确认弹窗.png")
+
+# ==================== 聊天页 ====================
+CHAT_SEND_BUTTON = os.path.join(path, "聊天页-发送按钮.png")
+CHAT_PLUS_BUTTON = os.path.join(path, "聊天页-更多加号按钮.png")
 
 
 # 小程序
@@ -86,9 +93,50 @@ SEARCH_RESULT_KM = os.path.join(path, "网易KM搜索结果.png")
 SEARCH_RESULT_OPEN_DOOR = os.path.join(path, "移动开门搜索结果.png")
 SEARCH_RESULT_AYU = os.path.join(path, "阿鱼搜索结果.png")
 SEARCH_RESULT_GZXZZS = os.path.join(path, "广州行政助手搜索结果.png")
-SEARCH_JIAYONG_BLUE = os.path.join(path, "贾勇-蓝色高亮.png")
-SEARCH_JABIN_BLUE = os.path.join(path, "jabin-蓝色高亮.png")
-SEARCH_JIAYONG_HEAD = os.path.join(path, "贾勇头像彩色.png")
+
+SEARCH_WANGYING_BLUE = os.path.join(path, "王英-蓝色高亮.png")
+SEARCH_WANGYING43_BLUE = os.path.join(path, "wangying43-蓝色高亮.png")
+SEARCH_WANGYING_HEAD = os.path.join(path, "王英头像彩色.png")
+
 SEARCH_CESHI_BLUE = os.path.join(path, "测试-蓝色高亮.png")
 SEARCH_123_BLUE = os.path.join(path, "123-蓝色高亮.png")
 SEARCH_GRPPOPOQA_BLUE = os.path.join(path, "grp.popoqa蓝色高亮.png")
+
+# 侧边栏
+SIDEBAR_MY_COLLECTION = os.path.join(path, "侧边栏-我的收藏.png")
+SIDEBAR_DEVICE_MANAGEMENT = os.path.join(path, "侧边栏-登录设备管理.png")
+SIDEBAR_SETTINGS_BUTTON = os.path.join(path, "侧边栏-设置按钮.png")
+SIDEBAR_SERVICE_DESK = os.path.join(path, "侧边栏-服务台.png")
+
+# 个人资料页
+PROFILE_PAGE_NAME = os.path.join(path, "个人资料页-用户名.png")
+
+# ==================== 群设置页（草稿 - 待验证） ====================
+GROUP_SETTINGS_BACK_ARROW = os.path.join(test_path, "群设置页-返回箭头.png")
+GROUP_SETTINGS_AVATAR = os.path.join(test_path, "群设置页-群头像.png")
+GROUP_SETTINGS_NAME_AREA = os.path.join(test_path, "群设置页-群名称区域.png")
+GROUP_SETTINGS_MEMBER_TITLE = os.path.join(test_path, "群设置页-群成员标题行.png")
+GROUP_SETTINGS_ADD_MEMBER = os.path.join(test_path, "群设置页-添加成员图标.png")
+GROUP_SETTINGS_REMOVE_MEMBER = os.path.join(test_path, "群设置页-移除成员图标.png")
+GROUP_SETTINGS_SEARCH_CHAT = os.path.join(test_path, "群设置页-搜索聊天内容行.png")
+GROUP_SETTINGS_CONTENT_FILTER = os.path.join(test_path, "群设置页-内容筛选标签栏.png")
+GROUP_SETTINGS_ANNOUNCEMENT = os.path.join(test_path, "群设置页-群公告行.png")
+GROUP_SETTINGS_TAG_PAGE = os.path.join(test_path, "群设置页-标签页行.png")
+GROUP_SETTINGS_MANAGEMENT = os.path.join(test_path, "群设置页-群管理行.png")
+
+# ==================== 通讯录页（草稿 - 待验证） ====================
+CONTACTS_TITLE_TEXT = os.path.join(test_path, "通讯录页-左上角通讯录文案.png")
+CONTACTS_SEARCH_BUTTON = os.path.join(test_path, "通讯录页-搜索按钮.png")
+CONTACTS_ADD_BUTTON = os.path.join(test_path, "通讯录页-添加按钮.png")
+CONTACTS_GROUP_ENTRY = os.path.join(test_path, "通讯录页-联系人分组入口.png")
+CONTACTS_TEAM_ENTRY = os.path.join(test_path, "通讯录页-群组入口.png")
+CONTACTS_SERVICE_ENTRY = os.path.join(test_path, "通讯录页-服务号入口.png")
+CONTACTS_ALPHABET_BAR = os.path.join(test_path, "通讯录页-字母索引栏.png")
+
+# 通讯录页 - 底部导航栏
+CONTACTS_NAV_MESSAGE_TAB = os.path.join(test_path, "通讯录页-底部导航栏消息tab.png")
+CONTACTS_NAV_CALENDAR_TAB = os.path.join(test_path, "通讯录页-底部导航栏日历tab.png")
+CONTACTS_NAV_CLOUD_TAB = os.path.join(test_path, "通讯录页-底部导航栏云空间tab.png")
+CONTACTS_NAV_WORKSPACE_TAB = os.path.join(test_path, "通讯录页-底部导航栏工作台tab.png")
+CONTACTS_NAV_ELIFE_TAB = os.path.join(test_path, "通讯录页-底部导航栏易生活tab.png")
+CONTACTS_NAV_MORE_TAB = os.path.join(test_path, "通讯录页-底部导航栏更多tab.png")

@@ -10,7 +10,7 @@ from typing import Optional
 
 from image.image_name_mapping import *
 from utils.aw import create_aw, AWHelper
-from utils.aw.search_region import Normal
+from utils.aw.search_region import *
 
 logger = logging.getLogger(__name__)
 
@@ -152,21 +152,6 @@ class PPUser:
         return self._logged_in
 
     # ==================== 便捷业务方法 ====================
-    def sent_msg(self, type="", to_user="grp.popoqa", msg="自动化发"):
-        if type is "p2p":
-            self.search_people(text=to_user)
-            self.click_image(SEARCH_GRPPOPOQA_BLUE)
-            self.image_exists(MSG_P2P_UNDER_BOTTON)
-            self.image_exists(MSG_P2P_CELL_BOTTON)
-
-            self.click_text()
-        elif type is "group":
-            pass
-        elif type is "fuwuhao":
-            pass
-        elif type is "robot":
-
-            pass
 
     def create_team(self) -> bool:
         """创建群组"""
@@ -176,9 +161,61 @@ class PPUser:
         """解散群组"""
         return self.aw.delete_team()
 
-    def send_message(self, recipient: str, message: str) -> bool:
-        """发送消息"""
-        # return self.aw.send_p2p_message(recipient, message)
+    def send_message(self, recipient: str, message, isback=True):
+        """
+        发送P2P消息
+
+        通过搜索联系人进入聊天页面，输入消息并发送。
+
+        Args:
+            recipient: 收件人账号关键词（如 'grp.popoqa50'）
+            message: 要发送的消息内容，默认 '自动化测试消息'
+
+        """
+
+        return self.aw.send_message(recipient=recipient, message=message, isback=isback)
+
+    def recall_message(self, message_text: str):
+        """
+        撤回消息
+
+        在当前聊天页面，长按指定消息体并撤回。
+        前置条件: 当前在聊天页面，消息为自己发送且在24小时内。
+
+        Args:
+            message_text: 要撤回的消息文字内容
+
+        Returns:
+            bool: 撤回是否成功
+        """
+        if message_text:
+            pass
+        else:
+            message_text = self.aw.random_digits()
+        return self.aw.recall_message(message_text)
+
+    def open_sidebar(self):
+        """打开侧边栏"""
+        return self.aw.open_sidebar()
+
+    def view_my_profile(self) -> dict:
+        """
+        查看我的个人资料，返回OCR采集到的个人信息字典
+
+        Returns:
+            dict: 包含 nickname_cn, nickname_en, nickname_jp,
+                  signature, account, phone, position,
+                  organization, office_location 等字段
+        """
+        return self.aw.view_my_profile()
+
+    def open_my_collection(self):
+        """打开我的收藏"""
+        return self.aw.open_my_collection()
+
+    def open_settings(self):
+        """打开设置页面"""
+        return self.aw.open_settings()
 
     def search(self, tab="全部", text="", isclose=True):
         """大搜"""
@@ -188,30 +225,33 @@ class PPUser:
         """搜全部"""
         self.aw.search(tab, text)
 
-    def search_people(self, tab="联系人", text="贾勇"):
+    def search_people(self, text="王英", isgoin=False):
         """搜人"""
-        self.aw.search(tab, text, isclose=False)
+        self.aw.search(tab="联系人", text=text, isclose=False)
         if self.image_exists(SEARCH_EMPTY):
             assert False, f"没找到 {text}"
         # 具体例子-搜索 贾勇
-        if text in ["贾勇", "jiayong", "jy", "jabin"]:
-            if text is "jabin":
-                self.aw.image_exists(SEARCH_JABIN_BLUE)
+        if text in ["王英", "wangying43", "wy"]:
             self.aw.image_exists(SEARCH_JIAYONG_BLUE)
             self.aw.image_exists(SEARCH_JIAYONG_HEAD)
             self.text_exists("效率工程部", region=Normal.HALF_UP)
-            self.text_exists("总监办公室", region=Normal.HALF_UP)
-            self.text_exists("已加载全部", region=Normal.HALF_UP)
+            self.text_exists("技术质量中心", region=Normal.HALF_UP)
             self.click_image(SEARCH_CANCEL, region=Normal.HALF_UP)
+        if isgoin:
+            self.click_text(text, region=Search.RESULT_LIST)
+            self.image_exists(MSG_P2P_UNDER_BOTTON)
 
-    def search_group(self, tab="群", text="测试测试"):
+    def search_group(self, text="测试测试", isgoin=False):
         """搜群"""
-        self.aw.search(tab, text, isclose=False)
+        self.aw.search(tab="群", text=text, isclose=False)
         # 具体例子-搜索 测试
         if text is "测试测试":
             self.aw.image_exists(SEARCH_CESHI_BLUE)
             self.aw.image_exists(SEARCH_TAB3_BOTTON)
         self.click_image(SEARCH_CANCEL, region=Normal.HALF_UP)
+        if isgoin:
+            self.click_text(text, region=Search.RESULT_LIST)
+            self.image_exists(CHAT_PLUS_BUTTON, region=Normal.HALF_DOWN)
 
     def search_msg(self, tab="消息", text=""):
         """搜消息"""

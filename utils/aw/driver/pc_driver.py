@@ -163,6 +163,15 @@ class PCDriver(BasePlatformDriver):
         pyautogui.click(screen_x, screen_y)
         return True
 
+    def long_press(self, screen_x: int, screen_y: int, duration: float = 1.0) -> bool:
+        """长按屏幕坐标"""
+        pyautogui.moveTo(screen_x, screen_y)
+        pyautogui.mouseDown()
+        time.sleep(duration)
+        pyautogui.mouseUp()
+        logger.info(f"👆 长按 ({screen_x}, {screen_y}), 时长={duration}s")
+        return True
+
     # ==================== 输入 ====================
 
     def input_text(self, text: str) -> bool:

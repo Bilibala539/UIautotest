@@ -14,7 +14,7 @@ class TestCreateTeam(BaseTest):
         self.userA = self.users("userA")
         self.userA.login()
 
-    def test_search_people_jiayong(self):
+    def test_search_people_wangying(self):
         self.userA.search_people()
 
     def teardown(self):

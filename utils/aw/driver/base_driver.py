@@ -104,6 +104,20 @@ class BasePlatformDriver(ABC):
         """
         ...
 
+    @abstractmethod
+    def long_press(self, screen_x: int, screen_y: int, duration: float = 1.0) -> bool:
+        """
+        长按屏幕绝对坐标
+
+        Args:
+            screen_x, screen_y: 屏幕绝对坐标
+            duration: 长按持续时间（秒），默认1.0秒
+
+        Returns:
+            bool: 是否成功
+        """
+        ...
+
     # ==================== 输入 ====================
 
     @abstractmethod

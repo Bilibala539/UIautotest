@@ -145,7 +145,7 @@ def check_app_installed(port: int, package_name: str) -> bool:
         )
         return f"package:{package_name}" in result.stdout
     except Exception as e:
-        print(f"   ⚠️ 检查应用安装状态失败: {e}")
+        print(f"   [WARN] 检查应用安装状态失败: {e}")
         return False
 
 
@@ -163,24 +163,24 @@ def uninstall_app(port: int, package_name: str, timeout: int = 30) -> bool:
     """
     device_serial = f"127.0.0.1:{port}"
     try:
-        print(f"   🗑️ 正在卸载 {package_name}...")
+        print(f"   [DEL] 正在卸载 {package_name}...")
         result = subprocess.run(
             [get_adb(), "-s", device_serial, "uninstall", package_name],
             capture_output=True, text=True, timeout=timeout
         )
 
         if "Success" in result.stdout:
-            print(f"   ✓ 卸载成功")
+            print(f"   [OK] 卸载成功")
             return True
         else:
             error_msg = result.stdout.strip() or result.stderr.strip()
-            print(f"   ✗ 卸载失败: {error_msg}")
+            print(f"   [FAIL] 卸载失败: {error_msg}")
             return False
     except subprocess.TimeoutExpired:
-        print(f"   ✗ 卸载超时")
+        print(f"   [FAIL] 卸载超时")
         return False
     except Exception as e:
-        print(f"   ✗ 卸载异常: {e}")
+        print(f"   [FAIL] 卸载异常: {e}")
         return False
 
 
@@ -203,20 +203,20 @@ def download_apk(url: str, save_path: Optional[str] = None) -> Optional[str]:
                 filename = "downloaded_app.apk"
             save_path = os.path.join(tempfile.gettempdir(), filename)
 
-        print(f"📥 正在下载APK: {url}")
+        print(f"[DOWNLOAD] 正在下载APK: {url}")
         print(f"   保存到: {save_path}")
 
         urllib.request.urlretrieve(url, save_path)
 
         if os.path.exists(save_path):
             file_size = os.path.getsize(save_path) / (1024 * 1024)  # MB
-            print(f"   ✓ 下载完成 ({file_size:.2f} MB)")
+            print(f"   [OK] 下载完成 ({file_size:.2f} MB)")
             return save_path
         else:
-            print("   ✗ 下载失败：文件不存在")
+            print("   [FAIL] 下载失败：文件不存在")
             return None
     except Exception as e:
-        print(f"   ✗ 下载失败: {e}")
+        print(f"   [FAIL] 下载失败: {e}")
         return None
 
 
@@ -233,29 +233,29 @@ def install_apk_to_device(apk_path: str, port: int, timeout: int = 120) -> bool:
         bool: 安装是否成功
     """
     if not os.path.exists(apk_path):
-        print(f"   ✗ APK文件不存在: {apk_path}")
+        print(f"   [FAIL] APK文件不存在: {apk_path}")
         return False
 
     device_serial = f"127.0.0.1:{port}"
     try:
-        print(f"   📦 正在安装到 {device_serial}...")
+        print(f"   [INSTALL] 正在安装到 {device_serial}...")
         result = subprocess.run(
             [get_adb(), "-s", device_serial, "install", "-r", "-d", apk_path],
             capture_output=True, text=True, timeout=timeout
         )
 
         if "Success" in result.stdout:
-            print(f"   ✓ 安装成功")
+            print(f"   [OK] 安装成功")
             return True
         else:
             error_msg = result.stdout.strip() or result.stderr.strip()
-            print(f"   ✗ 安装失败: {error_msg}")
+            print(f"   [FAIL] 安装失败: {error_msg}")
             return False
     except subprocess.TimeoutExpired:
-        print(f"   ✗ 安装超时")
+        print(f"   [FAIL] 安装超时")
         return False
     except Exception as e:
-        print(f"   ✗ 安装异常: {e}")
+        print(f"   [FAIL] 安装异常: {e}")
         return False
 
 
@@ -274,39 +274,39 @@ def install_apk_to_all_devices(devices: List['Device'], apk_path: Optional[str] 
     ready_devices = [d for d in devices if d.is_ready]
 
     if not ready_devices:
-        print("⚠️ 没有就绪的设备可以安装APK")
+        print("[WARN] 没有就绪的设备可以安装APK")
         return 0
 
-    print(f"\n📱 开始在 {len(ready_devices)} 台设备上安装APK...")
+    print(f"\n[INFO] 开始在 {len(ready_devices)} 台设备上安装APK...")
 
     # 第一步：检查并卸载已安装的POPO应用
-    print(f"\n🔍 检查设备上是否已安装网易POPO ({POPO_PACKAGE})...")
+    print(f"\n[CHECK] 检查设备上是否已安装网易POPO ({POPO_PACKAGE})...")
     for device in ready_devices:
         print(f"\n设备 #{device.instance_id} ({device.adb_address}):")
         if check_app_installed(device.adb_port, POPO_PACKAGE):
-            print(f"   ⚠️ 检测到已安装网易POPO，需要先卸载")
+            print(f"   [WARN] 检测到已安装网易POPO，需要先卸载")
             uninstall_app(device.adb_port, POPO_PACKAGE)
         else:
-            print(f"   ✓ 未安装网易POPO，无需卸载")
+            print(f"   [OK] 未安装网易POPO，无需卸载")
 
     # 第二步：下载APK（如果没有提供APK路径）
     if apk_path is None:
         print(f"\n")
         apk_path = download_apk(DOWNLOAD_URL)
         if apk_path is None:
-            print("❌ APK下载失败，无法安装")
+            print("[ERROR] APK下载失败，无法安装")
             return 0
 
     # 第三步：安装APK到所有设备
     success_count = 0
-    print(f"\n📦 开始安装APK到 {len(ready_devices)} 台设备...")
+    print(f"\n[INSTALL] 开始安装APK到 {len(ready_devices)} 台设备...")
 
     for device in ready_devices:
         print(f"\n设备 #{device.instance_id} ({device.adb_address}):")
         if install_apk_to_device(apk_path, device.adb_port):
             success_count += 1
 
-    print(f"\n✅ APK安装完成: {success_count}/{len(ready_devices)} 台设备成功")
+    print(f"\n[DONE] APK安装完成: {success_count}/{len(ready_devices)} 台设备成功")
     return success_count
 
 
@@ -401,7 +401,7 @@ def start_devices(count: int = DEVICE_COUNT) -> List[Device]:
         print("检测到MuMu模拟器正在运行，正在关闭...")
         close_all_mumu()
         time.sleep(CLOSE_WAIT)
-        print("  ✓ 已关闭")
+        print("  [OK] 已关闭")
 
     print(f"启动 {count} 台虚拟设备...")
 
@@ -432,11 +432,11 @@ def start_devices(count: int = DEVICE_COUNT) -> List[Device]:
         if adb_connect(port):
             if wait_device_ready(port, timeout=30):
                 is_ready = True
-                print(f"  ✓ {addr} 就绪")
+                print(f"  [OK] {addr} 就绪")
             else:
-                print(f"  ⚠ {addr} 未完全就绪")
+                print(f"  [WARN] {addr} 未完全就绪")
         else:
-            print(f"  ✗ {addr} 连接失败")
+            print(f"  [FAIL] {addr} 连接失败")
 
         # 创建Device对象
         device = Device(
@@ -463,7 +463,7 @@ def start_devices(count: int = DEVICE_COUNT) -> List[Device]:
     install_apk_to_all_devices(devices)
 
     # 激活所有设备窗口至前台（获得焦点）
-    print("🪟 激活设备窗口至前台...")
+    print("[WIN] 激活设备窗口至前台...")
     for device in devices:
         WindowManager.focus_window(device.instance_id)
     

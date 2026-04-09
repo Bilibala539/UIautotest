@@ -179,6 +179,69 @@ class AWBase:
         self.sleep(0.3)
         return True
 
+    def long_press(self, x: int, y: int, duration: float = 1.0,
+                   dx: int = 0, dy: int = 0) -> bool:
+        """
+        长按窗口内坐标
+
+        Args:
+            x, y: 窗口内坐标
+            duration: 长按持续时间（秒），默认1.0秒
+            dx, dy: 偏移量
+
+        Returns:
+            bool: 是否成功
+        """
+        target_x = x + dx
+        target_y = y + dy
+        screen_coords = self.driver.to_screen_coords(target_x, target_y)
+        if not screen_coords:
+            return False
+
+        self.driver.long_press(screen_coords[0], screen_coords[1], duration)
+        logger.info(f"👆 长按坐标 ({target_x}, {target_y}), 时长={duration}s")
+        self.sleep(0.5)
+        return True
+
+    def long_press_text(self, text: str, timeout: int = 10,
+                        duration: float = 1.5,
+                        region=Normal.ALL) -> bool:
+        """
+        OCR 找到文字后长按
+
+        Args:
+            text: 要查找的文字
+            timeout: 超时时间（秒）
+            duration: 长按持续时间（秒）
+            region: 搜索区域
+
+        Returns:
+            bool: 是否成功
+        """
+        pos = self.find_text_by_ocr(text, timeout=timeout, region=region)
+        assert pos is not None, f"未找到文字 '{text}'"
+        return self.long_press(pos[0], pos[1], duration)
+
+    def long_press_image(self, image: str, threshold: float = 0.8,
+                         timeout: int = 10, duration: float = 1.0,
+                         region=Normal.ALL) -> bool:
+        """
+        模板匹配找到图片后长按
+
+        Args:
+            image: 模板图片文件名或绝对路径
+            threshold: 匹配阈值
+            timeout: 超时时间（秒）
+            duration: 长按持续时间（秒）
+            region: 搜索区域
+
+        Returns:
+            bool: 是否成功
+        """
+        pos = self.find_image(image, threshold=threshold, timeout=timeout, region=region)
+        assert pos is not None, f"未找到图片 '{image}'"
+        return self.long_press(pos[0], pos[1], duration)
+
     # ==================== 输入 ====================
 
     def input_text(self, text: str) -> bool:
@@ -422,6 +485,20 @@ class AWBase:
         return self.scroll_up(-clicks)
 
     # ==================== 工具方法 ====================
+
+    @staticmethod
+    def random_digits(length: int = 10) -> str:
+        """
+        生成指定长度的随机数字字符串
+
+        Args:
+            length: 字符串长度，默认10位
+
+        Returns:
+            str: 由0-9随机数字组成的字符串
+        """
+        import random
+        return ''.join(random.choices('0123456789', k=length))
 
     def sleep(self, seconds: float) -> None:
         """等待指定时间"""

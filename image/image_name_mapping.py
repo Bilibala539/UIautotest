@@ -1,7 +1,7 @@
 import os
 
-path = r"D:\UIAutotest\image"
-test_path = r"D:\UIAutotest\image_ai"
+path = r"E:\UIAutotest\image"
+test_path = r"E:\UIAutotest\image_ai"
 
 
 LOGIN_POPO_TEXT = os.path.join(path, "登录页-网易popo文案.png")

@@ -341,10 +341,17 @@ class MuMuBusiness(CommonBusiness):
         self.image_exists(CHAT_PLUS_BUTTON, region=Normal.HALF_DOWN)
         logger.info(f"✅ [MuMu] 消息发送成功: '{message}' -> {recipient}")
         if isback:
-            # 10. 返回消息页面
-            self.press_back()
-            time.sleep(0.5)
-            self.image_exists(MESSAGE_TAB_BLUE)
+            # 10. 返回消息页面，最多按5次返回键直到找到 MESSAGE_TAB_BLUE
+            for i in range(5):
+                self.press_back()
+                time.sleep(0.5)
+                try:
+                    self.image_exists(MESSAGE_TAB_BLUE, timeout=1)
+                    break
+                except:
+                    logger.warning(f"⚠️ 第{i + 1}次未找到消息Tab，继续返回...")
+            else:
+                raise AssertionError("❌ 返回消息页面失败：连续5次未找到 MESSAGE_TAB_BLUE")
 
         return message
 

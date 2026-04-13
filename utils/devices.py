@@ -371,7 +371,7 @@ def set_window_size_and_arrange(count: int) -> bool:
         # 设置窗口位置
         # 命令格式: MuMuManager.exe api -v <id> set_window_pos -x <x> -y <y>
         cmd_pos = f'"{manager_exe}" control -v {str(i)} layout_window -px {str(x)} -py {str(y)}'
-        subprocess.run(cmd_pos, capture_output=True, timeout=5)
+        subprocess.run(cmd_pos, capture_output=True, timeout=5, shell=True)
 
     return True
 

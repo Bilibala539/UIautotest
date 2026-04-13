@@ -82,9 +82,8 @@ class AWBase:
         if cls._ocr_engine is None:
             logger.info("🔧 初始化PaddleOCR引擎...")
             cls._ocr_engine = PaddleOCR(
-                use_angle_cls=True,
+                use_textline_orientation=True,
                 lang='ch',
-                show_log=False,
             )
             logger.info("✅ PaddleOCR引擎初始化完成")
         return cls._ocr_engine
@@ -312,7 +311,7 @@ class AWBase:
                 search_img = img[ry:ry + rh, rx:rx + rw]
                 dx, dy = rx, ry
 
-            results = ocr.ocr(search_img, cls=True)
+            results = ocr.ocr(search_img)
             if results and results[0]:
                 all_texts = [line[1][0] for line in results[0]]
                 logger.info(f"📝 OCR识别到的文字: {all_texts}")

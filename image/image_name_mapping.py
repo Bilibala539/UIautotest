@@ -20,6 +20,12 @@ SIDEBAR_SETTINGS = os.path.join(path, "侧边栏-设置.png")
 # 设置页
 SETTINGS_LOGOUT = os.path.join(path, "设置页-退出登录.png")
 SETTINGS_LOGOUT_CONFIRM = os.path.join(path, "退登确认弹窗-退出登录.png")
+SETTINGS_MESSAGE_ENTRY = os.path.join(test_path, "设置页-消息入口.png")
+
+# 消息设置页（草稿 - 待验证）
+MSG_SETTINGS_TITLE = os.path.join(test_path, "消息设置页-页面标题消息.png")
+MSG_SETTINGS_SWITCH_ON = os.path.join(test_path, "消息设置页-开关-开启状态.png")
+MSG_SETTINGS_SWITCH_OFF = os.path.join(test_path, "消息设置页-开关-关闭状态.png")
 
 # 中心弹窗
 POPO_POP = os.path.join(path, "中心弹窗-悬浮窗权限弹窗.png")

@@ -11,11 +11,14 @@ pytest fixture 配置文件
 2. 文件夹自动判断: tests/mumu/ → mumu, tests/win/ → pc
 3. 默认值: mumu
 """
+import os
+from dotenv import load_dotenv
+load_dotenv()
+
 import time
 
 import pyautogui
 import pytest
-import os
 import logging
 from datetime import datetime
 from typing import Optional, List, Dict

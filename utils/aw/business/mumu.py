@@ -56,7 +56,7 @@ class MuMuBusiness(CommonBusiness):
 
     def start_app(self):
         """点击 MuMu 桌面上的 POPO 图标启动应用"""
-        self.click_image(HOME_POPO_LOGO)
+        self.click_image(HOME_POPO_LOGO, timeout=20)
 
     def stop_app(self, package: str = POPO_PACKAGE) -> bool:
         """停止应用"""
@@ -240,14 +240,14 @@ class MuMuBusiness(CommonBusiness):
             bool: 撤回是否成功
         """
         logger.info(f"🔄 [MuMu] 撤回消息: '{message_text}'")
-
+        y = self.find_text_by_ocr(message_text)[1]
+        time.sleep(1)
         # 1. 定位消息文字并长按
         self.long_press_text(message_text)
-        y = self.find_text_by_ocr(message_text)[1]
         time.sleep(1)
 
         # 2. 点击弹出菜单中的"撤回"
-        self.click_text("撤回", region=Normal.HALF_DOWN)
+        self.click_text("撤回")
         time.sleep(1)
 
         # 3. 判断是否存在撤回确认弹窗
@@ -518,6 +518,165 @@ class MuMuBusiness(CommonBusiness):
         self.open_sidebar()
         self.click_image(SIDEBAR_SETTINGS_BUTTON, region=Normal.HALF_DOWN)
         time.sleep(1)
+
+    # ==================== 消息设置相关 ====================
+
+    # 消息设置页面中的所有开关项（完整列表）
+    MSG_SETTINGS_SWITCHES = [
+        "AI智能识别快捷指令",
+        "AI智能识别任务",
+        "双击会话背景发送语音",
+        "连续播放语音消息",
+        "语音消息自动转换出文字",
+        "语音消息转文字自动使用AI整理",
+        "文件自动下载",
+        "消息气泡聚合显示",
+        "分享转发时需再次确认",
+        "启用表情联想",
+        "表情添加至默认分组",
+    ]
+
+    def open_message_settings(self):
+        """
+        从消息页面进入 设置→消息 设置页面
+
+        步骤:
+        1. 打开侧边栏
+        2. 点击设置（图片识别）
+        3. 点击消息入口（图片识别）
+        4. 验证进入消息设置页面（图片识别）
+
+        探索来源: explorer_output/screenshots/msg_settings_step0_focused.png
+        """
+        logger.info("⚙️ [MuMu] 打开消息设置页面")
+        self.open_settings()
+        self.click_image(SETTINGS_MESSAGE_ENTRY)
+        time.sleep(0.5)
+        self.image_exists(MSG_SETTINGS_TITLE, timeout=5, region=Normal.HALF_UP)
+        logger.info("✅ 已进入消息设置页面")
+
+    def close_message_settings(self):
+        """
+        从消息设置页面返回到消息列表页
+
+        步骤:
+        1. 按返回键 → 设置页
+        2. 按返回键 → 侧边栏
+        3. 按返回键 → 消息页
+        """
+        logger.info("🔙 [MuMu] 关闭消息设置页面")
+        self.press_back()
+        time.sleep(0.3)
+        self.press_back()
+        time.sleep(0.3)
+        self.press_back()
+        time.sleep(0.5)
+
+    def _scroll_to_switch(self, switch_name: str) -> bool:
+        """
+        滚动消息设置页面直到目标开关可见
+
+        消息设置页面有多屏内容，需要滑动才能看到所有开关。
+        先尝试当前屏查找，找不到则向上滑动查找。
+
+        Args:
+            switch_name: 开关标题文字
+
+        Returns:
+            bool: 是否找到目标开关
+        """
+        # 先在当前屏查找
+        pos = self.find_text_by_ocr(switch_name, timeout=2)
+        if pos:
+            return True
+
+        # 向上滑动查找（最多滑3次）
+        for i in range(3):
+            self.swipe_up(350)
+            time.sleep(0.5)
+            pos = self.find_text_by_ocr(switch_name, timeout=2)
+            if pos:
+                return True
+
+        logger.warning(f"⚠️ 滑动后仍未找到开关: {switch_name}")
+        return False
+
+    def set_message_switch(self, switch_name: str, target_state: bool) -> bool:
+        """
+        设置消息设置页面中指定开关的状态
+
+        前置条件: 当前已在消息设置页面
+
+        步骤:
+        1. 滑动页面使目标开关可见
+        2. 检测当前开关状态
+        3. 如果与目标不一致则点击切换
+        4. 验证切换成功
+
+        探索来源: explorer_output/screenshots/msg_settings_analysis.png
+
+        Args:
+            switch_name: 开关名称（如 "连续播放语音消息"）
+            target_state: 目标状态 True=开启, False=关闭
+
+        Returns:
+            bool: 操作是否成功
+        """
+        state_text = "开启" if target_state else "关闭"
+        logger.info(f"🔧 [MuMu] 设置开关 '{switch_name}' → {state_text}")
+
+        # 滚动到目标开关位置
+        assert self._scroll_to_switch(switch_name), f"未找到开关 '{switch_name}'"
+
+        # 切换开关
+        result = self.toggle_switch(switch_name, target_state)
+        assert result, f"开关 '{switch_name}' 切换到{state_text}失败"
+
+        logger.info(f"✅ [MuMu] 开关 '{switch_name}' 已设置为{state_text}")
+        return True
+
+    def get_message_switch_state(self, switch_name: str) -> bool:
+        """
+        获取消息设置页面中指定开关的当前状态
+
+        前置条件: 当前已在消息设置页面
+
+        Args:
+            switch_name: 开关名称
+
+        Returns:
+            bool: True=开启, False=关闭
+        """
+        logger.info(f"🔍 [MuMu] 查询开关状态: '{switch_name}'")
+        self._scroll_to_switch(switch_name)
+        return self.is_switch_on(switch_name)
+
+    def toggle_message_switch(self, switch_name: str) -> bool:
+        """
+        切换消息设置页面中指定开关（开→关 或 关→开）
+
+        完整流程: 消息页 → 侧边栏 → 设置 → 消息设置 → 切换开关 → 返回消息页
+
+        Args:
+            switch_name: 开关名称
+
+        Returns:
+            bool: 切换后的新状态 True=开启, False=关闭
+        """
+        logger.info(f"🔄 [MuMu] 切换消息设置开关: '{switch_name}'")
+
+        self.open_message_settings()
+
+        self._scroll_to_switch(switch_name)
+        old_state = self.is_switch_on(switch_name)
+        new_state = not old_state
+        self.set_message_switch(switch_name, new_state)
+
+        self.close_message_settings()
+
+        state_text = "开启" if new_state else "关闭"
+        logger.info(f"✅ [MuMu] 开关 '{switch_name}' 已切换为{state_text}")
+        return new_state
 
     # ==================== 搜索相关 ====================
     def search(self, tab, text, isclose=True):

@@ -28,12 +28,12 @@ class TestCreateTeam(BaseTest):
         5. 验证群聊创建成功（页面出现"发起群聊"、"并邀请"、"加入群聊"文案）
         """
         self.userA.create_team()
-        self.userA.delete_team()
 
     def teardown(self):
         """
         测试后清理
         - 用户退登
         """
+        self.userA.delete_team()
         if hasattr(self, 'userA') and self.userA.is_logged_in:
             self.userA.logout()

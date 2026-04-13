@@ -62,12 +62,6 @@ class MuMuDriver(BasePlatformDriver):
         if self._window_rect is None:
             self.get_window_rect()
         if self._window_rect:
-            # 将标准分辨率坐标 (540x960) 映射到实际窗口物理尺寸
-            actual_w = self._window_rect.width
-            actual_h = self._window_rect.height
-            if actual_w != self.STANDARD_WIDTH or actual_h != self.STANDARD_HEIGHT:
-                x = int(x * actual_w / self.STANDARD_WIDTH)
-                y = int(y * actual_h / self.STANDARD_HEIGHT)
             return self._window_rect.to_absolute(x, y)
         logger.error(f"❌ 无法获取窗口区域，实例ID: {self.instance_id}")
         return None
@@ -76,10 +70,6 @@ class MuMuDriver(BasePlatformDriver):
         return WindowManager.focus_window(self.instance_id)
 
     # ==================== 截图 ====================
-
-    # 标准分辨率（与模板图片一致）
-    STANDARD_WIDTH = 540
-    STANDARD_HEIGHT = 960
 
     def take_screenshot(self) -> Optional[np.ndarray]:
         rect = self.get_window_rect(refresh=True)
@@ -90,12 +80,6 @@ class MuMuDriver(BasePlatformDriver):
         left, top, width, height = rect
         screenshot = pyautogui.screenshot(region=(left, top, width, height))
         img = cv2.cvtColor(np.array(screenshot), cv2.COLOR_RGB2BGR)
-
-        # 如果截图尺寸与标准分辨率不一致，resize到标准分辨率以确保模板匹配稳定
-        h, w = img.shape[:2]
-        if w != self.STANDARD_WIDTH or h != self.STANDARD_HEIGHT:
-            img = cv2.resize(img, (self.STANDARD_WIDTH, self.STANDARD_HEIGHT),
-                             interpolation=cv2.INTER_LINEAR)
         return img
 
     # ==================== 点击 ====================

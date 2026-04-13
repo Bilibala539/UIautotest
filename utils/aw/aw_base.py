@@ -333,7 +333,24 @@ class AWBase:
             self.sleep(0.5)
             break
 
-        logger.warning(f"⚠️ 未找到文字 '{text}'")
+        # 失败时截图保存以便调试
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        safe_text = text.replace('/', '_').replace('\\', '_')
+        screenshot_name = f"failed_ocr_{safe_text}_{timestamp}.png"
+        screenshot_path = os.path.join(self.SCREENSHOT_DIR, screenshot_name)
+
+        img = self.take_screenshot()
+        if img is not None and region:
+            rx, ry, rw, rh = region
+            crop = img[ry:ry + rh, rx:rx + rw]
+            success, buf = cv2.imencode('.png', crop)
+            if success:
+                buf.tofile(screenshot_path)
+                logger.warning(f"⚠️ 未找到文字 '{text}'，已保存区域截图: {screenshot_path}")
+        else:
+            self.take_screenshot(save_path=screenshot_path)
+            logger.warning(f"⚠️ 未找到文字 '{text}'，已保存截图: {screenshot_path}")
+
         return None
 
     def text_exists(self, text: str, timeout: int = 5,

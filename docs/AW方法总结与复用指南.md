@@ -411,7 +411,7 @@ def test_recall_p2p_message(self):
 | `Normal.HALF_DOWN` | (0, 480, 540, 480) | 下半屏 |
 | `Normal.HALF_LEFT` | (0, 0, 270, 960) | 左半屏 |
 | `Normal.HALF_RIGHT` | (270, 0, 270, 960) | 右半屏 |
-| `Normal.MIDDLE` | (0, 240, 540, 720) | 中间区域 |
+| `Normal.CENTER_POP` | (0, 240, 540, 720) | 中间区域 |
 | `Search.RESULT_LIST` | (0, 198, 540, 960) | 搜索结果列表区域 |
 
 ---

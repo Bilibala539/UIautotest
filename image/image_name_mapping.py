@@ -29,6 +29,7 @@ MSG_SETTINGS_SWITCH_OFF = os.path.join(test_path, "消息设置页-开关-关闭
 
 # 中心弹窗
 POPO_POP = os.path.join(path, "中心弹窗-悬浮窗权限弹窗.png")
+POPO_POP_OK = os.path.join(path, "中心弹窗-确定按钮.png")
 POPO_POP_CANCEL = os.path.join(path, "中心弹窗-悬浮窗权限弹窗-取消按钮.png")
 OPEN_DOOR_BLUETOOTH_POP_CANCEL = os.path.join(path, "移动开门-蓝牙弹窗-取消按钮.png")
 
@@ -41,10 +42,14 @@ ICON_FUWUHAO = os.path.join(path, "服务号标签icon.png")
 MSG_P2P_UNDER_BOTTON = os.path.join(path, "p2p底部快捷按钮.png")
 MSG_P2P_CELL_BOTTON = os.path.join(path, "p2p-右上角音视频icon.png")
 MSG_RECELL_POP = os.path.join(path, "撤回消息确认弹窗.png")
+MSG_FILE_JSON = os.path.join(path, "会话窗口-json文件.png")
+MSG_FILE_VIDEO = os.path.join(path, "会话窗口-视频文件.png")
 
 # ==================== 聊天页 ====================
 CHAT_SEND_BUTTON = os.path.join(path, "聊天页-发送按钮.png")
 CHAT_PLUS_BUTTON = os.path.join(path, "聊天页-更多加号按钮.png")
+CHAT_PLUS_FILE = os.path.join(path, "聊天页-更多加号-文件.png")
+
 
 
 # 小程序
@@ -117,6 +122,12 @@ SIDEBAR_SERVICE_DESK = os.path.join(path, "侧边栏-服务台.png")
 # 个人资料页
 PROFILE_PAGE_NAME = os.path.join(path, "个人资料页-用户名.png")
 
+# ==================== 系统级 ====================
+FILE_SELECT_MORE = os.path.join(path, "文件选择器-左上角更多按钮.png")
+FILE_SELECT_MORE_OPENICON = os.path.join(path, "文件选择器-更多侧边栏-打开文档图标.png")
+FILE_SELECT_MORE_SEARCH = os.path.join(path, "文件选择器-搜索按钮.png")
+
+
 # ==================== 群设置页（草稿 - 待验证） ====================
 GROUP_SETTINGS_BACK_ARROW = os.path.join(test_path, "群设置页-返回箭头.png")
 GROUP_SETTINGS_AVATAR = os.path.join(test_path, "群设置页-群头像.png")
@@ -146,3 +157,5 @@ CONTACTS_NAV_CLOUD_TAB = os.path.join(test_path, "通讯录页-底部导航栏�
 CONTACTS_NAV_WORKSPACE_TAB = os.path.join(test_path, "通讯录页-底部导航栏工作台tab.png")
 CONTACTS_NAV_ELIFE_TAB = os.path.join(test_path, "通讯录页-底部导航栏易生活tab.png")
 CONTACTS_NAV_MORE_TAB = os.path.join(test_path, "通讯录页-底部导航栏更多tab.png")
+
+

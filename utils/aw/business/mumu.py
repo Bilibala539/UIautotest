@@ -141,11 +141,16 @@ class MuMuBusiness(CommonBusiness):
     def logout(self) -> bool:
         """MuMu 端退出登录流程"""
         logger.info("🚪 [MuMu] 开始退出登录")
-        try:
-            self.click_image(MESSAGE_TAB_BLUE)
-        except:
-            self.click_image(MESSAGE_TAB_GRUE)
-
+        for i in range(5):
+            self.press_back()
+            time.sleep(0.5)
+            try:
+                self.image_exists(MESSAGE_TAB_BLUE, timeout=1)
+                break
+            except:
+                logger.warning(f"⚠️ 第{i + 1}次未找到消息Tab，继续返回...")
+        else:
+            raise AssertionError("❌ 返回消息页面失败：连续5次未找到 MESSAGE_TAB_BLUE")
         self.click_image(MESSAGE_TAB_MSG_TEXT, dx=-70)
         time.sleep(0.3)
         self.click_text("设置", region=Normal.HALF_DOWN)
@@ -354,6 +359,47 @@ class MuMuBusiness(CommonBusiness):
                 raise AssertionError("❌ 返回消息页面失败：连续5次未找到 MESSAGE_TAB_BLUE")
 
         return message
+
+    def send_file(self, recipient, file_name):
+        is_group = recipient.isdigit()
+        if is_group:
+            msg_type = "群组"
+        else:
+            msg_type = "P2P"
+
+        # 1. 打开搜索页面
+        self.click_image(MESSAGE_TAB_SEARCH, region=Normal.HALF_UP)
+        self.image_exists(SEARCH_EMPTY)
+
+        # 2. 输入搜索关键词
+        self.click_image(SELECT_SEARCH, dx=10)
+        self.input_text(str(recipient))
+        time.sleep(1)
+
+        # 3. 切换到对应Tab
+        if is_group:
+            self.click_text("群组", region=Normal.HALF_UP)
+        else:
+            self.click_text("联系人", region=Normal.HALF_UP)
+        time.sleep(2)
+
+        # 4. 点击搜索结果中的联系人/群组（用完整邮箱匹配，避免点到搜索框里的文字）
+        recipient_email = f"{recipient}@corp.netease.com" if "@" not in recipient else recipient
+        self.click_text(recipient_email)
+        time.sleep(1)
+        self.click_image(CHAT_PLUS_BUTTON)
+        self.click_image(CHAT_PLUS_FILE)
+        self.click_image(FILE_SELECT_MORE)
+        self.image_exists(FILE_SELECT_MORE_OPENICON)
+        self.click_text("共享文件夹")
+        self.click_image(FILE_SELECT_MORE_SEARCH)
+        self.input_text(file_name)
+        time.sleep(1)
+        self.click_text(file_name, region=Normal.HALF_DOWN)
+        logger.info(f"Normal.CENTER_POP:{Normal.CENTER_POP}")
+        # self.text_exists(text="确定要将文件发送给", region=Normal.CENTER_POP)
+        self.click_image(POPO_POP_OK)
+        pass
 
     # ==================== 侧边栏相关 ====================
 

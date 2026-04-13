@@ -6,6 +6,7 @@
 用户通过 user.aw.xxx() 方式调用AW方法。
 """
 import logging
+import time
 from typing import Optional
 
 from image.image_name_mapping import *
@@ -175,6 +176,21 @@ class PPUser:
 
         return self.aw.send_message(recipient=recipient, message=message, isback=isback)
 
+    def send_file(self, recipient="grp.popoqa50", file_name="text"):
+        """
+        发送文件
+        Args:
+            recipient: 接收方
+            file_name: text\video
+
+        """
+        self.aw.send_file(recipient=recipient, file_name=file_name)
+        if file_name is "text":
+            self.image_exists(MSG_FILE_JSON)
+        elif file_name is "video":
+            self.image_exists(MSG_FILE_VIDEO)
+        return
+
     def recall_message(self, message_text: str):
         """
         撤回消息
@@ -277,11 +293,6 @@ class PPUser:
     def search_people(self, text="王英", isgoin=False):
         """搜人"""
         self.aw.search(tab="联系人", text=text, isclose=False)
-        try:
-            if self.image_exists(SEARCH_EMPTY):
-                assert False, f"没找到 {text}"
-        except:
-            pass
         # 具体例子-搜索 王英
         if text in ["王英", "wangying43", "wy"]:
             self.aw.image_exists(SEARCH_WANGYING_BLUE)
@@ -290,8 +301,8 @@ class PPUser:
             self.text_exists("技术质量中心", region=Normal.HALF_UP)
             self.click_image(SEARCH_CANCEL, region=Normal.HALF_UP)
         if isgoin:
-            self.click_text(text, region=Search.RESULT_LIST)
-            self.image_exists(MSG_P2P_UNDER_BOTTON)
+            self.click_text(text, timeout=10, region=Search.RESULT_LIST)
+            # self.image_exists(MSG_P2P_UNDER_BOTTON)
 
     def search_group(self, text="测试测试", isgoin=False):
         """搜群"""

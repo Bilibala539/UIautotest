@@ -40,14 +40,13 @@ class Normal:
     HALF_DOWN = (0, int(y / 2), x, int(y / 2))
     HALF_LEFT = (0, 0, int(x / 2), y)
     HALF_RIGHT = (int(x / 2), 0, int(x / 2), y)
-    MIDDLE = (0, int(y / 4), x, int(y * 3 / 4))
+    CENTER_POP = (0, int(y / 4), x, int(y * 3 / 4))
 
 
-# 大搜
+# ==================== Search: 大搜 ====================
 class Search:
     # 大搜结果列表
     RESULT_LIST = (0, 198, x, y)
-
 
 # ==================== V: 垂直分区 (左/右) ====================
 class V:

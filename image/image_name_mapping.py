@@ -44,6 +44,8 @@ MSG_P2P_CELL_BOTTON = os.path.join(path, "p2p-右上角音视频icon.png")
 MSG_RECELL_POP = os.path.join(path, "撤回消息确认弹窗.png")
 MSG_FILE_JSON = os.path.join(path, "会话窗口-json文件.png")
 MSG_FILE_VIDEO = os.path.join(path, "会话窗口-视频文件.png")
+MSG_GOOD = os.path.join(path, "会话窗口-赞按钮.png")
+MSG_MESSAGE_GOOD = os.path.join(path, "会话窗口-赞消息.png")
 
 # ==================== 聊天页 ====================
 CHAT_SEND_BUTTON = os.path.join(path, "聊天页-发送按钮.png")

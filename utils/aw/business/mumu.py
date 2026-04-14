@@ -216,7 +216,7 @@ class MuMuBusiness(CommonBusiness):
 
     # ==================== 消息操作相关 ====================
 
-    def recall_message(self, message_text: str) -> bool:
+    def recall_message(self, message_text: str):
         """
         撤回消息
 
@@ -268,6 +268,13 @@ class MuMuBusiness(CommonBusiness):
         logger.info(f"✅ [MuMu] 消息撤回成功: '{message_text}'")
         return True
 
+    def recall_good(self):
+        """
+            撤回赞消息
+        """
+        x, y = self.find_image(MSG_MESSAGE_GOOD, timeout=15)
+        self.long_press(x, y, duration=1.3)
+        self.click_text("撤回")
     # ==================== 发消息相关 ====================
 
     def send_message(self, recipient: str, message: str, isback):

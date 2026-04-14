@@ -498,6 +498,94 @@ class AWBase:
         """向下滚动（鼠标滚轮）"""
         return self.scroll_up(-clicks)
 
+    # ==================== 开关操作 ====================
+
+    def is_switch_on(self, switch_text: str, region=Normal.ALL) -> bool:
+        """
+        检测页面中指定开关的当前状态（通用方法）
+
+        通过OCR定位开关文字的y坐标，然后扫描该行右侧(x=420~490)区域
+        是否存在蓝色像素来判断开关是否开启。
+
+        开关UI特征（来自知识库 message_settings_page.md）:
+        - 开启状态: 蓝色 BGR≈(255,143,47)
+        - 关闭状态: 白色/浅灰（与背景几乎一致）
+        - 开关x位置: 约 x=420~490
+        - 检测方式: 扫描开关文字y坐标±20px范围内x=420~490区域的蓝色像素
+
+        Args:
+            switch_text: 开关标题文字（如 "连续播放语音消息"）
+            region: 搜索区域
+
+        Returns:
+            bool: True=开启(蓝色), False=关闭
+        """
+        # 1. OCR定位开关文字，获取y坐标
+        pos = self.find_text_by_ocr(switch_text, timeout=3, region=region)
+        assert pos is not None, f"未找到开关文字 '{switch_text}'"
+        text_y = pos[1]
+
+        # 2. 截图并扫描开关区域的蓝色像素
+        img = self.take_screenshot()
+        assert img is not None, "截图失败"
+
+        # 开关区域: x=420~490, y=text_y-20 ~ text_y+20
+        scan_x1, scan_x2 = 420, 490
+        scan_y1 = max(0, text_y - 20)
+        scan_y2 = min(img.shape[0], text_y + 20)
+
+        switch_region = img[scan_y1:scan_y2, scan_x1:scan_x2]
+
+        # 3. 检测蓝色像素 (BGR格式: B>200, G在100~180, R<100)
+        b, g, r = switch_region[:, :, 0], switch_region[:, :, 1], switch_region[:, :, 2]
+        blue_mask = (b > 200) & (g > 100) & (g < 180) & (r < 100)
+        blue_pixel_count = int(np.sum(blue_mask))
+
+        # 蓝色像素超过阈值认为开关开启
+        is_on = blue_pixel_count > 50
+        state_text = "开启" if is_on else "关闭"
+        logger.info(f"🔍 开关 '{switch_text}' 状态: {state_text} (蓝色像素: {blue_pixel_count})")
+        return is_on
+
+    def toggle_switch(self, switch_text: str, target_state: bool,
+                      region=Normal.ALL) -> bool:
+        """
+        切换页面中指定开关到目标状态（通用方法）
+
+        先检测当前状态，如果与目标不一致则点击开关文字右侧的开关区域进行切换，
+        然后再次检测确认切换成功。
+
+        Args:
+            switch_text: 开关标题文字
+            target_state: 目标状态 True=开启, False=关闭
+            region: 搜索区域
+
+        Returns:
+            bool: 是否成功切换到目标状态
+        """
+        current_state = self.is_switch_on(switch_text, region=region)
+
+        if current_state == target_state:
+            state_text = "开启" if target_state else "关闭"
+            logger.info(f"✅ 开关 '{switch_text}' 已是{state_text}状态，无需切换")
+            return True
+
+        # 点击开关区域（文字右侧的开关位置 x≈460）
+        pos = self.find_text_by_ocr(switch_text, timeout=3, region=region)
+        assert pos is not None, f"未找到开关文字 '{switch_text}'"
+        self.tap(460, pos[1])
+        self.sleep(0.5)
+
+        # 验证切换结果
+        new_state = self.is_switch_on(switch_text, region=region)
+        state_text = "开启" if target_state else "关闭"
+        if new_state == target_state:
+            logger.info(f"✅ 开关 '{switch_text}' 已成功切换为{state_text}")
+            return True
+        else:
+            logger.warning(f"⚠️ 开关 '{switch_text}' 切换到{state_text}失败")
+            return False
+
     # ==================== 工具方法 ====================
 
     @staticmethod

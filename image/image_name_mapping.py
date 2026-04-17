@@ -44,11 +44,30 @@ MSG_P2P_CELL_BOTTON = os.path.join(path, "p2p-右上角音视频icon.png")
 MSG_RECELL_POP = os.path.join(path, "撤回消息确认弹窗.png")
 MSG_FILE_JSON = os.path.join(path, "会话窗口-json文件.png")
 MSG_FILE_VIDEO = os.path.join(path, "会话窗口-视频文件.png")
+MSG_UNREAD_ICON = os.path.join(path, "会话窗口-未读icon.png")
 
 # ==================== 聊天页 ====================
 CHAT_SEND_BUTTON = os.path.join(path, "聊天页-发送按钮.png")
 CHAT_PLUS_BUTTON = os.path.join(path, "聊天页-更多加号按钮.png")
 CHAT_PLUS_FILE = os.path.join(path, "聊天页-更多加号-文件.png")
+# 聊天页图片编辑相关（已验证）
+CHAT_PLUS_ALBUM = os.path.join(path, "聊天页-更多加号-相册.png")
+CHAT_SENT_IMAGE_BUBBLE = os.path.join(path, "聊天页-已发送图片气泡.png")
+ALBUM_PREVIEW_EDIT_BUTTON = os.path.join(path, "相册预览页-编辑按钮.png")
+ALBUM_PREVIEW_SEND_BUTTON = os.path.join(path, "相册预览页-发送按钮.png")
+IMAGE_EDITOR_TOOLBAR = os.path.join(path, "图片编辑器-底部工具栏.png")
+IMAGE_EDITOR_DONE_BUTTON = os.path.join(path, "图片编辑器-完成按钮.png")
+IMAGE_EDITOR_PEN_BUTTON = os.path.join(path, "图片编辑器-画笔按钮.png")
+IMAGE_EDITOR_FORWARD = os.path.join(path, "图片编辑器-完成-转发icon.png")
+IMAGE_EDITOR_H = os.path.join(path, "图片编辑器-H.png")
+
+# 长按菜单相关（已验证通过）
+CHAT_REPLY_QUOTE_BAR = os.path.join(path, "聊天页-回复引用栏.png")
+CHAT_REPLY_QUOTE_CLOSE = os.path.join(path, "聊天页-引用关闭按钮.png")
+CHAT_COPY_SUCCESS_TOAST = os.path.join(path, "聊天页-复制成功toast.png")
+CHAT_MULTI_SELECT_TITLE = os.path.join(path, "聊天页-多选模式标题栏.png")
+CHAT_TRANSLATE_RESULT = os.path.join(path, "聊天页-翻译结果文案.png")
+CHAT_FAVORITE_TOAST = os.path.join(path, "聊天页-已收藏提示.png")
 
 
 
@@ -67,6 +86,7 @@ SELECT_SEARCH = os.path.join(path, "选人组件-搜索框.png")
 SELECT_OK_BLUE = os.path.join(path, "选人组件-确认按钮蓝色.png")
 SELECT_CIRCLE = os.path.join(path, "选人组件-圆形勾选框.png")
 SELECT_CIRCLE_BLUE = os.path.join(path, "选人组件-圆形勾选框-蓝色.png")
+SELECT_CANCEL = os.path.join(path, "选人组件-左上角关闭按钮.png")
 
 # 选择已有群组
 CREATE_NEW_TEAM = os.path.join(path, "选择已有群组-创建新的群组.png")
@@ -121,6 +141,10 @@ SIDEBAR_SERVICE_DESK = os.path.join(path, "侧边栏-服务台.png")
 
 # 个人资料页
 PROFILE_PAGE_NAME = os.path.join(path, "个人资料页-用户名.png")
+
+# ==================== 通讯录页（草稿 - 待验证） ====================
+
+TOAST_SENDED = os.path.join(path, "已发送_toast.png")
 
 # ==================== 系统级 ====================
 FILE_SELECT_MORE = os.path.join(path, "文件选择器-左上角更多按钮.png")

@@ -119,7 +119,7 @@ class MuMuBusiness(CommonBusiness):
         except:
             self.text_exists("grp", region=Normal.HALF_UP)
 
-        if self.click_text("输入密码", timeout=5):
+        if self.click_text("密码", timeout=5):
             self.sleep(0.3)
             self.input_text(str(password))
 
@@ -142,13 +142,15 @@ class MuMuBusiness(CommonBusiness):
         """MuMu 端退出登录流程"""
         logger.info("🚪 [MuMu] 开始退出登录")
         for i in range(5):
+            logger.info(f"第{i}次按返回键")
             self.press_back()
             time.sleep(0.5)
             try:
-                self.image_exists(MESSAGE_TAB_BLUE, timeout=1)
-                break
+                if self.image_exists(MESSAGE_TAB_BLUE, timeout=1):
+                    logger.info(f"跳出返回循环")
+                    break
             except:
-                logger.warning(f"⚠️ 第{i + 1}次未找到消息Tab，继续返回...")
+                pass
         else:
             raise AssertionError("❌ 返回消息页面失败：连续5次未找到 MESSAGE_TAB_BLUE")
         self.click_image(MESSAGE_TAB_MSG_TEXT, dx=-70)
@@ -266,6 +268,208 @@ class MuMuBusiness(CommonBusiness):
         self.find_text_by_ocr("你撤回了一条消息", timeout=5, region=(0, (920 - y), 540, (880 - y)))
 
         logger.info(f"✅ [MuMu] 消息撤回成功: '{message_text}'")
+        return True
+
+    def reply_message(self, message_text: str, reply_content: str) -> bool:
+        """
+        回复消息
+
+        在当前聊天页面，长按指定消息体，从弹出的操作菜单中点击"回复"，
+        输入回复内容后发送。
+
+        前置条件:
+        - 当前页面为聊天页面 (chat_page)
+
+        步骤:
+        1. 长按目标消息文字(1.5秒)
+        2. 点击弹出菜单中的"回复"
+        3. 验证引用栏出现
+        4. 输入回复内容
+        5. 点击发送按钮
+        6. 验证发送成功（发送按钮恢复为+号）
+
+        探索来源: explorer_output/screenshots/longpress_step3_reply_clicked.png
+
+        Args:
+            message_text: 要回复的目标消息文字
+            reply_content: 回复内容
+
+        Returns:
+            bool: 回复是否成功
+        """
+        logger.info(f"💬 [MuMu] 回复消息: '{message_text}' -> '{reply_content}'")
+
+        self.long_press_text(message_text, duration=1.5)
+        time.sleep(1)
+
+        self.click_text("回复", region=Normal.HALF_DOWN)
+        time.sleep(1)
+
+        self.image_exists(CHAT_REPLY_QUOTE_BAR, region=Normal.HALF_DOWN)
+
+        self.input_text(str(reply_content))
+        time.sleep(0.5)
+
+        self.click_image(CHAT_SEND_BUTTON, region=Normal.HALF_DOWN)
+        time.sleep(1)
+
+        self.image_exists(CHAT_PLUS_BUTTON, region=Normal.HALF_DOWN)
+
+        logger.info(f"✅ [MuMu] 回复消息成功")
+        return True
+
+    def copy_message(self, message_text: str) -> bool:
+        """
+        复制消息
+
+        在当前聊天页面，长按指定消息体，从弹出的操作菜单中点击"复制"，
+        消息文字内容复制到剪贴板。
+
+        前置条件:
+        - 当前页面为聊天页面 (chat_page)
+
+        步骤:
+        1. 长按目标消息文字(1.5秒)
+        2. 点击弹出菜单中的"复制"
+        3. 验证"复制成功"toast出现
+
+        探索来源: explorer_output/screenshots/longpress_step6_copy_done.png
+
+        Args:
+            message_text: 要复制的消息文字
+
+        Returns:
+            bool: 复制是否成功
+        """
+        logger.info(f"📋 [MuMu] 复制消息: '{message_text}'")
+
+        self.long_press_text(message_text, duration=1.5)
+        time.sleep(1)
+
+        self.click_text("复制", region=Normal.HALF_DOWN)
+        time.sleep(1)
+
+        self.image_exists(CHAT_COPY_SUCCESS_TOAST)
+
+        logger.info(f"✅ [MuMu] 消息复制成功")
+        return True
+
+    def multi_select_message(self, message_text: str) -> bool:
+        """
+        进入多选模式
+
+        在当前聊天页面，长按指定消息体，从弹出的操作菜单中点击"多选"，
+        进入多选模式，验证后按返回键退出多选模式。
+
+        前置条件:
+        - 当前页面为聊天页面 (chat_page)
+
+        步骤:
+        1. 长按目标消息文字(1.5秒)
+        2. 点击弹出菜单中的"多选"
+        3. 验证进入多选模式（标题栏出现"已选中"）
+        4. 按返回键退出多选模式
+
+        探索来源: explorer_output/screenshots/longpress_step8_multiselect.png
+
+        Args:
+            message_text: 要多选的消息文字
+
+        Returns:
+            bool: 多选模式进入和退出是否成功
+        """
+        logger.info(f"☑️ [MuMu] 多选消息: '{message_text}'")
+
+        self.long_press_text(message_text, duration=1.5)
+        time.sleep(1)
+
+        self.click_text("多选", region=Normal.HALF_DOWN)
+        time.sleep(1)
+
+        self.image_exists(CHAT_MULTI_SELECT_TITLE, region=Normal.HALF_UP)
+
+        self.press_back()
+        time.sleep(0.5)
+
+        logger.info(f"✅ [MuMu] 多选模式进入和退出成功")
+        return True
+
+    def translate_message(self, message_text: str) -> bool:
+        """
+        翻译消息
+
+        在当前聊天页面，长按指定消息体，从弹出的操作菜单中点击"翻译"，
+        消息气泡下方出现翻译结果。
+
+        前置条件:
+        - 当前页面为聊天页面 (chat_page)
+
+        步骤:
+        1. 长按目标消息文字(1.5秒)
+        2. 点击弹出菜单中的"翻译"
+        3. 验证翻译结果出现
+
+        探索来源: explorer_output/screenshots/longpress_step10_translate.png
+
+        Args:
+            message_text: 要翻译的消息文字
+
+        Returns:
+            bool: 翻译是否成功
+        """
+        logger.info(f"🌐 [MuMu] 翻译消息: '{message_text}'")
+
+        self.long_press_text(message_text, duration=1.5)
+        time.sleep(1)
+
+        self.click_text("翻译", region=Normal.HALF_DOWN)
+        time.sleep(2)
+
+        self.image_exists(CHAT_TRANSLATE_RESULT, region=Normal.HALF_DOWN)
+
+        logger.info(f"✅ [MuMu] 消息翻译成功")
+        return True
+
+    def favorite_message(self, message_text: str) -> bool:
+        """
+        收藏消息
+
+        在当前聊天页面，长按指定消息体，从弹出的操作菜单中点击"收藏"，
+        出现"已收藏"提示。
+
+        前置条件:
+        - 当前页面为聊天页面 (chat_page)
+
+        步骤:
+        1. 长按目标消息文字(1.5秒)
+        2. 点击弹出菜单中的"收藏"
+        3. 验证"已收藏"提示出现
+
+        探索来源: explorer_output/screenshots/longpress_step11_favorite.png
+
+        Args:
+            message_text: 要收藏的消息文字
+
+        Returns:
+            bool: 收藏是否成功
+        """
+        logger.info(f"⭐ [MuMu] 收藏消息: '{message_text}'")
+
+        self.long_press_text(message_text, duration=1.5)
+        time.sleep(1)
+
+        self.click_text("收藏", region=Normal.HALF_DOWN)
+        time.sleep(2)
+
+        self.image_exists(CHAT_FAVORITE_TOAST)
+
+        # 关闭收藏成功弹窗（首次收藏会弹出引导弹窗）
+        know_pos = self.find_text_by_ocr("知道啦", timeout=3)
+        if know_pos:
+            self.tap(know_pos[0], know_pos[1])
+            time.sleep(0.5)
+
+        logger.info(f"✅ [MuMu] 消息收藏成功")
         return True
 
     # ==================== 发消息相关 ====================
@@ -723,6 +927,287 @@ class MuMuBusiness(CommonBusiness):
         state_text = "开启" if new_state else "关闭"
         logger.info(f"✅ [MuMu] 开关 '{switch_name}' 已切换为{state_text}")
         return new_state
+
+    # ==================== 图片编辑相关 ====================
+
+    def _enter_chat_page(self, recipient: str) -> None:
+        """
+        搜索联系人/群组，进入聊天页（复用 send_message 前半部分逻辑）
+
+        Args:
+            recipient: 收件人账号或群号
+        """
+        is_group = recipient.isdigit()
+        self.click_image(MESSAGE_TAB_SEARCH, region=Normal.HALF_UP)
+        self.image_exists(SEARCH_EMPTY)
+
+        self.click_image(SELECT_SEARCH, dx=10)
+        self.input_text(str(recipient))
+        time.sleep(1)
+
+        if is_group:
+            self.click_text("群组", region=Normal.HALF_UP)
+        else:
+            self.click_text("联系人", region=Normal.HALF_UP)
+        time.sleep(2)
+
+        recipient_email = f"{recipient}@corp.netease.com" if "@" not in recipient else recipient
+        self.click_text(recipient_email, timeout=10)
+        time.sleep(1)
+
+        self.text_exists("发送给", region=Normal.HALF_DOWN)
+        logger.info(f"[MuMu] 已进入聊天页: {recipient}")
+
+    def send_image_from_album(self, recipient: str) -> bool:
+        """
+        从相册选图并发送（不进行编辑）
+
+        步骤:
+        1. 通过搜索进入联系人聊天页
+        2. 点击 + 号打开更多面板
+        3. 点击"相册"
+        4. 点击第一张图片选中
+        5. 点击"发送"按钮发送
+
+        探索来源: explorer_output/screenshots/edit_img_plus_panel.png
+
+        Args:
+            recipient: 收件人账号
+
+        Returns:
+            bool: 是否发送成功
+        """
+        logger.info(f"[MuMu] 从相册发送图片给: {recipient}")
+
+        self._enter_chat_page(recipient)
+
+        # 打开 + 面板
+        self.click_image(CHAT_PLUS_BUTTON, region=Normal.HALF_DOWN)
+        time.sleep(1)
+
+        # 点击相册
+        self.click_image(CHAT_PLUS_ALBUM, region=Normal.HALF_DOWN)
+        time.sleep(2)
+
+        # 点击第一张图片（相册网格第一行第一个位置，y≈200, x≈70）
+        self.tap(70, 200)
+        time.sleep(1)
+
+        # 点击发送
+        self.click_text("发送", region=Normal.HALF_DOWN, timeout=10)
+        time.sleep(2)
+
+        # 验证发送成功：回到聊天页，+ 按钮可见
+        self.image_exists(CHAT_PLUS_BUTTON, region=Normal.HALF_DOWN)
+
+        logger.info("[MuMu] 图片发送成功")
+        return True
+
+    def select_edit_send_image_from_album(self, recipient: str) -> bool:
+        """
+        从相册选图 → 进入预览 → 点击"编辑" → 在编辑器中完成 → 发送
+
+        步骤:
+        1. 进入联系人聊天页
+        2. 点击 + → 相册
+        3. 点击第一张图片，直接进入带"编辑"按钮的预览页
+        4. 点击"编辑"按钮进入图片编辑器
+        5. 验证编辑器底部工具栏出现
+        6. 点击"完成"退出编辑器
+        7. 点击"发送"按钮发送编辑后的图片
+
+        探索来源:
+        - edit_img_after_done.png（预览页含编辑/发送按钮）
+        - edit_img_editor_page.png（编辑器页面）
+
+        Args:
+            recipient: 收件人账号
+
+        Returns:
+            bool: 是否成功完成编辑并发送
+        """
+        logger.info(f"[MuMu] 从相册选图编辑后发送给: {recipient}")
+
+        self._enter_chat_page(recipient)
+
+        # 打开 + 面板
+        self.click_image(CHAT_PLUS_BUTTON, region=Normal.HALF_DOWN)
+        time.sleep(1)
+
+        # 点击相册
+        self.click_image(CHAT_PLUS_ALBUM, region=Normal.HALF_DOWN)
+        time.sleep(2)
+
+        # 点击第一张图片 → 直接进入预览页（有"编辑"按钮）
+        self.tap(70, 200)
+        time.sleep(1.5)
+
+        # 点击"编辑"进入编辑器（点击图片后直接出现编辑按钮，无需额外点"预览"）
+        self.click_image(ALBUM_PREVIEW_EDIT_BUTTON, region=Normal.HALF_DOWN, timeout=10)
+        time.sleep(1.5)
+
+        # 验证已进入编辑器（底部工具栏出现）
+        self.image_exists(IMAGE_EDITOR_TOOLBAR, region=Normal.HALF_DOWN, timeout=8)
+        logger.info("[MuMu] 已进入图片编辑器")
+
+        # 点击"完成"退出编辑器
+        self.click_image(IMAGE_EDITOR_DONE_BUTTON, region=Normal.HALF_DOWN, timeout=10)
+        time.sleep(1)
+
+        # 验证返回预览页（"编辑"按钮重新出现）
+        self.image_exists(ALBUM_PREVIEW_EDIT_BUTTON, region=Normal.HALF_DOWN, timeout=5)
+
+        # 点击"发送"发送图片
+        self.click_image(ALBUM_PREVIEW_SEND_BUTTON, region=Normal.HALF_DOWN, timeout=10)
+        time.sleep(2)
+
+        # 验证发送成功：回到聊天页
+        self.image_exists(CHAT_PLUS_BUTTON, region=Normal.HALF_DOWN)
+
+        logger.info("[MuMu] 相册选图编辑后发送成功")
+        return True
+
+    def edit_image_from_chat_message(self, RECIPIENT) -> bool:
+        """
+        长按聊天中最近发送的图片消息 → 点击"编辑图片" → 在编辑器中完成
+
+        前置条件:
+        - 当前页面为聊天页（chat_page）
+        - 聊天中已有图片消息
+
+        步骤:
+        1. 长按已发送的图片消息气泡
+        2. 点击弹出菜单中的"编辑图片"
+        3. 验证进入图片编辑器（底部工具栏出现）
+        4. 点击"完成"完成编辑
+
+        探索来源:
+        - edit_longpress_step1_menu.png（长按菜单含编辑图片选项）
+        - edit_img_editor_page.png（编辑器页面）
+
+        Returns:
+            bool: 是否成功完成编辑
+        """
+        logger.info("[MuMu] 长按图片消息进行编辑")
+
+        # 长按已发送的图片消息气泡
+        self.long_press_image(CHAT_SENT_IMAGE_BUBBLE, duration=1.5)
+        time.sleep(1)
+
+        # 点击"编辑图片"（长按菜单中的文字选项，用 OCR 定位）
+        self.click_text("编辑图片", region=Normal.HALF_DOWN, timeout=10)
+        time.sleep(1.5)
+
+        # 验证进入图片编辑器
+        self.image_exists(IMAGE_EDITOR_TOOLBAR, region=Normal.HALF_DOWN, timeout=8)
+        logger.info("[MuMu] 已进入图片编辑器（从长按菜单）")
+
+        self.click_image(IMAGE_EDITOR_PEN_BUTTON, region=Normal.HALF_DOWN)
+
+        # 在图片中画一个 H 图案，范围在左上角(125,200)到右下角(400,750)内
+        # H 的左竖线：从 (125, 200) 向下到 (125, 750)
+        self.swipe(125, 200, 125, 750, duration=0.5)
+        time.sleep(0.3)
+        # H 的右竖线：从 (400, 200) 向下到 (400, 750)
+        self.swipe(400, 200, 400, 750, duration=0.5)
+        time.sleep(0.3)
+        # H 的中间横线：从 (125, 475) 向右到 (400, 475)
+        self.swipe(125, 475, 400, 475, duration=0.5)
+        self.image_exists(IMAGE_EDITOR_H)
+        assert False
+        time.sleep(0.3)
+
+        # 点击"完成"退出编辑器
+        self.click_image(IMAGE_EDITOR_DONE_BUTTON, region=Normal.HALF_DOWN, timeout=10)
+        time.sleep(1)
+
+        # 在更多操作弹窗中选择“发送给同事或群组”
+        self.text_exists("发送给同事或群组")
+        self.click_image(IMAGE_EDITOR_FORWARD, region=Normal.HALF_DOWN)
+
+        # 在选人组建的输入框中搜索接收者
+        self.click_text("搜索", region=Normal.HALF_UP)
+        self.input_text(RECIPIENT)
+
+        # 点击关闭按钮下方308xp的第一个匹配结果，并且验证已发送提示
+        self.click_image(SELECT_CANCEL, dy=308)
+        self.image_exists(TOAST_SENDED)
+        self.press_back()
+
+        # 验证刚刚发送了带有H的图片
+        self.image_exists(TOAST_SENDED)
+
+        # 验证已返回聊天页（+ 按钮可见）
+        self.image_exists(CHAT_PLUS_BUTTON, region=Normal.HALF_DOWN)
+
+        logger.info("[MuMu] 长按图片编辑完成")
+        return True
+
+    def select_edit_with_tools_send_image(self, recipient: str) -> bool:
+        """
+        从相册选图 → 编辑器中使用画笔工具编辑 → 完成 → 发送
+
+        与 select_edit_send_image_from_album 的区别：
+        本方法会在编辑器中使用画笔工具实际绘制，验证工具操作正常。
+
+        步骤:
+        1. 进入联系人聊天页
+        2. 点击 + → 相册 → 选图 → 预览 → 编辑
+        3. 进入编辑器后，在图片中心画一笔（使用画笔工具）
+        4. 点击"完成"
+        5. 点击"发送"
+
+        探索来源: edit_img_editor_page.png（画笔工具坐标 x≈60, y≈870）
+
+        Args:
+            recipient: 收件人账号
+
+        Returns:
+            bool: 是否成功
+        """
+        logger.info(f"[MuMu] 从相册选图，使用工具编辑后发送给: {recipient}")
+
+        self._enter_chat_page(recipient)
+
+        # 打开 + 面板
+        self.click_image(CHAT_PLUS_BUTTON, region=Normal.HALF_DOWN)
+        time.sleep(1)
+
+        # 点击相册
+        self.click_image(CHAT_PLUS_ALBUM, region=Normal.HALF_DOWN)
+        time.sleep(2)
+
+        # 点击第一张图片 → 直接进入预览页（有"编辑"按钮）
+        self.tap(70, 200)
+        time.sleep(1.5)
+
+        # 点击"编辑"进入编辑器（点击图片后直接出现编辑按钮，无需额外点"预览"）
+        self.click_image(ALBUM_PREVIEW_EDIT_BUTTON, region=Normal.HALF_DOWN, timeout=10)
+        time.sleep(1.5)
+
+        # 验证已进入编辑器
+        self.image_exists(IMAGE_EDITOR_TOOLBAR, region=Normal.HALF_DOWN, timeout=8)
+
+        # 在图片中心绘制一笔（画笔工具已默认激活，或可 click_text("T", region=HALF_DOWN) 激活）
+        # 直接在图片区域滑动，产生绘制效果
+        self.swipe(150, 400, 380, 400, duration=0.5)
+        time.sleep(0.5)
+        # 点击"完成"
+        self.click_image(IMAGE_EDITOR_DONE_BUTTON, region=Normal.HALF_DOWN, timeout=10)
+        time.sleep(1)
+
+        # 验证返回预览页
+        self.image_exists(ALBUM_PREVIEW_EDIT_BUTTON, region=Normal.HALF_DOWN, timeout=5)
+
+        # 点击"发送"
+        self.click_image(ALBUM_PREVIEW_SEND_BUTTON, region=Normal.HALF_DOWN, timeout=10)
+        time.sleep(2)
+
+        # 验证发送成功
+        self.image_exists(CHAT_PLUS_BUTTON, region=Normal.HALF_DOWN)
+
+        logger.info("[MuMu] 使用工具编辑后发送成功")
+        return True
 
     # ==================== 搜索相关 ====================
     def search(self, tab, text, isclose=True):

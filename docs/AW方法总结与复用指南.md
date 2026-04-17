@@ -179,6 +179,85 @@ PPUser (用户入口，user.py)
 
 ---
 
+### 4.4a 💬 回复消息 `reply_message(message_text, reply_content)`
+
+**前置条件：** 当前在聊天页面。
+
+**完整流程：**
+1. `long_press_text(message_text, duration=1.5)` — 长按目标消息
+2. `click_text("回复", region=HALF_DOWN)` — 点击弹出菜单中的"回复"
+3. `image_exists(CHAT_REPLY_QUOTE_BAR, region=HALF_DOWN)` — **验证：引用栏出现**
+4. `input_text(reply_content)` — 输入回复内容
+5. `click_image(CHAT_SEND_BUTTON, region=HALF_DOWN)` — 点击发送
+6. `image_exists(CHAT_PLUS_BUTTON, region=HALF_DOWN)` — **验证：发送成功**
+
+**验证的图片：** `CHAT_REPLY_QUOTE_BAR`(引用栏), `CHAT_SEND_BUTTON`(发送按钮), `CHAT_PLUS_BUTTON`(+号恢复)
+
+**业务作用：** 消息回复功能，引用原消息并发送回复内容。
+
+---
+
+### 4.4b 📋 复制消息 `copy_message(message_text)`
+
+**前置条件：** 当前在聊天页面。
+
+**完整流程：**
+1. `long_press_text(message_text, duration=1.5)` — 长按目标消息
+2. `click_text("复制", region=HALF_DOWN)` — 点击弹出菜单中的"复制"
+3. `image_exists(CHAT_COPY_SUCCESS_TOAST)` — **验证：复制成功toast**
+
+**验证的图片：** `CHAT_COPY_SUCCESS_TOAST`(复制成功提示)
+
+**业务作用：** 复制消息文字内容到系统剪贴板。
+
+---
+
+### 4.4c ☑️ 多选消息 `multi_select_message(message_text)`
+
+**前置条件：** 当前在聊天页面。
+
+**完整流程：**
+1. `long_press_text(message_text, duration=1.5)` — 长按目标消息
+2. `click_text("多选", region=HALF_DOWN)` — 点击弹出菜单中的"多选"
+3. `image_exists(CHAT_MULTI_SELECT_TITLE, region=HALF_UP)` — **验证：进入多选模式**
+4. `press_back()` — 退出多选模式
+
+**验证的图片：** `CHAT_MULTI_SELECT_TITLE`(多选模式标题栏"已选中")
+
+**业务作用：** 进入多选模式并退出，验证多选功能可用。
+
+---
+
+### 4.4d 🌐 翻译消息 `translate_message(message_text)`
+
+**前置条件：** 当前在聊天页面。
+
+**完整流程：**
+1. `long_press_text(message_text, duration=1.5)` — 长按目标消息
+2. `click_text("翻译", region=HALF_DOWN)` — 点击弹出菜单中的"翻译"
+3. `image_exists(CHAT_TRANSLATE_RESULT, region=HALF_DOWN)` — **验证：翻译结果出现**
+
+**验证的图片：** `CHAT_TRANSLATE_RESULT`(翻译结果区域)
+
+**业务作用：** 翻译消息文字，翻译结果显示在气泡下方。
+
+---
+
+### 4.4e ⭐ 收藏消息 `favorite_message(message_text)`
+
+**前置条件：** 当前在聊天页面。
+
+**完整流程：**
+1. `long_press_text(message_text, duration=1.5)` — 长按目标消息
+2. `click_text("收藏", region=HALF_DOWN)` — 点击弹出菜单中的"收藏"
+3. `image_exists(CHAT_FAVORITE_TOAST)` — **验证：已收藏toast**
+
+**验证的图片：** `CHAT_FAVORITE_TOAST`(已收藏提示)
+
+**业务作用：** 收藏消息到"我的收藏"。
+
+---
+
 ### 4.5 👥 创建群组 `create_team()`
 
 **完整流程：**
@@ -255,6 +334,58 @@ PPUser (用户入口，user.py)
 
 ---
 
+### 4.11b 🖼️ 图片编辑相关
+
+#### `send_image_from_album(recipient)` — 从相册选图并直接发送
+
+**前置条件：** 消息Tab页面
+**完整流程：**
+1. `_enter_chat_page(recipient)` — 搜索进入聊天页
+2. `click_image(CHAT_PLUS_BUTTON)` — 打开+面板
+3. `click_image(CHAT_PLUS_ALBUM)` — 点击相册
+4. `tap(70, 200)` — 点击第一张图片
+5. `click_text("发送")` — 点击发送
+6. `image_exists(CHAT_PLUS_BUTTON)` — **验证发送成功**
+
+**业务作用：** 图片发送前置条件，为长按图片测试用例提供图片消息。
+
+---
+
+#### `select_edit_send_image_from_album(recipient)` — 相册选图→编辑→发送
+
+**完整流程：**
+1. `_enter_chat_page(recipient)` → `click_image(CHAT_PLUS_BUTTON)` → `click_image(CHAT_PLUS_ALBUM)` — 进入相册
+2. `tap(70, 200)` — 选择第一张图片
+3. `click_text("预览")` — 进入全屏预览模式
+4. `click_image(ALBUM_PREVIEW_EDIT_BUTTON)` — 点击"编辑"按钮进入编辑器
+5. `image_exists(IMAGE_EDITOR_TOOLBAR)` — **验证：编辑器工具栏出现**
+6. `click_image(IMAGE_EDITOR_DONE_BUTTON)` — 点击"完成"退出编辑器
+7. `image_exists(ALBUM_PREVIEW_EDIT_BUTTON)` — **验证：返回预览页**
+8. `click_image(ALBUM_PREVIEW_SEND_BUTTON)` — 点击"发送"
+9. `image_exists(CHAT_PLUS_BUTTON)` — **验证：发送成功**
+
+**验证图片：** `ALBUM_PREVIEW_EDIT_BUTTON`, `IMAGE_EDITOR_TOOLBAR`, `IMAGE_EDITOR_DONE_BUTTON`, `ALBUM_PREVIEW_SEND_BUTTON`
+
+---
+
+#### `edit_image_from_chat_message()` — 长按图片消息→编辑图片
+
+**前置条件：** 当前在聊天页，聊天中已有图片消息。
+**完整流程：**
+1. `long_press_image(CHAT_SENT_IMAGE_BUBBLE, duration=1.5)` — 长按图片气泡
+2. `click_text("编辑图片", region=Normal.HALF_DOWN)` — OCR点击"编辑图片"（长按菜单文字选项）
+3. `image_exists(IMAGE_EDITOR_TOOLBAR)` — **验证：进入编辑器**
+4. `click_image(IMAGE_EDITOR_DONE_BUTTON)` — 完成编辑
+5. `image_exists(CHAT_PLUS_BUTTON)` — **验证：返回聊天页**
+
+---
+
+#### `select_edit_with_tools_send_image(recipient)` — 相册选图→工具编辑→发送
+
+与 `select_edit_send_image_from_album` 类似，但额外在编辑器中执行 `swipe(150,400,380,400)` 使用画笔工具绘制。
+
+---
+
 ### 4.12 应用控制
 
 | 方法 | 作用 |
@@ -286,6 +417,11 @@ PPUser (用户入口，user.py)
 | `user.logout()` | `aw.logout()` | 退登 |
 | `user.send_message(recipient, message, isback)` | `aw.send_message(...)` | ⭐ 发消息(搜人+进会话+发送) |
 | `user.recall_message(message_text)` | `aw.recall_message(...)` | 撤回消息 |
+| `user.reply_message(message_text, reply_content)` | `aw.reply_message(...)` | 回复消息（引用回复） |
+| `user.copy_message(message_text)` | `aw.copy_message(...)` | 复制消息 |
+| `user.multi_select_message(message_text)` | `aw.multi_select_message(...)` | 多选消息 |
+| `user.translate_message(message_text)` | `aw.translate_message(...)` | 翻译消息 |
+| `user.favorite_message(message_text)` | `aw.favorite_message(...)` | 收藏消息 |
 | `user.create_team()` | `aw.create_team()` | 创建群组 |
 | `user.delete_team()` | `aw.delete_team()` | 解散群组(未实现) |
 | `user.open_sidebar()` | `aw.open_sidebar()` | 打开侧边栏 |
@@ -296,6 +432,10 @@ PPUser (用户入口，user.py)
 | `user.search_people(text)` | 搜联系人 | 搜人并验证结果 |
 | `user.search_group(text)` | 搜群 | 搜群并验证结果 |
 | `user.search_msg(tab, text)` | 搜消息 | 搜消息并验证结果 |
+| `user.send_image_from_album(recipient)` | `aw.send_image_from_album(...)` | 从相册选图直接发送（不编辑） |
+| `user.select_edit_send_image_from_album(recipient)` | `aw.select_edit_send_image_from_album(...)` | 相册选图→预览→编辑→完成→发送 |
+| `user.edit_image_from_chat_message()` | `aw.edit_image_from_chat_message()` | 长按图片消息→编辑图片→完成 |
+| `user.select_edit_with_tools_send_image(recipient)` | `aw.select_edit_with_tools_send_image(...)` | 相册选图→工具编辑→发送 |
 
 ### 5.2 已封装的基础操作快捷方法
 
@@ -388,6 +528,12 @@ def test_recall_p2p_message(self):
 | **聊天页** | `CHAT_SEND_BUTTON` | 聊天页-发送按钮.png | 发送按钮 |
 | | `CHAT_PLUS_BUTTON` | 聊天页-更多加号按钮.png | +号按钮(发送成功标志) |
 | | `MSG_RECELL_POP` | 撤回消息确认弹窗.png | 撤回确认弹窗 |
+| | `CHAT_REPLY_QUOTE_BAR` | 聊天页-回复引用蓝线.png | 回复引用栏蓝色竖线(已转正) |
+| | `CHAT_REPLY_QUOTE_CLOSE` | 聊天页-回复引用关闭按钮.png | 引用关闭按钮(已转正) |
+| | `CHAT_COPY_SUCCESS_TOAST` | 聊天页-复制成功toast.png | 复制成功提示(已转正) |
+| | `CHAT_MULTI_SELECT_TITLE` | 聊天页-多选模式标题.png | 多选模式标题(已转正) |
+| | `CHAT_TRANSLATE_RESULT` | 聊天页-翻译结果.png | 翻译结果区域(已转正) |
+| | `CHAT_FAVORITE_TOAST` | 聊天页-已收藏toast.png | 已收藏提示(已转正) |
 | **搜索页** | `SEARCH_EMPTY` | 搜索页面-空态图片.png | 搜索空态 |
 | | `SEARCH_CANCEL` | 搜索页面-输入框右侧取消.png | 取消搜索 |
 | | `SELECT_SEARCH` | 选人组件-搜索框.png | 搜索输入框 |
@@ -398,7 +544,21 @@ def test_recall_p2p_message(self):
 
 ### 草稿图片 (image_ai/ 目录) — 待验证
 
-群设置页、通讯录页的元素图片，常量前缀为 `GROUP_SETTINGS_*` 和 `CONTACTS_*`。
+| 分类 | 常量名 | 文件名 | 用途 |
+|------|--------|--------|------|
+| **群设置页** | `GROUP_SETTINGS_*` | 群设置页-*.png | 群设置相关元素 |
+| **通讯录页** | `CONTACTS_*` | 通讯录页-*.png | 通讯录相关元素 |
+
+### 已转正图片 (image/ 目录) — 图片编辑功能
+
+| 分类 | 常量名 | 文件名 | 用途 |
+|------|--------|--------|------|
+| **图片编辑** | `CHAT_PLUS_ALBUM` | 聊天页-更多加号-相册.png | +面板中的相册入口 |
+| | `CHAT_SENT_IMAGE_BUBBLE` | 聊天页-已发送图片气泡.png | 已发送图片消息气泡（用于长按）|
+| | `ALBUM_PREVIEW_EDIT_BUTTON` | 相册预览页-编辑按钮.png | 预览页"编辑"按钮 |
+| | `ALBUM_PREVIEW_SEND_BUTTON` | 相册预览页-发送按钮.png | 预览页"发送"按钮 |
+| | `IMAGE_EDITOR_DONE_BUTTON` | 图片编辑器-完成按钮.png | 编辑器"完成"按钮 |
+| | `IMAGE_EDITOR_TOOLBAR` | 图片编辑器-底部工具栏.png | 编辑器底部工具栏（页面识别用） |
 
 ---
 
@@ -420,12 +580,17 @@ def test_recall_p2p_message(self):
 
 - `delete_team()` — 解散群组（方法存在但为空实现）
 - 转发消息
-- 回复消息
+- ~~回复消息~~ ✅ 已实现 → `reply_message(message_text, reply_content)`
 - @某人
-- 复制消息
-- 收藏消息
+- ~~复制消息~~ ✅ 已实现 → `copy_message(message_text)`
+- ~~收藏消息~~ ✅ 已实现 → `favorite_message(message_text)`
+- 多选消息后的批量操作（转发/删除等，当前仅验证进入多选模式）
+- 翻译消息后的收起/展开操作（当前仅验证翻译结果出现）
 - 消息已读/未读状态检查
 - 群组管理（修改群名、添加/移除成员）
+- ~~从相册选图编辑后发送~~ ✅ 已实现 → `select_edit_send_image_from_album(recipient)`
+- ~~长按图片消息并编辑~~ ✅ 已实现 → `edit_image_from_chat_message()`
+- ~~使用工具编辑图片后发送~~ ✅ 已实现 → `select_edit_with_tools_send_image(recipient)`
 - 通讯录页面的完整操作
 - PC端大部分业务方法（目前仅有框架级实现）
 

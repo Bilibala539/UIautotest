@@ -10,9 +10,16 @@
   swipe, swipe_up, swipe_down, sleep ...
 """
 import os
+import base64
 
-# 禁用 mkldnn/oneDNN 以解决 PaddlePaddle 3.x 兼容性问题
+from image.image_name_mapping import MSG_UNREAD_ICON
+
+# 禁用 mkldnn/oneDNN 以解决 PaddlePaddle 3.x PIR 兼容性问题
 os.environ['FLAGS_use_mkldnn'] = '0'
+os.environ['FLAGS_enable_pir_api'] = '0'
+os.environ['FLAGS_enable_pir_in_executor'] = '0'
+os.environ['MKLDNN_VERBOSE'] = '0'
+os.environ['FLAGS_use_onednn'] = '0'
 
 import logging
 import time
@@ -55,6 +62,7 @@ class AWBase:
 
     # OCR 引擎单例（全局共享，避免重复加载模型）
     _ocr_engine: Optional[PaddleOCR] = None
+    _ocr_use_predict: bool = False  # True = 3.x predict()，False = 2.x ocr()
 
     def __init__(self, driver: BasePlatformDriver):
         """
@@ -78,15 +86,52 @@ class AWBase:
 
     @classmethod
     def _get_ocr_engine(cls) -> PaddleOCR:
-        """获取OCR引擎单例"""
+        """获取OCR引擎单例（自动检测 2.x / 3.x）"""
         if cls._ocr_engine is None:
             logger.info("🔧 初始化PaddleOCR引擎...")
             cls._ocr_engine = PaddleOCR(
                 use_textline_orientation=True,
-                lang='ch',
+                text_detection_model_name='PP-OCRv5_mobile_det',
+                text_recognition_model_name='PP-OCRv5_mobile_rec',
+                enable_mkldnn=False,
             )
-            logger.info("✅ PaddleOCR引擎初始化完成")
+            # 运行时检测：有 predict 方法就是 3.x，否则是 2.x
+            cls._ocr_use_predict = hasattr(cls._ocr_engine, 'predict')
+            ver = "3.x (predict)" if cls._ocr_use_predict else "2.x (ocr)"
+            logger.info(f"✅ PaddleOCR引擎初始化完成 — API: {ver}")
         return cls._ocr_engine
+
+    # ==================== 截图 ====================
+
+    # ==================== HTML 日志截图内嵌 ====================
+
+    @staticmethod
+    def _embed_screenshot_to_log(label: str, img_array: np.ndarray, screenshot_path: str) -> None:
+        """
+        将截图以 base64 内嵌到 HTML 日志文件中。
+
+        Args:
+            label:           显示在日志中的描述文字
+            img_array:       BGR numpy 图像数组
+            screenshot_path: 图片已保存的磁盘路径（仅用于展示）
+        """
+        # 从根 logger 的 handlers 里找到 HtmlFileHandler
+        html_handler = None
+        for h in logging.getLogger().handlers:
+            if type(h).__name__ == 'HtmlFileHandler':
+                html_handler = h
+                break
+        if html_handler is None:
+            return
+
+        try:
+            success, buf = cv2.imencode('.png', img_array)
+            if not success:
+                return
+            img_b64 = base64.b64encode(buf.tobytes()).decode('utf-8')
+            html_handler.append_screenshot(label, screenshot_path, img_b64)
+        except Exception as e:
+            logger.debug(f"截图内嵌日志失败: {e}")
 
     # ==================== 截图 ====================
 
@@ -108,6 +153,8 @@ class AWBase:
             if success:
                 buf.tofile(save_path)
             logger.info(f"📸 截图已保存: {save_path}")
+            # 内嵌到 HTML 日志
+            self._embed_screenshot_to_log(f"📸 截图: {os.path.basename(save_path)}", img, save_path)
         return img
 
     def screenshot_for_explore(self, filename: str = None, subdir: str = None) -> str:
@@ -215,9 +262,13 @@ class AWBase:
         Returns:
             bool: 是否成功
         """
+        time.sleep(1)
         pos = self.find_text_by_ocr(text, timeout=timeout, region=region)
         assert pos is not None, f"未找到文字 '{text}'"
-        return self.long_press(pos[0], pos[1], duration)
+
+        bl = self.long_press(pos[0], pos[1], duration=duration)
+        logger.info(f"长按文字 '{text}' 位置：({pos[0]}, {pos[1]})")
+        return bl
 
     def long_press_image(self, image: str, threshold: float = 0.8,
                          timeout: int = 10, duration: float = 1.0,
@@ -311,22 +362,43 @@ class AWBase:
                 search_img = img[ry:ry + rh, rx:rx + rw]
                 dx, dy = rx, ry
 
-            results = ocr.ocr(search_img)
-            if results and results[0]:
-                all_texts = [line[1][0] for line in results[0]]
-                logger.info(f"📝 OCR识别到的文字: {all_texts}")
+            # 统一解析为 detected_items: [(text, cx, cy), ...]
+            detected_items = []
+            if self._ocr_use_predict:
+                # PaddleOCR 3.x: predict() → 生成器，含 rec_texts / rec_boxes
+                results = list(ocr.predict(search_img))
+                if results and results[0]:
+                    ocr_result = results[0]
+                    for t, box in zip(ocr_result.get('rec_texts', []),
+                                      ocr_result.get('rec_boxes', [])):
+                        detected_items.append((t,
+                                               int((box[0] + box[2]) / 2),
+                                               int((box[1] + box[3]) / 2)))
+            else:
+                # PaddleOCR 2.x: ocr() → [[line, ...]]，line=[box4pts, (text,conf)]
+                results = ocr.ocr(search_img, cls=True)
+                if results and results[0]:
+                    for line in results[0]:
+                        box, (t, _) = line[0], line[1]
+                        xs = [p[0] for p in box]
+                        ys = [p[1] for p in box]
+                        detected_items.append((t,
+                                               int((min(xs) + max(xs)) / 2),
+                                               int((min(ys) + max(ys)) / 2)))
 
-                for line in results[0]:
-                    detected_text = line[1][0]
+            if detected_items:
+                rec_texts = [item[0] for item in detected_items]
+                logger.info(f"📝 OCR识别到的文字: {rec_texts}")
+
+                for detected_text, cx, cy in detected_items:
                     if case_sensitive:
                         match = text in detected_text
                     else:
                         match = text.lower() in detected_text.lower()
 
                     if match:
-                        box = line[0]
-                        center_x = int((box[0][0] + box[2][0]) / 2) + dx
-                        center_y = int((box[0][1] + box[2][1]) / 2) + dy
+                        center_x = cx + dx
+                        center_y = cy + dy
                         logger.info(f"🔍 找到文字 '{text}' @ ({center_x}, {center_y})")
                         return center_x, center_y
 
@@ -340,16 +412,17 @@ class AWBase:
         screenshot_path = os.path.join(self.SCREENSHOT_DIR, screenshot_name)
 
         img = self.take_screenshot()
-        if img is not None and region:
-            rx, ry, rw, rh = region
-            crop = img[ry:ry + rh, rx:rx + rw]
-            success, buf = cv2.imencode('.png', crop)
+        if img is not None:
+            if region:
+                rx, ry, rw, rh = region
+                save_img = img[ry:ry + rh, rx:rx + rw]
+            else:
+                save_img = img
+            success, buf = cv2.imencode('.png', save_img)
             if success:
                 buf.tofile(screenshot_path)
-                logger.warning(f"⚠️ 未找到文字 '{text}'，已保存区域截图: {screenshot_path}")
-        else:
-            self.take_screenshot(save_path=screenshot_path)
             logger.warning(f"⚠️ 未找到文字 '{text}'，已保存截图: {screenshot_path}")
+            self._embed_screenshot_to_log(f"⚠️ OCR未找到: '{text}'", save_img, screenshot_path)
 
         return None
 
@@ -374,7 +447,7 @@ class AWBase:
             template_name: 模板图片文件名或绝对路径
             threshold: 匹配阈值 0~1
             timeout: 超时时间（秒）
-            region: 搜索区域 (x, y, w, h)
+            region: 搜索区域 (x, y, w, h)，有 region 时只截取该区域截图
 
         Returns:
             图片中心坐标 (窗口内)，未找到返回 None
@@ -395,17 +468,21 @@ class AWBase:
         end_time = time.time() + timeout
 
         while time.time() < end_time:
-            img = self.take_screenshot()
-            if img is None:
-                self.sleep(0.5)
-                continue
-
-            dx, dy = 0, 0
-            search_img = img
+            # 有 region 时只截取该区域，减少截图处理范围；无 region 时截全屏
             if region:
                 rx, ry, rw, rh = region
-                search_img = img[ry:ry + rh, rx:rx + rw]
+                full_img = self.take_screenshot()
+                if full_img is None:
+                    self.sleep(0.5)
+                    continue
+                search_img = full_img[ry:ry + rh, rx:rx + rw]
                 dx, dy = rx, ry
+            else:
+                search_img = self.take_screenshot()
+                if search_img is None:
+                    self.sleep(0.5)
+                    continue
+                dx, dy = 0, 0
 
             result = cv2.matchTemplate(search_img, template, cv2.TM_CCOEFF_NORMED)
             _, max_val, _, max_loc = cv2.minMaxLoc(result)
@@ -418,21 +495,36 @@ class AWBase:
 
             self.sleep(0.5)
 
-        # 超时截图保存以便调试
+        # 超时截图保存以便调试（保存全屏截图，方便排查问题）
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         template_basename = os.path.basename(template_name).split('.')[0]
         screenshot_name = f"failed_find_{template_basename}_{timestamp}.png"
         screenshot_path = os.path.join(self.SCREENSHOT_DIR, screenshot_name)
-        self.take_screenshot(save_path=screenshot_path)
+        img = self.take_screenshot()
+        if img is not None:
+            if region:
+                rx, ry, rw, rh = region
+                save_img = img[ry:ry + rh, rx:rx + rw]
+            else:
+                save_img = img
+            success, buf = cv2.imencode('.png', save_img)
+            if success:
+                buf.tofile(screenshot_path)
         logger.warning(f"⚠️ 未找到图片 '{template_name}'，已保存截图: {screenshot_path}")
+        if img is not None:
+            self._embed_screenshot_to_log(f"⚠️ 图片未找到: '{os.path.basename(template_name)}'", save_img, screenshot_path)
         assert False
 
     def image_exists(self, template_name: str, threshold: float = 0.8,
                      timeout: int = 5,
                      region=Normal.ALL) -> bool:
-        """检查图片是否存在"""
-        return self.find_image(template_name, threshold=threshold, timeout=timeout,
-                               region=region) is not None
+        """检查图片是否存在（不会抛出异常，找不到返回 False）"""
+        try:
+            pos = self.find_image(template_name, threshold=threshold, timeout=timeout,
+                                  region=region)
+            return pos is not None
+        except Exception:
+            return False
 
     # ==================== 组合操作 ====================
 

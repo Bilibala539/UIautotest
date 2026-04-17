@@ -14,51 +14,45 @@ import logging
 
 from utils.devices import ADB_PATH
 
-# 使用PaddleOCR替代pytesseract
+# PaddleOCR 3.x
 try:
     from paddleocr import PaddleOCR
     PADDLEOCR_AVAILABLE = True
 except ImportError:
     PADDLEOCR_AVAILABLE = False
     PaddleOCR = None
-    logger = logging.getLogger(__name__)
-    logger.warning("⚠️ PaddleOCR未安装，OCR功能将不可用。请运行: pip install paddleocr>=2.6.0")
 
 logger = logging.getLogger(__name__)
+
+if not PADDLEOCR_AVAILABLE:
+    logger.warning("⚠️ PaddleOCR未安装，OCR功能将不可用。请运行: pip install paddleocr>=3.0.0")
 
 
 class OCRRecognition:
     """OCR文字识别工具类"""
 
-    def __init__(self, device_port: int = 7555, lang: str = "ch", use_gpu: bool = False,
-                 det_db_box_thresh: float = 0.5, det_db_unclip_ratio: float = 1.6):
+    def __init__(self, device_port: int = 7555):
         """
         初始化OCR识别工具
 
         Args:
             device_port: MuMu模拟器ADB端口，默认7555
-            lang: OCR语言配置 ("ch" 中文, "en" 英文, "fr" 法语等)
-            use_gpu: 是否使用GPU加速
-            det_db_box_thresh: 检测框阈值
-            det_db_unclip_ratio: 检测框扩展比例
         """
         self.device_port = device_port
         self.device_serial = f"127.0.0.1:{device_port}"
-        self.lang = lang
-        self.use_gpu = use_gpu
         self.ocr_engine = None
 
-        # 初始化PaddleOCR引擎（只初始化一次）
+        # 初始化PaddleOCR引擎（自动兼容 2.x / 3.x）
         if PADDLEOCR_AVAILABLE and PaddleOCR is not None:
             self.ocr_engine = PaddleOCR(
-                use_angle_cls=True,
-                lang=lang,
-                use_gpu=use_gpu,
-                det_db_box_thresh=det_db_box_thresh,
-                det_db_unclip_ratio=det_db_unclip_ratio,
-                show_log=False  # 关闭PaddleOCR内部日志，避免干扰
+                use_textline_orientation=True,
+                text_detection_model_name='PP-OCRv5_mobile_det',
+                text_recognition_model_name='PP-OCRv5_mobile_rec',
+                enable_mkldnn=False,
             )
+            self._use_predict = hasattr(self.ocr_engine, 'predict')
         else:
+            self._use_predict = False
             logger.warning("⚠️ PaddleOCR未安装，OCR功能不可用")
 
     def _run_adb_command(self, *args) -> Optional[bytes]:
@@ -126,39 +120,42 @@ class OCRRecognition:
                 x, y, w, h = region
                 screen_img = screen_img[y:y+h, x:x+w]
 
-            # PaddleOCR直接处理numpy数组
-            result = self.ocr_engine.ocr(screen_img, cls=True)
+            # 统一解析
+            detected_items = []  # [(text, cx, cy), ...]
+            if self._use_predict:
+                results = list(self.ocr_engine.predict(screen_img))
+                if results and results[0]:
+                    ocr_result = results[0]
+                    for t, box in zip(ocr_result.get('rec_texts', []),
+                                      ocr_result.get('rec_boxes', [])):
+                        detected_items.append((t, int((box[0]+box[2])/2), int((box[1]+box[3])/2)))
+            else:
+                result = self.ocr_engine.ocr(screen_img, cls=True)
+                if result and result[0]:
+                    for line in result[0]:
+                        box, (t, _) = line[0], line[1]
+                        xs = [p[0] for p in box]; ys = [p[1] for p in box]
+                        detected_items.append((t, int((min(xs)+max(xs))/2), int((min(ys)+max(ys))/2)))
 
-            if not result or not result[0]:
+            if not detected_items:
                 logger.debug("PaddleOCR未识别到任何文本")
                 return None
 
             search_text = text if case_sensitive else text.lower()
 
-            for line in result[0]:
-                # line结构: [[[[x1,y1],[x2,y2],[x3,y3],[x4,y4]], ('text', confidence)]]
-                detected_text = line[1][0]
-                confidence = line[1][1]
-
+            for detected_text, cx, cy in detected_items:
                 if not detected_text.strip():
                     continue
 
                 compare_text = detected_text if case_sensitive else detected_text.lower()
 
                 if search_text in compare_text:
-                    # 计算文本框中心点
-                    box_points = line[0]  # 四个角点坐标
-                    x_coords = [point[0] for point in box_points]
-                    y_coords = [point[1] for point in box_points]
-                    center_x = int(sum(x_coords) / 4)
-                    center_y = int(sum(y_coords) / 4)
-
-                    # 如果指定了搜索区域，需要将相对坐标转换为绝对坐标
+                    center_x, center_y = cx, cy
                     if region:
                         center_x += region[0]
                         center_y += region[1]
 
-                    logger.debug(f"OCR找到文本 '{text}' at ({center_x}, {center_y}), confidence: {confidence:.2f}")
+                    logger.debug(f"OCR找到文本 '{text}' at ({center_x}, {center_y})")
                     return (center_x, center_y)
 
             logger.debug(f"OCR未找到文本: {text}")
@@ -185,17 +182,18 @@ class OCRRecognition:
                 x, y, w, h = region
                 screen_img = screen_img[y:y+h, x:x+w]
 
-            result = self.ocr_engine.ocr(screen_img, cls=True)
+            if self._use_predict:
+                results = list(self.ocr_engine.predict(screen_img))
+                if not results or not results[0]:
+                    return ""
+                rec_texts = results[0].get('rec_texts', [])
+            else:
+                result = self.ocr_engine.ocr(screen_img, cls=True)
+                if not result or not result[0]:
+                    return ""
+                rec_texts = [line[1][0] for line in result[0]]
 
-            if not result or not result[0]:
-                return ""
-
-            # 提取所有识别到的文本
-            all_text_lines = []
-            for line in result[0]:
-                detected_text = line[1][0]
-                if detected_text.strip():
-                    all_text_lines.append(detected_text)
+            all_text_lines = [t for t in rec_texts if t.strip()]
 
             return "\n".join(all_text_lines)
 
@@ -223,37 +221,40 @@ class OCRRecognition:
                 x, y, w, h = region
                 screen_img = screen_img[y:y+h, x:x+w]
 
-            result = self.ocr_engine.ocr(screen_img, cls=True)
-
-            if not result or not result[0]:
-                return []
+            # 统一解析为 items: [(text, min_x, min_y, max_x, max_y), ...]
+            items = []
+            if self._use_predict:
+                results = list(self.ocr_engine.predict(screen_img))
+                if not results or not results[0]:
+                    return []
+                ocr_result = results[0]
+                for t, box in zip(ocr_result.get('rec_texts', []),
+                                  ocr_result.get('rec_boxes', [])):
+                    items.append((t, box[0], box[1], box[2], box[3]))
+            else:
+                result = self.ocr_engine.ocr(screen_img, cls=True)
+                if not result or not result[0]:
+                    return []
+                for line in result[0]:
+                    box, (t, _) = line[0], line[1]
+                    xs = [p[0] for p in box]; ys = [p[1] for p in box]
+                    items.append((t, min(xs), min(ys), max(xs), max(ys)))
 
             search_text = text if case_sensitive else text.lower()
             results_list = []
 
-            for line in result[0]:
-                detected_text = line[1][0]
-                confidence = line[1][1]
-                box_points = line[0]
-
+            for detected_text, min_x, min_y, max_x, max_y in items:
                 if not detected_text.strip():
                     continue
 
                 compare_text = detected_text if case_sensitive else detected_text.lower()
 
                 if search_text in compare_text:
-                    # 计算边界框（最小外接矩形）
-                    x_coords = [point[0] for point in box_points]
-                    y_coords = [point[1] for point in box_points]
-                    min_x, max_x = min(x_coords), max(x_coords)
-                    min_y, max_y = min(y_coords), max(y_coords)
                     width = max_x - min_x
                     height = max_y - min_y
-
                     center_x = int((min_x + max_x) / 2)
                     center_y = int((min_y + max_y) / 2)
 
-                    # 如果指定了搜索区域，需要将相对坐标转换为绝对坐标
                     if region:
                         min_x += region[0]
                         min_y += region[1]
@@ -264,8 +265,7 @@ class OCRRecognition:
                         'text': detected_text,
                         'bbox': (min_x, min_y, width, height),
                         'center': (center_x, center_y),
-                        'confidence': confidence,
-                        'box_points': box_points  # 原始四点坐标
+                        'box': (min_x, min_y, max_x, max_y)
                     }
                     results_list.append(result_dict)
 

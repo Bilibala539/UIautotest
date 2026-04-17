@@ -12,6 +12,7 @@ pytest fixture 配置文件
 3. 默认值: mumu
 """
 import os
+import base64
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -69,8 +70,100 @@ def _detect_platform(item) -> str:
 log_dir = r"E:\UIAutotest\logs"
 os.makedirs(log_dir, exist_ok=True)
 
-# 创建日志文件路径
-log_file = os.path.join(log_dir, f"test_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
+# 创建 HTML 日志文件路径
+_log_timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+log_file = os.path.join(log_dir, f"test_{_log_timestamp}.html")
+
+# ==================== HTML 日志 Handler ====================
+
+_HTML_HEADER = """<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Test Log</title>
+<style>
+  body {{ font-family: Consolas, monospace; background: #1e1e1e; color: #d4d4d4; margin: 0; padding: 16px; }}
+  .log-entry {{ padding: 2px 4px; border-bottom: 1px solid #2d2d2d; white-space: pre-wrap; word-break: break-all; }}
+  .INFO  {{ color: #9cdcfe; }}
+  .WARNING {{ color: #dcdcaa; }}
+  .ERROR {{ color: #f44747; }}
+  .DEBUG {{ color: #6a9955; }}
+  .fail-block {{ margin: 12px 0; padding: 12px; border: 2px solid #f44747; border-radius: 6px; background: #2d1e1e; }}
+  .screenshot-block {{ margin: 12px 0; padding: 12px; border: 2px solid #3a3a5c; border-radius: 6px; background: #1e1e2d; }}
+  .fail-title {{ color: #f44747; font-weight: bold; font-size: 1.1em; margin-bottom: 8px; }}
+  .screenshot-block .fail-title {{ color: #9cdcfe; }}
+  .fail-img {{ max-width: 100%; border: 1px solid #555; border-radius: 4px; margin-top: 8px; display: block; }}
+</style>
+</head>
+<body>
+"""
+
+_HTML_FOOTER = "</body></html>\n"
+
+
+class HtmlFileHandler(logging.Handler):
+    """将日志输出为 HTML 文件，支持在用例失败时内嵌截图"""
+
+    def __init__(self, filepath: str):
+        super().__init__()
+        self._filepath = filepath
+        # 写入 HTML 头部
+        with open(filepath, 'w', encoding='utf-8') as f:
+            f.write(_HTML_HEADER)
+
+    def emit(self, record: logging.LogRecord):
+        try:
+            msg = self.format(record)
+            level = record.levelname
+            # 转义 HTML 特殊字符
+            safe_msg = msg.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+            line = f'<div class="log-entry {level}">{safe_msg}</div>\n'
+            with open(self._filepath, 'a', encoding='utf-8') as f:
+                f.write(line)
+        except Exception:
+            self.handleError(record)
+
+    def append_screenshot(self, label: str, screenshot_path: str, img_b64: str = None):
+        """
+        在日志当前位置追加一张截图块。
+
+        Args:
+            label:           标题描述文字
+            screenshot_path: 图片磁盘路径（用于展示，img_b64 为空时从此路径读取）
+            img_b64:         已编码的 base64 字符串（可选，传入则跳过文件读取）
+        """
+        try:
+            if img_b64 is None:
+                with open(screenshot_path, 'rb') as f:
+                    img_b64 = base64.b64encode(f.read()).decode('utf-8')
+            # 根据 label 是否含 FAIL 决定样式
+            css_class = 'fail-block' if 'FAIL' in label or '❌' in label or '⚠️' in label else 'screenshot-block'
+            block = (
+                f'<div class="{css_class}">'
+                f'<div class="fail-title">{label}</div>'
+                f'<div style="font-size:0.85em;color:#888;">路径: {screenshot_path}</div>'
+                f'<img class="fail-img" src="data:image/png;base64,{img_b64}" />'
+                f'</div>\n'
+            )
+            with open(self._filepath, 'a', encoding='utf-8') as f:
+                f.write(block)
+        except Exception as e:
+            with open(self._filepath, 'a', encoding='utf-8') as f:
+                f.write(f'<div class="log-entry ERROR">截图内嵌失败: {e}</div>\n')
+
+    def append_fail_screenshot(self, test_name: str, screenshot_path: str):
+        """在日志末尾追加失败用例截图块（兼容旧调用，内部转发到 append_screenshot）"""
+        self.append_screenshot(f"❌ 用例失败截图: {test_name}", screenshot_path)
+
+    def close(self):
+        # 写入 HTML 尾部
+        try:
+            with open(self._filepath, 'a', encoding='utf-8') as f:
+                f.write(_HTML_FOOTER)
+        except Exception:
+            pass
+        super().close()
+
 
 # 获取根日志记录器并清除已有的handlers（解决basicConfig不生效的问题）
 root_logger = logging.getLogger()
@@ -80,18 +173,18 @@ root_logger.setLevel(logging.INFO)
 for handler in root_logger.handlers[:]:
     root_logger.removeHandler(handler)
 
-# 创建文件handler
-file_handler = logging.FileHandler(log_file, encoding='utf-8')
-file_handler.setLevel(logging.INFO)
-file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+# 创建 HTML 文件 handler
+html_handler = HtmlFileHandler(log_file)
+html_handler.setLevel(logging.INFO)
+html_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
 
-# 创建控制台handler
+# 创建控制台 handler
 console_handler = logging.StreamHandler()
 console_handler.setLevel(logging.INFO)
 console_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
 
 # 添加handlers到根日志记录器
-root_logger.addHandler(file_handler)
+root_logger.addHandler(html_handler)
 root_logger.addHandler(console_handler)
 
 logger = logging.getLogger(__name__)
@@ -101,27 +194,39 @@ logger.info(f"📝 日志文件: {log_file}")
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
 def pytest_runtest_makereport(item, call):
     """
-    失败自动截图
+    失败自动截图，并将截图内嵌到 HTML 日志文件中
     """
     outcome = yield
     rep = outcome.get_result()
 
     if rep.when == "call" and rep.failed:
-        driver = None
-        # 尝试从测试函数参数中获取driver
-        if hasattr(item, 'funcargs'):
-            for arg_name, arg_value in item.funcargs.items():
-                if hasattr(arg_value, 'get_screenshot_as_png'):
-                    driver = arg_value
+        # 尝试从测试类实例的用户对象中获取 aw (AWBase)，进行截图
+        aw = None
+        instance = getattr(item, 'instance', None)
+        if instance is not None:
+            # 遍历实例属性，找到 PPUser 类型的用户，取其 aw 对象
+            for attr_val in vars(instance).values():
+                if hasattr(attr_val, 'aw') and hasattr(attr_val.aw, 'take_screenshot'):
+                    aw = attr_val.aw
                     break
 
-        if driver:
-            screenshot_dir = "screenshots"
+        if aw is not None:
+            screenshot_dir = os.path.join(os.path.dirname(log_file), '..', 'screenshots')
+            screenshot_dir = os.path.normpath(screenshot_dir)
             os.makedirs(screenshot_dir, exist_ok=True)
-            screenshot_path = os.path.join(screenshot_dir,
-                                           f"{item.name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png")
-            driver.save_screenshot(screenshot_path)
-            logger.info(f"失败截图已保存: {screenshot_path}")
+            screenshot_path = os.path.join(
+                screenshot_dir,
+                f"FAIL_{item.name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
+            )
+            img = aw.take_screenshot(save_path=screenshot_path)
+            if img is not None:
+                logger.info(f"📸 用例失败截图已保存: {screenshot_path}")
+                # 将截图内嵌到 HTML 日志
+                html_handler.append_fail_screenshot(item.nodeid, screenshot_path)
+            else:
+                logger.warning(f"⚠️ 用例失败截图失败（截图返回空）: {item.nodeid}")
+        else:
+            logger.warning(f"⚠️ 未找到可截图的用户对象，跳过失败截图: {item.nodeid}")
 
 
 # ==================== 设备管理器 (Session级别) ====================

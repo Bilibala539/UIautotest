@@ -210,6 +210,26 @@ class PPUser:
             message_text = self.aw.random_digits()
         return self.aw.recall_message(message_text)
 
+    def reply_message(self, message_text: str, reply_content: str) -> bool:
+        """回复消息"""
+        return self.aw.reply_message(message_text, reply_content)
+
+    def copy_message(self, message_text: str) -> bool:
+        """复制消息"""
+        return self.aw.copy_message(message_text)
+
+    def multi_select_message(self, message_text: str) -> bool:
+        """进入多选模式"""
+        return self.aw.multi_select_message(message_text)
+
+    def translate_message(self, message_text: str) -> bool:
+        """翻译消息"""
+        return self.aw.translate_message(message_text)
+
+    def favorite_message(self, message_text: str) -> bool:
+        """收藏消息"""
+        return self.aw.favorite_message(message_text)
+
     def open_sidebar(self):
         """打开侧边栏"""
         return self.aw.open_sidebar()
@@ -281,6 +301,24 @@ class PPUser:
             bool: 切换后的新状态
         """
         return self.aw.toggle_message_switch(switch_name)
+
+    # ==================== 图片编辑相关 ====================
+
+    def send_image_from_album(self, recipient: str) -> bool:
+        """从相册选图并直接发送"""
+        return self.aw.send_image_from_album(recipient)
+
+    def select_edit_send_image_from_album(self, recipient: str) -> bool:
+        """从相册选图 → 进入预览 → 编辑 → 完成 → 发送"""
+        return self.aw.select_edit_send_image_from_album(recipient)
+
+    def edit_image_from_chat_message(self, RECIPIENT) -> bool:
+        """长按聊天中的图片消息 → 点击编辑图片 → 完成"""
+        return self.aw.edit_image_from_chat_message(RECIPIENT=RECIPIENT)
+
+    def select_edit_with_tools_send_image(self, recipient: str) -> bool:
+        """从相册选图 → 使用画笔工具编辑 → 完成 → 发送"""
+        return self.aw.select_edit_with_tools_send_image(recipient)
 
     def search(self, tab="全部", text="", isclose=True):
         """大搜"""

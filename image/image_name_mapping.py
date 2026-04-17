@@ -48,6 +48,19 @@ MSG_UNREAD_ICON = os.path.join(path, "会话窗口-未读icon.png")
 MSG_GOOD = os.path.join(path, "会话窗口-赞按钮.png")
 MSG_MESSAGE_GOOD = os.path.join(path, "会话窗口-赞消息.png")
 
+# ==================== 聊天页 - 扩展编辑（富文本）（草稿 - 待验证） ====================
+CHAT_PARAGRAPH_BUTTON = os.path.join(test_path, "聊天页-段落按钮.png")
+EXTENDED_EDIT_BOLD_B = os.path.join(test_path, "扩展编辑-加粗B按钮.png")
+EXTENDED_EDIT_ITALIC_I = os.path.join(test_path, "扩展编辑-斜体I按钮.png")
+EXTENDED_EDIT_UNDERLINE_U = os.path.join(test_path, "扩展编辑-下划线U按钮.png")
+EXTENDED_EDIT_STRIKETHROUGH_S = os.path.join(test_path, "扩展编辑-删除线S按钮.png")
+EXTENDED_EDIT_FONT_COLOR_A = os.path.join(test_path, "扩展编辑-字色A按钮.png")
+EXTENDED_EDIT_STYLE_6 = os.path.join(test_path, "扩展编辑-样式6按钮.png")
+EXTENDED_EDIT_MARKDOWN = os.path.join(test_path, "扩展编辑-Markdown按钮.png")
+EXTENDED_EDIT_SEND_BUTTON = os.path.join(test_path, "扩展编辑-发送按钮.png")
+EXTENDED_EDIT_CLOSE_BUTTON = os.path.join(test_path, "扩展编辑-关闭按钮.png")
+EXTENDED_EDIT_STYLE_TOOLBAR = os.path.join(test_path, "扩展编辑-样式工具栏.png")
+
 # ==================== 聊天页 ====================
 CHAT_SEND_BUTTON = os.path.join(path, "聊天页-发送按钮.png")
 CHAT_PLUS_BUTTON = os.path.join(path, "聊天页-更多加号按钮.png")

@@ -141,18 +141,22 @@ class MuMuBusiness(CommonBusiness):
     def logout(self) -> bool:
         """MuMu 端退出登录流程"""
         logger.info("🚪 [MuMu] 开始退出登录")
-        for i in range(5):
-            logger.info(f"第{i}次按返回键")
-            self.press_back()
-            time.sleep(0.5)
-            try:
-                if self.image_exists(MESSAGE_TAB_BLUE, timeout=1):
-                    logger.info(f"跳出返回循环")
-                    break
-            except:
-                pass
+        # 先检查是否已在消息列表页
+        if self.image_exists(MESSAGE_TAB_BLUE, timeout=2):
+            logger.info("✅ 已在消息列表页，无需按返回键")
         else:
-            raise AssertionError("❌ 返回消息页面失败：连续5次未找到 MESSAGE_TAB_BLUE")
+            for i in range(5):
+                logger.info(f"第{i}次按返回键")
+                self.press_back()
+                time.sleep(0.5)
+                try:
+                    if self.image_exists(MESSAGE_TAB_BLUE, timeout=1):
+                        logger.info(f"跳出返回循环")
+                        break
+                except:
+                    pass
+            else:
+                raise AssertionError("❌ 返回消息页面失败：连续5次未找到 MESSAGE_TAB_BLUE")
         self.click_image(MESSAGE_TAB_MSG_TEXT, dx=-70)
         time.sleep(0.3)
         self.click_text("设置", region=Normal.HALF_DOWN)
@@ -611,6 +615,586 @@ class MuMuBusiness(CommonBusiness):
         # self.text_exists(text="确定要将文件发送给", region=Normal.CENTER_POP)
         self.click_image(POPO_POP_OK)
         pass
+
+    # ==================== 富文本（扩展编辑）相关 ====================
+
+    # 格式类型到图片常量的映射（用于模式A的装饰层图标识别，仅做视觉检测）
+    _RICH_TEXT_FORMAT_MAP = {
+        "bold": EXTENDED_EDIT_BOLD_B,
+        "underline": EXTENDED_EDIT_UNDERLINE_U,
+        "strikethrough": EXTENDED_EDIT_STRIKETHROUGH_S,
+        "font_color": EXTENDED_EDIT_FONT_COLOR_A,
+    }
+
+    # 模式B（真正的格式工具栏 styleBar）中每个格式按钮的 ADB 坐标
+    # 通过 uiautomator dump 确认：markdownBarRecyclerView 中的 styleBarFl 按钮
+    # 按钮间距固定，Y 中心 = 918
+    _STYLE_BAR_ADB_COORDS = {
+        "bold": (108, 918),          # btn1 [84,894][132,942]  - B
+        "italic": (180, 918),        # btn2 [156,894][204,942] - I
+        "underline": (252, 918),     # btn3 [228,894][276,942] - U
+        "strikethrough": (324, 918), # btn4 [300,894][348,942] - S
+        "font_color": (396, 918),    # btn5 [372,894][420,942] - A (字色)
+    }
+
+    # flMarkdown 按钮的 ADB 坐标 — 用于在模式A和模式B之间切换
+    _FL_MARKDOWN_ADB_COORD = (42, 918)  # [18,876][66,960] 中心
+
+    # 需要向左滑动工具栏才能看到的格式（模式B中 RecyclerView 可能需要滚动）
+    _RICH_TEXT_SCROLL_FORMATS = {"style_6", "markdown"}
+
+    def _adb_tap(self, x: int, y: int) -> bool:
+        """
+        通过 ADB 直接点击 Android 坐标
+
+        用于绕过 pyautogui 的窗口坐标系限制，直接在 Android 层面点击。
+        适用于工具栏按钮被原生 View 拦截的场景。
+
+        Args:
+            x: Android 坐标 X（基于 540x960 分辨率）
+            y: Android 坐标 Y
+
+        Returns:
+            bool: 是否成功
+        """
+        result = self._run_adb_command("shell", "input", "tap", str(x), str(y))
+        logger.info(f"👆 ADB tap ({x}, {y})")
+        time.sleep(0.3)
+        return result
+
+    def _enter_extended_edit_mode(self) -> bool:
+        """
+        进入扩展编辑模式（富文本模式）
+
+        前置条件: 当前页面为聊天页面 (chat_page)
+
+        步骤:
+        1. 点击聊天页底部的段落按钮 (iv_paragraph)
+        2. 验证进入扩展编辑模式（输入框移至顶部，底部出现样式工具栏）
+
+        探索来源: explorer_output/screenshots/richtext_step9_paragraph_clicked.png
+
+        Returns:
+            bool: 是否成功进入扩展编辑模式
+        """
+        logger.info("📝 [MuMu] 进入扩展编辑模式")
+
+        # 点击段落按钮（在输入框右侧，发送按钮左侧）
+        self.click_image(CHAT_PARAGRAPH_BUTTON, region=Normal.HALF_DOWN)
+        time.sleep(1)
+
+        # 验证进入扩展编辑模式：底部出现样式工具栏（模式A的装饰层B图标）
+        self.image_exists(EXTENDED_EDIT_BOLD_B, region=Normal.HALF_DOWN, timeout=5)
+
+        logger.info("✅ 已进入扩展编辑模式")
+        return True
+
+    def _activate_style_bar(self) -> bool:
+        """
+        激活真正的格式工具栏（从模式A切换到模式B）
+
+        扩展编辑模式有两种底部工具栏状态：
+        - 模式A（初始）：底部显示 normalLL（图片/表情/翻译按钮），
+                         视觉上覆盖了 B/I/U 装饰图标，但这些图标不可点击。
+        - 模式B（格式）：底部显示 styleBar（markdownBarRecyclerView），
+                         包含真正可点击的格式按钮 (B/I/U/S/A...)。
+
+        通过 ADB 点击 flMarkdown 按钮 [18,876][66,960] 来切换。
+
+        Returns:
+            bool: 是否成功切换到模式B
+        """
+        logger.info("📝 [MuMu] 激活格式工具栏（切换到模式B）")
+        ax, ay = self._FL_MARKDOWN_ADB_COORD
+        self._adb_tap(ax, ay)
+        time.sleep(0.5)
+
+        # 验证：模式B中装饰层的 B 图标会消失（被 styleBar 替代）
+        still_mode_a = self.image_exists(EXTENDED_EDIT_BOLD_B, timeout=2, region=Normal.HALF_DOWN)
+        if still_mode_a:
+            logger.warning("⚠️ 仍在模式A，再次尝试切换")
+            self._adb_tap(ax, ay)
+            time.sleep(0.5)
+
+        logger.info("✅ 格式工具栏已激活（模式B）")
+        return True
+
+    def _deactivate_style_bar(self) -> bool:
+        """
+        关闭格式工具栏，切回模式A
+
+        Returns:
+            bool: 是否成功切换回模式A
+        """
+        ax, ay = self._FL_MARKDOWN_ADB_COORD
+        self._adb_tap(ax, ay)
+        time.sleep(0.5)
+        return True
+
+    def _exit_extended_edit_mode(self) -> bool:
+        """
+        退出扩展编辑模式（如果仍在扩展编辑模式中）
+
+        发送消息后，扩展编辑模式通常会自动退出。
+        本方法先检查是否仍在扩展编辑模式中，如果是才点击关闭按钮。
+
+        Returns:
+            bool: 是否成功退出（或已经不在扩展编辑模式中）
+        """
+        logger.info("📝 [MuMu] 检查并退出扩展编辑模式")
+
+        # 检查是否仍在扩展编辑模式：通过工具栏上的加粗B按钮判断
+        still_in_edit = self.image_exists(EXTENDED_EDIT_BOLD_B, timeout=2, region=Normal.HALF_DOWN)
+        if not still_in_edit:
+            logger.info("✅ 扩展编辑模式已自动退出，无需手动关闭")
+            return True
+
+        # 仍在扩展编辑模式，尝试点击关闭按钮
+        if self.image_exists(EXTENDED_EDIT_CLOSE_BUTTON, timeout=2, region=Normal.HALF_UP):
+            self.click_image(EXTENDED_EDIT_CLOSE_BUTTON, timeout=3, region=Normal.HALF_UP)
+            time.sleep(0.5)
+            logger.info("✅ 已手动关闭扩展编辑模式")
+        else:
+            # 关闭按钮未找到，尝试按返回键退出
+            logger.info("⚠️ 未找到关闭按钮，尝试按返回键退出")
+            self.press_back()
+            time.sleep(0.5)
+
+        return True
+
+    def _scroll_toolbar_to_format(self, format_type: str) -> bool:
+        """
+        滑动工具栏使目标格式按钮可见
+
+        样式工具栏是可水平滑动的 RecyclerView，部分按钮（字色、样式6、Markdown）
+        需要向左滑动才能看到。
+
+        Args:
+            format_type: 格式类型
+
+        Returns:
+            bool: 是否需要滑动（True=已滑动，False=无需滑动）
+        """
+        if format_type not in self._RICH_TEXT_SCROLL_FORMATS:
+            return False
+
+        logger.info(f"📝 向左滑动工具栏以显示 '{format_type}' 按钮")
+        # 在工具栏区域向左滑动（工具栏在底部，约 y=915）
+        self.swipe(400, 915, 100, 915, duration=0.3)
+        time.sleep(0.5)
+        return True
+
+    def send_rich_text_message(self, recipient: str, message: str,
+                                format_type: str) -> bool:
+        """
+        发送富文本格式消息
+
+        POPO 扩展编辑模式的底部工具栏有两层 UI：
+        - 模式A（初始）：原生 View（图片/表情/翻译按钮）上覆盖了装饰性 B/I/U 图标，
+                         这些装饰图标不可点击，ADB tap 会被底层原生按钮拦截。
+        - 模式B（格式）：通过点击 flMarkdown 按钮切换，底部变为真正可点击的
+                         styleBar（markdownBarRecyclerView），包含 B/I/U/S/A 格式按钮。
+
+        完整流程:
+        1. 搜索联系人进入聊天页面
+        2. 点击段落按钮进入扩展编辑模式（进入模式A）
+        3. 点击 flMarkdown 切换到模式B（激活真正的格式工具栏）
+        4. 通过 ADB tap 点击模式B中的格式按钮激活样式
+        5. 切回模式A（关闭格式工具栏），此时格式仍然生效
+        6. 点击输入区域，输入文本
+        7. 点击发送按钮
+        8. 验证发送成功
+        9. 退出扩展编辑模式
+        10. 返回消息列表页
+
+        探索来源: explorer_output/records/exploration_record_richtext.md
+
+        Args:
+            recipient: 收件人账号（如 'grp.popoqa93'）
+            message: 消息文本内容
+            format_type: 格式类型，支持:
+                - 'bold': 加粗
+                - 'italic': 斜体
+                - 'underline': 下划线
+                - 'strikethrough': 删除线
+                - 'font_color': 字体颜色
+
+        Returns:
+            bool: 发送是否成功
+        """
+        logger.info(f"📝 [MuMu] 发送富文本消息: format={format_type}, text='{message}'")
+
+        # 验证格式类型有效
+        adb_coord = self._STYLE_BAR_ADB_COORDS.get(format_type)
+        assert adb_coord is not None, (
+            f"不支持的格式类型: {format_type}，"
+            f"支持的类型: {list(self._STYLE_BAR_ADB_COORDS.keys())}"
+        )
+
+        # 1. 进入聊天页面
+        self._enter_chat_page(recipient)
+
+        # 2. 进入扩展编辑模式（此时处于模式A）
+        self._enter_extended_edit_mode()
+
+        # 3. 切换到模式B（真正的格式工具栏）
+        self._activate_style_bar()
+
+        # 4. 在模式B中，通过 ADB tap 点击格式按钮（滑动如需要）
+        self._scroll_toolbar_to_format(format_type)
+        ax, ay = adb_coord
+        logger.info(f"📝 通过 ADB 点击格式按钮 '{format_type}' @ ({ax}, {ay})")
+        self._adb_tap(ax, ay)
+        time.sleep(0.5)
+
+        # 5. 切回模式A（关闭格式工具栏，格式仍然生效）
+        self._deactivate_style_bar()
+
+        # 6. 点击输入区域并输入文本
+        self.click_text("发送给", region=Normal.HALF_UP)
+        time.sleep(0.3)
+        self.input_text(str(message))
+        time.sleep(0.5)
+
+        # 7. 点击发送按钮
+        self.click_image(EXTENDED_EDIT_SEND_BUTTON, region=Normal.HALF_DOWN)
+        time.sleep(1)
+
+        # 8. 验证发送成功：消息文本出现在聊天区域
+        self.find_text_by_ocr(message, timeout=5)
+
+        # 9. 退出扩展编辑模式
+        self._exit_extended_edit_mode()
+        time.sleep(0.5)
+
+        # 10. 返回消息列表页
+        for i in range(5):
+            self.press_back()
+            time.sleep(0.5)
+            try:
+                if self.image_exists(MESSAGE_TAB_BLUE, timeout=1):
+                    break
+            except:
+                pass
+
+        logger.info(f"✅ [MuMu] 富文本消息发送成功: format={format_type}")
+        return True
+
+    def send_hyperlink_message(self, recipient: str, text: str,
+                                url: str = "https://www.163.com") -> bool:
+        """
+        发送超链接消息
+
+        使用 Markdown 语法 [文字](链接) 发送超链接。
+        在扩展编辑模式下切换到 Markdown 模式输入。
+
+        步骤:
+        1. 进入聊天页面
+        2. 进入扩展编辑模式
+        3. 滑动工具栏找到 Markdown 按钮
+        4. 点击 Markdown 按钮切换到 Markdown 输入模式
+        5. 输入 Markdown 超链接语法
+        6. 点击发送
+        7. 验证发送成功
+
+        探索来源: explorer_output/records/exploration_record_richtext.md
+
+        Args:
+            recipient: 收件人账号
+            text: 超链接显示文字
+            url: 超链接URL地址
+
+        Returns:
+            bool: 发送是否成功
+        """
+        logger.info(f"🔗 [MuMu] 发送超链接消息: text='{text}', url='{url}'")
+
+        # 进入聊天页面
+        self._enter_chat_page(recipient)
+
+        # 进入扩展编辑模式
+        self._enter_extended_edit_mode()
+
+        # 滑动工具栏找到 Markdown 按钮
+        self._scroll_toolbar_to_format("markdown")
+        self.click_image(EXTENDED_EDIT_MARKDOWN, region=Normal.HALF_DOWN)
+        time.sleep(0.5)
+
+        # 点击输入区域
+        self.click_text("发送给", region=Normal.HALF_UP)
+        time.sleep(0.3)
+
+        # 输入 Markdown 超链接语法: [显示文字](URL)
+        markdown_text = f"[{text}]({url})"
+        self.input_text(markdown_text)
+        time.sleep(0.5)
+
+        # 点击发送
+        self.click_image(EXTENDED_EDIT_SEND_BUTTON, region=Normal.HALF_DOWN)
+        time.sleep(1)
+
+        # 验证发送成功
+        self.find_text_by_ocr(text, timeout=5)
+
+        # 退出扩展编辑模式
+        self._exit_extended_edit_mode()
+        time.sleep(0.5)
+
+        # 返回消息列表页
+        for i in range(5):
+            self.press_back()
+            time.sleep(0.5)
+            try:
+                if self.image_exists(MESSAGE_TAB_BLUE, timeout=1):
+                    break
+            except:
+                pass
+
+        logger.info(f"✅ [MuMu] 超链接消息发送成功")
+        return True
+
+    def send_quote_message(self, recipient: str, text: str) -> bool:
+        """
+        发送引用块消息
+
+        使用 Markdown 引用语法 (> 文字) 发送引用块消息。
+
+        步骤:
+        1. 进入聊天页面
+        2. 进入扩展编辑模式
+        3. 滑动工具栏找到 Markdown 按钮
+        4. 切换到 Markdown 模式
+        5. 输入引用语法 (> text)
+        6. 发送
+        7. 验证
+
+        探索来源: explorer_output/records/exploration_record_richtext.md
+
+        Args:
+            recipient: 收件人账号
+            text: 引用内容
+
+        Returns:
+            bool: 发送是否成功
+        """
+        logger.info(f"💬 [MuMu] 发送引用块消息: text='{text}'")
+
+        self._enter_chat_page(recipient)
+        self._enter_extended_edit_mode()
+
+        # 滑动到 Markdown 按钮并点击
+        self._scroll_toolbar_to_format("markdown")
+        self.click_image(EXTENDED_EDIT_MARKDOWN, region=Normal.HALF_DOWN)
+        time.sleep(0.5)
+
+        # 点击输入区域
+        self.click_text("发送给", region=Normal.HALF_UP)
+        time.sleep(0.3)
+
+        # 输入 Markdown 引用语法
+        markdown_text = f"> {text}"
+        self.input_text(markdown_text)
+        time.sleep(0.5)
+
+        # 发送
+        self.click_image(EXTENDED_EDIT_SEND_BUTTON, region=Normal.HALF_DOWN)
+        time.sleep(1)
+
+        # 验证发送成功
+        self.find_text_by_ocr(text, timeout=5)
+
+        # 退出并返回
+        self._exit_extended_edit_mode()
+        time.sleep(0.5)
+        for i in range(5):
+            self.press_back()
+            time.sleep(0.5)
+            try:
+                if self.image_exists(MESSAGE_TAB_BLUE, timeout=1):
+                    break
+            except:
+                pass
+
+        logger.info(f"✅ [MuMu] 引用块消息发送成功")
+        return True
+
+    def send_inline_code_message(self, recipient: str, text: str) -> bool:
+        """
+        发送行内代码消息
+
+        使用 Markdown 行内代码语法 (`代码`) 发送行内代码。
+
+        步骤:
+        1. 进入聊天页面
+        2. 进入扩展编辑模式
+        3. 滑动工具栏找到 Markdown 按钮
+        4. 切换到 Markdown 模式
+        5. 输入行内代码语法 (`code`)
+        6. 发送并验证
+
+        探索来源: explorer_output/records/exploration_record_richtext.md
+
+        Args:
+            recipient: 收件人账号
+            text: 代码内容
+
+        Returns:
+            bool: 发送是否成功
+        """
+        logger.info(f"💻 [MuMu] 发送行内代码消息: text='{text}'")
+
+        self._enter_chat_page(recipient)
+        self._enter_extended_edit_mode()
+
+        self._scroll_toolbar_to_format("markdown")
+        self.click_image(EXTENDED_EDIT_MARKDOWN, region=Normal.HALF_DOWN)
+        time.sleep(0.5)
+
+        self.click_text("发送给", region=Normal.HALF_UP)
+        time.sleep(0.3)
+
+        # 输入行内代码语法
+        markdown_text = f"`{text}`"
+        self.input_text(markdown_text)
+        time.sleep(0.5)
+
+        self.click_image(EXTENDED_EDIT_SEND_BUTTON, region=Normal.HALF_DOWN)
+        time.sleep(1)
+
+        self.find_text_by_ocr(text, timeout=5)
+
+        self._exit_extended_edit_mode()
+        time.sleep(0.5)
+        for i in range(5):
+            self.press_back()
+            time.sleep(0.5)
+            try:
+                if self.image_exists(MESSAGE_TAB_BLUE, timeout=1):
+                    break
+            except:
+                pass
+
+        logger.info(f"✅ [MuMu] 行内代码消息发送成功")
+        return True
+
+    def send_code_block_message(self, recipient: str, text: str,
+                                 language: str = "") -> bool:
+        """
+        发送代码块消息
+
+        使用 Markdown 代码块语法 (```language\\ncode\\n```) 发送代码块。
+
+        步骤:
+        1. 进入聊天页面
+        2. 进入扩展编辑模式
+        3. 滑动到 Markdown 按钮并点击
+        4. 输入代码块语法
+        5. 发送并验证
+
+        探索来源: explorer_output/records/exploration_record_richtext.md
+
+        Args:
+            recipient: 收件人账号
+            text: 代码内容
+            language: 编程语言标识（如 'python', 'java'），可选
+
+        Returns:
+            bool: 发送是否成功
+        """
+        logger.info(f"💻 [MuMu] 发送代码块消息: lang='{language}', text='{text}'")
+
+        self._enter_chat_page(recipient)
+        self._enter_extended_edit_mode()
+
+        self._scroll_toolbar_to_format("markdown")
+        self.click_image(EXTENDED_EDIT_MARKDOWN, region=Normal.HALF_DOWN)
+        time.sleep(0.5)
+
+        self.click_text("发送给", region=Normal.HALF_UP)
+        time.sleep(0.3)
+
+        # 输入代码块语法
+        markdown_text = f"```{language}\n{text}\n```"
+        self.input_text(markdown_text)
+        time.sleep(0.5)
+
+        self.click_image(EXTENDED_EDIT_SEND_BUTTON, region=Normal.HALF_DOWN)
+        time.sleep(1)
+
+        self.find_text_by_ocr(text, timeout=5)
+
+        self._exit_extended_edit_mode()
+        time.sleep(0.5)
+        for i in range(5):
+            self.press_back()
+            time.sleep(0.5)
+            try:
+                if self.image_exists(MESSAGE_TAB_BLUE, timeout=1):
+                    break
+            except:
+                pass
+
+        logger.info(f"✅ [MuMu] 代码块消息发送成功")
+        return True
+
+    def send_background_color_message(self, recipient: str, text: str) -> bool:
+        """
+        发送带背景色的消息
+
+        使用 Markdown 高亮语法 (==文字==) 发送带背景色的消息。
+
+        步骤:
+        1. 进入聊天页面
+        2. 进入扩展编辑模式
+        3. 滑动到 Markdown 按钮
+        4. 切换到 Markdown 模式
+        5. 输入高亮语法 ==text==
+        6. 发送并验证
+
+        探索来源: explorer_output/records/exploration_record_richtext.md
+
+        Args:
+            recipient: 收件人账号
+            text: 消息文本
+
+        Returns:
+            bool: 发送是否成功
+        """
+        logger.info(f"🎨 [MuMu] 发送背景色消息: text='{text}'")
+
+        self._enter_chat_page(recipient)
+        self._enter_extended_edit_mode()
+
+        self._scroll_toolbar_to_format("markdown")
+        self.click_image(EXTENDED_EDIT_MARKDOWN, region=Normal.HALF_DOWN)
+        time.sleep(0.5)
+
+        self.click_text("发送给", region=Normal.HALF_UP)
+        time.sleep(0.3)
+
+        # 输入 Markdown 高亮语法
+        markdown_text = f"=={text}=="
+        self.input_text(markdown_text)
+        time.sleep(0.5)
+
+        self.click_image(EXTENDED_EDIT_SEND_BUTTON, region=Normal.HALF_DOWN)
+        time.sleep(1)
+
+        self.find_text_by_ocr(text, timeout=5)
+
+        self._exit_extended_edit_mode()
+        time.sleep(0.5)
+        for i in range(5):
+            self.press_back()
+            time.sleep(0.5)
+            try:
+                if self.image_exists(MESSAGE_TAB_BLUE, timeout=1):
+                    break
+            except:
+                pass
+
+        logger.info(f"✅ [MuMu] 背景色消息发送成功")
+        return True
 
     # ==================== 侧边栏相关 ====================
 

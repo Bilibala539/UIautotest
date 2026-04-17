@@ -329,6 +329,21 @@ class AWBase:
         self.sleep(0.3)
         return True
 
+    def select_all(self) -> bool:
+        """
+        全选当前输入框内容 (Ctrl+A)
+
+        通过 pyautogui.hotkey 发送 Ctrl+A 热键，在 MuMu 模拟器中触发全选操作。
+
+        Returns:
+            bool: 操作是否成功
+        """
+        import pyautogui
+        pyautogui.hotkey('ctrl', 'a')
+        logger.info("📋 全选文本 (Ctrl+A)")
+        self.sleep(0.3)
+        return True
+
     # ==================== OCR 文字识别 ====================
 
     def find_text_by_ocr(self, text: str, timeout: int = 10,

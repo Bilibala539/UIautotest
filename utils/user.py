@@ -383,6 +383,42 @@ class PPUser:
         """搜应用"""
         self.aw.search(tab, text)
 
+    # ==================== 富文本（扩展编辑）相关 ====================
+
+    def send_rich_text_message(self, recipient: str, message: str,
+                                format_type: str) -> bool:
+        """
+        发送富文本格式消息
+
+        Args:
+            recipient: 收件人账号
+            message: 消息文本内容
+            format_type: 格式类型 ('bold'/'underline'/'strikethrough'/'font_color')
+        """
+        return self.aw.send_rich_text_message(recipient, message, format_type)
+
+    def send_hyperlink_message(self, recipient: str, text: str,
+                                url: str = "https://www.163.com") -> bool:
+        """发送超链接消息"""
+        return self.aw.send_hyperlink_message(recipient, text, url)
+
+    def send_quote_message(self, recipient: str, text: str) -> bool:
+        """发送引用块消息"""
+        return self.aw.send_quote_message(recipient, text)
+
+    def send_inline_code_message(self, recipient: str, text: str) -> bool:
+        """发送行内代码消息"""
+        return self.aw.send_inline_code_message(recipient, text)
+
+    def send_code_block_message(self, recipient: str, text: str,
+                                 language: str = "") -> bool:
+        """发送代码块消息"""
+        return self.aw.send_code_block_message(recipient, text, language)
+
+    def send_background_color_message(self, recipient: str, text: str) -> bool:
+        """发送带背景色的消息"""
+        return self.aw.send_background_color_message(recipient, text)
+
     # ==================== 断言方法 ====================
     def click_image(self, image_name: str, threshold: float = 0.8,
                     timeout: int = 10, dx: int = 0, dy: int = 0, region=Normal.ALL) -> bool:

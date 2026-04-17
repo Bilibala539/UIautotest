@@ -191,7 +191,7 @@ class PPUser:
             self.image_exists(MSG_FILE_VIDEO)
         return
 
-    def recall_message(self, message_text: str):
+    def recall_message(self, message_text=None, is_good=False):
         """
         撤回消息
 
@@ -205,10 +205,9 @@ class PPUser:
             bool: 撤回是否成功
         """
         if message_text:
-            pass
-        else:
-            message_text = self.aw.random_digits()
-        return self.aw.recall_message(message_text)
+            self.aw.recall_message(message_text)
+        if is_good:
+            self.aw.recall_good()
 
     def reply_message(self, message_text: str, reply_content: str) -> bool:
         """回复消息"""
@@ -339,6 +338,7 @@ class PPUser:
             self.text_exists("技术质量中心", region=Normal.HALF_UP)
             self.click_image(SEARCH_CANCEL, region=Normal.HALF_UP)
         if isgoin:
+            time.sleep(5)
             self.click_text(text, timeout=10, region=Search.RESULT_LIST)
             # self.image_exists(MSG_P2P_UNDER_BOTTON)
 

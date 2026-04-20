@@ -16,7 +16,6 @@ class TestRichTextQuoteBlock(BaseTest):
         - 用户A登录
         """
         self.userA = self.users("userA")
-        self.userA.login()
 
     def test_send_quote_message(self):
         """
@@ -43,12 +42,4 @@ class TestRichTextQuoteBlock(BaseTest):
         assert result, "引用块消息发送应该成功"
 
     def teardown(self):
-        """
-        测试后清理
-        - 用户退登
-        - 停止应用
-        """
-        try:
-            self.userA.logout()
-        finally:
-            self.userA.aw.stop_app()
+        pass

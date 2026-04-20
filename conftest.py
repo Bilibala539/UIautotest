@@ -194,10 +194,25 @@ logger.info(f"📝 日志文件: {log_file}")
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
 def pytest_runtest_makereport(item, call):
     """
-    失败自动截图，并将截图内嵌到 HTML 日志文件中
+    失败自动截图，并将截图内嵌到 HTML 日志文件中；
+    每条用例执行完毕后在控制台输出 HTML 日志链接。
     """
     outcome = yield
     rep = outcome.get_result()
+
+    # ---- 用例 call 阶段结束后，在控制台打印 HTML 日志链接 ----
+    if rep.when == "call":
+        _result_emoji = "✅" if rep.passed else ("❌" if rep.failed else "⚠️")
+        _log_url = "file:///" + log_file.replace("\\", "/")
+        # 直接写入 stderr 以确保在 pytest 捕获日志时依然可见
+        import sys
+        sys.stderr.write(
+            f"\n{'='*60}\n"
+            f"{_result_emoji} 用例: {item.nodeid}\n"
+            f"📋 HTML日志: {_log_url}\n"
+            f"{'='*60}\n\n"
+        )
+        sys.stderr.flush()
 
     if rep.when == "call" and rep.failed:
         # 尝试从测试类实例的用户对象中获取 aw (AWBase)，进行截图
@@ -310,18 +325,19 @@ def get_device_manager() -> DeviceManager:
     return _device_manager
 
 
-# ==================== 用户工厂 (Function级别) ====================
+# ==================== 用户工厂 (Session级别) ====================
 
 class UsersFactory:
     """
-    用户工厂类 - 每个测试用例独立
-    负责创建用户实例并分配设备
-    
+    用户工厂类 - Session 级别共享
+    负责创建用户实例、分配设备、管理登录态
+
     特点：
-    - 每个测试用例创建新的工厂实例
-    - 用户状态不会跨用例共享
-    - 设备从全局DeviceManager获取
-    - 自动根据 platform 参数选择 MuMu / PC 平台
+    - 整个 Session 共享同一个工厂实例
+    - 首次调用 users("userA") 时启动设备 + 登录（只执行一次）
+    - 后续调用返回缓存的用户实例
+    - Session 结束时统一退登
+    - 每个用例通过 open_app / close_app 管理应用生命周期
     """
 
     # 预定义的用户配置
@@ -379,7 +395,7 @@ class UsersFactory:
     def __init__(self, device_manager: DeviceManager, platform: str = "mumu"):
         """
         初始化用户工厂
-        
+
         Args:
             device_manager: 设备管理器实例
             platform: 目标平台 ('mumu' 或 'pc')
@@ -388,47 +404,63 @@ class UsersFactory:
         self._platform = platform
         self._created_users: Dict[str, PPUser] = {}
         self._device_index: int = 0
-        logger.debug(f"👤 UsersFactory 新实例创建 (platform={platform})")
+        logger.info(f"👤 UsersFactory 初始化 (platform={platform}, scope=session)")
     
     def __call__(self, user_key: str) -> PPUser:
         """
-        创建用户实例
-        
+        获取或创建用户实例（Session 级别）
+
+        首次调用时：启动设备 → 创建用户 → 登录 → 关闭 POPO（保留登录态）
+        后续调用时：直接返回缓存的用户实例
+
         Args:
             user_key: 用户配置键名
-            
+
         Returns:
             PPUser: 用户实例
-            
+
         Raises:
             ValueError: 如果用户配置不存在
         """
-        # 同一个工厂内，相同user_key返回同一个用户
+        # Session 内相同 user_key 返回同一个用户
         if user_key in self._created_users:
             return self._created_users[user_key]
-        
+
         # 检查用户配置
         if user_key not in self.USER_CONFIGS:
             raise ValueError(f"❌ 未找到用户配置: {user_key}，可用配置: {list(self.USER_CONFIGS.keys())}")
-        
+
         # 获取用户配置
         config = self.USER_CONFIGS[user_key]
-        
+
+        skip_login = os.environ.get("SKIP_SESSION_LOGIN") == "1"
+
         # 根据平台决定是否需要设备
         pp_device = None
         if self._platform == "mumu":
-            # MuMu 端需要启动模拟器设备
-            needed_devices = self._device_index + 1
-            self._device_manager.ensure_devices(needed_devices)
-            device = self._device_manager.get_device(self._device_index)
-            self._device_index += 1
-            
-            pp_device = PPDevice(device_port=device.adb_port, instance_id=device.instance_id)
-            pp_device.pos = device.pos
-            pp_device.size = device.size
-            pp_device.window_name = device.window_name
-            pp_device.is_ready = device.is_ready
-        
+            if skip_login:
+                # 跳过设备启动 — 模拟器已在运行，直接创建 PPDevice
+                from utils.devices import get_device_port_by_instance
+                instance_id = self._device_index
+                port = get_device_port_by_instance(instance_id)
+                self._device_index += 1
+                pp_device = PPDevice(device_port=port, instance_id=instance_id)
+                pp_device.size = (540, 960)
+                pp_device.is_ready = True
+                logger.info(f"⏭️ SKIP_SESSION_LOGIN: 复用已运行设备 instance={instance_id} port={port}")
+            else:
+                # MuMu 端需要启动模拟器设备
+                needed_devices = self._device_index + 1
+                self._device_manager.ensure_devices(needed_devices)
+                device = self._device_manager.get_device(self._device_index)
+                self._device_index += 1
+
+                pp_device = PPDevice(device_port=device.adb_port, instance_id=device.instance_id)
+                pp_device.pos = device.pos
+                pp_device.size = device.size
+                pp_device.window_name = device.window_name
+                pp_device.is_ready = device.is_ready
+
         # 创建用户实例（带 platform 参数）
         user = PPUser(
             uid=config["uid"],
@@ -439,32 +471,55 @@ class UsersFactory:
             name=config.get("name", ""),
             need_login=True
         )
-        
-        # 缓存用户（同一用例内）
-        self._created_users[user_key] = user
-        
+
         if self._platform == "mumu":
             logger.info(f"✅ 创建用户 {user_key}: {user.uid} -> 设备 {pp_device.adb_address} (MuMu)")
         else:
             logger.info(f"✅ 创建用户 {user_key}: {user.uid} (PC)")
-        
+
+        if skip_login:
+            # 跳过登录 — 假定用户已登录
+            user._logged_in = True
+            logger.info(f"⏭️ SKIP_SESSION_LOGIN: 跳过登录 {user_key} ({user.uid})")
+        else:
+            # Session 级登录：首次创建时立即登录，登录完成后关闭 POPO（保留登录态）
+            logger.info(f"🔐 Session 级登录: {user_key} ({user.uid})")
+            user.login()
+            if self._platform == "mumu":
+                user.close_app()
+
+        # 缓存用户（Session 级别）
+        self._created_users[user_key] = user
+
         return user
     
     def get_all_users(self) -> Dict[str, PPUser]:
         """获取当前用例中所有已创建的用户"""
         return self._created_users.copy()
     
-    def cleanup(self) -> None:
+    def session_cleanup(self) -> None:
         """
-        清理当前用例的所有用户状态
-        在teardown时调用
+        Session 结束时的清理操作
+        对所有已登录用户执行: 打开 POPO → 退登 → 关闭 POPO
+
+        设置环境变量 SKIP_SESSION_CLEANUP=1 可跳过退登（批量验证场景）
         """
+        if os.environ.get("SKIP_SESSION_CLEANUP") == "1":
+            logger.info("⏭️ ===== SKIP_SESSION_CLEANUP=1，跳过 Session 退登清理 =====")
+            self._created_users.clear()
+            self._device_index = 0
+            return
+
+        logger.info("🧹 ===== Session 结束，开始清理所有用户 =====")
         for user_key, user in self._created_users.items():
             if user.is_logged_in:
-                logger.info(f"🚪 清理用户 {user_key}: 执行退登")
+                logger.info(f"🚪 Session 清理用户 {user_key}: 打开 POPO → 退登")
+                if self._platform == "mumu":
+                    user.open_app()
                 user.logout()
         self._created_users.clear()
         self._device_index = 0
+        logger.info("✅ ===== Session 清理完成 =====")
 
 
 # ==================== 测试基类 ====================
@@ -475,13 +530,25 @@ class BaseTest:
 
     提供 self.users 类型声明，使 IDE 能正确识别：
     - self.users("userA") → PPUser
-    - self.userA.login() / self.userA.aw.click_text() 等全链路提示
+    - self.userA.aw.click_text() 等全链路提示
+
+    生命周期:
+    - 登录/退登: Session 级别自动管理（无需手动调用）
+    - 打开/关闭 POPO: 框架在每个用例前后自动执行
+    - setup: 获取用户实例 + 自定义前置操作
+    - teardown: 自定义清理操作
 
     使用方式:
         class TestXXX(BaseTest):
             def setup(self):
                 self.userA = self.users("userA")
-                self.userA.login()
+                # 无需 login()，框架已自动打开 POPO 并进入消息列表页
+
+            def test_example(self):
+                self.userA.send_message(...)
+
+            def teardown(self):
+                pass  # 无需 logout()，框架自动关闭 POPO
     """
 
     users: "UsersFactory"
@@ -497,79 +564,88 @@ def device_manager():
     整个测试Session共享同一个设备管理器，
     设备只启动一次。
     """
-    pyautogui.hotkey('win', 'd')
-    time.sleep(0.5)
+    if os.environ.get("SKIP_SESSION_LOGIN") != "1":
+        pyautogui.hotkey('win', 'd')
+        time.sleep(0.5)
     manager = get_device_manager()
     yield manager
 
     logger.info("📱 Session结束，设备管理器清理完成")
 
 
-@pytest.fixture(scope="function")
-def users(device_manager, request):
+@pytest.fixture(scope="session")
+def users(device_manager):
     """
-    用户工厂 fixture - Function级别
-    
-    自动根据文件夹位置或marker标记判断平台:
-    - tests/mumu/ 下的用例 → platform="mumu"
-    - tests/win/ 下的用例 → platform="pc"
-    - @pytest.mark.mumu → platform="mumu"
-    - @pytest.mark.pc → platform="pc"
-    
+    用户工厂 fixture - Session 级别
+
+    整个测试 Session 共享同一个 UsersFactory 实例。
+    首次调用 users("userA") 时触发: 启动设备 → 登录 → 关闭 POPO（保留登录态）。
+    后续调用直接返回缓存的用户实例。
+    Session 结束时统一退登。
+
     使用方式:
-        class TestExample:
+        class TestExample(BaseTest):
             def setup(self):
                 self.userA = self.users("userA")
-                self.userA.login()
-            
-            def test_example(self):
-                pass
-            
-            def teardown(self):
-                self.userA.logout()
-    
-    Yields:
-        UsersFactory: 用户工厂实例
-    """
-    # 自动检测平台
-    platform = _detect_platform(request.node)
-    logger.info(f"🎯 检测到平台: {platform} (用例: {request.node.nodeid})")
+                # 无需 login()，框架自动管理
 
-    factory = UsersFactory(device_manager, platform=platform)
-    logger.info(f"👤 ===== 新用例开始，创建新的UsersFactory (platform={platform}) =====")
-    
-    # 自动注入到测试类实例 (支持 setup/teardown 使用)
-    if request.instance is not None:
-        request.instance.users = factory
-    
+            def test_example(self):
+                self.userA.send_message(...)
+
+            def teardown(self):
+                pass  # 无需 logout()，框架自动管理
+
+    Yields:
+        UsersFactory: 用户工厂实例 (Session 级别共享)
+    """
+    factory = UsersFactory(device_manager, platform="mumu")
+    logger.info(f"👤 ===== Session 开始，创建 UsersFactory =====")
+
     yield factory
-    
-    # 清理当前用例的用户
-    logger.info("👤 ===== 用例结束，清理用户状态 =====")
-    factory.cleanup()
+
+    # Session 结束：统一退登清理
+    factory.session_cleanup()
 
 
 @pytest.fixture(scope="function", autouse=True)
-def _inject_users_and_run_setup_teardown(users, request):
+def _auto_app_lifecycle(users, request):
     """
-    自动注入 users 到测试类实例，并执行 setup/teardown 方法
-    autouse=True 确保自动执行
+    每个测试用例的 POPO 应用生命周期管理 (autouse=True)
+
+    生命周期:
+    1. [setup 前] 为所有已创建的用户打开 POPO (open_app)
+    2. [setup] 注入 users 到测试类 + 执行用户自定义 setup()
+    3. [yield] 执行测试方法
+    4. [teardown] 执行用户自定义 teardown()
+    5. [teardown 后] 为所有已创建的用户关闭 POPO (close_app)
     """
     instance = request.instance
-    
+
     if instance is not None:
         # 注入 users 到测试类实例
         instance.users = users
-        
-        # 执行 setup 方法（如果存在）
+
+        # 执行用户自定义 setup 方法
+        # （setup 中会调用 users("userA") 获取用户实例）
         if hasattr(instance, 'setup') and callable(getattr(instance, 'setup')):
             logger.info("🔧 执行 setup() 方法")
             instance.setup()
-    
+
+        # setup 完成后，为所有已创建的用户打开 POPO
+        for user_key, user in users.get_all_users().items():
+            logger.info(f"📱 [auto] 打开 POPO: {user_key}")
+            user.open_app()
+
     yield
-    
-    # 执行 teardown 方法（如果存在）
+
+    # teardown 阶段
     if instance is not None:
+        # 先为所有用户关闭 POPO
+        for user_key, user in users.get_all_users().items():
+            logger.info(f"📱 [auto] 关闭 POPO: {user_key}")
+            user.close_app()
+
+        # 执行用户自定义 teardown 方法
         if hasattr(instance, 'teardown') and callable(getattr(instance, 'teardown')):
             logger.info("🧹 执行 teardown() 方法")
             instance.teardown()

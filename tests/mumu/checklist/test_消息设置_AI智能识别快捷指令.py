@@ -10,7 +10,6 @@ class TestMsgSettingsAIQuickCommand(BaseTest):
 
     def setup(self):
         self.userA = self.users("userA")
-        self.userA.login()
         self.userA.open_message_settings()
 
     def test_toggle_ai_quick_command(self):
@@ -39,11 +38,4 @@ class TestMsgSettingsAIQuickCommand(BaseTest):
         assert restored_state == initial_state, f"开关 '{switch_name}' 应恢复到初始状态"
 
     def teardown(self):
-        try:
-            self.userA.close_message_settings()
-        except Exception:
-            pass
-        try:
-            self.userA.logout()
-        finally:
-            self.userA.aw.stop_app()
+        pass

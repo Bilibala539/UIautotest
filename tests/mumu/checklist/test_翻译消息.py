@@ -10,7 +10,6 @@ class TestTranslateMessage(BaseTest):
 
     def setup(self):
         self.userA = self.users("userA")
-        self.userA.login()
 
     def test_translate_message(self):
         """
@@ -27,7 +26,4 @@ class TestTranslateMessage(BaseTest):
         self.userA.aw.press_back()
 
     def teardown(self):
-        try:
-            self.userA.logout()
-        finally:
-            self.userA.aw.stop_app()
+        pass

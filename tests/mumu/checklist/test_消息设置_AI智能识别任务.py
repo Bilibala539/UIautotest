@@ -10,7 +10,6 @@ class TestMsgSettingsAITaskRecognition(BaseTest):
 
     def setup(self):
         self.userA = self.users("userA")
-        self.userA.login()
         self.userA.open_message_settings()
 
     def test_toggle_ai_task_recognition(self):
@@ -36,10 +35,4 @@ class TestMsgSettingsAITaskRecognition(BaseTest):
         self.userA.set_message_switch(switch_name, initial_state)
 
     def teardown(self):
-        try:
-            self.userA.close_message_settings()
-            self.userA.logout()
-        except:
-            pass
-        finally:
-            self.userA.aw.stop_app()
+        pass

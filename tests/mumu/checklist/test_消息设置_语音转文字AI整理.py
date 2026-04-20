@@ -10,7 +10,6 @@ class TestMsgSettingsVoiceAISummary(BaseTest):
 
     def setup(self):
         self.userA = self.users("userA")
-        self.userA.login()
         self.userA.open_message_settings()
 
     def test_toggle_voice_ai_summary(self):
@@ -36,11 +35,4 @@ class TestMsgSettingsVoiceAISummary(BaseTest):
         self.userA.set_message_switch(switch_name, initial_state)
 
     def teardown(self):
-        try:
-            self.userA.close_message_settings()
-        except Exception:
-            pass
-        try:
-            self.userA.logout()
-        finally:
-            self.userA.aw.stop_app()
+        pass

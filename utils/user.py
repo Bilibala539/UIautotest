@@ -131,12 +131,22 @@ class PPUser:
         return self._aw
 
     def login(self) -> bool:
-        """执行用户登录"""
+        """
+        执行用户登录（Session 级别调用一次）
+
+        完成登录后标记 _logged_in = True
+        """
         logger.info(f"🔐 {self.uid} 正在登录 (平台: {self.platform})")
         self.aw.login(self.uid, self.password)
+        self._logged_in = True
+        logger.info(f"✅ {self.uid} 登录成功")
 
     def logout(self) -> bool:
-        """执行用户退出登录"""
+        """
+        执行用户退出登录（Session 结束时调用）
+
+        前置条件: POPO 应用已打开且在前台
+        """
         logger.info(f"🚪 {self.uid} 正在退出登录")
 
         result = self.aw.logout()
@@ -147,12 +157,51 @@ class PPUser:
 
         return result
 
+    def open_app(self):
+        """
+        启动 POPO 并等待进入消息列表首页（已登录状态下）
+
+        每个用例的 setup 阶段调用。
+        前置条件: 用户已完成 Session 级登录，force-stop 不清除登录态。
+        """
+        logger.info(f"📱 {self.uid} 启动 POPO")
+        self.aw.open_app()
+
+    def close_app(self):
+        """
+        关闭 POPO 应用（force-stop，保持登录态）
+
+        每个用例的 teardown 阶段调用。
+        """
+        logger.info(f"📱 {self.uid} 关闭 POPO")
+        self.aw.close_app()
+
     @property
     def is_logged_in(self) -> bool:
         """检查用户是否已登录"""
         return self._logged_in
 
     # ==================== 便捷业务方法 ====================
+
+    def open_session_group_panel(self) -> bool:
+        """打开会话分组弹窗"""
+        return self.aw.open_session_group_panel()
+
+    def close_session_group_panel(self) -> bool:
+        """关闭会话分组弹窗（点击蒙层区域）"""
+        return self.aw.close_session_group_panel()
+
+    def open_session_group_manage(self) -> bool:
+        """进入分组管理页面"""
+        return self.aw.open_session_group_manage()
+
+    def enable_hidden_session_group(self, group_name: str = "群组") -> bool:
+        """启用一个隐藏的会话分组"""
+        return self.aw.enable_hidden_session_group(group_name)
+
+    def disable_session_group(self, group_name: str = "群组") -> bool:
+        """将一个展示的会话分组移到隐藏区域"""
+        return self.aw.disable_session_group(group_name)
 
     def create_team(self) -> bool:
         """创建群组"""
@@ -418,6 +467,50 @@ class PPUser:
     def send_background_color_message(self, recipient: str, text: str) -> bool:
         """发送带背景色的消息"""
         return self.aw.send_background_color_message(recipient, text)
+
+    # ==================== 日历相关 ====================
+
+    def view_calendar(self) -> bool:
+        """查看日历页面"""
+        return self.aw.view_calendar()
+
+    # ==================== 群组管理相关 ====================
+
+    def search_chat_content(self, group_identifier: str, keyword: str) -> bool:
+        """搜索群聊天内容"""
+        return self.aw.search_chat_content(group_identifier, keyword)
+
+    def set_group_announcement(self, group_identifier: str, content: str) -> bool:
+        """设置群公告"""
+        return self.aw.set_group_announcement(group_identifier, content)
+
+    def exit_group(self, group_identifier: str) -> bool:
+        """退出群组"""
+        return self.aw.exit_group(group_identifier)
+
+    def delete_message(self, message_text: str) -> bool:
+        """删除消息"""
+        return self.aw.delete_message(message_text)
+
+    def pin_message(self, message_text: str) -> bool:
+        """Pin消息（置顶消息）"""
+        return self.aw.pin_message(message_text)
+
+    def view_message_history_cloud_docs(self, group_identifier: str) -> bool:
+        """查看消息历史-云文档"""
+        return self.aw.view_message_history_cloud_docs(group_identifier)
+
+    def search_message_history(self, group_identifier: str, keyword: str = "UI") -> bool:
+        """搜索消息历史-云文档"""
+        return self.aw.search_message_history(group_identifier, keyword)
+
+    def add_custom_tab_page(self, recipient: str, tab_name: str = "测试标签页", link_url: str = "https://www.163.com") -> bool:
+        """P2P会话添加自定义标签页"""
+        return self.aw.add_custom_tab_page(recipient, tab_name, link_url)
+
+    def remove_custom_tab_page(self, recipient: str, tab_name: str) -> bool:
+        """P2P会话删除自定义标签页"""
+        return self.aw.remove_custom_tab_page(recipient, tab_name)
 
     # ==================== 断言方法 ====================
     def click_image(self, image_name: str, threshold: float = 0.8,

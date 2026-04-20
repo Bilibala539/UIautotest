@@ -18,7 +18,6 @@ class TestSendP2PMessage(BaseTest):
         - 用户A登录
         """
         self.userA = self.users("userA")
-        self.userA.login()
 
     def test_send_p2p_videofile(self):
         """
@@ -37,12 +36,4 @@ class TestSendP2PMessage(BaseTest):
         self.userA.recall_message(file_name)
 
     def teardown(self):
-        """
-        测试后清理
-        - 用户退登
-        - 停止应用
-        """
-        try:
-            self.userA.logout()
-        finally:
-            self.userA.aw.stop_app()
+        pass

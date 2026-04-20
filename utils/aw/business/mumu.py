@@ -66,6 +66,65 @@ class MuMuBusiness(CommonBusiness):
         logger.info("✅ 应用已停止")
         return True
 
+    def open_app(self):
+        """
+        启动 POPO 并等待进入消息列表首页
+
+        前置条件: 用户已登录（Session 级别已完成登录，force-stop 不清除登录态）
+        步骤:
+        1. 检查是否已在消息列表页（跳过启动）
+        2. 尝试点击底部"消息"Tab（可能在App内其他Tab页面）
+        3. 尝试按返回键回到消息页（可能在深层页面）
+        4. 否则从桌面启动App
+        5. 处理可能出现的弹窗
+        """
+        logger.info("📱 [MuMu] 启动 POPO 应用...")
+
+        # 先检查是否已在消息列表页（image_exists 不会抛异常）
+        if self.image_exists(MESSAGE_TAB_BLUE, timeout=2):
+            logger.info("✅ [MuMu] POPO 已在消息列表页，无需启动")
+            self.pop_not_allowed()
+            return
+
+        # 尝试点击底部"消息"Tab（可能在其他Tab页面：工作台/日历等）
+        try:
+            msg_pos = self.find_text_by_ocr("消息", timeout=2, region=(0, 860, 540, 100))
+            if msg_pos:
+                self.tap(msg_pos[0], msg_pos[1])
+                self.sleep(1)
+                if self.image_exists(MESSAGE_TAB_BLUE, timeout=2):
+                    logger.info("✅ [MuMu] 已通过点击消息Tab回到消息列表页")
+                    self.pop_not_allowed()
+                    return
+        except Exception:
+            pass  # OCR可能因为不在App内而失败
+
+        # 尝试按返回键回到消息页（可能在App内深层页面）
+        for i in range(5):
+            self.press_back()
+            self.sleep(0.5)
+            if self.image_exists(MESSAGE_TAB_BLUE, timeout=1):
+                logger.info("✅ [MuMu] 已通过返回键回到消息列表页")
+                self.pop_not_allowed()
+                return
+
+        # App未运行，从桌面启动
+        self.start_app()
+        self.sleep(2)
+        self.image_exists(MESSAGE_TAB_BLUE, timeout=15)
+        self.pop_not_allowed()
+        logger.info("✅ [MuMu] POPO 已启动，已进入消息列表页")
+
+    def close_app(self):
+        """
+        关闭 POPO 应用（force-stop，保留登录态）
+
+        使用 am force-stop 关闭应用进程，不清除数据，登录态保留。
+        """
+        logger.info("📱 [MuMu] 关闭 POPO 应用...")
+        self.stop_app()
+        logger.info("✅ [MuMu] POPO 已关闭")
+
     def restart_app(self) -> bool:
         """重启应用"""
         self.stop_app()
@@ -138,22 +197,93 @@ class MuMuBusiness(CommonBusiness):
         self.pop_not_allowed()
         logger.info(f"✅ [MuMu] 登录成功: {uid}")
 
-    def logout(self) -> bool:
-        """MuMu 端退出登录流程"""
-        logger.info("🚪 [MuMu] 开始退出登录")
+    def _ensure_message_page(self) -> bool:
+        """
+        确保当前处于消息列表页面
+
+        处理以下场景:
+        1. 已在消息列表页 → 直接返回
+        2. 在App内深层页面 → 连续按返回键回到消息页
+        3. App已退出到模拟器桌面 → 重新点击POPO图标启动App
+        4. 在登录页面 → 说明已经退出登录了，返回False
+
+        Returns:
+            bool: True=成功回到消息列表页, False=已在登录页(已退出登录)
+        """
+        # 场景1: 已在消息列表页
+        if self.find_image(MESSAGE_TAB_BLUE, timeout=2):
+            logger.info("✅ 已在消息列表页")
+            return True
+
+        # 场景4: 检查是否在登录页
+        if self.find_image(LOGIN_POPO_TEXT, timeout=1):
+            logger.info("📱 已在登录页面，无需退登")
+            return False
+
+        # 场景2: 连续按返回键尝试回到消息页
         for i in range(5):
-            try:
-                if self.image_exists(MESSAGE_TAB_BLUE, timeout=1):
-                    logger.info(f"跳出返回循环")
-                    break
-                else:
-                    logger.info(f"第{i}次按返回键")
-                    self.press_back()
-                    time.sleep(0.5)
-            except:
-                pass
-        else:
-            raise AssertionError("❌ 返回消息页面失败：连续5次未找到 MESSAGE_TAB_BLUE")
+            logger.info(f"🔙 第{i+1}次按返回键")
+            self.press_back()
+            time.sleep(0.5)
+
+            if self.find_image(MESSAGE_TAB_BLUE, timeout=1):
+                logger.info("✅ 成功回到消息列表页")
+                return True
+
+            # 按返回键后检查是否退出到了登录页
+            if self.find_image(LOGIN_POPO_TEXT, timeout=1):
+                logger.info("📱 按返回键后到达登录页，无需退登")
+                return False
+
+        # 场景3: 连续按返回可能退出到了桌面，尝试重启App
+        logger.warning("⚠️ 连续5次返回未找到消息页，尝试检测桌面并重启App")
+        if self.find_image(HOME_POPO_LOGO, timeout=2):
+            logger.info("📱 检测到桌面POPO图标，重新启动App")
+            self.start_app()
+            time.sleep(3)
+            if self.find_image(MESSAGE_TAB_BLUE, timeout=10):
+                logger.info("✅ 重启App后成功回到消息列表页")
+                return True
+            if self.find_image(LOGIN_POPO_TEXT, timeout=3):
+                logger.info("📱 重启App后到达登录页，无需退登")
+                return False
+
+        # 最后的兜底: 强制停止App再启动
+        logger.warning("⚠️ 无法定位当前页面，强制停止并重启App")
+        self.stop_app()
+        time.sleep(1)
+        self.start_app()
+        time.sleep(3)
+        if self.find_image(MESSAGE_TAB_BLUE, timeout=10):
+            return True
+        if self.find_image(LOGIN_POPO_TEXT, timeout=3):
+            return False
+
+        logger.error("❌ 多次尝试后仍无法回到消息列表页或登录页")
+        return False
+
+    def logout(self) -> bool:
+        """
+        MuMu 端退出登录流程
+
+        步骤:
+        1. 确保回到消息列表页（处理桌面/深层页面等异常场景）
+        2. 打开侧边栏
+        3. 点击设置
+        4. 点击退出登录
+        5. 确认退出
+        6. 验证回到登录页
+        """
+        logger.info("🚪 [MuMu] 开始退出登录")
+
+        # 1. 确保回到消息列表页
+        on_message_page = self._ensure_message_page()
+        if not on_message_page:
+            # 已在登录页面，说明App已退出登录或被重启后需要重新登录
+            logger.info("✅ [MuMu] 已在登录页面，无需退登操作")
+            return True
+
+        # 2. 打开侧边栏并退登
         self.click_image(MESSAGE_TAB_MSG_TEXT, dx=-70)
         time.sleep(0.3)
         self.click_text("设置", region=Normal.HALF_DOWN)
@@ -183,6 +313,168 @@ class MuMuBusiness(CommonBusiness):
                 logger.info("弹窗已关闭")
         except:
             logger.info("未发现弹窗")
+
+    # ==================== 会话分组相关 ====================
+
+    def open_session_group_panel(self) -> bool:
+        """
+        打开会话分组更多弹窗
+
+        步骤:
+        1. 在消息列表页点击分组标签栏右侧的≡按钮
+        2. 弹出会话分组面板（包含分组标签、管理入口、会话盒子等）
+
+        探索来源: explorer_output/screenshots/session_group_more.png
+
+        Returns:
+            bool: 操作是否成功
+        """
+        logger.info("📋 [MuMu] 打开会话分组弹窗")
+        self.click_image(SESSION_GROUP_MORE_BUTTON, timeout=5)
+        time.sleep(1)
+        # 验证弹窗已打开 - 应能看到"会话分组"和"管理"文字
+        self.find_text_by_ocr("会话分组", timeout=5)
+        logger.info("✅ 会话分组弹窗已打开")
+        return True
+
+    def close_session_group_panel(self) -> bool:
+        """
+        关闭展开的会话分组弹窗（点击蒙层区域）
+
+        步骤:
+        1. 会话分组弹窗展开后，点击底部蒙层区域（会话列表区域）
+        2. 弹窗关闭，恢复正常消息列表视图
+
+        探索来源: explorer_output/screenshots/session_group_more.png
+
+        Returns:
+            bool: 操作是否成功
+        """
+        logger.info("📋 [MuMu] 关闭会话分组弹窗（点击蒙层）")
+        # 点击底部蒙层区域（会话列表区域，在弹窗之外）
+        self.tap(270, 750)
+        time.sleep(1)
+        # 验证弹窗已关闭 - 分组标签栏恢复，≡按钮可见
+        self.image_exists(SESSION_GROUP_MORE_BUTTON, timeout=5)
+        logger.info("✅ 会话分组弹窗已关闭")
+        return True
+
+    def open_session_group_manage(self) -> bool:
+        """
+        进入分组管理页面
+
+        步骤:
+        1. 打开会话分组弹窗
+        2. 点击"管理"按钮
+        3. 进入管理分组页面
+
+        探索来源: explorer_output/screenshots/session_group_manage.png
+
+        Returns:
+            bool: 操作是否成功
+        """
+        logger.info("📋 [MuMu] 进入分组管理页面")
+        self.open_session_group_panel()
+        self.click_text("管理", timeout=5)
+        time.sleep(1)
+        self.find_text_by_ocr("管理分组", timeout=5)
+        logger.info("✅ 已进入分组管理页面")
+        return True
+
+    def enable_hidden_session_group(self, group_name: str = "群组") -> bool:
+        """
+        在管理分组页面启用一个隐藏的分组
+
+        步骤:
+        1. 进入管理分组页面
+        2. 滚动到底部"隐藏"区域
+        3. 找到目标分组名并点击其左侧的+号按钮
+        4. 验证分组移到了"展示"区域
+        5. 返回消息列表页
+
+        探索来源: explorer_output/screenshots/manage_groups.png
+
+        Args:
+            group_name: 要启用的隐藏分组名称，默认"群组"
+        Returns:
+            bool: 操作是否成功
+        """
+        logger.info(f"📋 [MuMu] 启用隐藏分组: {group_name}")
+
+        # 进入管理分组页面
+        self.open_session_group_manage()
+        time.sleep(1)
+
+        # 滚动到底部看到"隐藏"区域
+        self.swipe_up(300)
+        time.sleep(1)
+
+        # 验证能看到"隐藏"区域和目标分组
+        self.find_text_by_ocr("隐藏", timeout=5)
+        pos = self.find_text_by_ocr(group_name, timeout=5)
+        assert pos is not None, f"未找到隐藏分组 '{group_name}'"
+
+        # 点击分组左侧的+号按钮（在分组文字左侧约50px处）
+        plus_x = pos[0] - 50
+        plus_y = pos[1]
+        self.tap(plus_x, plus_y)
+        time.sleep(2)
+
+        # 验证分组已移到展示区域 - 隐藏区域不再显示该分组
+        # 滚动回顶部确认展示区域
+        self.swipe_down(300)
+        time.sleep(1)
+
+        # 验证展示数量增加了（展示区域包含该分组名）
+        self.find_text_by_ocr("展示", timeout=5)
+
+        # 返回消息列表
+        self.press_back()
+        time.sleep(0.5)
+
+        logger.info(f"✅ 隐藏分组 '{group_name}' 已启用")
+        return True
+
+    def disable_session_group(self, group_name: str = "群组") -> bool:
+        """
+        在管理分组页面将一个展示的分组移到隐藏区域
+
+        步骤:
+        1. 进入管理分组页面
+        2. 滚动找到目标分组
+        3. 点击其左侧的-号按钮
+        4. 返回消息列表页
+
+        Args:
+            group_name: 要隐藏的分组名称，默认"群组"
+        Returns:
+            bool: 操作是否成功
+        """
+        logger.info(f"📋 [MuMu] 隐藏分组: {group_name}")
+
+        # 进入管理分组页面
+        self.open_session_group_manage()
+        time.sleep(1)
+
+        # 滚动查找目标分组
+        self.swipe_up(300)
+        time.sleep(1)
+
+        pos = self.find_text_by_ocr(group_name, timeout=5)
+        assert pos is not None, f"未找到分组 '{group_name}'"
+
+        # 点击分组左侧的-号按钮
+        minus_x = pos[0] - 50
+        minus_y = pos[1]
+        self.tap(minus_x, minus_y)
+        time.sleep(2)
+
+        # 返回消息列表
+        self.press_back()
+        time.sleep(0.5)
+
+        logger.info(f"✅ 分组 '{group_name}' 已隐藏")
+        return True
 
     # ==================== 群组相关 ====================
 
@@ -1820,3 +2112,642 @@ class MuMuBusiness(CommonBusiness):
         if isclose:
             # 点击取消按钮，退出搜索页面
             self.click_image(SEARCH_CANCEL, region=Normal.HALF_UP)
+
+    # ==================== 日历相关 ====================
+
+    def view_calendar(self) -> bool:
+        """
+        查看日历页面
+
+        从消息列表页导航到日历Tab页面，验证日历会议室页面加载成功。
+
+        前置条件:
+        - 当前页面为消息列表页 (message_page)
+
+        步骤:
+        1. 点击底部Tab栏的"日历"
+        2. 验证日历会议室标题出现
+        3. 验证时区信息 UTC+08:00 出现
+        4. 返回消息列表页
+
+        探索来源: explorer_output/screenshots/explore_step1_calendar.png
+
+        Returns:
+            bool: 查看是否成功
+        """
+        logger.info("📅 [MuMu] 查看日历页面")
+
+        # 1. 点击日历Tab
+        self.click_text("日历", region=Normal.HALF_DOWN)
+        time.sleep(2)
+
+        # 2. 验证日历页面加载
+        self.find_text_by_ocr("日历会议室", timeout=5)
+        self.find_text_by_ocr("UTC", timeout=3)
+
+        logger.info("✅ [MuMu] 日历页面查看成功")
+
+        # 3. 返回消息列表页
+        self.press_back()
+        time.sleep(1)
+
+        return True
+
+    # ==================== 群组管理相关 ====================
+
+    def _enter_group_settings(self, group_identifier: str) -> None:
+        """
+        进入群设置页面
+
+        步骤:
+        1. 搜索群聊并进入群聊天页
+        2. 点击顶部群名称区域（"名群成员"文字上方）进入群设置
+
+        Args:
+            group_identifier: 群搜索关键词（如群名称或群号）
+        """
+        logger.info(f"⚙️ [MuMu] 进入群设置: {group_identifier}")
+
+        # 进入群聊页面
+        self._enter_chat_page(group_identifier)
+
+        # 点击群名称进入群设置
+        members_pos = self.find_text_by_ocr("名群成员", timeout=5)
+        assert members_pos, "未找到'名群成员'文字，可能不在群聊页面"
+        self.tap(members_pos[0], members_pos[1], dy=-30)
+        time.sleep(2)
+
+        logger.info("✅ 已进入群设置页面")
+
+    def search_chat_content(self, group_identifier: str, keyword: str) -> bool:
+        """
+        搜索群聊天内容
+
+        在群设置中使用"搜索聊天内容"功能，输入关键词搜索聊天记录。
+
+        前置条件:
+        - 当前页面为消息列表页 (message_page)
+
+        步骤:
+        1. 搜索群聊并进入群聊天页
+        2. 点击群名称进入群设置
+        3. 点击"搜索聊天内容"
+        4. 输入搜索关键词
+        5. 验证搜索结果页面出现
+        6. 返回消息列表页
+
+        探索来源: explorer_output/screenshots/explore2_search_chat_content.png
+
+        Args:
+            group_identifier: 群搜索关键词
+            keyword: 搜索关键词
+
+        Returns:
+            bool: 搜索是否成功执行
+        """
+        logger.info(f"🔍 [MuMu] 搜索群聊天内容: 群={group_identifier}, 关键词={keyword}")
+
+        # 1. 进入群设置页面
+        self._enter_group_settings(group_identifier)
+
+        # 2. 点击"搜索聊天内容"
+        self.click_text("搜索聊天内容", timeout=5)
+        time.sleep(2)
+
+        # 3. 输入搜索关键词
+        self.click_text("搜索", timeout=3)
+        time.sleep(0.5)
+        self.input_text(str(keyword))
+        time.sleep(2)
+
+        # 4. 截图验证搜索结果页面
+        logger.info(f"✅ [MuMu] 搜索聊天内容执行完成: {keyword}")
+
+        # 5. 返回消息列表页
+        for i in range(6):
+            self.press_back()
+            time.sleep(0.5)
+            if self.find_image(MESSAGE_TAB_BLUE, timeout=1):
+                break
+
+        return True
+
+    def set_group_announcement(self, group_identifier: str, content: str) -> bool:
+        """
+        设置群公告
+
+        在群设置中发布群公告。
+
+        前置条件:
+        - 当前页面为消息列表页 (message_page)
+
+        步骤:
+        1. 进入群设置页面
+        2. 点击"群公告"
+        3. 进入群公告查看页
+        4. 点击"编辑"
+        5. 清空旧内容并输入新公告
+        6. 点击右上角完成按钮
+        7. 处理可能的"发送到群聊"确认
+        8. 返回消息列表页
+
+        探索来源: explorer_output/knowledge/app_map.json features.set_announcement
+
+        Args:
+            group_identifier: 群搜索关键词
+            content: 公告内容
+
+        Returns:
+            bool: 设置是否成功
+        """
+        logger.info(f"📢 [MuMu] 设置群公告: 群={group_identifier}")
+
+        # 1. 进入群设置页面
+        self._enter_group_settings(group_identifier)
+
+        # 2. 点击群公告
+        self.click_text("群公告", timeout=5)
+        time.sleep(1)
+
+        # 3. 点击编辑
+        self.click_text("编辑", timeout=5)
+        time.sleep(1)
+
+        # 4. 清空旧内容并输入新公告
+        self.clear_input()
+        time.sleep(0.3)
+        self.input_text(str(content))
+        time.sleep(0.5)
+
+        # 5. 点击右上角完成按钮 (ivTitleBarRight 坐标约486,72)
+        self.tap(486, 72)
+        time.sleep(1)
+
+        # 6. 处理"发送到群聊"确认弹窗（可能出现）
+        send_pos = self.find_text_by_ocr("发送到群聊", timeout=3)
+        if send_pos:
+            self.tap(send_pos[0], send_pos[1])
+            time.sleep(1)
+
+        logger.info(f"✅ [MuMu] 群公告设置成功")
+
+        # 7. 返回消息列表页
+        for i in range(5):
+            self.press_back()
+            time.sleep(0.5)
+            if self.find_image(MESSAGE_TAB_BLUE, timeout=1):
+                break
+
+        return True
+
+    def exit_group(self, group_identifier: str) -> bool:
+        """
+        退出群组
+
+        在群设置页面滑动到底部，点击"退出群组"并确认。
+
+        前置条件:
+        - 当前页面为消息列表页 (message_page)
+
+        步骤:
+        1. 进入群设置页面
+        2. 向上滑动3次（退出群组在第四屏）
+        3. 点击"退出群组"
+        4. 在确认弹窗中点击"确定"
+        5. 验证返回消息列表页
+
+        探索来源: explorer_output/knowledge/app_map.json features.exit_group
+
+        Args:
+            group_identifier: 群搜索关键词
+
+        Returns:
+            bool: 退出是否成功
+        """
+        logger.info(f"🚪 [MuMu] 退出群组: {group_identifier}")
+
+        # 1. 进入群设置页面
+        self._enter_group_settings(group_identifier)
+
+        # 2. 滑动到底部（退出群组在第四屏，需要滑动3次）
+        for i in range(3):
+            self.swipe_up(400)
+            time.sleep(1)
+
+        # 3. 点击"退出群组"
+        self.click_text("退出群组", timeout=5)
+        time.sleep(1)
+
+        # 4. 确认退出
+        self.click_text("确定", timeout=5)
+        time.sleep(2)
+
+        # 5. 验证返回消息列表页
+        self.image_exists(MESSAGE_TAB_BLUE, timeout=10)
+
+        logger.info(f"✅ [MuMu] 已退出群组: {group_identifier}")
+        return True
+
+    def delete_message(self, message_text: str) -> bool:
+        """
+        删除消息
+
+        在当前聊天页面，长按指定消息体，从弹出的操作菜单中点击"删除"，
+        在确认弹窗中点击"删除"完成删除。
+
+        前置条件:
+        - 当前页面为聊天页面 (chat_page)
+
+        步骤:
+        1. 长按目标消息文字(1.5秒)
+        2. 弹出操作菜单（底部浮动面板）
+        3. 点击"删除"选项 (坐标约386,712)
+        4. 在确认弹窗"确认删除消息"中点击"删除"
+        5. 验证消息已删除
+
+        探索来源: explorer_output/screenshots/explore2_longpress_menu.png
+
+        Args:
+            message_text: 要删除的消息文字内容
+
+        Returns:
+            bool: 删除是否成功
+        """
+        logger.info(f"🗑️ [MuMu] 删除消息: '{message_text}'")
+
+        # 1. 长按消息文字
+        self.long_press_text(message_text, duration=1.5)
+        time.sleep(1)
+
+        # 2. 点击弹出菜单中的"删除"
+        self.click_text("删除", region=Normal.HALF_DOWN)
+        time.sleep(1)
+
+        # 3. 确认删除弹窗中点击"删除"
+        self.find_text_by_ocr("确认删除消息", timeout=3)
+        self.click_text("删除", timeout=3)
+        time.sleep(1)
+
+        logger.info(f"✅ [MuMu] 消息删除成功: '{message_text}'")
+        return True
+
+    def pin_message(self, message_text: str) -> bool:
+        """
+        Pin消息（置顶消息）
+
+        在当前聊天页面，长按指定消息体，从弹出的操作菜单中点击"Pin"。
+
+        前置条件:
+        - 当前页面为聊天页面 (chat_page)
+
+        步骤:
+        1. 长按目标消息文字(1.5秒)
+        2. 弹出操作菜单
+        3. 点击"Pin"选项
+
+        探索来源: explorer_output/screenshots/explore2_longpress_menu.png
+
+        Args:
+            message_text: 要Pin的消息文字内容
+
+        Returns:
+            bool: Pin是否成功
+        """
+        logger.info(f"📌 [MuMu] Pin消息: '{message_text}'")
+
+        # 1. 长按消息文字
+        self.long_press_text(message_text, duration=1.5)
+        time.sleep(1)
+
+        # 2. 点击菜单中的"Pin"
+        self.click_text("Pin", region=Normal.HALF_DOWN)
+        time.sleep(1)
+
+        logger.info(f"✅ [MuMu] 消息Pin成功: '{message_text}'")
+        return True
+
+    # ==================== 消息历史相关 ====================
+
+    def _enter_group_settings(self, group_identifier: str) -> bool:
+        """
+        从消息列表页进入群设置页面
+
+        步骤:
+        1. 搜索群组并进入聊天页
+        2. 点击群名称进入群设置
+
+        Args:
+            group_identifier: 群组标识（群号或群名关键词）
+
+        Returns:
+            bool: 是否成功进入群设置页面
+        """
+        logger.info(f"⚙️ [MuMu] 进入群设置: {group_identifier}")
+
+        # 1. 搜索群组并进入聊天页
+        self.click_image(MESSAGE_TAB_SEARCH, region=Normal.HALF_UP)
+        self.image_exists(SEARCH_EMPTY)
+        self.click_image(SELECT_SEARCH, dx=10)
+        self.input_text(str(group_identifier))
+        time.sleep(1)
+        self.click_text("群", region=Normal.HALF_UP)
+        time.sleep(2)
+
+        # 点击第一个群组搜索结果
+        # 群搜索结果中，群名下面显示"包含：xxx"，点击群名所在行（y约297）
+        pos = self.find_text_by_ocr("包含：", timeout=10)
+        # 点击"包含："上方约40px处（即群名所在的行）
+        self.tap(270, pos[1] - 40)
+        time.sleep(2)
+
+        # 2. 点击群名称进入群设置
+        self.click_text("名群成员", timeout=5, dy=-30)
+        time.sleep(2)
+
+        # 验证进入群设置页面
+        self.text_exists("设置", timeout=5)
+        logger.info("✅ [MuMu] 已进入群设置页面")
+        return True
+
+    def view_message_history_cloud_docs(self, group_identifier: str) -> bool:
+        """
+        查看消息历史-云文档
+
+        从消息列表页进入群设置，在消息历史区域查看云文档Tab，
+        验证云文档列表按时间倒序排序。
+
+        步骤:
+        1. 进入群设置页面
+        2. 向上滑动找到消息历史区域
+        3. 点击云文档Tab
+        4. 验证云文档列表存在
+        5. 返回消息列表页
+
+        探索来源: explorer_output/screenshots/group_cloud_docs.png
+
+        Args:
+            group_identifier: 群组标识
+
+        Returns:
+            bool: 操作是否成功
+        """
+        logger.info(f"📄 [MuMu] 查看消息历史-云文档: {group_identifier}")
+
+        # 1. 进入群设置页面
+        self._enter_group_settings(group_identifier)
+
+        # 2. 点击云文档Tab（在消息历史区域）
+        self.click_text("云文档", timeout=10)
+        time.sleep(2)
+
+        # 3. 验证进入了消息历史-云文档页面
+        # 页面应该显示Tab栏（消息/云文档/文件/图片视频/链接）和过滤选项
+        self.text_exists("发送者", timeout=5)
+        self.text_exists("全部时间", timeout=5)
+        logger.info("✅ [MuMu] 云文档页面加载成功，显示发送者和时间过滤")
+
+        # 4. 返回消息列表页
+        self.press_back()
+        time.sleep(0.5)
+        self.press_back()
+        time.sleep(0.5)
+        self.press_back()
+        time.sleep(0.5)
+        self.press_back()
+        time.sleep(1)
+
+        logger.info("✅ [MuMu] 查看消息历史-云文档完成")
+        return True
+
+    def search_message_history(self, group_identifier: str, keyword: str = "UI") -> bool:
+        """
+        在消息历史中搜索云文档
+
+        从消息列表页进入群设置，在消息历史-云文档页面进行搜索。
+
+        步骤:
+        1. 进入群设置页面
+        2. 点击云文档Tab进入消息历史
+        3. 点击搜索框输入关键词
+        4. 验证搜索结果
+        5. 返回消息列表页
+
+        探索来源: explorer_output/screenshots/group_cloud_docs.png
+
+        Args:
+            group_identifier: 群组标识
+            keyword: 搜索关键词
+
+        Returns:
+            bool: 操作是否成功
+        """
+        logger.info(f"🔍 [MuMu] 搜索消息历史: {group_identifier}, 关键词: {keyword}")
+
+        # 1. 进入群设置页面
+        self._enter_group_settings(group_identifier)
+
+        # 2. 点击云文档Tab
+        self.click_text("云文档", timeout=10)
+        time.sleep(2)
+
+        # 3. 点击搜索框并输入关键词
+        self.click_text("搜索", timeout=5)
+        time.sleep(0.5)
+        self.input_text(keyword)
+        time.sleep(2)
+
+        # 4. 验证搜索结果页面（应该仍然有发送者过滤和时间过滤）
+        self.text_exists("发送者", timeout=5)
+        logger.info(f"✅ [MuMu] 搜索关键词 '{keyword}' 完成")
+
+        # 5. 返回消息列表页
+        self.press_back()
+        time.sleep(0.5)
+        self.press_back()
+        time.sleep(0.5)
+        self.press_back()
+        time.sleep(0.5)
+        self.press_back()
+        time.sleep(0.5)
+        self.press_back()
+        time.sleep(1)
+
+        logger.info("✅ [MuMu] 搜索消息历史完成")
+        return True
+
+    # ==================== 标签页管理相关 ====================
+
+    def _enter_p2p_settings(self, recipient: str) -> bool:
+        """
+        从消息列表页进入P2P会话设置页面
+
+        步骤:
+        1. 搜索联系人并进入聊天页
+        2. 点击联系人名称进入P2P设置
+
+        Args:
+            recipient: 联系人标识
+
+        Returns:
+            bool: 是否成功进入设置页面
+        """
+        logger.info(f"⚙️ [MuMu] 进入P2P设置: {recipient}")
+
+        # 1. 搜索联系人并进入聊天页
+        self.click_image(MESSAGE_TAB_SEARCH, region=Normal.HALF_UP)
+        self.image_exists(SEARCH_EMPTY)
+        self.click_image(SELECT_SEARCH, dx=10)
+        self.input_text(str(recipient))
+        time.sleep(1)
+        self.click_text("联系人", region=Normal.HALF_UP)
+        time.sleep(2)
+
+        # 点击搜索结果
+        recipient_email = f"{recipient}@corp.netease.com" if "@" not in recipient else recipient
+        self.click_text(recipient_email, timeout=10)
+        time.sleep(2)
+
+        # 2. 点击联系人名称进入P2P设置（顶部区域）
+        # P2P聊天页顶部显示联系人信息，点击进入设置
+        pos = self.find_text_by_ocr("发送给", timeout=5)
+        # 点击页面顶部中央区域进入设置
+        self.tap(270, 100)
+        time.sleep(2)
+
+        # 验证进入设置页面
+        self.text_exists("设置", timeout=5)
+        logger.info("✅ [MuMu] 已进入P2P设置页面")
+        return True
+
+    def add_custom_tab_page(self, recipient: str, tab_name: str = "测试标签页", link_url: str = "https://www.163.com") -> bool:
+        """
+        P2P会话添加自定义标签页
+
+        从消息列表页进入P2P设置，点击标签页→+号→添加链接，
+        输入链接和标题，完成添加。
+
+        步骤:
+        1. 进入P2P设置页面
+        2. 点击"标签页"入口
+        3. 点击"+"按钮
+        4. 点击"添加链接"
+        5. 输入链接地址
+        6. 输入标签页名称
+        7. 完成保存
+        8. 返回消息列表页
+
+        探索来源: explorer_output/screenshots/p2p_add_link_tab.png
+
+        Args:
+            recipient: 联系人标识
+            tab_name: 自定义标签页名称
+            link_url: 链接地址
+
+        Returns:
+            bool: 操作是否成功
+        """
+        logger.info(f"📑 [MuMu] 添加自定义标签页: {recipient}, 名称: {tab_name}")
+
+        # 1. 进入P2P设置页面
+        self._enter_p2p_settings(recipient)
+
+        # 2. 点击"标签页"入口
+        self.click_text("标签页", timeout=10)
+        time.sleep(2)
+
+        # 3. 验证进入标签页管理
+        self.text_exists("全部标签页", timeout=5)
+
+        # 4. 找到+号按钮（在标签页Tab栏右侧）
+        # 标签页列表右侧有+号按钮
+        pos = self.find_text_by_ocr("全部标签页", timeout=5)
+        self.tap(491, pos[1] + 60)  # +号在标签页Tab栏右侧
+        time.sleep(1)
+
+        # 5. 点击"添加链接"
+        self.click_text("添加链接", timeout=5)
+        time.sleep(2)
+
+        # 6. 输入链接地址
+        self.click_text("请输入或复制链接", timeout=5)
+        time.sleep(0.3)
+        self.input_text(link_url)
+        time.sleep(1)
+
+        # 7. 输入标签页名称
+        self.click_text("请输入标签页名称", timeout=5)
+        time.sleep(0.3)
+        self.input_text(tab_name)
+        time.sleep(1)
+
+        # 8. 点击保存/确认（页面右上角）
+        self.tap(490, 70)
+        time.sleep(2)
+
+        # 9. 验证标签页添加成功（应该在标签页列表中看到新标签页）
+        self.find_text_by_ocr(tab_name, timeout=5)
+        logger.info(f"✅ [MuMu] 标签页 '{tab_name}' 添加成功")
+
+        # 10. 返回消息列表页
+        for _ in range(6):
+            self.press_back()
+            time.sleep(0.5)
+
+        logger.info("✅ [MuMu] 添加自定义标签页完成")
+        return True
+
+    def remove_custom_tab_page(self, recipient: str, tab_name: str) -> bool:
+        """
+        P2P会话删除自定义标签页（清理用）
+
+        步骤:
+        1. 进入P2P设置→标签页管理
+        2. 点击"+"展开管理面板
+        3. 点击"管理"
+        4. 删除指定标签页
+        5. 返回消息列表页
+
+        Args:
+            recipient: 联系人标识
+            tab_name: 要删除的标签页名称
+
+        Returns:
+            bool: 操作是否成功
+        """
+        logger.info(f"🗑️ [MuMu] 删除自定义标签页: {tab_name}")
+
+        # 1. 进入P2P设置页面
+        self._enter_p2p_settings(recipient)
+
+        # 2. 点击"标签页"
+        self.click_text("标签页", timeout=10)
+        time.sleep(2)
+
+        # 3. 点击+号展开管理面板
+        pos = self.find_text_by_ocr("全部标签页", timeout=5)
+        self.tap(491, pos[1] + 60)
+        time.sleep(1)
+
+        # 4. 点击"管理"
+        self.click_text("管理", timeout=5)
+        time.sleep(2)
+
+        # 5. 找到目标标签页并删除
+        # 管理页面中标签页旁边有删除按钮
+        tab_pos = self.find_text_by_ocr(tab_name, timeout=5)
+        if tab_pos:
+            # 点击标签页旁的删除按钮（通常在左侧有红色减号）
+            self.tap(tab_pos[0] - 30, tab_pos[1])
+            time.sleep(1)
+            # 确认删除
+            if self.find_text_by_ocr("删除", timeout=3):
+                self.click_text("删除", timeout=3)
+                time.sleep(1)
+
+        # 6. 返回消息列表页
+        for _ in range(6):
+            self.press_back()
+            time.sleep(0.5)
+
+        logger.info(f"✅ [MuMu] 标签页 '{tab_name}' 删除完成")
+        return True

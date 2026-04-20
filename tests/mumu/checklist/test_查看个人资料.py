@@ -17,7 +17,6 @@ class TestViewMyProfile(BaseTest):
         - 用户登录
         """
         self.userA = self.users("userA")
-        self.userA.login()
 
     def test_view_my_profile(self):
         """
@@ -44,11 +43,4 @@ class TestViewMyProfile(BaseTest):
         assert len(profile) >= 3, f"采集到的字段太少: {profile}"
 
     def teardown(self):
-        """
-        测试后清理
-        - 用户退登
-        """
-        try:
-            self.userA.logout()
-        finally:
-            self.userA.aw.stop_app()
+        pass

@@ -16,7 +16,6 @@ class TestRecallMessage(BaseTest):
         - 用户A登录
         """
         self.userA = self.users("userA")
-        self.userA.login()
 
     def test_recall_p2p_message(self):
         """
@@ -46,12 +45,4 @@ class TestRecallMessage(BaseTest):
         self.userA.aw.press_back()
 
     def teardown(self):
-        """
-        测试后清理
-        - 用户退登
-        - 停止应用
-        """
-        try:
-            self.userA.logout()
-        finally:
-            self.userA.aw.stop_app()
+        pass

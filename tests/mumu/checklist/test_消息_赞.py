@@ -12,7 +12,6 @@ class TestCreateTeam(BaseTest):
         - 用户登录
         """
         self.userA = self.users("userA")
-        self.userA.login()
 
     def test_send_p2p_message_good(self):
         self.userA.search_people(text="grp.popoqa50", isgoin=True)
@@ -21,11 +20,4 @@ class TestCreateTeam(BaseTest):
         self.userA.recall_message(is_good=True)
 
     def teardown(self):
-        """
-        测试后清理
-        - 用户退登
-        """
-        try:
-            self.userA.logout()
-        finally:
-            self.userA.aw.stop_app()
+        pass

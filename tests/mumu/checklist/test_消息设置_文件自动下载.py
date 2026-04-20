@@ -10,7 +10,6 @@ class TestMsgSettingsAutoDownloadFile(BaseTest):
 
     def setup(self):
         self.userA = self.users("userA")
-        self.userA.login()
         self.userA.open_message_settings()
 
     def test_toggle_auto_download_file(self):
@@ -36,11 +35,4 @@ class TestMsgSettingsAutoDownloadFile(BaseTest):
         self.userA.set_message_switch(switch_name, initial_state)
 
     def teardown(self):
-        try:
-            self.userA.close_message_settings()
-        except Exception:
-            pass
-        try:
-            self.userA.logout()
-        finally:
-            self.userA.aw.stop_app()
+        pass

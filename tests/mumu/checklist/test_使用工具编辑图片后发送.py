@@ -20,7 +20,6 @@ class TestEditWithToolsSendImage(BaseTest):
 
     def setup(self):
         self.userA = self.users("userA")
-        self.userA.login()
 
     def test_edit_with_tools_send_image(self):
         """
@@ -30,7 +29,4 @@ class TestEditWithToolsSendImage(BaseTest):
         assert result, "使用工具编辑图片后发送应该成功"
 
     def teardown(self):
-        try:
-            self.userA.logout()
-        finally:
-            self.userA.aw.stop_app()
+        pass

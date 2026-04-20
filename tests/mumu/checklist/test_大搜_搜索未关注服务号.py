@@ -13,7 +13,6 @@ class TestCreateTeam(BaseTest):
         - 用户登录
         """
         self.userA = self.users("userA")
-        self.userA.login()
 
     def test_create_team(self):
 
@@ -24,11 +23,4 @@ class TestCreateTeam(BaseTest):
         self.userA.click_image(SEARCH_CANCEL, region=Normal.HALF_UP)
 
     def teardown(self):
-        """
-        测试后清理
-        - 用户退登
-        """
-        try:
-            self.userA.logout()
-        finally:
-            self.userA.aw.stop_app()
+        pass

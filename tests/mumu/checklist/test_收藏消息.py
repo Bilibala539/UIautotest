@@ -10,7 +10,6 @@ class TestFavoriteMessage(BaseTest):
 
     def setup(self):
         self.userA = self.users("userA")
-        self.userA.login()
 
     def test_favorite_message(self):
         """
@@ -27,7 +26,4 @@ class TestFavoriteMessage(BaseTest):
         self.userA.aw.press_back()
 
     def teardown(self):
-        try:
-            self.userA.logout()
-        finally:
-            self.userA.aw.stop_app()
+        pass

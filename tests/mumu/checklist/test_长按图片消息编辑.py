@@ -20,7 +20,6 @@ class TestEditImageFromChatMessage(BaseTest):
 
     def setup(self):
         self.userA = self.users("userA")
-        self.userA.login()
 
     def test_edit_image_from_chat_message(self):
         """
@@ -36,7 +35,4 @@ class TestEditImageFromChatMessage(BaseTest):
         assert result, "长按图片消息并编辑应该成功"
 
     def teardown(self):
-        try:
-            self.userA.logout()
-        finally:
-            self.userA.aw.stop_app()
+        pass

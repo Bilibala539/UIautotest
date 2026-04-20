@@ -22,7 +22,6 @@ class TestSelectEditSendImageFromAlbum(BaseTest):
 
     def setup(self):
         self.userA = self.users("userA")
-        self.userA.login()
 
     def test_select_edit_send_image_from_album(self):
         """
@@ -32,7 +31,4 @@ class TestSelectEditSendImageFromAlbum(BaseTest):
         assert result, "从相册选图编辑后发送应该成功"
 
     def teardown(self):
-        try:
-            self.userA.logout()
-        finally:
-            self.userA.aw.stop_app()
+        pass

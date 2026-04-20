@@ -11,11 +11,9 @@ class TestCreateTeam(BaseTest):
     def setup(self):
         """
         测试前初始化
-        - 实例化用户
-        - 用户登录
+        - 实例化用户（无需 login，框架自动管理）
         """
         self.userA = self.users("userA")
-        self.userA.login()
 
     def test_create_team(self):
         """
@@ -37,10 +35,6 @@ class TestCreateTeam(BaseTest):
 
     def teardown(self):
         """
-        测试后清理
-        - 用户退登
+        测试后清理（框架自动关闭 POPO，无需手动 logout）
         """
-        try:
-            self.userA.logout()
-        finally:
-            self.userA.aw.stop_app()
+        pass

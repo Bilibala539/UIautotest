@@ -12,11 +12,9 @@ class TestSendP2PMessage(BaseTest):
     def setup(self):
         """
         测试前初始化
-        - 实例化用户A
-        - 用户A登录
+        - 实例化用户A（无需 login，框架自动管理）
         """
         self.userA = self.users("userA")
-        self.userA.login()
 
     def test_send_p2p_message(self):
         """
@@ -45,11 +43,6 @@ class TestSendP2PMessage(BaseTest):
 
     def teardown(self):
         """
-        测试后清理
-        - 用户退登
-        - 停止应用
+        测试后清理（框架自动关闭 POPO，无需手动 logout）
         """
-        try:
-            self.userA.logout()
-        finally:
-            self.userA.aw.stop_app()
+        pass

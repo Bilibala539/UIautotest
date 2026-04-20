@@ -197,4 +197,6 @@ CONTACTS_NAV_WORKSPACE_TAB = os.path.join(test_path, "通讯录页-底部导航�
 CONTACTS_NAV_ELIFE_TAB = os.path.join(test_path, "通讯录页-底部导航栏易生活tab.png")
 CONTACTS_NAV_MORE_TAB = os.path.join(test_path, "通讯录页-底部导航栏更多tab.png")
 
+# 会话分组
+SESSION_GROUP_MORE_BUTTON = os.path.join(path, "消息tab页-分组更多按钮.png")
 

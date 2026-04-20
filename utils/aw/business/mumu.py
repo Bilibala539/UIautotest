@@ -142,13 +142,14 @@ class MuMuBusiness(CommonBusiness):
         """MuMu 端退出登录流程"""
         logger.info("🚪 [MuMu] 开始退出登录")
         for i in range(5):
-            logger.info(f"第{i}次按返回键")
-            self.press_back()
-            time.sleep(0.5)
             try:
                 if self.image_exists(MESSAGE_TAB_BLUE, timeout=1):
                     logger.info(f"跳出返回循环")
                     break
+                else:
+                    logger.info(f"第{i}次按返回键")
+                    self.press_back()
+                    time.sleep(0.5)
             except:
                 pass
         else:
@@ -1121,7 +1122,6 @@ class MuMuBusiness(CommonBusiness):
         # H 的中间横线：从 (125, 475) 向右到 (400, 475)
         self.swipe(125, 475, 400, 475, duration=0.5)
         self.image_exists(IMAGE_EDITOR_H)
-        assert False
         time.sleep(0.3)
 
         # 点击"完成"退出编辑器
@@ -1140,9 +1140,6 @@ class MuMuBusiness(CommonBusiness):
         self.click_image(SELECT_CANCEL, dy=308)
         self.image_exists(TOAST_SENDED)
         self.press_back()
-
-        # 验证刚刚发送了带有H的图片
-        self.image_exists(TOAST_SENDED)
 
         # 验证已返回聊天页（+ 按钮可见）
         self.image_exists(CHAT_PLUS_BUTTON, region=Normal.HALF_DOWN)

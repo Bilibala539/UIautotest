@@ -11,12 +11,14 @@ import time
 import os
 import tempfile
 import urllib.request
+import json
+import re
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from utils.window_manager import WindowManager
 
 # ==================【配置区】==================
-MUMU_INSTALL_PATH = r"C:\Program Files\Netease\MuMu\nx_main"  # MuMu12安装目录
+MUMU_INSTALL_PATH = r"D:\MuMuPlayer\nx_main"  # MuMu12安装目录
 DOWNLOAD_URL = r"https://popo.netease.com/file/popoandroid/popo_origin-release_4.21.0_prod_1774944232398.apk"  # 包体的下载链接
 
 DEVICE_COUNT = 1  # 启动设备数量（1-3）
@@ -124,6 +126,51 @@ ADB_PATH = get_adb()
 
 # ==================【APK安装功能】==================
 POPO_PACKAGE = "com.netease.popo"  # 网易POPO包名
+
+
+def get_latest_download_url(current_url: str) -> Tuple[str, bool]:
+    """动态获取最新的POPO Android下载地址"""
+    api_url = "http://10.220.28.152:8081/api/device_type/android/online/999/0/"
+    
+    def extract_version(text):
+        match = re.search(r'release_(4\.\d+\.\d+)', text)
+        if match:
+            parts = match.group(1).split('.')
+            return tuple(int(x) for x in parts)
+        return (0, 0, 0)
+
+    try:
+        print(f"[CHECK] 正在检测是否有新版本的安装包...")
+        req = urllib.request.Request(api_url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=5) as response:
+            data = json.loads(response.read().decode('utf-8'))
+            
+            if data.get('status') == 1 and 'package' in data:
+                current_ver = extract_version(current_url)
+                latest_pkg = None
+                latest_ver = (0, 0, 0)
+                
+                for pkg in data['package']:
+                    branch_name = pkg.get('branch_name', '')
+                    if branch_name.startswith('origin/release_4.'):
+                        pkg_ver = extract_version(branch_name)
+                        if pkg_ver > latest_ver:
+                            latest_ver = pkg_ver
+                            latest_pkg = pkg
+                
+                if latest_pkg:
+                    if latest_ver > current_ver:
+                        new_url = latest_pkg.get('download_url', '')
+                        ver_str = ".".join(map(str, latest_ver))
+                        curr_str = ".".join(map(str, current_ver))
+                        print(f"   [OK] 检测到新版本 {ver_str} (当前配置 {curr_str})，将使用新的下载地址:\n         {new_url}")
+                        return new_url, True
+                    else:
+                        print(f"   [OK] 当前配置的版本已是最新或高于线上版本。")
+    except Exception as e:
+        print(f"   [WARN] 检测新版本失败，将使用默认配置: {e}")
+        
+    return current_url, False
 
 
 def check_app_installed(port: int, package_name: str) -> bool:
@@ -277,37 +324,60 @@ def install_apk_to_all_devices(devices: List['Device'], apk_path: Optional[str] 
         print("[WARN] 没有就绪的设备可以安装APK")
         return 0
 
-    print(f"\n[INFO] 开始在 {len(ready_devices)} 台设备上安装APK...")
+    print(f"\n[INFO] 开始在 {len(ready_devices)} 台设备上准备APK...")
+
+    # 第二步：检查线上版本
+    if apk_path is None:
+        print(f"\n")
+        actual_download_url, is_newer = get_latest_download_url(DOWNLOAD_URL)
+    else:
+        actual_download_url = None
+        is_newer = True # 如果手动传入了apk_path，则强制重新安装
+
+    devices_to_install = []
 
     # 第一步：检查并卸载已安装的POPO应用
     print(f"\n[CHECK] 检查设备上是否已安装网易POPO ({POPO_PACKAGE})...")
     for device in ready_devices:
         print(f"\n设备 #{device.instance_id} ({device.adb_address}):")
-        if check_app_installed(device.adb_port, POPO_PACKAGE):
-            print(f"   [WARN] 检测到已安装网易POPO，需要先卸载")
-            uninstall_app(device.adb_port, POPO_PACKAGE)
+        is_installed = check_app_installed(device.adb_port, POPO_PACKAGE)
+        
+        if is_installed:
+            if is_newer:
+                print(f"   [WARN] 检测到已安装网易POPO且配置/线上有新版本(或强制安装)，正在卸载...")
+                uninstall_app(device.adb_port, POPO_PACKAGE)
+                devices_to_install.append(device)
+            else:
+                print(f"   [OK] 设备已安装网易POPO，且当前配置版本已是最新或高于线上版本，跳过重装。")
         else:
-            print(f"   [OK] 未安装网易POPO，无需卸载")
+            print(f"   [OK] 未安装网易POPO，准备安装...")
+            devices_to_install.append(device)
 
-    # 第二步：下载APK（如果没有提供APK路径）
+    if not devices_to_install:
+        print("\n[DONE] 所有设备均已安装最新版本(或等于最新版本)的POPO，无需重装。")
+        return len(ready_devices)
+
+    # 第三步：下载APK
     if apk_path is None:
         print(f"\n")
-        apk_path = download_apk(DOWNLOAD_URL)
+        if actual_download_url is not None:
+            apk_path = download_apk(actual_download_url)
         if apk_path is None:
             print("[ERROR] APK下载失败，无法安装")
             return 0
 
-    # 第三步：安装APK到所有设备
+    # 第四步：安装APK到所有需要的设备
     success_count = 0
-    print(f"\n[INSTALL] 开始安装APK到 {len(ready_devices)} 台设备...")
+    print(f"\n[INSTALL] 开始安装APK到 {len(devices_to_install)} 台设备...")
 
-    for device in ready_devices:
+    for device in devices_to_install:
         print(f"\n设备 #{device.instance_id} ({device.adb_address}):")
         if install_apk_to_device(apk_path, device.adb_port):
             success_count += 1
-
-    print(f"\n[DONE] APK安装完成: {success_count}/{len(ready_devices)} 台设备成功")
-    return success_count
+            
+    skipped_count = len(ready_devices) - len(devices_to_install)
+    print(f"\n[DONE] APK安装完成: {success_count}台安装成功，{skipped_count}台跳过重装")
+    return success_count + skipped_count
 
 
 def start_emulator(instance_id: int) -> bool:

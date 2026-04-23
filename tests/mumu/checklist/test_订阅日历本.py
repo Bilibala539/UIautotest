@@ -2,7 +2,10 @@
 测试用例: 订阅日历本
 探索来源: AI自主探索POPO App日历功能生成
 """
+import logging
 from conftest import BaseTest
+
+logger = logging.getLogger(__name__)
 
 
 class TestSubscribeCalendarBook(BaseTest):
@@ -29,4 +32,7 @@ class TestSubscribeCalendarBook(BaseTest):
 
     def teardown(self):
         """测试后清理 - 退订日历本"""
-        self.userA.unsubscribe_calendar_book("孟龄钊")
+        try:
+            self.userA.unsubscribe_calendar_book("孟龄钊")
+        except Exception as e:
+            logger.warning(f"⚠️ teardown 清理失败（不影响测试结果）: {e}")

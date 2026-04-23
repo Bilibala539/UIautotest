@@ -157,6 +157,10 @@ SIDEBAR_SERVICE_DESK = os.path.join(path, "侧边栏-服务台.png")
 # 个人资料页
 PROFILE_PAGE_NAME = os.path.join(path, "个人资料页-用户名.png")
 
+# ==================== 长按菜单（草稿 - 待验证） ====================
+LONGPRESS_FAVORITE_BUTTON = os.path.join(test_path, "长按菜单-收藏按钮.png")
+LONGPRESS_FAVORITE_TEXT = os.path.join(test_path, "长按菜单-收藏文字.png")
+
 # ==================== 通讯录页（草稿 - 待验证） ====================
 
 TOAST_SENDED = os.path.join(path, "已发送_toast.png")

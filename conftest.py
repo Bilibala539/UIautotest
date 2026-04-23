@@ -671,6 +671,8 @@ def _auto_app_lifecycle(users, request):
             for user_key, user in users.get_all_users().items():
                 logger.info(f"📱 [cleanup] 关闭 POPO: {user_key}")
                 user.close_app()
+                # 标记为未登录，确保下一个用例会重新 login
+                user._logged_in = False
             raise  # 重新抛出异常，让 pytest 标记为 ERROR
 
     yield
@@ -680,7 +682,10 @@ def _auto_app_lifecycle(users, request):
         # 先执行用户自定义 teardown 方法（此时 POPO 还在运行，用户可执行业务清理操作）
         if hasattr(instance, 'teardown') and callable(getattr(instance, 'teardown')):
             logger.info("🧹 执行 teardown() 方法")
-            instance.teardown()
+            try:
+                instance.teardown()
+            except Exception as e:
+                logger.warning(f"⚠️ 用户 teardown() 执行异常（不影响退登流程）: {e}")
 
         # 然后为所有用户退登并关闭 POPO
         for user_key, user in users.get_all_users().items():
@@ -691,16 +696,14 @@ def _auto_app_lifecycle(users, request):
                     user.logout()
                 except Exception as e:
                     # 正常 logout 失败（用例失败后页面状态未知）
-                    # 降级策略：force-stop → 重新打开 POPO（已登录态直接进消息列表页）→ 再次 logout
-                    logger.warning(f"⚠️ [auto] 正常退登失败: {user_key}, 降级为重启退登: {e}")
+                    # 降级策略：force-stop → 标记未登录（放弃退登，下次用例重新登录）
+                    logger.warning(f"⚠️ [auto] 退登失败: {user_key}, force-stop 并标记未登录: {e}")
                     user.close_app()
-                    time.sleep(1)
-                    user.open_app()
-                    # 第二次 logout：此时一定在消息列表页，不再捕获异常，让错误暴露
-                    user.logout()
+                    user._logged_in = False
 
             logger.info(f"📱 [auto] 关闭 POPO: {user_key}")
             user.close_app()
+            user._logged_in = False
 
 
 @pytest.fixture(scope="session")

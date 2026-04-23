@@ -191,6 +191,37 @@ logger = logging.getLogger(__name__)
 logger.info(f"📝 日志文件: {log_file}")
 
 
+# ==================== 中间截图清理 ====================
+
+
+def _cleanup_intermediate_screenshots() -> None:
+    """
+    清理用例执行期间产生的中间截图文件
+
+    仅删除 failed_ocr_* 和 failed_find_* 开头的中间截图，
+    保留 FAIL_ 开头的用例失败截图。
+    用例通过时调用，确保通过的用例不留下调试截图。
+    """
+    screenshot_dir = os.path.join(os.path.dirname(log_file), '..', 'screenshots')
+    screenshot_dir = os.path.normpath(screenshot_dir)
+    if not os.path.exists(screenshot_dir):
+        return
+
+    cleaned = 0
+    for filename in os.listdir(screenshot_dir):
+        # 只清理中间截图（OCR/图像匹配失败时产生的），保留用例失败截图(FAIL_)
+        if filename.startswith('failed_ocr_') or filename.startswith('failed_find_'):
+            filepath = os.path.join(screenshot_dir, filename)
+            try:
+                os.remove(filepath)
+                cleaned += 1
+            except OSError:
+                pass
+
+    if cleaned > 0:
+        logger.info(f"🧹 已清理 {cleaned} 张中间截图（用例通过，无需保留调试截图）")
+
+
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
 def pytest_runtest_makereport(item, call):
     """
@@ -242,6 +273,10 @@ def pytest_runtest_makereport(item, call):
                 logger.warning(f"⚠️ 用例失败截图失败（截图返回空）: {item.nodeid}")
         else:
             logger.warning(f"⚠️ 未找到可截图的用户对象，跳过失败截图: {item.nodeid}")
+
+    # ---- 用例通过时，清理该用例期间产生的中间截图 ----
+    if rep.when == "call" and rep.passed:
+        _cleanup_intermediate_screenshots()
 
 
 # ==================== 设备管理器 (Session级别) ====================
@@ -408,9 +443,9 @@ class UsersFactory:
     
     def __call__(self, user_key: str) -> PPUser:
         """
-        获取或创建用户实例（Session 级别）
+        获取或创建用户实例
 
-        首次调用时：启动设备 → 创建用户 → 登录 → 关闭 POPO（保留登录态）
+        首次调用时：启动设备 → 创建用户（不登录，登录由每条用例的生命周期管理）
         后续调用时：直接返回缓存的用户实例
 
         Args:
@@ -422,9 +457,25 @@ class UsersFactory:
         Raises:
             ValueError: 如果用户配置不存在
         """
-        # Session 内相同 user_key 返回同一个用户
+        # 相同 user_key 返回同一个用户实例（设备绑定不变）
         if user_key in self._created_users:
-            return self._created_users[user_key]
+            user = self._created_users[user_key]
+            # 缓存命中但用户未登录（上一条用例 teardown 已退登），自动重新登录
+            if not user.is_logged_in:
+                logger.info(f"🔐 [auto] 用户 {user_key} 未登录，自动登录: {user.uid}")
+                user.login()
+            return user
+
+        # 分布式节点过滤：如果配置了 NODE_USERS，只创建本节点负责的用户
+        from utils.distributed import get_node_users
+        node_users = get_node_users()
+        if node_users and user_key not in node_users:
+            raise ValueError(
+                f"❌ 用户 {user_key} 不在当前节点负责的用户列表中。"
+                f"当前节点 NODE_USERS={node_users}，"
+                f"请在环境变量 NODE_USERS 中添加 {user_key}，"
+                f"或在不涉及此用户的节点上跳过此用例"
+            )
 
         # 检查用户配置
         if user_key not in self.USER_CONFIGS:
@@ -433,12 +484,12 @@ class UsersFactory:
         # 获取用户配置
         config = self.USER_CONFIGS[user_key]
 
-        skip_login = os.environ.get("SKIP_SESSION_LOGIN") == "1"
+        skip_device_setup = os.environ.get("SKIP_SESSION_LOGIN") == "1"
 
         # 根据平台决定是否需要设备
         pp_device = None
         if self._platform == "mumu":
-            if skip_login:
+            if skip_device_setup:
                 # 跳过设备启动 — 模拟器已在运行，直接创建 PPDevice
                 from utils.devices import get_device_port_by_instance
                 instance_id = self._device_index
@@ -453,6 +504,12 @@ class UsersFactory:
                 needed_devices = self._device_index + 1
                 self._device_manager.ensure_devices(needed_devices)
                 device = self._device_manager.get_device(self._device_index)
+                if device is None:
+                    raise RuntimeError(
+                        f"❌ 无法获取设备 index={self._device_index}，"
+                        f"已启动设备数={len(self._device_manager.devices)}，"
+                        f"请检查模拟器是否正常启动"
+                    )
                 self._device_index += 1
 
                 pp_device = PPDevice(device_port=device.adb_port, instance_id=device.instance_id)
@@ -461,7 +518,7 @@ class UsersFactory:
                 pp_device.window_name = device.window_name
                 pp_device.is_ready = device.is_ready
 
-        # 创建用户实例（带 platform 参数）
+        # 创建用户实例（带 platform 参数，不立即登录）
         user = PPUser(
             uid=config["uid"],
             password=config["password"],
@@ -469,7 +526,7 @@ class UsersFactory:
             platform=self._platform,
             env=config["env"],
             name=config.get("name", ""),
-            need_login=True
+            need_login=True,
         )
 
         if self._platform == "mumu":
@@ -477,19 +534,13 @@ class UsersFactory:
         else:
             logger.info(f"✅ 创建用户 {user_key}: {user.uid} (PC)")
 
-        if skip_login:
-            # 跳过登录 — 假定用户已登录
-            user._logged_in = True
-            logger.info(f"⏭️ SKIP_SESSION_LOGIN: 跳过登录 {user_key} ({user.uid})")
-        else:
-            # Session 级登录：首次创建时立即登录，登录完成后关闭 POPO（保留登录态）
-            logger.info(f"🔐 Session 级登录: {user_key} ({user.uid})")
-            user.login()
-            if self._platform == "mumu":
-                user.close_app()
-
-        # 缓存用户（Session 级别）
+        # 缓存用户实例
         self._created_users[user_key] = user
+
+        # 首次创建时自动登录（login 包含: 打开 POPO → 登录 → 进入消息列表页）
+        if not user.is_logged_in:
+            logger.info(f"🔐 [auto] 首次创建，自动登录用户: {user_key} ({user.uid})")
+            user.login()
 
         return user
     
@@ -500,23 +551,9 @@ class UsersFactory:
     def session_cleanup(self) -> None:
         """
         Session 结束时的清理操作
-        对所有已登录用户执行: 打开 POPO → 退登 → 关闭 POPO
-
-        设置环境变量 SKIP_SESSION_CLEANUP=1 可跳过退登（批量验证场景）
+        每条用例已在结束时退登，此处仅清理缓存
         """
-        if os.environ.get("SKIP_SESSION_CLEANUP") == "1":
-            logger.info("⏭️ ===== SKIP_SESSION_CLEANUP=1，跳过 Session 退登清理 =====")
-            self._created_users.clear()
-            self._device_index = 0
-            return
-
-        logger.info("🧹 ===== Session 结束，开始清理所有用户 =====")
-        for user_key, user in self._created_users.items():
-            if user.is_logged_in:
-                logger.info(f"🚪 Session 清理用户 {user_key}: 打开 POPO → 退登")
-                if self._platform == "mumu":
-                    user.open_app()
-                user.logout()
+        logger.info("🧹 ===== Session 结束，清理用户缓存 =====")
         self._created_users.clear()
         self._device_index = 0
         logger.info("✅ ===== Session 清理完成 =====")
@@ -532,23 +569,22 @@ class BaseTest:
     - self.users("userA") → PPUser
     - self.userA.aw.click_text() 等全链路提示
 
-    生命周期:
-    - 登录/退登: Session 级别自动管理（无需手动调用）
-    - 打开/关闭 POPO: 框架在每个用例前后自动执行
-    - setup: 获取用户实例 + 自定义前置操作
-    - teardown: 自定义清理操作
+    生命周期 (每条用例独立):
+    - setup: 获取用户实例
+    - 框架自动: 登录 → 打开 POPO → 进入消息列表页
+    - 执行测试方法
+    - 框架自动: 退登 → 关闭 POPO
 
     使用方式:
         class TestXXX(BaseTest):
             def setup(self):
                 self.userA = self.users("userA")
-                # 无需 login()，框架已自动打开 POPO 并进入消息列表页
 
             def test_example(self):
                 self.userA.send_message(...)
 
             def teardown(self):
-                pass  # 无需 logout()，框架自动关闭 POPO
+                pass
     """
 
     users: "UsersFactory"
@@ -579,27 +615,19 @@ def users(device_manager):
     用户工厂 fixture - Session 级别
 
     整个测试 Session 共享同一个 UsersFactory 实例。
-    首次调用 users("userA") 时触发: 启动设备 → 登录 → 关闭 POPO（保留登录态）。
-    后续调用直接返回缓存的用户实例。
-    Session 结束时统一退登。
+    首次调用 users("userA") 时触发: 启动设备 → 创建用户实例。
+    登录/退登由每条用例的 _auto_app_lifecycle 自动管理。
 
-    使用方式:
-        class TestExample(BaseTest):
-            def setup(self):
-                self.userA = self.users("userA")
-                # 无需 login()，框架自动管理
-
-            def test_example(self):
-                self.userA.send_message(...)
-
-            def teardown(self):
-                pass  # 无需 logout()，框架自动管理
+    平台选择规则:
+    1. 环境变量 PLATFORM=pc → PC端
+    2. 默认 → MuMu端
 
     Yields:
         UsersFactory: 用户工厂实例 (Session 级别共享)
     """
-    factory = UsersFactory(device_manager, platform="mumu")
-    logger.info(f"👤 ===== Session 开始，创建 UsersFactory =====")
+    platform = os.environ.get("PLATFORM", "mumu")
+    factory = UsersFactory(device_manager, platform=platform)
+    logger.info(f"👤 ===== Session 开始，创建 UsersFactory (platform={platform}) =====")
 
     yield factory
 
@@ -610,45 +638,69 @@ def users(device_manager):
 @pytest.fixture(scope="function", autouse=True)
 def _auto_app_lifecycle(users, request):
     """
-    每个测试用例的 POPO 应用生命周期管理 (autouse=True)
+    每个测试用例的完整生命周期管理 (autouse=True)
 
     生命周期:
-    1. [setup 前] 为所有已创建的用户打开 POPO (open_app)
-    2. [setup] 注入 users 到测试类 + 执行用户自定义 setup()
-    3. [yield] 执行测试方法
+    1. [setup] 注入 users 到测试类 + 执行用户自定义 setup()
+       （setup 中调用 self.users("userA") 时自动触发 login，确保后续业务操作可执行）
+    2. [yield] 执行测试方法
+    3. [teardown 前] 为所有已创建的用户执行: 退登 → 关闭 POPO
+       （正常退登失败时降级为 force-stop → 重启 → 再退登）
     4. [teardown] 执行用户自定义 teardown()
-    5. [teardown 后] 为所有已创建的用户关闭 POPO (close_app)
     """
     instance = request.instance
+
+    setup_success = False
 
     if instance is not None:
         # 注入 users 到测试类实例
         instance.users = users
 
-        # 执行用户自定义 setup 方法
-        # （setup 中会调用 users("userA") 获取用户实例）
-        if hasattr(instance, 'setup') and callable(getattr(instance, 'setup')):
-            logger.info("🔧 执行 setup() 方法")
-            instance.setup()
+        try:
+            # 执行用户自定义 setup 方法
+            # setup 中调用 self.users("userA") 时会自动触发 login（打开 POPO → 登录 → 进入消息列表页）
+            # 因此 setup 中后续的业务操作（如 open_message_settings）可以正常执行
+            if hasattr(instance, 'setup') and callable(getattr(instance, 'setup')):
+                logger.info("🔧 执行 setup() 方法")
+                instance.setup()
 
-        # setup 完成后，为所有已创建的用户打开 POPO
-        for user_key, user in users.get_all_users().items():
-            logger.info(f"📱 [auto] 打开 POPO: {user_key}")
-            user.open_app()
+            setup_success = True
+        except Exception:
+            # setup 或 login 失败时，先关闭所有用户的 POPO，避免下一个用例看到脏状态
+            logger.error("❌ setup/login 阶段失败，执行清理...")
+            for user_key, user in users.get_all_users().items():
+                logger.info(f"📱 [cleanup] 关闭 POPO: {user_key}")
+                user.close_app()
+            raise  # 重新抛出异常，让 pytest 标记为 ERROR
 
     yield
 
     # teardown 阶段
-    if instance is not None:
-        # 先为所有用户关闭 POPO
-        for user_key, user in users.get_all_users().items():
-            logger.info(f"📱 [auto] 关闭 POPO: {user_key}")
-            user.close_app()
-
-        # 执行用户自定义 teardown 方法
+    if instance is not None and setup_success:
+        # 先执行用户自定义 teardown 方法（此时 POPO 还在运行，用户可执行业务清理操作）
         if hasattr(instance, 'teardown') and callable(getattr(instance, 'teardown')):
             logger.info("🧹 执行 teardown() 方法")
             instance.teardown()
+
+        # 然后为所有用户退登并关闭 POPO
+        for user_key, user in users.get_all_users().items():
+            if user.is_logged_in:
+                try:
+                    # 第一次尝试：正常 logout（从当前页面直接退登）
+                    logger.info(f"🚪 [auto] 退登用户: {user_key} ({user.uid})")
+                    user.logout()
+                except Exception as e:
+                    # 正常 logout 失败（用例失败后页面状态未知）
+                    # 降级策略：force-stop → 重新打开 POPO（已登录态直接进消息列表页）→ 再次 logout
+                    logger.warning(f"⚠️ [auto] 正常退登失败: {user_key}, 降级为重启退登: {e}")
+                    user.close_app()
+                    time.sleep(1)
+                    user.open_app()
+                    # 第二次 logout：此时一定在消息列表页，不再捕获异常，让错误暴露
+                    user.logout()
+
+            logger.info(f"📱 [auto] 关闭 POPO: {user_key}")
+            user.close_app()
 
 
 @pytest.fixture(scope="session")

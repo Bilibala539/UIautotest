@@ -51,19 +51,24 @@ PPUser (用户入口，user.py)
 
 ### 2.4 OCR文字识别
 
-| 方法 | 签名 | 作用 |
-|------|------|------|
-| `find_text_by_ocr` | `(text, timeout=10, region=ALL, case_sensitive=False) → (x,y)` | OCR找文字，返回文字中心坐标，未找到返回None |
-| `text_exists` | `(text, timeout=5, region=ALL)` | **断言**文字存在，不存在则assert失败 |
-| `click_text` | `(text, timeout=10, dx=0, dy=0, region=ALL)` | OCR找到文字后点击 |
+| 方法 | 签名 | 作用 | 层级 |
+|------|------|------|------|
+| `find_text_by_ocr` | `(text, timeout=10, region=ALL, case_sensitive=False) → (x,y)\|None` | OCR找文字，返回文字中心坐标，**未找到返回None** | 🔍 判断层 |
+| `text_exists` | `(text, timeout=5, region=ALL) → bool` | **断言**文字必须存在，不存在则assert失败 | ✅ 断言层 |
+| `click_text` | `(text, timeout=10, dx=0, dy=0, region=ALL)` | OCR找到文字后点击，找不到assert失败 | 👆 点击层 |
 
 ### 2.5 图像模板匹配
 
-| 方法 | 签名 | 作用 |
-|------|------|------|
-| `find_image` | `(template_name, threshold=0.8, timeout=10, region=ALL) → (x,y)` | 模板匹配找图，超时assert失败并截图保存 |
-| `image_exists` | `(template_name, threshold=0.8, timeout=5, region=ALL) → bool` | 检查图片是否存在 |
-| `click_image` | `(image, threshold=0.8, timeout=10, dx=0, dy=0, region=ALL)` | 找到图片后点击 |
+| 方法 | 签名 | 作用 | 层级 |
+|------|------|------|------|
+| `find_image` | `(template_name, threshold=0.8, timeout=10, region=ALL) → (x,y)\|None` | 模板匹配找图，**未找到返回None**（并截图保存日志） | 🔍 判断层 |
+| `image_exists` | `(template_name, threshold=0.8, timeout=5, region=ALL) → bool` | **断言**图片必须存在，不存在则assert失败 | ✅ 断言层 |
+| `click_image` | `(image, threshold=0.8, timeout=10, dx=0, dy=0, region=ALL)` | 找到图片后点击，找不到assert失败 | 👆 点击层 |
+
+> **方法选择指南：**
+> - 需要**条件判断**（if/else 分支）→ 用 `find_image()` / `find_text_by_ocr()`，它们找不到返回 `None`
+> - 需要**验证断言**（这一步必须成功）→ 用 `image_exists()` / `text_exists()`，它们找不到 assert 失败
+> - 需要**找到并点击**→ 用 `click_image()` / `click_text()`，它们找不到 assert 失败
 
 ### 2.6 滑动操作
 

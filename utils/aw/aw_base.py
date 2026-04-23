@@ -420,24 +420,8 @@ class AWBase:
             self.sleep(0.5)
             break
 
-        # 失败时截图保存以便调试
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        safe_text = text.replace('/', '_').replace('\\', '_')
-        screenshot_name = f"failed_ocr_{safe_text}_{timestamp}.png"
-        screenshot_path = os.path.join(self.SCREENSHOT_DIR, screenshot_name)
-
-        img = self.take_screenshot()
-        if img is not None:
-            if region:
-                rx, ry, rw, rh = region
-                save_img = img[ry:ry + rh, rx:rx + rw]
-            else:
-                save_img = img
-            success, buf = cv2.imencode('.png', save_img)
-            if success:
-                buf.tofile(screenshot_path)
-            logger.warning(f"⚠️ 未找到文字 '{text}'，已保存截图: {screenshot_path}")
-            self._embed_screenshot_to_log(f"⚠️ OCR未找到: '{text}'", save_img, screenshot_path)
+        # 失败时仅记录日志，不保存截图文件（用例失败时由 conftest 统一截图）
+        logger.warning(f"⚠️ 未找到文字 '{text}'")
 
         return None
 
@@ -510,36 +494,18 @@ class AWBase:
 
             self.sleep(0.5)
 
-        # 超时截图保存以便调试（保存全屏截图，方便排查问题）
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        template_basename = os.path.basename(template_name).split('.')[0]
-        screenshot_name = f"failed_find_{template_basename}_{timestamp}.png"
-        screenshot_path = os.path.join(self.SCREENSHOT_DIR, screenshot_name)
-        img = self.take_screenshot()
-        if img is not None:
-            if region:
-                rx, ry, rw, rh = region
-                save_img = img[ry:ry + rh, rx:rx + rw]
-            else:
-                save_img = img
-            success, buf = cv2.imencode('.png', save_img)
-            if success:
-                buf.tofile(screenshot_path)
-        logger.warning(f"⚠️ 未找到图片 '{template_name}'，已保存截图: {screenshot_path}")
-        if img is not None:
-            self._embed_screenshot_to_log(f"⚠️ 图片未找到: '{os.path.basename(template_name)}'", save_img, screenshot_path)
-        assert False
+        # 超时时仅记录日志，不保存截图文件（用例失败时由 conftest 统一截图）
+        logger.warning(f"⚠️ 未找到图片 '{template_name}'")
+        return None
 
     def image_exists(self, template_name: str, threshold: float = 0.8,
                      timeout: int = 5,
                      region=Normal.ALL) -> bool:
-        """检查图片是否存在（不会抛出异常，找不到返回 False）"""
-        try:
-            pos = self.find_image(template_name, threshold=threshold, timeout=timeout,
-                                  region=region)
-            return pos is not None
-        except Exception:
-            return False
+        """断言图片必须存在（找不到则 assert 失败）"""
+        pos = self.find_image(template_name, threshold=threshold, timeout=timeout,
+                              region=region)
+        assert pos is not None, f"断言失败: 未找到图片 '{template_name}'"
+        return True
 
     # ==================== 组合操作 ====================
 
@@ -557,9 +523,8 @@ class AWBase:
                     region=Normal.ALL):
         """模板匹配找到图片后点击"""
         pos = self.find_image(image, threshold=threshold, timeout=timeout, region=region)
-        if pos:
-            return self.tap(pos[0], pos[1], dx, dy)
-        assert False, "点击图片失败"
+        assert pos is not None, f"点击图片失败: 未找到 '{image}'"
+        return self.tap(pos[0], pos[1], dx, dy)
 
     # ==================== 滑动 ====================
 

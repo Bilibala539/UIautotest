@@ -52,6 +52,22 @@ class MuMuBusiness(CommonBusiness):
             logger.error(f"❌ ADB命令失败: {e.stderr.decode()}")
             return False
 
+    def _clear_input_field(self):
+        """
+        通过 ADB 清空当前聚焦的输入框
+
+        步骤: Ctrl+A 全选 → DEL 删除
+        使用 input keycombination 发送 Ctrl+A 组合键全选文本，
+        然后发送退格键删除选中内容。
+        """
+        # Ctrl+A 全选 (KEYCODE_CTRL_LEFT=113, KEYCODE_A=29)
+        self._run_adb_command("shell", "input", "keycombination", "113", "29")
+        time.sleep(0.3)
+        # 退格删除选中内容
+        self._run_adb_command("shell", "input", "keyevent", "67")
+        time.sleep(0.3)
+        logger.info("🗑️ 已清空输入框(Ctrl+A全选+删除)")
+
     # ==================== 应用控制 ====================
 
     def start_app(self):
@@ -80,8 +96,8 @@ class MuMuBusiness(CommonBusiness):
         """
         logger.info("📱 [MuMu] 启动 POPO 应用...")
 
-        # 先检查是否已在消息列表页（image_exists 不会抛异常）
-        if self.image_exists(MESSAGE_TAB_BLUE, timeout=2):
+        # 先检查是否已在消息列表页（find_image 找不到返回 None，不会抛异常）
+        if self.find_image(MESSAGE_TAB_BLUE, timeout=2):
             logger.info("✅ [MuMu] POPO 已在消息列表页，无需启动")
             self.pop_not_allowed()
             return
@@ -92,7 +108,7 @@ class MuMuBusiness(CommonBusiness):
             if msg_pos:
                 self.tap(msg_pos[0], msg_pos[1])
                 self.sleep(1)
-                if self.image_exists(MESSAGE_TAB_BLUE, timeout=2):
+                if self.find_image(MESSAGE_TAB_BLUE, timeout=2):
                     logger.info("✅ [MuMu] 已通过点击消息Tab回到消息列表页")
                     self.pop_not_allowed()
                     return
@@ -103,7 +119,7 @@ class MuMuBusiness(CommonBusiness):
         for i in range(5):
             self.press_back()
             self.sleep(0.5)
-            if self.image_exists(MESSAGE_TAB_BLUE, timeout=1):
+            if self.find_image(MESSAGE_TAB_BLUE, timeout=1):
                 logger.info("✅ [MuMu] 已通过返回键回到消息列表页")
                 self.pop_not_allowed()
                 return
@@ -150,50 +166,74 @@ class MuMuBusiness(CommonBusiness):
         MuMu 端登录流程
 
         步骤:
-        1. 点击桌面 POPO 图标启动应用
+        1. 启动 POPO 应用
         2. 等待登录页面
         3. 点击邮箱 Tab
-        4. 输入邮箱
-        5. 输入密码
-        6. 勾选协议
+        4. 点击邮箱输入框 → 全选清空 → 输入邮箱
+        5. 点击密码输入框 → 输入密码
+        6. 勾选协议（如未勾选）
         7. 点击登录按钮
-        8. 处理弹窗
+        8. 等待进入消息列表页
+        9. 处理可能出现的弹窗
+
+        登录完成后 POPO 已在消息列表页，无需再调用 open_app()。
         """
         logger.info(f"🔐 [MuMu] 开始登录: {uid}")
 
-        self.start_app()
-        self.sleep(2)
+        # 1. 启动 POPO（通过 monkey 命令模拟启动，比点击桌面图标更可靠）
+        self._run_adb_command("shell", "monkey", "-p", POPO_PACKAGE,
+                              "-c", "android.intent.category.LAUNCHER", "1")
+        self.sleep(3)
 
-        self.image_exists(LOGIN_POPO_TEXT, timeout=5)
+        # 2. 等待登录页面出现
+        self.image_exists(LOGIN_POPO_TEXT, timeout=10)
         logger.info("📱 检测到登录页面")
 
+        # 3. 点击邮箱 Tab
         self.click_text("邮箱", timeout=3)
         self.sleep(0.5)
 
-        try:
-            self.click_text("输入邮箱", timeout=5)
-            self.sleep(0.5)
-            self.input_text(str(uid))
-            self.click_text("邮箱", timeout=5, dx=50, dy=180)
-        except:
-            self.text_exists("grp", region=Normal.HALF_UP)
+        # 4. 输入邮箱：点击邮箱输入框 → 清空 → 输入新邮箱
+        #    不管输入框是空的（显示"输入邮箱"占位符）还是保留了旧邮箱，都先清空再输入
+        #    页面布局: "邮箱"Tab y≈313, 邮箱输入框 y≈405, 密码输入框 y≈500
+        #    用 dy=92 从"邮箱"Tab 偏移到邮箱输入框
+        self.click_text("邮箱", timeout=3, dx=50, dy=92)
+        self.sleep(0.5)
+        # 清空输入框（通过 ADB keyevent 移到末尾 + 逐字删除）
+        self._clear_input_field()
+        self.sleep(0.3)
+        self.input_text(str(uid))
+        logger.info(f"📧 已输入邮箱: {uid}")
 
-        if self.click_text("密码", timeout=5):
-            self.sleep(0.3)
-            self.input_text(str(password))
+        # 5. 输入密码：点击密码输入框 → 清空 → 输入密码 → 收起键盘
+        #    从"邮箱"Tab 偏移 dy=187 到密码输入框
+        self.click_text("邮箱", timeout=3, dx=50, dy=187)
+        self.sleep(0.5)
+        # 清空密码输入框
+        self._clear_input_field()
+        self.sleep(0.3)
+        self.input_text(str(password))
+        logger.info("🔑 已输入密码")
+        # 收起键盘，避免遮挡底部的勾选框和登录按钮
+        self.press_back()
+        self.sleep(0.5)
 
-        try:
+        # 6. 勾选协议（先检查未勾选状态，如果未找到说明已勾选）
+        if self.find_image(LOGIN_READ_CENTER_FALSE, timeout=2):
             self.click_image(LOGIN_READ_CENTER_FALSE)
             self.sleep(0.3)
-            self.click_image(LOGIN_ENTER)
-            self.sleep(1.5)
-            self.image_exists(MESSAGE_TAB_BLUE, timeout=10)
-        except:
-            self.image_exists(LOGIN_READ_CENTER_TRUE)
-            self.click_image(LOGIN_ENTER)
-            self.sleep(1.5)
-            self.image_exists(MESSAGE_TAB_BLUE, timeout=10)
+            logger.info("☑️ 已勾选协议")
+        else:
+            logger.info("☑️ 协议已是勾选状态，无需再勾选")
 
+        # 7. 点击登录按钮
+        self.click_image(LOGIN_ENTER)
+        self.sleep(1.5)
+
+        # 8. 等待进入消息列表页
+        self.image_exists(MESSAGE_TAB_BLUE, timeout=15)
+
+        # 9. 处理可能出现的弹窗
         self.pop_not_allowed()
         logger.info(f"✅ [MuMu] 登录成功: {uid}")
 
@@ -222,7 +262,7 @@ class MuMuBusiness(CommonBusiness):
 
         # 场景2: 连续按返回键尝试回到消息页
         for i in range(5):
-            logger.info(f"🔙 第{i+1}次按返回键")
+            logger.info(f"🔙 第{i + 1}次按返回键")
             self.press_back()
             time.sleep(0.5)
 
@@ -305,13 +345,12 @@ class MuMuBusiness(CommonBusiness):
         self.pop_is_exisit(isallow=True)
 
     def pop_is_exisit(self, isallow=False):
-        try:
-            self.image_exists(POPO_POP)
-            time.sleep(0.5)
+        if self.find_image(POPO_POP, timeout=1):
+            time.sleep(0.3)
             if not isallow:
-                self.click_image(POPO_POP_CANCEL)
+                self.click_image(POPO_POP_CANCEL, timeout=2)
                 logger.info("弹窗已关闭")
-        except:
+        else:
             logger.info("未发现弹窗")
 
     # ==================== 会话分组相关 ====================
@@ -540,25 +579,28 @@ class MuMuBusiness(CommonBusiness):
             bool: 撤回是否成功
         """
         logger.info(f"🔄 [MuMu] 撤回消息: '{message_text}'")
-        y = self.find_text_by_ocr(message_text)[1]
-        time.sleep(1)
-        # 1. 定位消息文字并长按
+
+        # 1. 先定位消息文字的 Y 坐标，用于后续限定验证区域
+        msg_y = self.find_text_by_ocr(message_text)[1]
+        time.sleep(0.5)
+
+        # 2. 长按消息体
         self.long_press_text(message_text)
         time.sleep(1)
 
-        # 2. 点击弹出菜单中的"撤回"
+        # 3. 点击弹出菜单中的"撤回"
         self.click_text("撤回")
         time.sleep(1)
 
-        # 3. 判断是否存在撤回确认弹窗
-        try:
-            if self.image_exists(MSG_RECELL_POP):
-                self.click_text("确定")
-        except:
-            pass
+        # 4. 判断是否存在撤回确认弹窗
+        if self.find_image(MSG_RECELL_POP, timeout=2):
+            self.click_text("确定")
 
-        # 4. 验证撤回成功
-        self.find_text_by_ocr("你撤回了一条消息", timeout=5, region=(0, (920 - y), 540, (880 - y)))
+        # 5. 验证撤回成功（限定在原消息 Y 坐标上下 60px 范围内搜索，避免匹配到其他历史撤回记录）
+        time.sleep(1)
+        verify_y_top = max(0, msg_y - 60)
+        verify_y_bottom = min(960, msg_y + 60)
+        self.find_text_by_ocr("你撤回了一条消息", timeout=5, region=(0, verify_y_top, 540, verify_y_bottom))
 
         logger.info(f"✅ [MuMu] 消息撤回成功: '{message_text}'")
         return True
@@ -772,6 +814,7 @@ class MuMuBusiness(CommonBusiness):
         x, y = self.find_image(MSG_MESSAGE_GOOD, timeout=15)
         self.long_press(x, y, duration=1.3)
         self.click_text("撤回")
+
     # ==================== 发消息相关 ====================
 
     def send_message(self, recipient: str, message: str, isback):
@@ -811,7 +854,6 @@ class MuMuBusiness(CommonBusiness):
 
         # 1. 打开搜索页面
         self.click_image(MESSAGE_TAB_SEARCH, region=Normal.HALF_UP)
-        self.image_exists(SEARCH_EMPTY)
 
         # 2. 输入搜索关键词
         self.click_image(SELECT_SEARCH, dx=10)
@@ -854,13 +896,11 @@ class MuMuBusiness(CommonBusiness):
             for i in range(5):
                 self.press_back()
                 time.sleep(0.5)
-                try:
-                    self.image_exists(MESSAGE_TAB_BLUE, timeout=1)
+                if self.find_image(MESSAGE_TAB_BLUE, timeout=1):
                     break
-                except:
-                    logger.warning(f"⚠️ 第{i + 1}次未找到消息Tab，继续返回...")
+                logger.warning(f"⚠️ 第{i + 1}次未找到消息Tab，继续返回...")
             else:
-                raise AssertionError("❌ 返回消息页面失败：连续5次未找到 MESSAGE_TAB_BLUE")
+                assert False, "❌ 返回消息页面失败：连续5次未找到 MESSAGE_TAB_BLUE"
 
         return message
 
@@ -873,7 +913,6 @@ class MuMuBusiness(CommonBusiness):
 
         # 1. 打开搜索页面
         self.click_image(MESSAGE_TAB_SEARCH, region=Normal.HALF_UP)
-        self.image_exists(SEARCH_EMPTY)
 
         # 2. 输入搜索关键词
         self.click_image(SELECT_SEARCH, dx=10)
@@ -919,11 +958,11 @@ class MuMuBusiness(CommonBusiness):
     # 通过 uiautomator dump 确认：markdownBarRecyclerView 中的 styleBarFl 按钮
     # 按钮间距固定，Y 中心 = 918
     _STYLE_BAR_ADB_COORDS = {
-        "bold": (108, 918),          # btn1 [84,894][132,942]  - B
-        "italic": (180, 918),        # btn2 [156,894][204,942] - I
-        "underline": (252, 918),     # btn3 [228,894][276,942] - U
-        "strikethrough": (324, 918), # btn4 [300,894][348,942] - S
-        "font_color": (396, 918),    # btn5 [372,894][420,942] - A (字色)
+        "bold": (108, 918),  # btn1 [84,894][132,942]  - B
+        "italic": (180, 918),  # btn2 [156,894][204,942] - I
+        "underline": (252, 918),  # btn3 [228,894][276,942] - U
+        "strikethrough": (324, 918),  # btn4 [300,894][348,942] - S
+        "font_color": (396, 918),  # btn5 [372,894][420,942] - A (字色)
     }
 
     # flMarkdown 按钮的 ADB 坐标 — 用于在模式A和模式B之间切换
@@ -999,7 +1038,7 @@ class MuMuBusiness(CommonBusiness):
         time.sleep(0.5)
 
         # 验证：模式B中装饰层的 B 图标会消失（被 styleBar 替代）
-        still_mode_a = self.image_exists(EXTENDED_EDIT_BOLD_B, timeout=2, region=Normal.HALF_DOWN)
+        still_mode_a = self.find_image(EXTENDED_EDIT_BOLD_B, timeout=2, region=Normal.HALF_DOWN)
         if still_mode_a:
             logger.warning("⚠️ 仍在模式A，再次尝试切换")
             self._adb_tap(ax, ay)
@@ -1033,13 +1072,13 @@ class MuMuBusiness(CommonBusiness):
         logger.info("📝 [MuMu] 检查并退出扩展编辑模式")
 
         # 检查是否仍在扩展编辑模式：通过工具栏上的加粗B按钮判断
-        still_in_edit = self.image_exists(EXTENDED_EDIT_BOLD_B, timeout=2, region=Normal.HALF_DOWN)
+        still_in_edit = self.find_image(EXTENDED_EDIT_BOLD_B, timeout=2, region=Normal.HALF_DOWN)
         if not still_in_edit:
             logger.info("✅ 扩展编辑模式已自动退出，无需手动关闭")
             return True
 
         # 仍在扩展编辑模式，尝试点击关闭按钮
-        if self.image_exists(EXTENDED_EDIT_CLOSE_BUTTON, timeout=2, region=Normal.HALF_UP):
+        if self.find_image(EXTENDED_EDIT_CLOSE_BUTTON, timeout=2, region=Normal.HALF_UP):
             self.click_image(EXTENDED_EDIT_CLOSE_BUTTON, timeout=3, region=Normal.HALF_UP)
             time.sleep(0.5)
             logger.info("✅ 已手动关闭扩展编辑模式")
@@ -1074,7 +1113,7 @@ class MuMuBusiness(CommonBusiness):
         return True
 
     def send_rich_text_message(self, recipient: str, message: str,
-                                format_type: str) -> bool:
+                               format_type: str) -> bool:
         """
         发送富文本格式消息
 
@@ -1160,330 +1199,125 @@ class MuMuBusiness(CommonBusiness):
         for i in range(5):
             self.press_back()
             time.sleep(0.5)
-            try:
-                if self.image_exists(MESSAGE_TAB_BLUE, timeout=1):
-                    break
-            except:
-                pass
+            if self.find_image(MESSAGE_TAB_BLUE, timeout=1):
+                break
 
         logger.info(f"✅ [MuMu] 富文本消息发送成功: format={format_type}")
         return True
 
-    def send_hyperlink_message(self, recipient: str, text: str,
-                                url: str = "https://www.163.com") -> bool:
-        """
-        发送超链接消息
+    # Markdown 语法类型映射：markdown_type -> (语法模板函数, 日志描述)
+    # 语法模板函数接收 text 和可选参数，返回 (markdown_text, verify_text)
+    _MARKDOWN_SYNTAX_MAP = {
+        "hyperlink": lambda text, url="https://www.163.com", **kw: (f"[{text}]({url})", text),
+        "quote": lambda text, **kw: (f"> {text}", text),
+        "inline_code": lambda text, **kw: (f"`{text}`", text),
+        "code_block": lambda text, language="", **kw: (f"```{language}\n{text}\n```", text),
+        "background_color": lambda text, **kw: (f"=={text}==", text),
+    }
 
-        使用 Markdown 语法 [文字](链接) 发送超链接。
-        在扩展编辑模式下切换到 Markdown 模式输入。
+    def send_markdown_message(self, recipient: str, text: str,
+                              markdown_type: str, **kwargs) -> bool:
+        """
+        发送 Markdown 格式消息（统一入口）
+
+        在扩展编辑模式下切换到 Markdown 模式，使用指定的 Markdown 语法发送消息。
+
+        支持的 markdown_type:
+        - 'hyperlink': 超链接 [文字](URL)，额外参数 url
+        - 'quote': 引用块 > 文字
+        - 'inline_code': 行内代码 `代码`
+        - 'code_block': 代码块 ```language\\ncode\\n```，额外参数 language
+        - 'background_color': 背景色高亮 ==文字==
 
         步骤:
         1. 进入聊天页面
         2. 进入扩展编辑模式
-        3. 滑动工具栏找到 Markdown 按钮
-        4. 点击 Markdown 按钮切换到 Markdown 输入模式
-        5. 输入 Markdown 超链接语法
-        6. 点击发送
-        7. 验证发送成功
+        3. 滑动工具栏找到 Markdown 按钮并点击
+        4. 输入对应 Markdown 语法
+        5. 发送并验证
+        6. 退出扩展编辑模式，返回消息列表页
 
         探索来源: explorer_output/records/exploration_record_richtext.md
 
         Args:
-            recipient: 收件人账号
-            text: 超链接显示文字
-            url: 超链接URL地址
+            recipient: 收件人账号（如 'grp.popoqa93'）
+            text: 消息文本内容
+            markdown_type: Markdown 语法类型
+            **kwargs: 额外参数（如 url, language）
 
         Returns:
             bool: 发送是否成功
         """
-        logger.info(f"🔗 [MuMu] 发送超链接消息: text='{text}', url='{url}'")
+        syntax_fn = self._MARKDOWN_SYNTAX_MAP.get(markdown_type)
+        assert syntax_fn is not None, (
+            f"不支持的 Markdown 类型: {markdown_type}，"
+            f"支持的类型: {list(self._MARKDOWN_SYNTAX_MAP.keys())}"
+        )
 
-        # 进入聊天页面
+        markdown_text, verify_text = syntax_fn(text, **kwargs)
+        logger.info(f"📝 [MuMu] 发送Markdown消息: type={markdown_type}, text='{text}'")
+
+        # 1. 进入聊天页面
         self._enter_chat_page(recipient)
 
-        # 进入扩展编辑模式
+        # 2. 进入扩展编辑模式
         self._enter_extended_edit_mode()
 
-        # 滑动工具栏找到 Markdown 按钮
+        # 3. 滑动到 Markdown 按钮并点击
         self._scroll_toolbar_to_format("markdown")
         self.click_image(EXTENDED_EDIT_MARKDOWN, region=Normal.HALF_DOWN)
         time.sleep(0.5)
 
-        # 点击输入区域
+        # 4. 点击输入区域并输入 Markdown 语法
         self.click_text("发送给", region=Normal.HALF_UP)
         time.sleep(0.3)
-
-        # 输入 Markdown 超链接语法: [显示文字](URL)
-        markdown_text = f"[{text}]({url})"
         self.input_text(markdown_text)
         time.sleep(0.5)
 
-        # 点击发送
+        # 5. 发送
         self.click_image(EXTENDED_EDIT_SEND_BUTTON, region=Normal.HALF_DOWN)
         time.sleep(1)
 
-        # 验证发送成功
-        self.find_text_by_ocr(text, timeout=5)
+        # 6. 验证发送成功
+        self.find_text_by_ocr(verify_text, timeout=5)
 
-        # 退出扩展编辑模式
+        # 7. 退出扩展编辑模式
         self._exit_extended_edit_mode()
         time.sleep(0.5)
 
-        # 返回消息列表页
+        # 8. 返回消息列表页
         for i in range(5):
             self.press_back()
             time.sleep(0.5)
-            try:
-                if self.image_exists(MESSAGE_TAB_BLUE, timeout=1):
-                    break
-            except:
-                pass
+            if self.find_image(MESSAGE_TAB_BLUE, timeout=1):
+                break
 
-        logger.info(f"✅ [MuMu] 超链接消息发送成功")
+        logger.info(f"✅ [MuMu] Markdown消息发送成功: type={markdown_type}")
         return True
+
+    # ---- 向下兼容的快捷方法（内部调用 send_markdown_message）----
+
+    def send_hyperlink_message(self, recipient: str, text: str,
+                               url: str = "https://www.163.com") -> bool:
+        """发送超链接消息（快捷方法，委托给 send_markdown_message）"""
+        return self.send_markdown_message(recipient, text, "hyperlink", url=url)
 
     def send_quote_message(self, recipient: str, text: str) -> bool:
-        """
-        发送引用块消息
-
-        使用 Markdown 引用语法 (> 文字) 发送引用块消息。
-
-        步骤:
-        1. 进入聊天页面
-        2. 进入扩展编辑模式
-        3. 滑动工具栏找到 Markdown 按钮
-        4. 切换到 Markdown 模式
-        5. 输入引用语法 (> text)
-        6. 发送
-        7. 验证
-
-        探索来源: explorer_output/records/exploration_record_richtext.md
-
-        Args:
-            recipient: 收件人账号
-            text: 引用内容
-
-        Returns:
-            bool: 发送是否成功
-        """
-        logger.info(f"💬 [MuMu] 发送引用块消息: text='{text}'")
-
-        self._enter_chat_page(recipient)
-        self._enter_extended_edit_mode()
-
-        # 滑动到 Markdown 按钮并点击
-        self._scroll_toolbar_to_format("markdown")
-        self.click_image(EXTENDED_EDIT_MARKDOWN, region=Normal.HALF_DOWN)
-        time.sleep(0.5)
-
-        # 点击输入区域
-        self.click_text("发送给", region=Normal.HALF_UP)
-        time.sleep(0.3)
-
-        # 输入 Markdown 引用语法
-        markdown_text = f"> {text}"
-        self.input_text(markdown_text)
-        time.sleep(0.5)
-
-        # 发送
-        self.click_image(EXTENDED_EDIT_SEND_BUTTON, region=Normal.HALF_DOWN)
-        time.sleep(1)
-
-        # 验证发送成功
-        self.find_text_by_ocr(text, timeout=5)
-
-        # 退出并返回
-        self._exit_extended_edit_mode()
-        time.sleep(0.5)
-        for i in range(5):
-            self.press_back()
-            time.sleep(0.5)
-            try:
-                if self.image_exists(MESSAGE_TAB_BLUE, timeout=1):
-                    break
-            except:
-                pass
-
-        logger.info(f"✅ [MuMu] 引用块消息发送成功")
-        return True
+        """发送引用块消息（快捷方法，委托给 send_markdown_message）"""
+        return self.send_markdown_message(recipient, text, "quote")
 
     def send_inline_code_message(self, recipient: str, text: str) -> bool:
-        """
-        发送行内代码消息
-
-        使用 Markdown 行内代码语法 (`代码`) 发送行内代码。
-
-        步骤:
-        1. 进入聊天页面
-        2. 进入扩展编辑模式
-        3. 滑动工具栏找到 Markdown 按钮
-        4. 切换到 Markdown 模式
-        5. 输入行内代码语法 (`code`)
-        6. 发送并验证
-
-        探索来源: explorer_output/records/exploration_record_richtext.md
-
-        Args:
-            recipient: 收件人账号
-            text: 代码内容
-
-        Returns:
-            bool: 发送是否成功
-        """
-        logger.info(f"💻 [MuMu] 发送行内代码消息: text='{text}'")
-
-        self._enter_chat_page(recipient)
-        self._enter_extended_edit_mode()
-
-        self._scroll_toolbar_to_format("markdown")
-        self.click_image(EXTENDED_EDIT_MARKDOWN, region=Normal.HALF_DOWN)
-        time.sleep(0.5)
-
-        self.click_text("发送给", region=Normal.HALF_UP)
-        time.sleep(0.3)
-
-        # 输入行内代码语法
-        markdown_text = f"`{text}`"
-        self.input_text(markdown_text)
-        time.sleep(0.5)
-
-        self.click_image(EXTENDED_EDIT_SEND_BUTTON, region=Normal.HALF_DOWN)
-        time.sleep(1)
-
-        self.find_text_by_ocr(text, timeout=5)
-
-        self._exit_extended_edit_mode()
-        time.sleep(0.5)
-        for i in range(5):
-            self.press_back()
-            time.sleep(0.5)
-            try:
-                if self.image_exists(MESSAGE_TAB_BLUE, timeout=1):
-                    break
-            except:
-                pass
-
-        logger.info(f"✅ [MuMu] 行内代码消息发送成功")
-        return True
+        """发送行内代码消息（快捷方法，委托给 send_markdown_message）"""
+        return self.send_markdown_message(recipient, text, "inline_code")
 
     def send_code_block_message(self, recipient: str, text: str,
-                                 language: str = "") -> bool:
-        """
-        发送代码块消息
-
-        使用 Markdown 代码块语法 (```language\\ncode\\n```) 发送代码块。
-
-        步骤:
-        1. 进入聊天页面
-        2. 进入扩展编辑模式
-        3. 滑动到 Markdown 按钮并点击
-        4. 输入代码块语法
-        5. 发送并验证
-
-        探索来源: explorer_output/records/exploration_record_richtext.md
-
-        Args:
-            recipient: 收件人账号
-            text: 代码内容
-            language: 编程语言标识（如 'python', 'java'），可选
-
-        Returns:
-            bool: 发送是否成功
-        """
-        logger.info(f"💻 [MuMu] 发送代码块消息: lang='{language}', text='{text}'")
-
-        self._enter_chat_page(recipient)
-        self._enter_extended_edit_mode()
-
-        self._scroll_toolbar_to_format("markdown")
-        self.click_image(EXTENDED_EDIT_MARKDOWN, region=Normal.HALF_DOWN)
-        time.sleep(0.5)
-
-        self.click_text("发送给", region=Normal.HALF_UP)
-        time.sleep(0.3)
-
-        # 输入代码块语法
-        markdown_text = f"```{language}\n{text}\n```"
-        self.input_text(markdown_text)
-        time.sleep(0.5)
-
-        self.click_image(EXTENDED_EDIT_SEND_BUTTON, region=Normal.HALF_DOWN)
-        time.sleep(1)
-
-        self.find_text_by_ocr(text, timeout=5)
-
-        self._exit_extended_edit_mode()
-        time.sleep(0.5)
-        for i in range(5):
-            self.press_back()
-            time.sleep(0.5)
-            try:
-                if self.image_exists(MESSAGE_TAB_BLUE, timeout=1):
-                    break
-            except:
-                pass
-
-        logger.info(f"✅ [MuMu] 代码块消息发送成功")
-        return True
+                                language: str = "") -> bool:
+        """发送代码块消息（快捷方法，委托给 send_markdown_message）"""
+        return self.send_markdown_message(recipient, text, "code_block", language=language)
 
     def send_background_color_message(self, recipient: str, text: str) -> bool:
-        """
-        发送带背景色的消息
-
-        使用 Markdown 高亮语法 (==文字==) 发送带背景色的消息。
-
-        步骤:
-        1. 进入聊天页面
-        2. 进入扩展编辑模式
-        3. 滑动到 Markdown 按钮
-        4. 切换到 Markdown 模式
-        5. 输入高亮语法 ==text==
-        6. 发送并验证
-
-        探索来源: explorer_output/records/exploration_record_richtext.md
-
-        Args:
-            recipient: 收件人账号
-            text: 消息文本
-
-        Returns:
-            bool: 发送是否成功
-        """
-        logger.info(f"🎨 [MuMu] 发送背景色消息: text='{text}'")
-
-        self._enter_chat_page(recipient)
-        self._enter_extended_edit_mode()
-
-        self._scroll_toolbar_to_format("markdown")
-        self.click_image(EXTENDED_EDIT_MARKDOWN, region=Normal.HALF_DOWN)
-        time.sleep(0.5)
-
-        self.click_text("发送给", region=Normal.HALF_UP)
-        time.sleep(0.3)
-
-        # 输入 Markdown 高亮语法
-        markdown_text = f"=={text}=="
-        self.input_text(markdown_text)
-        time.sleep(0.5)
-
-        self.click_image(EXTENDED_EDIT_SEND_BUTTON, region=Normal.HALF_DOWN)
-        time.sleep(1)
-
-        self.find_text_by_ocr(text, timeout=5)
-
-        self._exit_extended_edit_mode()
-        time.sleep(0.5)
-        for i in range(5):
-            self.press_back()
-            time.sleep(0.5)
-            try:
-                if self.image_exists(MESSAGE_TAB_BLUE, timeout=1):
-                    break
-            except:
-                pass
-
-        logger.info(f"✅ [MuMu] 背景色消息发送成功")
-        return True
+        """发送背景色消息（快捷方法，委托给 send_markdown_message）"""
+        return self.send_markdown_message(recipient, text, "background_color")
 
     # ==================== 侧边栏相关 ====================
 
@@ -1819,7 +1653,6 @@ class MuMuBusiness(CommonBusiness):
         """
         is_group = recipient.isdigit()
         self.click_image(MESSAGE_TAB_SEARCH, region=Normal.HALF_UP)
-        self.image_exists(SEARCH_EMPTY)
 
         self.click_image(SELECT_SEARCH, dx=10)
         self.input_text(str(recipient))
@@ -1994,7 +1827,6 @@ class MuMuBusiness(CommonBusiness):
         # H 的中间横线：从 (125, 475) 向右到 (400, 475)
         self.swipe(125, 475, 400, 475, duration=0.5)
         self.image_exists(IMAGE_EDITOR_H)
-        assert False
         time.sleep(0.3)
 
         # 点击"完成"退出编辑器
@@ -2094,7 +1926,6 @@ class MuMuBusiness(CommonBusiness):
         """创建群组"""
 
         self.click_image(MESSAGE_TAB_SEARCH, region=Normal.HALF_UP)
-        self.image_exists(SEARCH_EMPTY)
 
         # tab左滑翻页
         if tab in ["云空间", "任务", "应用"]:
@@ -2137,8 +1968,8 @@ class MuMuBusiness(CommonBusiness):
         """
         logger.info("📅 [MuMu] 查看日历页面")
 
-        # 1. 点击日历Tab
-        self.click_text("日历", region=Normal.HALF_DOWN)
+        # 1. 点击日历Tab（限定底部导航栏区域，避免匹配消息列表中含"日历"的文字）
+        self.click_text("日历", region=Normal.BOTTOM_NAV)
         time.sleep(2)
 
         # 2. 验证日历页面加载
@@ -2149,6 +1980,439 @@ class MuMuBusiness(CommonBusiness):
 
         # 3. 返回消息列表页
         self.press_back()
+        time.sleep(1)
+
+        return True
+
+    def _open_calendar_sidebar(self) -> bool:
+        """
+        打开日历侧边栏
+
+        步骤:
+        1. 点击底部Tab栏的"日历"进入日历页面
+        2. 点击日历页面右侧的侧边栏按钮(≡)
+        3. 验证侧边栏已打开（出现"搜索日历本"文字）
+
+        探索来源: explorer_output/screenshots/calendar_step2_sidebar_opened.png
+
+        Returns:
+            bool: 操作是否成功
+        """
+        logger.info("📅 [MuMu] 打开日历侧边栏")
+
+        # 1. 进入日历页面（限定底部导航栏区域，避免匹配消息列表中含"日历"的文字）
+        self.click_text("日历", region=Normal.BOTTOM_NAV)
+        time.sleep(2)
+
+        # 1.5 处理可能出现的浮窗权限弹窗
+        cancel_pos = self.find_text_by_ocr("取消", timeout=2)
+        if cancel_pos:
+            auth_pos = self.find_text_by_ocr("授权", timeout=1)
+            if auth_pos:
+                logger.info("📅 检测到浮窗权限弹窗，点击取消")
+                self.tap(cancel_pos[0], cancel_pos[1])
+                time.sleep(1)
+
+        # 2. 点击侧边栏按钮(≡)
+        self.click_image(CALENDAR_SIDEBAR_BUTTON, timeout=10)
+        time.sleep(2)
+
+        # 3. 验证侧边栏打开（使用 text_exists 断言）
+        self.text_exists("搜索日历本", timeout=5)
+        logger.info("✅ 日历侧边栏已打开")
+        return True
+
+    def _close_calendar_sidebar(self) -> bool:
+        """
+        关闭日历侧边栏（按返回键关闭）
+
+        Returns:
+            bool: 操作是否成功
+        """
+        logger.info("📅 [MuMu] 关闭日历侧边栏")
+        self.press_back()
+        time.sleep(1)
+        return True
+
+    def create_calendar_book(self, name: str) -> bool:
+        """
+        创建日历本
+
+        步骤:
+        1. 打开日历侧边栏
+        2. 点击搜索框右侧+号
+        3. 点击"新建日历本"
+        4. 输入日历名称
+        5. 点击"完成"
+        6. 处理"请设置谁可以看你的日历"弹窗 → 去设置 → 选择"仅自己可见"
+        7. 再次点击"完成"
+        8. 验证日历本出现在侧边栏
+        9. 关闭侧边栏，返回消息列表页
+
+        探索来源: explorer_output/screenshots/calendar_step4_new_calendar_page.png
+
+        Args:
+            name: 日历本名称
+        Returns:
+            bool: 创建是否成功
+        """
+        logger.info(f"📅 [MuMu] 创建日历本: {name}")
+
+        # 1. 打开日历侧边栏
+        self._open_calendar_sidebar()
+
+        # 2. 点击+号按钮（搜索框右侧，+号距"搜索日历本"文字中心约242px）
+        self.click_text("搜索日历本", timeout=5, dx=242)
+        time.sleep(1)
+
+        # 4. 点击"新建日历本"
+        self.click_text("新建日历本", timeout=5)
+        time.sleep(2)
+
+        # 5. 输入日历名称
+        self.click_text("日历名称", timeout=5)
+        time.sleep(0.3)
+        self.input_text(name)
+        time.sleep(0.5)
+
+        # 6. 点击完成
+        self.click_text("完成", timeout=5)
+        time.sleep(2)
+
+        # 7. 处理"请设置谁可以看你的日历"弹窗（可能出现）
+        go_set_pos = self.find_text_by_ocr("去设置", timeout=3)
+        if go_set_pos:
+            self.click_text("去设置", timeout=3)
+            time.sleep(1)
+            self.click_text("仅自己可见", timeout=5)
+            time.sleep(1)
+            # 再次点击完成
+            self.click_text("完成", timeout=5)
+            time.sleep(2)
+
+        # 8. 验证回到侧边栏且日历本存在
+        # 滚动查看侧边栏内容
+        self.swipe(350, 650, 350, 400)
+        time.sleep(0.5)
+        self.find_text_by_ocr(name, timeout=5)
+        logger.info(f"✅ 日历本 '{name}' 创建成功")
+
+        # 9. 关闭侧边栏，返回消息列表页
+        self._close_calendar_sidebar()
+        self.click_text("消息", region=Normal.BOTTOM_NAV)
+        time.sleep(1)
+
+        return True
+
+    def _click_calendar_book_menu(self, name: str) -> bool:
+        """
+        点击日历本右侧的...三点菜单图标，弹出操作菜单
+
+        日历侧边栏中每个日历本右侧有两个图标：
+        - ...（三点图标，x≈440）：点击弹出菜单（仅显示此日历本/分享日历/日历设置）
+        - ≡（排序图标，x≈485）：拖拽排序用
+
+        方法：先用 OCR 定位日历本名称获取 y 坐标，再点击该行的...图标位置
+
+        探索来源: 用户提供的侧边栏截图（2026-04-22 确认交互方式）
+
+        Args:
+            name: 日历本名称
+        Returns:
+            bool: 是否成功弹出菜单
+        """
+        logger.info(f"📅 [MuMu] 点击日历本 '{name}' 的...菜单图标")
+
+        # 1. OCR 定位日历本名称，获取 y 坐标（支持多次滚动搜索）
+        pos = self.find_text_by_ocr(name, timeout=3)
+        if pos is None:
+            # 侧边栏列表可能需要滚动才能看到目标日历本
+            for scroll_attempt in range(3):
+                self.swipe(350, 650, 350, 400)
+                time.sleep(0.5)
+                pos = self.find_text_by_ocr(name, timeout=3)
+                if pos is not None:
+                    break
+        assert pos is not None, f"未找到日历本 '{name}'"
+
+        # 2. 点击该行的...三点图标（侧边栏中...图标的 x 坐标固定在约 440）
+        #    使用名称的 y 坐标确保点击在正确的行
+        self.tap(440, pos[1])
+        time.sleep(1)
+
+        # 3. 验证菜单弹出（应出现"日历设置"选项）
+        self.find_text_by_ocr("日历设置", timeout=3)
+        logger.info(f"✅ 日历本 '{name}' 的菜单已弹出")
+        return True
+
+    def modify_calendar_book(self, name: str, new_name: str) -> bool:
+        """
+        修改日历本名称
+
+        步骤:
+        1. 打开日历侧边栏
+        2. 点击目标日历本右侧...图标，弹出菜单
+        3. 点击"日历设置"进入设置页面
+        4. 清空日历名称输入框，输入新名称
+        5. 点击"完成"
+        6. 验证修改后的名称出现在侧边栏
+        7. 关闭侧边栏，返回消息列表页
+
+        探索来源: 用户提供的侧边栏截图（2026-04-22 确认交互方式）
+
+        Args:
+            name: 当前日历本名称
+            new_name: 新的日历本名称
+        Returns:
+            bool: 修改是否成功
+        """
+        logger.info(f"📅 [MuMu] 修改日历本: {name} → {new_name}")
+
+        # 1. 打开日历侧边栏
+        self._open_calendar_sidebar()
+
+        # 2. 滚动确保能看到日历本列表
+        self.swipe(350, 650, 350, 400)
+        time.sleep(0.5)
+
+        # 3. 点击...菜单图标，弹出操作菜单
+        self._click_calendar_book_menu(name)
+
+        # 4. 点击弹出菜单中的"日历设置"（注意：侧边栏底部也有固定的"日历设置"）
+        #    通过定位"分享日历"来确认菜单区域，然后向下偏移点击菜单中的"日历设置"
+        share_pos = self.find_text_by_ocr("分享日历", timeout=3)
+        assert share_pos is not None, "弹出菜单中未找到'分享日历'"
+        # "日历设置"在"分享日历"下方约40-50px（菜单项间距）
+        self.tap(share_pos[0], share_pos[1] + 45)
+        time.sleep(3)
+
+        # 验证已进入日历编辑/设置页面（应有"日历描述"或"日历颜色"等特征文字）
+        self.find_text_by_ocr("日历描述", timeout=5)
+
+        # 5. 点击日历名称进入编辑模式
+        name_pos = self.find_text_by_ocr(name, timeout=5)
+        assert name_pos is not None, f"编辑页中未找到日历名称 '{name}'"
+        # 先单击名称聚焦输入框
+        self.tap(name_pos[0], name_pos[1])
+        time.sleep(0.5)
+        # 用 Ctrl+A 全选文本（input keycombination 在设备本地执行，更可靠）
+        self._run_adb_command("shell", "input", "keycombination", "113", "29")
+        time.sleep(0.3)
+        # 直接输入新名称（替换选中的文本）
+        self.input_text(new_name)
+        time.sleep(0.5)
+
+        # 6. 点击完成
+        self.click_text("完成", timeout=5)
+        time.sleep(2)
+
+        # 7. 验证修改后名称出现在侧边栏
+        self.swipe(350, 650, 350, 400)
+        time.sleep(0.5)
+        self.find_text_by_ocr(new_name, timeout=5)
+        logger.info(f"✅ 日历本已修改为 '{new_name}'")
+
+        # 8. 关闭侧边栏，返回消息列表页
+        self._close_calendar_sidebar()
+        self.click_text("消息", region=Normal.BOTTOM_NAV)
+        time.sleep(1)
+
+        return True
+
+    def delete_calendar_book(self, name: str) -> bool:
+        """
+        删除日历本
+
+        步骤:
+        1. 打开日历侧边栏
+        2. 点击目标日历本右侧...图标，弹出菜单
+        3. 点击"日历设置"进入设置页面
+        4. 滚动到底部，点击"删除日历"
+        5. 确认弹窗点击"删除"
+        6. 验证日历本已从侧边栏移除
+        7. 关闭侧边栏，返回消息列表页
+
+        探索来源: 用户提供的侧边栏截图（2026-04-22 确认交互方式）
+
+        Args:
+            name: 要删除的日历本名称
+        Returns:
+            bool: 删除是否成功
+        """
+        logger.info(f"📅 [MuMu] 删除日历本: {name}")
+
+        # 1. 打开日历侧边栏
+        self._open_calendar_sidebar()
+
+        # 2. 滚动确保能看到日历本列表
+        self.swipe(350, 650, 350, 400)
+        time.sleep(0.5)
+
+        # 3. 点击...菜单图标，弹出操作菜单
+        self._click_calendar_book_menu(name)
+
+        # 4. 点击弹出菜单中的"日历设置"（通过"分享日历"位置偏移定位，避免和底部固定按钮混淆）
+        share_pos = self.find_text_by_ocr("分享日历", timeout=3)
+        assert share_pos is not None, "弹出菜单中未找到'分享日历'"
+        self.tap(share_pos[0], share_pos[1] + 45)
+        time.sleep(3)
+
+        # 验证已进入日历设置页面
+        self.find_text_by_ocr("日历描述", timeout=5)
+
+        # 5. 滚动到底部看到删除按钮
+        self.swipe_up(300)
+        time.sleep(0.5)
+        self.swipe_up(300)
+        time.sleep(0.5)
+
+        # 6. 点击"删除日历"
+        self.click_text("删除日历", timeout=5)
+        time.sleep(1)
+
+        # 7. 确认弹窗点击"删除"
+        self.click_text("删除", timeout=5)
+        time.sleep(3)
+
+        # 8. 删除后可能停留在编辑页面，需要回到侧边栏
+        #    检查是否还在编辑页面（含"日历描述"或"编辑日历"等特征）
+        edit_check = self.find_text_by_ocr("日历描述", timeout=2)
+        if edit_check:
+            logger.info("📅 删除后仍在编辑页面，按返回键回到侧边栏")
+            self.press_back()
+            time.sleep(2)
+
+        # 9. 确保在侧边栏中，验证日历本已删除
+        sidebar_check = self.find_text_by_ocr("搜索日历本", timeout=5)
+        if sidebar_check is None:
+            # 可能需要再按一次返回或重新打开侧边栏
+            self.press_back()
+            time.sleep(1)
+            self._open_calendar_sidebar()
+
+        self.swipe(350, 650, 350, 400)
+        time.sleep(0.5)
+        result = self.find_text_by_ocr(name, timeout=3)
+        assert result is None, f"日历本 '{name}' 删除后仍存在于侧边栏"
+        logger.info(f"✅ 日历本 '{name}' 已删除")
+
+        # 10. 关闭侧边栏，返回消息列表页
+        self._close_calendar_sidebar()
+        self.click_text("消息", region=Normal.BOTTOM_NAV)
+        time.sleep(1)
+
+        return True
+
+    def subscribe_calendar_book(self, keyword: str) -> bool:
+        """
+        订阅日历本
+
+        步骤:
+        1. 打开日历侧边栏
+        2. 点击搜索框进入订阅页面
+        3. 在推荐列表中找到目标日历本，点击"订阅"按钮
+        4. 验证按钮变为"退订"（表示订阅成功）
+        5. 关闭订阅页面
+        6. 验证日历本出现在"我订阅的"列表中
+        7. 关闭侧边栏，返回消息列表页
+
+        探索来源: explorer_output/screenshots/calendar_step14_search_click.png
+
+        Args:
+            keyword: 要订阅的日历本关键词（用于搜索或在推荐列表中定位）
+        Returns:
+            bool: 订阅是否成功
+        """
+        logger.info(f"📅 [MuMu] 订阅日历本: {keyword}")
+
+        # 1. 打开日历侧边栏
+        self._open_calendar_sidebar()
+
+        # 2. 点击搜索框进入订阅页面
+        self.click_text("搜索日历本", timeout=5)
+        time.sleep(2)
+
+        # 3. 验证进入订阅页面
+        self.find_text_by_ocr("订阅", timeout=5)
+
+        # 4. 搜索日历本（如果有搜索框）
+        search_pos = self.find_text_by_ocr("请输入日历本名称", timeout=3)
+        if search_pos:
+            self.tap(search_pos[0], search_pos[1])
+            time.sleep(0.3)
+            self.input_text(keyword)
+            time.sleep(2)
+
+        # 5. 找到目标日历本并点击"订阅"按钮
+        pos = self.find_text_by_ocr(keyword, timeout=5)
+        assert pos is not None, f"未找到日历本 '{keyword}'"
+        # 订阅按钮在日历本名称右侧
+        self.click_text("订阅", timeout=5)
+        time.sleep(2)
+
+        # 6. 验证订阅成功（按钮变为"退订"）
+        self.find_text_by_ocr("退订", timeout=5)
+        logger.info(f"✅ 日历本 '{keyword}' 订阅成功")
+
+        # 7. 关闭订阅页面（点击X按钮，左上角约 46,113）
+        self.press_back()
+        time.sleep(1)
+
+        # 8. 关闭侧边栏，返回消息列表页
+        self._close_calendar_sidebar()
+        self.click_text("消息", region=Normal.BOTTOM_NAV)
+        time.sleep(1)
+
+        return True
+
+    def unsubscribe_calendar_book(self, name: str) -> bool:
+        """
+        退订日历本
+
+        步骤:
+        1. 打开日历侧边栏
+        2. 滚动找到"我订阅的"区域中的目标日历本
+        3. 点击日历本右侧...按钮
+        4. 点击"退订日历"
+        5. 验证日历本已从"我订阅的"列表中移除
+        6. 关闭侧边栏，返回消息列表页
+
+        探索来源: explorer_output/screenshots/calendar_step17_subscribed_menu.png
+
+        Args:
+            name: 要退订的日历本名称
+        Returns:
+            bool: 退订是否成功
+        """
+        logger.info(f"📅 [MuMu] 退订日历本: {name}")
+
+        # 1. 打开日历侧边栏
+        self._open_calendar_sidebar()
+
+        # 2. 滚动找到目标日历本
+        self.swipe(350, 650, 350, 400)
+        time.sleep(0.5)
+
+        # 3. 点击目标日历本右侧的...三点菜单图标
+        pos = self.find_text_by_ocr(name, timeout=5)
+        assert pos is not None, f"未找到日历本 '{name}'"
+        self.tap(440, pos[1])
+        time.sleep(1)
+
+        # 4. 点击"退订日历"
+        self.click_text("退订日历", timeout=5)
+        time.sleep(2)
+
+        # 5. 验证退订成功（日历本从列表中消失）
+        self.swipe(350, 650, 350, 400)
+        time.sleep(0.5)
+        result = self.find_text_by_ocr(name, timeout=3)
+        assert result is None, f"日历本 '{name}' 退订后仍存在于侧边栏"
+        logger.info(f"✅ 日历本 '{name}' 已退订")
+
+        # 6. 关闭侧边栏，返回消息列表页
+        self._close_calendar_sidebar()
+        self.click_text("消息", region=Normal.BOTTOM_NAV)
         time.sleep(1)
 
         return True
@@ -2224,7 +2488,7 @@ class MuMuBusiness(CommonBusiness):
         logger.info(f"✅ [MuMu] 搜索聊天内容执行完成: {keyword}")
 
         # 5. 返回消息列表页
-        for i in range(6):
+        for i in range(8):
             self.press_back()
             time.sleep(0.5)
             if self.find_image(MESSAGE_TAB_BLUE, timeout=1):
@@ -2269,9 +2533,16 @@ class MuMuBusiness(CommonBusiness):
         self.click_text("群公告", timeout=5)
         time.sleep(1)
 
-        # 3. 点击编辑
-        self.click_text("编辑", timeout=5)
-        time.sleep(1)
+        # 3. 判断当前群公告状态
+        # - 空公告：页面直接展示输入框，有"输入群公告内容"占位符
+        # - 有公告：页面展示现有公告内容，右上角有"编辑"按钮
+        try:
+            self.image_exists(GROUP_ANNOUNCEMENT_EMPTY_PLACEHOLDER, timeout=2)
+            logger.info("ℹ️ 群公告为空，已在编辑状态")
+        except AssertionError:
+            # 有现有公告，点击"编辑"进入编辑模式
+            self.click_text("编辑", timeout=5)
+            time.sleep(1)
 
         # 4. 清空旧内容并输入新公告
         self.clear_input()
@@ -2279,20 +2550,35 @@ class MuMuBusiness(CommonBusiness):
         self.input_text(str(content))
         time.sleep(0.5)
 
-        # 5. 点击右上角完成按钮 (ivTitleBarRight 坐标约486,72)
-        self.tap(486, 72)
+        # 5. 收起键盘后点击右上角确认按钮
+        # 群公告编辑页的确认按钮可能显示为"完成"/"发布"或图标
+        self.press_back()
+        time.sleep(0.5)
+        confirm_clicked = False
+        for btn_text in ["完成", "发布"]:
+            try:
+                self.click_text(btn_text, timeout=2, region=Normal.HALF_UP)
+                confirm_clicked = True
+                break
+            except AssertionError:
+                continue
+        if not confirm_clicked:
+            # 右上角按钮可能是纯图标（对勾），通过固定坐标点击
+            logger.info("ℹ️ 未找到文字确认按钮，点击右上角图标按钮")
+            self._adb_tap(486, 107)
         time.sleep(1)
 
         # 6. 处理"发送到群聊"确认弹窗（可能出现）
-        send_pos = self.find_text_by_ocr("发送到群聊", timeout=3)
-        if send_pos:
-            self.tap(send_pos[0], send_pos[1])
+        try:
+            self.click_text("发送到群聊", timeout=3)
             time.sleep(1)
+        except AssertionError:
+            logger.info("ℹ️ 未出现'发送到群聊'弹窗，跳过")
 
         logger.info(f"✅ [MuMu] 群公告设置成功")
 
         # 7. 返回消息列表页
-        for i in range(5):
+        for i in range(8):
             self.press_back()
             time.sleep(0.5)
             if self.find_image(MESSAGE_TAB_BLUE, timeout=1):
@@ -2446,7 +2732,6 @@ class MuMuBusiness(CommonBusiness):
 
         # 1. 搜索群组并进入聊天页
         self.click_image(MESSAGE_TAB_SEARCH, region=Normal.HALF_UP)
-        self.image_exists(SEARCH_EMPTY)
         self.click_image(SELECT_SEARCH, dx=10)
         self.input_text(str(group_identifier))
         time.sleep(1)
@@ -2595,7 +2880,6 @@ class MuMuBusiness(CommonBusiness):
 
         # 1. 搜索联系人并进入聊天页
         self.click_image(MESSAGE_TAB_SEARCH, region=Normal.HALF_UP)
-        self.image_exists(SEARCH_EMPTY)
         self.click_image(SELECT_SEARCH, dx=10)
         self.input_text(str(recipient))
         time.sleep(1)
@@ -2619,7 +2903,8 @@ class MuMuBusiness(CommonBusiness):
         logger.info("✅ [MuMu] 已进入P2P设置页面")
         return True
 
-    def add_custom_tab_page(self, recipient: str, tab_name: str = "测试标签页", link_url: str = "https://www.163.com") -> bool:
+    def add_custom_tab_page(self, recipient: str, tab_name: str = "测试标签页",
+                            link_url: str = "https://www.163.com") -> bool:
         """
         P2P会话添加自定义标签页
 

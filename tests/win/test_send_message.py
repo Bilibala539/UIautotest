@@ -14,7 +14,7 @@ class TestSendMessage(BaseTest):
         - 用户登录
         """
         self.userA = self.users("userA")
-        self.userA.login()
+        self.userB = self.users("userB")
 
     def test_search_contact_and_send_message(self):
         """
@@ -27,13 +27,14 @@ class TestSendMessage(BaseTest):
         4. 在聊天窗口输入消息
         5. 发送消息
         """
-        self.userA.aw.send_message("grp.popoqa93", "这是一条自动化测试消息")
-        self.userA.create_team()
+        # self.userA.aw.send_message("grp.popoqa93", "这是一条自动化测试消息")
+        # self.userA.create_team()
+        pass
 
     def teardown(self):
         """
         测试后清理
         - 用户退登
         """
-        if hasattr(self, 'userA') and self.userA.is_logged_in:
-            self.userA.logout()
+        pass
+

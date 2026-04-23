@@ -41,6 +41,7 @@ class Normal:
     HALF_LEFT = (0, 0, int(x / 2), y)
     HALF_RIGHT = (int(x / 2), 0, int(x / 2), y)
     CENTER_POP = (0, int(y / 4), x, int(y * 3 / 4))
+    BOTTOM_NAV = (0, 890, x, 70)  # 底部导航栏区域 (y=890~960)
 
 
 # ==================== Search: 大搜 ====================

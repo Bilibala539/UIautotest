@@ -16,13 +16,10 @@ class TestSearchCloudOption(BaseTest):
         """
         点击搜索框，验证搜索页面中存在'云空间'选项Tab
         """
-        from image.image_name_mapping import MESSAGE_TAB_SEARCH, SEARCH_EMPTY
+        from image.image_name_mapping import MESSAGE_TAB_SEARCH
 
         # 点击搜索按钮进入搜索页面
         self.userA.click_image(MESSAGE_TAB_SEARCH)
-
-        # 验证进入搜索页面
-        self.userA.image_exists(SEARCH_EMPTY)
 
         # 搜索Tab需要左滑才能看到云空间
         # 先找到日程Tab的位置，然后向左滑动

@@ -132,9 +132,10 @@ class PPUser:
 
     def login(self) -> bool:
         """
-        执行用户登录（Session 级别调用一次）
+        执行用户登录
 
-        完成登录后标记 _logged_in = True
+        完成登录流程后 POPO 已在消息列表页，无需再调用 open_app()。
+        完成登录后标记 _logged_in = True。
         """
         logger.info(f"🔐 {self.uid} 正在登录 (平台: {self.platform})")
         self.aw.login(self.uid, self.password)
@@ -143,9 +144,10 @@ class PPUser:
 
     def logout(self) -> bool:
         """
-        执行用户退出登录（Session 结束时调用）
+        执行用户退出登录
 
-        前置条件: POPO 应用已打开且在前台
+        内部会自动确保回到消息列表页（处理深层页面/桌面等场景），
+        无需提前调用 open_app()。
         """
         logger.info(f"🚪 {self.uid} 正在退出登录")
 
@@ -254,9 +256,9 @@ class PPUser:
             bool: 撤回是否成功
         """
         if message_text:
-            self.aw.recall_message(message_text)
+            return self.aw.recall_message(message_text)
         if is_good:
-            self.aw.recall_good()
+            return self.aw.recall_good()
 
     def reply_message(self, message_text: str, reply_content: str) -> bool:
         """回复消息"""
@@ -437,7 +439,7 @@ class PPUser:
     def send_rich_text_message(self, recipient: str, message: str,
                                 format_type: str) -> bool:
         """
-        发送富文本格式消息
+        发送富文本格式消息（加粗/斜体/下划线/删除线/字体颜色）
 
         Args:
             recipient: 收件人账号
@@ -446,6 +448,25 @@ class PPUser:
         """
         return self.aw.send_rich_text_message(recipient, message, format_type)
 
+    def send_markdown_message(self, recipient: str, text: str,
+                               markdown_type: str, **kwargs) -> bool:
+        """
+        发送 Markdown 格式消息（统一入口）
+
+        Args:
+            recipient: 收件人账号
+            text: 消息文本内容
+            markdown_type: Markdown 语法类型
+                - 'hyperlink': 超链接，额外参数 url
+                - 'quote': 引用块
+                - 'inline_code': 行内代码
+                - 'code_block': 代码块，额外参数 language
+                - 'background_color': 背景色高亮
+            **kwargs: 额外参数（如 url, language）
+        """
+        return self.aw.send_markdown_message(recipient, text, markdown_type, **kwargs)
+
+    # 向下兼容的快捷方法
     def send_hyperlink_message(self, recipient: str, text: str,
                                 url: str = "https://www.163.com") -> bool:
         """发送超链接消息"""
@@ -473,6 +494,26 @@ class PPUser:
     def view_calendar(self) -> bool:
         """查看日历页面"""
         return self.aw.view_calendar()
+
+    def create_calendar_book(self, name: str) -> bool:
+        """创建日历本"""
+        return self.aw.create_calendar_book(name)
+
+    def modify_calendar_book(self, name: str, new_name: str) -> bool:
+        """修改日历本名称"""
+        return self.aw.modify_calendar_book(name, new_name)
+
+    def delete_calendar_book(self, name: str) -> bool:
+        """删除日历本"""
+        return self.aw.delete_calendar_book(name)
+
+    def subscribe_calendar_book(self, keyword: str) -> bool:
+        """订阅日历本"""
+        return self.aw.subscribe_calendar_book(keyword)
+
+    def unsubscribe_calendar_book(self, name: str) -> bool:
+        """退订日历本"""
+        return self.aw.unsubscribe_calendar_book(name)
 
     # ==================== 群组管理相关 ====================
 
@@ -550,7 +591,7 @@ class PPUser:
 
     def wait_and_click_image(self, image_name: str, timeout: int = 10) -> bool:
         """等待图片出现并点击"""
-        if self.aw.image_exists(image_name, timeout=timeout):
+        if self.aw.find_image(image_name, timeout=timeout):
             return self.aw.click_image(image_name)
         return False
 

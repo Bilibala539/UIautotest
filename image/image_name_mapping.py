@@ -177,6 +177,7 @@ GROUP_SETTINGS_REMOVE_MEMBER = os.path.join(test_path, "群设置页-移除成�
 GROUP_SETTINGS_SEARCH_CHAT = os.path.join(test_path, "群设置页-搜索聊天内容行.png")
 GROUP_SETTINGS_CONTENT_FILTER = os.path.join(test_path, "群设置页-内容筛选标签栏.png")
 GROUP_SETTINGS_ANNOUNCEMENT = os.path.join(test_path, "群设置页-群公告行.png")
+GROUP_ANNOUNCEMENT_EMPTY_PLACEHOLDER = os.path.join(test_path, "群公告编辑页-空公告输入框占位符.png")
 GROUP_SETTINGS_TAG_PAGE = os.path.join(test_path, "群设置页-标签页行.png")
 GROUP_SETTINGS_MANAGEMENT = os.path.join(test_path, "群设置页-群管理行.png")
 
@@ -199,4 +200,7 @@ CONTACTS_NAV_MORE_TAB = os.path.join(test_path, "通讯录页-底部导航栏更
 
 # 会话分组
 SESSION_GROUP_MORE_BUTTON = os.path.join(path, "消息tab页-分组更多按钮.png")
+
+# 日历页
+CALENDAR_SIDEBAR_BUTTON = os.path.join(test_path, "日历页-侧边栏按钮.png")
 

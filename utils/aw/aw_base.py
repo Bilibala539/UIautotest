@@ -5,7 +5,7 @@
 所有 OCR、图像匹配、组合操作方法只维护一份。
 
 核心方法:
-  tap, input_text, find_text_by_ocr, find_image
+  tap, input_text, find_text_by_ocr, find_image, ocr_scan_page
   click_text, click_image, text_exists, image_exists
   swipe, swipe_up, swipe_down, sleep ...
 """
@@ -346,6 +346,111 @@ class AWBase:
 
     # ==================== OCR 文字识别 ====================
 
+    def _ocr_raw(self, img: np.ndarray, region=None) -> list:
+        """
+        底层 OCR 识别，返回统一格式的识别结果列表
+
+        将 PaddleOCR 2.x / 3.x 的不同输出格式统一为:
+        [{"text": str, "cx": int, "cy": int, "bbox": (x1,y1,x2,y2), "confidence": float}, ...]
+
+        坐标已转换为窗口内绝对坐标（已加上 region 偏移）。
+
+        Args:
+            img: 全屏截图 (BGR numpy 数组)
+            region: 搜索区域 (x, y, w, h)，None 表示全屏
+
+        Returns:
+            list[dict]: 统一格式的 OCR 识别结果
+        """
+        ocr = self._get_ocr_engine()
+
+        dx, dy = 0, 0
+        search_img = img
+        if region:
+            rx, ry, rw, rh = region
+            search_img = img[ry:ry + rh, rx:rx + rw]
+            dx, dy = rx, ry
+
+        items = []
+        if self._ocr_use_predict:
+            # PaddleOCR 3.x: predict() → 生成器，含 rec_texts / rec_boxes
+            results = list(ocr.predict(search_img))
+            if results and results[0]:
+                ocr_result = results[0]
+                for t, box in zip(ocr_result.get('rec_texts', []),
+                                  ocr_result.get('rec_boxes', [])):
+                    x1, y1, x2, y2 = int(box[0]), int(box[1]), int(box[2]), int(box[3])
+                    items.append({
+                        'text': t,
+                        'cx': int((x1 + x2) / 2) + dx,
+                        'cy': int((y1 + y2) / 2) + dy,
+                        'bbox': (x1 + dx, y1 + dy, x2 + dx, y2 + dy),
+                        'confidence': 0.0,
+                    })
+        else:
+            # PaddleOCR 2.x: ocr() → [[line, ...]]，line=[box4pts, (text,conf)]
+            results = ocr.ocr(search_img, cls=True)
+            if results and results[0]:
+                for line in results[0]:
+                    box, (t, conf) = line[0], line[1]
+                    xs = [p[0] for p in box]
+                    ys = [p[1] for p in box]
+                    x1, y1 = int(min(xs)), int(min(ys))
+                    x2, y2 = int(max(xs)), int(max(ys))
+                    items.append({
+                        'text': t,
+                        'cx': int((x1 + x2) / 2) + dx,
+                        'cy': int((y1 + y2) / 2) + dy,
+                        'bbox': (x1 + dx, y1 + dy, x2 + dx, y2 + dy),
+                        'confidence': float(conf),
+                    })
+
+        return items
+
+    def ocr_scan_page(self, region=Normal.ALL) -> list:
+        """
+        一次性 OCR 全量扫描当前页面，返回所有文字及完整边界框信息
+
+        探索阶段推荐使用此方法替代多次 find_text_by_ocr()，一次截图+OCR
+        即可获取页面全部文字元素，大幅提升探索效率。
+
+        Args:
+            region: 搜索区域 (x, y, w, h)，默认全屏
+
+        Returns:
+            list[dict]: 识别结果列表，每项包含:
+                - text (str): 识别到的文字
+                - cx (int): 文字中心x坐标（窗口内）
+                - cy (int): 文字中心y坐标（窗口内）
+                - bbox (tuple): 边界框 (x1, y1, x2, y2)，窗口内坐标
+                - confidence (float): 识别置信度
+
+        示例:
+            # 扫描页面全部文字
+            items = aw.ocr_scan_page()
+            for item in items:
+                print(f"{item['text']} @ ({item['cx']}, {item['cy']}) bbox={item['bbox']}")
+
+            # 在扫描结果中查找特定文字
+            target = next((i for i in items if '设置' in i['text']), None)
+            if target:
+                aw.tap(target['cx'], target['cy'])
+        """
+        img = self.take_screenshot()
+        if img is None:
+            logger.warning("⚠️ ocr_scan_page: 截图失败")
+            return []
+
+        items = self._ocr_raw(img, region=region)
+
+        if items:
+            texts = [item['text'] for item in items]
+            logger.info(f"📝 OCR全量扫描: 识别到 {len(items)} 个文字项 — {texts}")
+        else:
+            logger.info("📝 OCR全量扫描: 未识别到任何文字")
+
+        return items
+
     def find_text_by_ocr(self, text: str, timeout: int = 10,
                          region=Normal.ALL,
                          case_sensitive: bool = False) -> Optional[Tuple[int, int]]:
@@ -361,7 +466,6 @@ class AWBase:
         Returns:
             文字中心坐标 (窗口内)，未找到返回 None
         """
-        ocr = self._get_ocr_engine()
         end_time = time.time() + timeout
 
         while time.time() < end_time:
@@ -370,50 +474,24 @@ class AWBase:
                 self.sleep(0.5)
                 continue
 
-            dx, dy = 0, 0
-            search_img = img
-            if region:
-                rx, ry, rw, rh = region
-                search_img = img[ry:ry + rh, rx:rx + rw]
-                dx, dy = rx, ry
+            items = self._ocr_raw(img, region=region)
 
-            # 统一解析为 detected_items: [(text, cx, cy), ...]
-            detected_items = []
-            if self._ocr_use_predict:
-                # PaddleOCR 3.x: predict() → 生成器，含 rec_texts / rec_boxes
-                results = list(ocr.predict(search_img))
-                if results and results[0]:
-                    ocr_result = results[0]
-                    for t, box in zip(ocr_result.get('rec_texts', []),
-                                      ocr_result.get('rec_boxes', [])):
-                        detected_items.append((t,
-                                               int((box[0] + box[2]) / 2),
-                                               int((box[1] + box[3]) / 2)))
-            else:
-                # PaddleOCR 2.x: ocr() → [[line, ...]]，line=[box4pts, (text,conf)]
-                results = ocr.ocr(search_img, cls=True)
-                if results and results[0]:
-                    for line in results[0]:
-                        box, (t, _) = line[0], line[1]
-                        xs = [p[0] for p in box]
-                        ys = [p[1] for p in box]
-                        detected_items.append((t,
-                                               int((min(xs) + max(xs)) / 2),
-                                               int((min(ys) + max(ys)) / 2)))
-
-            if detected_items:
-                rec_texts = [item[0] for item in detected_items]
+            if items:
+                rec_texts = [item['text'] for item in items]
                 logger.info(f"📝 OCR识别到的文字: {rec_texts}")
 
-                for detected_text, cx, cy in detected_items:
+                for item in items:
+                    detected_text = item['text']
+                    if not detected_text.strip():
+                        continue
+
                     if case_sensitive:
                         match = text in detected_text
                     else:
                         match = text.lower() in detected_text.lower()
 
                     if match:
-                        center_x = cx + dx
-                        center_y = cy + dy
+                        center_x, center_y = item['cx'], item['cy']
                         logger.info(f"🔍 找到文字 '{text}' @ ({center_x}, {center_y})")
                         return center_x, center_y
 
@@ -466,6 +544,9 @@ class AWBase:
         template_h, template_w = template.shape[:2]
         end_time = time.time() + timeout
 
+        # ADB 模式截图与 pyautogui 截图存在细微色差，通过 driver 的阈值偏移补偿
+        effective_threshold = threshold + getattr(self.driver, 'threshold_offset', 0.0)
+
         while time.time() < end_time:
             # 有 region 时只截取该区域，减少截图处理范围；无 region 时截全屏
             if region:
@@ -486,7 +567,7 @@ class AWBase:
             result = cv2.matchTemplate(search_img, template, cv2.TM_CCOEFF_NORMED)
             _, max_val, _, max_loc = cv2.minMaxLoc(result)
 
-            if max_val >= threshold:
+            if max_val >= effective_threshold:
                 center_x = max_loc[0] + template_w // 2 + dx
                 center_y = max_loc[1] + template_h // 2 + dy
                 logger.info(f"🖼️ 找到图片 '{template_name}' @ ({center_x}, {center_y}), score={max_val:.2f}")
@@ -681,16 +762,32 @@ class AWBase:
     # ==================== 探索方法 ====================
 
     def explore_page(self, page_name: str) -> dict:
-        """探索当前页面，截图并记录基本信息"""
+        """
+        探索当前页面，截图并全量扫描页面元素
+
+        一次性完成截图 + OCR 全量扫描，返回页面全部文字元素及其边界框信息。
+        探索阶段推荐直接使用此方法，避免多次调用 find_text_by_ocr()。
+
+        Args:
+            page_name: 页面名称（用于截图文件命名）
+
+        Returns:
+            dict: 页面探索结果，包含:
+                - name (str): 页面名称
+                - screenshot (str): 截图文件路径
+                - timestamp (str): 探索时间
+                - ocr_items (list[dict]): OCR 全量扫描结果，每项含 text/cx/cy/bbox/confidence
+        """
         logger.info(f"📱 开始探索页面: {page_name}")
         screenshot_path = self.screenshot_for_explore(f"{page_name}.png")
+        ocr_items = self.ocr_scan_page()
         page_info = {
             "name": page_name,
             "screenshot": screenshot_path,
             "timestamp": datetime.now().isoformat(),
-            "elements": []
+            "ocr_items": ocr_items,
         }
-        logger.info(f"✅ 页面探索完成: {page_name}")
+        logger.info(f"✅ 页面探索完成: {page_name}，识别到 {len(ocr_items)} 个文字项")
         return page_info
 
     def explore_flow(self, flow_name: str, steps: list) -> list:

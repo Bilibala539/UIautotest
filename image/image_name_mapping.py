@@ -165,6 +165,10 @@ LONGPRESS_FAVORITE_TEXT = os.path.join(test_path, "长按菜单-收藏文字.png
 
 TOAST_SENDED = os.path.join(path, "已发送_toast.png")
 
+# ==================== 易生活页 ====================
+ELIFE_MORE_BUTTON = os.path.join(path, "易生活页-更多按钮.png")
+ELIFE_FLOATING_ICON = os.path.join(path, "易生活页-浮窗图标.png")
+
 # ==================== 系统级 ====================
 FILE_SELECT_MORE = os.path.join(path, "文件选择器-左上角更多按钮.png")
 FILE_SELECT_MORE_OPENICON = os.path.join(path, "文件选择器-更多侧边栏-打开文档图标.png")

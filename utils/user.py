@@ -553,6 +553,63 @@ class PPUser:
         """P2P会话删除自定义标签页"""
         return self.aw.remove_custom_tab_page(recipient, tab_name)
 
+    def merge_forward_message(self, message_text: str, forward_to: str = "grp.popoqa50") -> bool:
+        """
+        合并转发消息
+
+        在当前聊天页面长按消息 → 多选 → 合并转发 → 选择联系人，
+        验证合并消息卡片出现。
+
+        Args:
+            message_text: 要合并转发的消息文字
+            forward_to: 转发接收人账号
+        """
+        return self.aw.merge_forward_message(message_text, forward_to)
+
+    def copy_image_to_input_and_send(self, recipient: str) -> bool:
+        """
+        长按聊天中的图片→复制→粘贴到输入框→发送
+
+        Args:
+            recipient: 收件人账号
+        """
+        return self.aw.copy_image_to_input_and_send(recipient)
+
+    def add_elife_to_floating_window(self) -> bool:
+        """
+        将易生活页面加入浮窗
+
+        从消息列表页导航到易生活→右上角更多→浮窗。
+        """
+        return self.aw.add_elife_to_floating_window()
+
+    def merge_forward_images_and_swipe(self, recipient: str = "grp.popoqa50") -> bool:
+        """
+        发送多张图片→合并转发→进入合并消息详情→图片查看器中左右滑动
+
+        Args:
+            recipient: 收件人账号
+        """
+        return self.aw.merge_forward_images_and_swipe(recipient)
+
+    def screenshot_and_share(self, recipient: str = "grp.popoqa50") -> bool:
+        """
+        在聊天页面触发系统截图并通过POPO分享给指定联系人
+
+        Args:
+            recipient: 收件人账号
+        """
+        return self.aw.screenshot_and_share(recipient)
+
+    def share_image_from_external(self, recipient: str = "grp.popoqa50") -> bool:
+        """
+        从系统相册分享图片到POPO并发送给指定联系人
+
+        Args:
+            recipient: 收件人账号
+        """
+        return self.aw.share_image_from_external(recipient)
+
     # ==================== 断言方法 ====================
     def click_image(self, image_name: str, threshold: float = 0.8,
                     timeout: int = 10, dx: int = 0, dy: int = 0, region=Normal.ALL) -> bool:

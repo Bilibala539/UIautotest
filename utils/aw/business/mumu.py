@@ -8,6 +8,8 @@ import logging
 import subprocess
 import time
 
+import numpy as np
+
 from image.image_name_mapping import *
 from utils.aw.business.common import CommonBusiness
 from utils.aw.driver.base_driver import BasePlatformDriver
@@ -188,23 +190,24 @@ class MuMuBusiness(CommonBusiness):
 
         # 0. 确保模拟器窗口在前台（pyautogui截图需要窗口可见）
         self.driver.focus_window()
-        self.sleep(0.5)
+        self.sleep(0.2)
 
         # 1. 启动 POPO（通过 monkey 命令模拟启动，比点击桌面图标更可靠）
         self._run_adb_command("shell", "monkey", "-p", POPO_PACKAGE,
                               "-c", "android.intent.category.LAUNCHER", "1")
-        self.sleep(5)
+        self.sleep(8)
 
-        # 2. 检查当前页面状态：
-        #    - 如果已在消息列表页（force-stop 后重启保留了登录态）→ 直接返回
-        #    - 如果在登录页 → 继续正常登录流程
-        if self.find_image(MESSAGE_TAB_BLUE, timeout=5):
-            logger.info("✅ [MuMu] POPO 已在消息列表页（登录态保留），无需重新登录")
+        # 1.5. 检查是否已处于登录状态（消息列表页）
+        if self.find_image(MESSAGE_TAB_BLUE, timeout=15):
+            logger.info("✅ [MuMu] 已登录状态（图像匹配），跳过登录步骤")
             self.pop_not_allowed()
             return
 
-        # 2b. 等待登录页面出现
-        self.image_exists(LOGIN_POPO_TEXT, timeout=15)
+        # 1.6. 图像匹配失败时，使用 OCR 检测底部导航栏的"消息"文字作为已登录标志
+        if self.find_text_by_ocr("消息", timeout=5):
+            logger.info("✅ [MuMu] 已登录状态（OCR回退），跳过登录步骤")
+            self.pop_not_allowed()
+            return
         logger.info("📱 检测到登录页面")
 
         # 3. 点击邮箱 Tab
@@ -1680,14 +1683,32 @@ class MuMuBusiness(CommonBusiness):
             recipient: 收件人账号或群号
         """
         is_group = recipient.isdigit()
-        self.click_image(MESSAGE_TAB_SEARCH, region=Normal.HALF_UP)
 
-        self.click_image(SELECT_SEARCH, dx=10)
+        # 点击搜索入口：新版本POPO消息列表页顶部有内嵌搜索框
+        # 提示文字可能为"输入"/"使用快捷"或"搜索，输入"/"使用命令"
+        # 优先OCR点击搜索框，回退到搜索按钮图片
+        search_pos = self.find_text_by_ocr("使用快捷", region=Normal.HALF_UP, timeout=3)
+        if search_pos is None:
+            search_pos = self.find_text_by_ocr("使用命令", region=Normal.HALF_UP, timeout=3)
+        if search_pos is None:
+            search_pos = self.find_text_by_ocr("输入", region=Normal.HALF_UP, timeout=3)
+        if search_pos:
+            self.tap(search_pos[0], search_pos[1])
+            time.sleep(1)
+        else:
+            self.click_image(MESSAGE_TAB_SEARCH, region=Normal.HALF_UP)
+            time.sleep(1)
+
         self.input_text(str(recipient))
         time.sleep(1)
 
         if is_group:
-            self.click_text("群组", region=Normal.HALF_UP)
+            # 搜索页面的"群消息"Tab，OCR可能识别为"群消息"或拆为"群"+"消息"
+            pos = self.find_text_by_ocr("群消息", region=Normal.HALF_UP, timeout=3)
+            if pos is None:
+                pos = self.find_text_by_ocr("群", region=(180, 140, 120, 50))
+            if pos:
+                self.tap(pos[0], pos[1])
         else:
             self.click_text("联系人", region=Normal.HALF_UP)
         time.sleep(2)
@@ -3171,4 +3192,575 @@ class MuMuBusiness(CommonBusiness):
             time.sleep(0.5)
 
         logger.info(f"✅ [MuMu] 标签页 '{tab_name}' 删除完成")
+        return True
+
+    def merge_forward_message(self, message_text: str, forward_to: str = "grp.popoqa50") -> bool:
+        """
+        合并转发消息
+
+        在当前聊天页面，长按指定消息 → 进入多选 → 合并转发 → 选择联系人 → 发送，
+        验证合并消息卡片出现在聊天页面中。
+
+        前置条件:
+        - 当前页面为聊天页面 (chat_page)
+        - 页面中已有可选择的消息
+
+        步骤:
+        1. 长按目标消息文字 (1.5 秒)
+        2. 点击弹出菜单中的"多选"
+        3. 验证进入多选模式（标题栏出现多选标识）
+        4. 点击底部"合并转发"按钮
+        5. 在"转发到"选人页面搜索并选择联系人
+        6. 验证"已发送" toast 出现
+        7. 验证合并消息卡片出现（含"聊天记录"文案）
+
+        探索来源: explorer_output/screenshots/merge_step*.png
+
+        Args:
+            message_text: 要合并转发的消息文字
+            forward_to: 转发接收人账号（如 'grp.popoqa50'），支持带或不带邮箱后缀
+
+        Returns:
+            bool: 合并转发是否成功
+        """
+        logger.info(f"📤 [MuMu] 合并转发消息: '{message_text}' -> {forward_to}")
+
+        # 1. 长按消息
+        self.long_press_text(message_text, duration=1.5)
+        time.sleep(1)
+
+        # 2. 点击"多选"
+        self.click_text("多选", region=Normal.HALF_DOWN)
+        time.sleep(1)
+
+        # 3. 验证进入多选模式（通过标题栏文字判断，兼容 ADB 截图模式）
+        self.text_exists("已选", timeout=5, region=Normal.HALF_UP)
+
+        # 4. 点击"合并转发"
+        self.click_text("合并转发", region=Normal.HALF_DOWN)
+        time.sleep(2)
+
+        # 5. 在"转发到"选人页面直接点击最近联系人
+        #    因为刚发过消息给目标联系人，所以他在"最近"列表中
+        forward_to_clean = forward_to.split("@")[0] if "@" in forward_to else forward_to
+        self.click_text(forward_to_clean, timeout=10)
+        time.sleep(2)
+
+        # 6. 验证已发送（消息直接发送，无确认弹窗）
+        self.text_exists("已发送", timeout=5)
+
+        # 7. 验证合并消息卡片出现
+        self.text_exists("聊天记录", timeout=5)
+
+        logger.info("✅ [MuMu] 合并转发消息成功")
+        return True
+
+    # ==================== 图片复制粘贴相关 ====================
+
+    def copy_image_to_input_and_send(self, recipient: str) -> bool:
+        """
+        长按聊天中的图片 → 复制 → 粘贴到输入框 → 发送
+
+        完整验证图片复制粘贴流程：发送一张图片后，长按该图片复制，
+        再粘贴到输入框中发送。
+
+        前置条件:
+        - 当前页面为消息列表页 (message_page)
+
+        步骤:
+        1. 进入聊天页面
+        2. 从相册发送一张图片（确保有图片可操作）
+        3. 以 + 按钮为锚点，长按其上方的图片消息气泡
+        4. 点击弹出菜单中的"复制"
+        5. 验证"复制成功" toast
+        6. 点击输入框区域聚焦
+        7. 长按输入框弹出粘贴选项
+        8. 点击"粘贴"
+        9. 点击发送
+        10. 验证发送成功
+        11. 返回消息列表页
+
+        探索来源:
+        - explorer_output/screenshots/copy_img_step1_menu.png（长按图片菜单）
+        - explorer_output/screenshots/copy_img_step2_after_copy.png（复制成功）
+        - explorer_output/screenshots/copy_img_step3_paste_popup.png（粘贴弹窗）
+
+        Args:
+            recipient: 收件人账号（如 'grp.popoqa50'）
+
+        Returns:
+            bool: 操作是否成功
+        """
+        logger.info(f"📋 [MuMu] 图片复制到输入框: {recipient}")
+
+        # 1. 进入聊天页面
+        self._enter_chat_page(recipient)
+
+        # 2. 从相册发送一张图片
+        self.click_image(CHAT_PLUS_BUTTON, region=Normal.HALF_DOWN)
+        time.sleep(1)
+        self.click_image(CHAT_PLUS_ALBUM, region=Normal.HALF_DOWN)
+        time.sleep(2)
+        self.tap(70, 200)  # 点击相册网格第一张图片（已有先例 send_image_from_album）
+        time.sleep(1)
+        self.click_text("发送", region=Normal.HALF_DOWN, timeout=10)
+        time.sleep(2)
+        self.image_exists(CHAT_PLUS_BUTTON, region=Normal.HALF_DOWN)
+        logger.info("📸 图片发送成功，准备复制")
+
+        # 3. 长按已发送的图片消息气泡
+        #    以 + 按钮位置为锚点，图片在其上方约 250px（右对齐 x≈370）
+        plus_pos = self.find_image(CHAT_PLUS_BUTTON, region=Normal.HALF_DOWN)
+        assert plus_pos is not None, "未找到+按钮作为锚点"
+        self.long_press(370, plus_pos[1] - 250, duration=1.5)
+        time.sleep(1)
+
+        # 4. 点击弹出菜单中的"复制"
+        self.click_text("复制", region=Normal.HALF_DOWN)
+        time.sleep(1)
+
+        # 5. 验证"复制成功"
+        self.find_text_by_ocr("复制成功", timeout=5)
+        logger.info("✅ 图片复制成功")
+        time.sleep(1)
+
+        # 6. 找到输入框占位符"发送给"的位置（这是真正的文本输入区域）
+        input_pos = self.find_text_by_ocr("发送给", timeout=5, region=Normal.HALF_DOWN)
+        assert input_pos is not None, "未找到输入框占位符'发送给'"
+        # 点击输入框聚焦
+        self.tap(input_pos[0], input_pos[1])
+        time.sleep(1)
+
+        # 7. 长按输入框弹出粘贴选项
+        #    使用之前保存的输入框位置（聚焦后占位符消失，位置不变）
+        self.long_press(input_pos[0], input_pos[1], duration=1.5)
+        time.sleep(1)
+
+        # 8. 点击"粘贴"
+        self.click_text("粘贴")
+        time.sleep(2)
+
+        # 9. 点击发送
+        self.click_image(CHAT_SEND_BUTTON, region=Normal.HALF_DOWN, timeout=10)
+        time.sleep(2)
+
+        # 10. 验证发送成功：发送按钮恢复为 + 号
+        self.image_exists(CHAT_PLUS_BUTTON, region=Normal.HALF_DOWN)
+
+        logger.info("✅ [MuMu] 图片复制到输入框并发送成功")
+
+        # 11. 返回消息列表页
+        for i in range(5):
+            self.press_back()
+            time.sleep(0.5)
+            if self.find_image(MESSAGE_TAB_BLUE, timeout=1):
+                break
+
+        return True
+
+    # ==================== 易生活相关 ====================
+
+    def add_elife_to_floating_window(self) -> bool:
+        """
+        将易生活页面加入浮窗
+
+        从消息列表页导航到易生活Tab，点击右上角更多按钮，选择"浮窗"。
+
+        前置条件:
+        - 当前页面为消息列表页 (message_page)
+        - 悬浮窗权限已开启（首次使用时需手动授权）
+
+        步骤:
+        1. 点击底部Tab"易生活"进入易生活页面
+        2. 处理地理位置权限弹窗（如出现，点击"允许"）
+        3. 点击右上角"..."更多按钮
+        4. 验证弹出菜单包含"浮窗"选项
+        5. 点击"浮窗"
+        6. 处理悬浮窗权限弹窗（首次可能出现）
+        7. 验证操作完成（菜单关闭，回到易生活页面）
+        8. 返回消息列表页
+
+        探索来源: explorer_output/screenshots/elife_explore_step*.png
+
+        Returns:
+            bool: 操作是否成功
+        """
+        logger.info("🪟 [MuMu] 易生活加入浮窗")
+
+        # 1. 点击底部Tab"易生活"
+        self.click_text("易生活", region=Normal.BOTTOM_NAV)
+        time.sleep(3)
+
+        # 2. 处理地理位置权限弹窗（可能出现）
+        allow_pos = self.find_text_by_ocr("允许", timeout=3)
+        if allow_pos:
+            geo_pos = self.find_text_by_ocr("地理位置", timeout=1)
+            if geo_pos:
+                logger.info("📍 检测到地理位置权限弹窗，点击允许")
+                self.tap(allow_pos[0], allow_pos[1])
+                time.sleep(2)
+
+        # 3. 点击右上角"..."更多按钮
+        self.click_image(ELIFE_MORE_BUTTON, region=Normal.HALF_UP)
+        time.sleep(1)
+
+        # 4. 验证弹出菜单包含"浮窗"选项
+        self.text_exists("浮窗", timeout=5)
+
+        # 5. 点击"浮窗"
+        self.click_text("浮窗")
+        time.sleep(2)
+
+        # 6. 处理悬浮窗权限弹窗（首次可能出现）
+        auth_pos = self.find_text_by_ocr("授权", timeout=2)
+        if auth_pos:
+            logger.info("🔐 检测到悬浮窗权限弹窗，点击授权")
+            self.tap(auth_pos[0], auth_pos[1])
+            time.sleep(3)
+            # 系统设置页面，按返回回到易生活
+            self.press_back()
+            time.sleep(2)
+            # 再次点击更多→浮窗
+            self.click_image(ELIFE_MORE_BUTTON, region=Normal.HALF_UP)
+            time.sleep(1)
+            self.click_text("浮窗")
+            time.sleep(2)
+
+        # 7. 验证操作完成: 菜单关闭，回到易生活页面
+        self.text_exists("餐饮", timeout=5)
+
+        logger.info("✅ [MuMu] 易生活加入浮窗成功")
+
+        # 8. 返回消息列表页
+        self.click_text("消息", region=Normal.BOTTOM_NAV)
+        time.sleep(1)
+
+        return True
+
+    # ==================== 合并消息图片滑动相关 ====================
+
+    def merge_forward_images_and_swipe(self, recipient: str = "grp.popoqa50") -> bool:
+        """
+        发送多张图片 → 合并转发 → 进入合并消息详情 → 图片查看器中左右滑动
+
+        完整验证合并消息中图片查看器的滑动浏览功能：
+        从相册发送3张图片，合并转发后进入合并消息详情页，
+        点击图片进入全屏查看器，左右滑动浏览图片，最后返回消息列表。
+
+        前置条件:
+        - 当前页面为消息列表页 (message_page)
+
+        步骤:
+        1. 进入聊天页面
+        2. 从相册选3张图片同时发送
+        3. 长按已发送的图片消息气泡
+        4. 点击"多选"进入多选模式
+        5. 选中额外图片
+        6. 合并转发到指定联系人
+        7. 点击合并消息卡片"聊天记录"进入详情页
+        8. 点击详情页中的图片进入图片查看器
+        9. 左滑浏览下一张图片
+        10. 右滑浏览上一张图片
+        11. 返回消息列表页
+
+        探索来源:
+        - explorer_output/screenshots/merge_img_longpress_menu.png（长按菜单）
+        - explorer_output/screenshots/merge_img_detail_page.png（合并消息详情页）
+        - explorer_output/screenshots/merge_img_photo_viewer.png（图片查看器）
+        - explorer_output/screenshots/merge_img_swipe_left.png（左滑后）
+        - explorer_output/screenshots/merge_img_swipe_right.png（右滑后）
+
+        Args:
+            recipient: 收件人账号（如 'grp.popoqa50'）
+
+        Returns:
+            bool: 操作是否成功
+        """
+        logger.info(f"🖼️ [MuMu] 合并消息图片滑动: {recipient}")
+
+        # 1. 进入聊天页面
+        self._enter_chat_page(recipient)
+
+        # 2. 从相册选3张图片同时发送
+        self.click_image(CHAT_PLUS_BUTTON, region=Normal.HALF_DOWN)
+        time.sleep(1)
+        self.click_image(CHAT_PLUS_ALBUM, region=Normal.HALF_DOWN)
+        time.sleep(2)
+        # 选择相册网格中3张图片（已有先例 send_image_from_album 用 (70,200)）
+        self.tap(70, 200)
+        time.sleep(0.5)
+        self.tap(200, 200)
+        time.sleep(0.5)
+        self.tap(330, 200)
+        time.sleep(0.5)
+        self.click_text("发送", region=Normal.HALF_DOWN, timeout=10)
+        time.sleep(3)
+        # 验证发送成功：+号恢复
+        self.image_exists(CHAT_PLUS_BUTTON, region=Normal.HALF_DOWN)
+        logger.info("📸 3张图片发送成功")
+
+        # 3. 长按最后一张图片消息气泡
+        #    以+按钮为锚点，图片在其上方约150px（右对齐 x≈370）
+        plus_pos = self.find_image(CHAT_PLUS_BUTTON, region=Normal.HALF_DOWN)
+        assert plus_pos is not None, "未找到+按钮作为锚点"
+        self.long_press(370, plus_pos[1] - 150, duration=1.5)
+        time.sleep(1)
+
+        # 4. 点击"多选"进入多选模式
+        self.click_text("多选", region=Normal.HALF_DOWN)
+        time.sleep(1)
+
+        # 5. 验证进入多选模式
+        self.text_exists("已选", timeout=5, region=Normal.HALF_UP)
+
+        # 6. 选中额外图片（点击左侧勾选框区域）
+        self.tap(30, 200)
+        time.sleep(0.5)
+        self.tap(30, 450)
+        time.sleep(0.5)
+
+        # 7. 合并转发
+        self.click_text("合并转发", region=Normal.HALF_DOWN)
+        time.sleep(2)
+
+        # 8. 在"转发到"选人页面直接点击最近联系人
+        forward_to_clean = recipient.split("@")[0] if "@" in recipient else recipient
+        self.click_text(forward_to_clean, timeout=10)
+        time.sleep(2)
+
+        # 9. 验证已发送
+        self.text_exists("已发送", timeout=5)
+
+        # 10. 点击合并消息卡片"聊天记录"进入详情页
+        self.click_text("聊天记录", timeout=5)
+        time.sleep(2)
+
+        # 11. 验证进入合并消息详情页（标题含"聊天记录"或发送者名称）
+        self.text_exists("聊天记录", timeout=5)
+        logger.info("📄 进入合并消息详情页")
+
+        # 12. 点击详情页中的图片进入图片查看器
+        #     图片位于详情页中部区域（探索截图确认 y≈320）
+        self.tap(190, 320)
+        time.sleep(2)
+
+        # 13. 验证进入图片查看器（全屏模式，底部有工具栏图标）
+        #     探索截图确认：底部工具栏有"文字识别(A)"等图标
+        logger.info("🔍 进入图片查看器")
+
+        # 14. 左滑浏览下一张图片
+        self.swipe(400, 480, 100, 480)
+        time.sleep(1)
+        logger.info("⬅️ 左滑完成")
+
+        # 15. 右滑浏览上一张图片
+        self.swipe(100, 480, 400, 480)
+        time.sleep(1)
+        logger.info("➡️ 右滑完成")
+
+        # 16. 返回消息列表页（多层返回）
+        for i in range(6):
+            self.press_back()
+            time.sleep(0.5)
+            if self.find_image(MESSAGE_TAB_BLUE, timeout=1):
+                break
+
+        logger.info("✅ [MuMu] 合并消息图片滑动验证成功")
+        return True
+
+    # ==================== 截图分享相关 ====================
+
+    def screenshot_and_share(self, recipient: str = "grp.popoqa50") -> bool:
+        """
+        在聊天页面触发系统截图并分享给指定联系人
+
+        利用 POPO 的截图检测功能：在聊天页面中触发系统截图后，
+        POPO 会弹出"分享截图"提示，点击后进入选人页面，选择联系人完成分享。
+
+        前置条件:
+        - 当前页面为消息列表页 (message_page)
+
+        步骤:
+        1. 进入聊天页面
+        2. 触发系统截图 (KEYCODE_SYSRQ)
+        3. 等待 POPO 弹出"分享截图"提示
+        4. 点击"分享截图"进入"截图分享至"选人页面
+        5. 选择联系人
+        6. 验证发送成功
+        7. 返回消息列表页
+
+        探索来源:
+        - explorer_output/screenshots/ss_row4_step5_sysrq_chat.png（截图后弹出分享提示）
+        - explorer_output/screenshots/ss_row4_step6_after_share_tap.png（截图分享至选人页）
+
+        Args:
+            recipient: 收件人账号（如 'grp.popoqa50'）
+
+        Returns:
+            bool: 操作是否成功
+        """
+        logger.info(f"📸 [MuMu] 截图分享: {recipient}")
+
+        # 1. 进入聊天页面
+        self._enter_chat_page(recipient)
+
+        # 2. 触发系统截图（必须通过 ADB keyevent）
+        self._run_adb_command("shell", "input", "keyevent", "120")
+        logger.info("📸 已触发系统截图 (KEYCODE_SYSRQ)")
+        time.sleep(2)
+        # 按返回键关闭可能出现的截图提示
+        self.press_back()
+        time.sleep(1)
+
+        # 3. 获取最新截图文件
+        result = subprocess.run(
+            [_get_adb_path(), "-s", self._device_serial, "shell",
+             "ls", "-t", "/sdcard/Screenshots/"],
+            capture_output=True, timeout=10
+        )
+        files = [f.strip() for f in result.stdout.decode().strip().split("\n") if f.strip()]
+        assert len(files) > 0, "系统截图失败：/sdcard/Screenshots/ 中无文件"
+        img_path = f"/sdcard/Screenshots/{files[0]}"
+        logger.info(f"📄 最新截图: {img_path}")
+
+        # 4. 通过 ACTION_SEND Intent 触发分享（系统分享选择器）
+        self._run_adb_command(
+            "shell", "am", "start",
+            "-a", "android.intent.action.SEND",
+            "-t", "image/png",
+            "--eu", "android.intent.extra.STREAM", f"file://{img_path}",
+            "--activity-clear-top"
+        )
+        time.sleep(3)
+
+        # 5. 在系统选择器中选择"网易POPO"
+        self.click_text("网易POPO", timeout=10)
+        time.sleep(1)
+
+        # 6. 点击"仅此一次"（如果出现）
+        once_pos = self.find_text_by_ocr("仅此一次", timeout=3)
+        if once_pos:
+            self.tap(once_pos[0], once_pos[1])
+            time.sleep(3)
+
+        # 7. POPO 接收截图后，点击"发送给同事或群组"
+        self.click_text("发送给同事或群组", timeout=10)
+        time.sleep(2)
+
+        # 8. 在"转发到"选人页面选择联系人
+        self.text_exists("转发到", timeout=5)
+        forward_to_clean = recipient.split("@")[0] if "@" in recipient else recipient
+        self.click_text(forward_to_clean, timeout=10)
+        time.sleep(2)
+
+        # 9. 在确认弹窗点击"发送"
+        self.click_text("发送", timeout=5, region=Normal.HALF_DOWN)
+        time.sleep(2)
+
+        logger.info("✅ 截图已分享到聊天")
+
+        # 7. 返回消息列表页
+        for i in range(5):
+            self.press_back()
+            time.sleep(0.5)
+            if self.find_image(MESSAGE_TAB_BLUE, timeout=1):
+                break
+
+        logger.info("✅ [MuMu] 截图分享成功")
+        return True
+
+    def share_image_from_external(self, recipient: str = "grp.popoqa50") -> bool:
+        """
+        从系统相册分享图片到 POPO 并发送给指定联系人
+
+        通过 Android ACTION_SEND Intent 触发系统分享选择器，选择 POPO，
+        然后在 POPO 内选择联系人发送图片。
+
+        前置条件:
+        - 当前页面为消息列表页 (message_page)
+        - 设备上存在可分享的图片（系统截图目录有图片）
+
+        步骤:
+        1. 先触发一次系统截图确保有图片可分享
+        2. 通过 ADB am start 发送 ACTION_SEND Intent
+        3. 在系统选择器中选择"网易POPO"
+        4. 点击"仅此一次"
+        5. POPO 接收图片后，点击"发送给同事或群组"
+        6. 在"转发到"选人页面选择联系人
+        7. 在确认弹窗点击"发送"
+        8. 验证发送成功
+        9. 返回消息列表页
+
+        探索来源:
+        - explorer_output/screenshots/ss_row5_step10_share_chooser.png（系统分享选择器）
+        - explorer_output/screenshots/ss_row5_step12_popo_share.png（POPO接收分享图片）
+        - explorer_output/screenshots/ss_row5_step13_contact_picker.png（选人页面）
+        - explorer_output/screenshots/ss_row5_step14_sent.png（发送确认弹窗）
+
+        Args:
+            recipient: 收件人账号（如 'grp.popoqa50'）
+
+        Returns:
+            bool: 操作是否成功
+        """
+        logger.info(f"🔗 [MuMu] 应用外分享图片到POPO: {recipient}")
+
+        # 1. 先触发一次系统截图确保 /sdcard/Screenshots/ 中有图片
+        self._run_adb_command("shell", "input", "keyevent", "120")
+        time.sleep(3)
+        # 截图弹窗会自动消失，不需要按返回键（避免退出POPO到桌面）
+
+        # 2. 获取截图文件路径
+        result = subprocess.run(
+            [_get_adb_path(), "-s", self._device_serial, "shell",
+             "ls", "-t", "/sdcard/Screenshots/"],
+            capture_output=True, timeout=10
+        )
+        files = [f.strip() for f in result.stdout.decode().strip().split("\n") if f.strip()]
+        assert len(files) > 0, "设备上没有可分享的截图文件"
+        latest_file = files[0]
+        img_path = f"/sdcard/Screenshots/{latest_file}"
+        logger.info(f"📄 最新截图: {img_path}")
+
+        # 3. 通过 ACTION_SEND Intent 触发系统分享
+        self._run_adb_command(
+            "shell", "am", "start",
+            "-a", "android.intent.action.SEND",
+            "-t", "image/png",
+            "--eu", "android.intent.extra.STREAM", f"file://{img_path}",
+            "--activity-clear-top"
+        )
+        time.sleep(3)
+
+        # 4. 在系统选择器中，POPO 可能已被预选（显示"使用网易POPO分享"）
+        #    直接点击"仅此一次"启动分享
+        self.click_text("仅此一次", timeout=10)
+        time.sleep(3)
+
+        # 6. POPO 接收图片后，点击"发送给同事或群组"
+        self.click_text("发送给同事或群组", timeout=10)
+        time.sleep(2)
+
+        # 7. 在"转发到"选人页面选择联系人
+        self.text_exists("转发到", timeout=5)
+        forward_to_clean = recipient.split("@")[0] if "@" in recipient else recipient
+        self.click_text(forward_to_clean, timeout=10)
+        time.sleep(2)
+
+        # 8. 在确认弹窗点击"发送"
+        self.click_text("发送", timeout=5, region=Normal.HALF_DOWN)
+        time.sleep(2)
+
+        # 9. 验证发送成功（回到POPO或消息列表）
+        #    确认弹窗消失即为成功
+        logger.info("✅ 图片已通过外部分享发送")
+
+        # 10. 返回消息列表页
+        for i in range(6):
+            self.press_back()
+            time.sleep(0.5)
+            if self.find_image(MESSAGE_TAB_BLUE, timeout=1):
+                break
+
+        logger.info("✅ [MuMu] 应用外分享图片到POPO成功")
         return True

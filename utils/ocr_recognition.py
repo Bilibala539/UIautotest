@@ -165,6 +165,81 @@ class OCRRecognition:
             logger.error(f"PaddleOCR识别失败: {e}")
             return None
 
+    def scan_all_texts(self, region: Optional[Tuple[int, int, int, int]] = None) -> List[Dict]:
+        """
+        一次性OCR扫描当前页面，返回所有识别到的文字及完整边界框信息
+
+        与 find_element_by_ocr 不同，本方法返回页面上所有文字的详细信息，
+        包括边界框坐标，适用于探索阶段一次性获取页面全部元素。
+
+        Args:
+            region: 搜索区域 (x, y, width, height)，None表示全屏
+
+        Returns:
+            list[dict]: 识别结果列表，每项包含:
+                - text (str): 识别到的文字
+                - cx (int): 文字中心x坐标（窗口内）
+                - cy (int): 文字中心y坐标（窗口内）
+                - bbox (tuple): 边界框 (x1, y1, x2, y2)，窗口内坐标
+                - confidence (float): 识别置信度（2.x可用，3.x默认0.0）
+        """
+        try:
+            screen_img = self.take_screenshot()
+
+            if region:
+                x, y, w, h = region
+                screen_img = screen_img[y:y+h, x:x+w]
+
+            items = []
+            if self._use_predict:
+                results = list(self.ocr_engine.predict(screen_img))
+                if results and results[0]:
+                    ocr_result = results[0]
+                    for t, box in zip(ocr_result.get('rec_texts', []),
+                                      ocr_result.get('rec_boxes', [])):
+                        x1, y1, x2, y2 = int(box[0]), int(box[1]), int(box[2]), int(box[3])
+                        cx = int((x1 + x2) / 2)
+                        cy = int((y1 + y2) / 2)
+                        if region:
+                            x1 += region[0]; y1 += region[1]
+                            cx += region[0]; cy += region[1]
+                            x2 += region[0]; y2 += region[1]
+                        items.append({
+                            'text': t,
+                            'cx': cx,
+                            'cy': cy,
+                            'bbox': (x1, y1, x2, y2),
+                            'confidence': 0.0,
+                        })
+            else:
+                result = self.ocr_engine.ocr(screen_img, cls=True)
+                if result and result[0]:
+                    for line in result[0]:
+                        box, (t, conf) = line[0], line[1]
+                        xs = [p[0] for p in box]; ys = [p[1] for p in box]
+                        x1, y1 = int(min(xs)), int(min(ys))
+                        x2, y2 = int(max(xs)), int(max(ys))
+                        cx = int((x1 + x2) / 2)
+                        cy = int((y1 + y2) / 2)
+                        if region:
+                            x1 += region[0]; y1 += region[1]
+                            cx += region[0]; cy += region[1]
+                            x2 += region[0]; y2 += region[1]
+                        items.append({
+                            'text': t,
+                            'cx': cx,
+                            'cy': cy,
+                            'bbox': (x1, y1, x2, y2),
+                            'confidence': float(conf),
+                        })
+
+            logger.debug(f"OCR扫描完成，识别到 {len(items)} 个文字项")
+            return items
+
+        except Exception as e:
+            logger.error(f"OCR全量扫描失败: {e}")
+            return []
+
     def extract_text_from_region(self, region: Optional[Tuple[int, int, int, int]] = None) -> str:
         """
         从指定区域提取所有文本
@@ -293,6 +368,21 @@ def aw_find_by_ocr(device_port: int, text: str, region: Optional[Tuple[int, int,
     """
     ocr_recog = OCRRecognition(device_port)
     return ocr_recog.find_element_by_ocr(text, region, case_sensitive)
+
+
+def aw_scan_all_texts(device_port: int, region: Optional[Tuple[int, int, int, int]] = None) -> List[Dict]:
+    """
+    便捷方法：一次性OCR扫描当前页面，返回所有文字及边界框信息
+
+    Args:
+        device_port: MuMu模拟器ADB端口
+        region: 搜索区域
+
+    Returns:
+        list[dict]: 识别结果列表，每项含 text/cx/cy/bbox/confidence
+    """
+    ocr_recog = OCRRecognition(device_port)
+    return ocr_recog.scan_all_texts(region)
 
 
 def aw_extract_text(device_port: int, region: Optional[Tuple[int, int, int, int]] = None) -> str:

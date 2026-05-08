@@ -20,12 +20,12 @@ SIDEBAR_SETTINGS = os.path.join(path, "侧边栏-设置.png")
 # 设置页
 SETTINGS_LOGOUT = os.path.join(path, "设置页-退出登录.png")
 SETTINGS_LOGOUT_CONFIRM = os.path.join(path, "退登确认弹窗-退出登录.png")
-SETTINGS_MESSAGE_ENTRY = os.path.join(test_path, "设置页-消息入口.png")
+SETTINGS_MESSAGE_ENTRY = os.path.join(path, "设置页-消息入口.png")
 
-# 消息设置页（草稿 - 待验证）
-MSG_SETTINGS_TITLE = os.path.join(test_path, "消息设置页-页面标题消息.png")
-MSG_SETTINGS_SWITCH_ON = os.path.join(test_path, "消息设置页-开关-开启状态.png")
-MSG_SETTINGS_SWITCH_OFF = os.path.join(test_path, "消息设置页-开关-关闭状态.png")
+# 消息设置页
+MSG_SETTINGS_TITLE = os.path.join(path, "消息设置页-页面标题消息.png")
+MSG_SETTINGS_SWITCH_ON = os.path.join(path, "消息设置页-开关-开启状态.png")
+MSG_SETTINGS_SWITCH_OFF = os.path.join(path, "消息设置页-开关-关闭状态.png")
 
 # 中心弹窗
 POPO_POP = os.path.join(path, "中心弹窗-悬浮窗权限弹窗.png")
@@ -48,18 +48,18 @@ MSG_UNREAD_ICON = os.path.join(path, "会话窗口-未读icon.png")
 MSG_GOOD = os.path.join(path, "会话窗口-赞按钮.png")
 MSG_MESSAGE_GOOD = os.path.join(path, "会话窗口-赞消息.png")
 
-# ==================== 聊天页 - 扩展编辑（富文本）（草稿 - 待验证） ====================
-CHAT_PARAGRAPH_BUTTON = os.path.join(test_path, "聊天页-段落按钮.png")
-EXTENDED_EDIT_BOLD_B = os.path.join(test_path, "扩展编辑-加粗B按钮.png")
-EXTENDED_EDIT_ITALIC_I = os.path.join(test_path, "扩展编辑-斜体I按钮.png")
-EXTENDED_EDIT_UNDERLINE_U = os.path.join(test_path, "扩展编辑-下划线U按钮.png")
-EXTENDED_EDIT_STRIKETHROUGH_S = os.path.join(test_path, "扩展编辑-删除线S按钮.png")
-EXTENDED_EDIT_FONT_COLOR_A = os.path.join(test_path, "扩展编辑-字色A按钮.png")
-EXTENDED_EDIT_STYLE_6 = os.path.join(test_path, "扩展编辑-样式6按钮.png")
-EXTENDED_EDIT_MARKDOWN = os.path.join(test_path, "扩展编辑-Markdown按钮.png")
-EXTENDED_EDIT_SEND_BUTTON = os.path.join(test_path, "扩展编辑-发送按钮.png")
-EXTENDED_EDIT_CLOSE_BUTTON = os.path.join(test_path, "扩展编辑-关闭按钮.png")
-EXTENDED_EDIT_STYLE_TOOLBAR = os.path.join(test_path, "扩展编辑-样式工具栏.png")
+# ==================== 聊天页 - 扩展编辑（富文本） ====================
+CHAT_PARAGRAPH_BUTTON = os.path.join(path, "聊天页-段落按钮.png")
+EXTENDED_EDIT_BOLD_B = os.path.join(path, "扩展编辑-加粗B按钮.png")
+EXTENDED_EDIT_ITALIC_I = os.path.join(path, "扩展编辑-斜体I按钮.png")
+EXTENDED_EDIT_UNDERLINE_U = os.path.join(path, "扩展编辑-下划线U按钮.png")
+EXTENDED_EDIT_STRIKETHROUGH_S = os.path.join(path, "扩展编辑-删除线S按钮.png")
+EXTENDED_EDIT_FONT_COLOR_A = os.path.join(path, "扩展编辑-字色A按钮.png")
+EXTENDED_EDIT_STYLE_6 = os.path.join(path, "扩展编辑-样式6按钮.png")
+# EXTENDED_EDIT_MARKDOWN — 已废弃：当前版本扩展编辑工具栏中不存在此按钮
+# EXTENDED_EDIT_CLOSE_BUTTON — 已废弃：当前版本扩展编辑工具栏中不存在此按钮
+EXTENDED_EDIT_SEND_BUTTON = os.path.join(path, "扩展编辑-发送按钮.png")
+EXTENDED_EDIT_STYLE_TOOLBAR = os.path.join(path, "扩展编辑-样式工具栏.png")
 
 # ==================== 聊天页 ====================
 CHAT_SEND_BUTTON = os.path.join(path, "聊天页-发送按钮.png")
@@ -157,11 +157,9 @@ SIDEBAR_SERVICE_DESK = os.path.join(path, "侧边栏-服务台.png")
 # 个人资料页
 PROFILE_PAGE_NAME = os.path.join(path, "个人资料页-用户名.png")
 
-# ==================== 长按菜单（草稿 - 待验证） ====================
-LONGPRESS_FAVORITE_BUTTON = os.path.join(test_path, "长按菜单-收藏按钮.png")
-LONGPRESS_FAVORITE_TEXT = os.path.join(test_path, "长按菜单-收藏文字.png")
-
-# ==================== 通讯录页（草稿 - 待验证） ====================
+# ==================== 长按菜单 ====================
+LONGPRESS_FAVORITE_BUTTON = os.path.join(path, "长按菜单-收藏按钮.png")
+LONGPRESS_FAVORITE_TEXT = os.path.join(path, "长按菜单-收藏文字.png")
 
 TOAST_SENDED = os.path.join(path, "已发送_toast.png")
 
@@ -176,39 +174,26 @@ FILE_SELECT_MORE_SEARCH = os.path.join(path, "文件选择器-搜索按钮.png")
 
 
 # ==================== 群设置页（草稿 - 待验证） ====================
-GROUP_SETTINGS_BACK_ARROW = os.path.join(test_path, "群设置页-返回箭头.png")
-GROUP_SETTINGS_AVATAR = os.path.join(test_path, "群设置页-群头像.png")
-GROUP_SETTINGS_NAME_AREA = os.path.join(test_path, "群设置页-群名称区域.png")
-GROUP_SETTINGS_MEMBER_TITLE = os.path.join(test_path, "群设置页-群成员标题行.png")
-GROUP_SETTINGS_ADD_MEMBER = os.path.join(test_path, "群设置页-添加成员图标.png")
-GROUP_SETTINGS_REMOVE_MEMBER = os.path.join(test_path, "群设置页-移除成员图标.png")
-GROUP_SETTINGS_SEARCH_CHAT = os.path.join(test_path, "群设置页-搜索聊天内容行.png")
-GROUP_SETTINGS_CONTENT_FILTER = os.path.join(test_path, "群设置页-内容筛选标签栏.png")
-GROUP_SETTINGS_ANNOUNCEMENT = os.path.join(test_path, "群设置页-群公告行.png")
-GROUP_ANNOUNCEMENT_EMPTY_PLACEHOLDER = os.path.join(test_path, "群公告编辑页-空公告输入框占位符.png")
-GROUP_SETTINGS_TAG_PAGE = os.path.join(test_path, "群设置页-标签页行.png")
-GROUP_SETTINGS_MANAGEMENT = os.path.join(test_path, "群设置页-群管理行.png")
+GROUP_ANNOUNCEMENT_EMPTY_PLACEHOLDER = os.path.join(path, "群公告编辑页-空公告输入框占位符.png")
 
-# ==================== 通讯录页（草稿 - 待验证） ====================
-CONTACTS_TITLE_TEXT = os.path.join(test_path, "通讯录页-左上角通讯录文案.png")
-CONTACTS_SEARCH_BUTTON = os.path.join(test_path, "通讯录页-搜索按钮.png")
-CONTACTS_ADD_BUTTON = os.path.join(test_path, "通讯录页-添加按钮.png")
-CONTACTS_GROUP_ENTRY = os.path.join(test_path, "通讯录页-联系人分组入口.png")
-CONTACTS_TEAM_ENTRY = os.path.join(test_path, "通讯录页-群组入口.png")
-CONTACTS_SERVICE_ENTRY = os.path.join(test_path, "通讯录页-服务号入口.png")
-CONTACTS_ALPHABET_BAR = os.path.join(test_path, "通讯录页-字母索引栏.png")
+# ==================== 通讯录页 ====================
+CONTACTS_TITLE_TEXT = os.path.join(path, "通讯录页-左上角通讯录文案.png")
+CONTACTS_SEARCH_BUTTON = os.path.join(path, "通讯录页-搜索按钮.png")
+CONTACTS_ADD_BUTTON = os.path.join(path, "通讯录页-添加按钮.png")
+CONTACTS_GROUP_ENTRY = os.path.join(path, "通讯录页-联系人分组入口.png")
+CONTACTS_TEAM_ENTRY = os.path.join(path, "通讯录页-群组入口.png")
+CONTACTS_SERVICE_ENTRY = os.path.join(path, "通讯录页-服务号入口.png")
+CONTACTS_ALPHABET_BAR = os.path.join(path, "通讯录页-字母索引栏.png")
 
 # 通讯录页 - 底部导航栏
-CONTACTS_NAV_MESSAGE_TAB = os.path.join(test_path, "通讯录页-底部导航栏消息tab.png")
-CONTACTS_NAV_CALENDAR_TAB = os.path.join(test_path, "通讯录页-底部导航栏日历tab.png")
-CONTACTS_NAV_CLOUD_TAB = os.path.join(test_path, "通讯录页-底部导航栏云空间tab.png")
-CONTACTS_NAV_WORKSPACE_TAB = os.path.join(test_path, "通讯录页-底部导航栏工作台tab.png")
-CONTACTS_NAV_ELIFE_TAB = os.path.join(test_path, "通讯录页-底部导航栏易生活tab.png")
-CONTACTS_NAV_MORE_TAB = os.path.join(test_path, "通讯录页-底部导航栏更多tab.png")
+CONTACTS_NAV_MESSAGE_TAB = os.path.join(path, "通讯录页-底部导航栏消息tab.png")
+CONTACTS_NAV_CALENDAR_TAB = os.path.join(path, "通讯录页-底部导航栏日历tab.png")
+CONTACTS_NAV_CLOUD_TAB = os.path.join(path, "通讯录页-底部导航栏云空间tab.png")
+CONTACTS_NAV_WORKSPACE_TAB = os.path.join(path, "通讯录页-底部导航栏工作台tab.png")
+CONTACTS_NAV_ELIFE_TAB = os.path.join(path, "通讯录页-底部导航栏易生活tab.png")
+CONTACTS_NAV_MORE_TAB = os.path.join(path, "通讯录页-底部导航栏更多tab.png")
 
 # 会话分组
 SESSION_GROUP_MORE_BUTTON = os.path.join(path, "消息tab页-分组更多按钮.png")
 
-# 日历页
-CALENDAR_SIDEBAR_BUTTON = os.path.join(test_path, "日历页-侧边栏按钮.png")
 

@@ -489,32 +489,6 @@ class PPUser:
         """发送带背景色的消息"""
         return self.aw.send_background_color_message(recipient, text)
 
-    # ==================== 日历相关 ====================
-
-    def view_calendar(self) -> bool:
-        """查看日历页面"""
-        return self.aw.view_calendar()
-
-    def create_calendar_book(self, name: str) -> bool:
-        """创建日历本"""
-        return self.aw.create_calendar_book(name)
-
-    def modify_calendar_book(self, name: str, new_name: str) -> bool:
-        """修改日历本名称"""
-        return self.aw.modify_calendar_book(name, new_name)
-
-    def delete_calendar_book(self, name: str) -> bool:
-        """删除日历本"""
-        return self.aw.delete_calendar_book(name)
-
-    def subscribe_calendar_book(self, keyword: str) -> bool:
-        """订阅日历本"""
-        return self.aw.subscribe_calendar_book(keyword)
-
-    def unsubscribe_calendar_book(self, name: str) -> bool:
-        """退订日历本"""
-        return self.aw.unsubscribe_calendar_book(name)
-
     # ==================== 群组管理相关 ====================
 
     def search_chat_content(self, group_identifier: str, keyword: str) -> bool:

@@ -90,7 +90,8 @@ class AWBase:
         if cls._ocr_engine is None:
             logger.info("🔧 初始化PaddleOCR引擎...")
             cls._ocr_engine = PaddleOCR(
-                use_textline_orientation=True,
+                use_textline_orientation=False,
+                use_doc_orientation_classify=False,
                 text_detection_model_name='PP-OCRv5_mobile_det',
                 text_recognition_model_name='PP-OCRv5_mobile_rec',
                 enable_mkldnn=False,
@@ -657,14 +658,14 @@ class AWBase:
         """
         检测页面中指定开关的当前状态（通用方法）
 
-        通过OCR定位开关文字的y坐标，然后扫描该行右侧(x=420~490)区域
+        通过OCR定位开关文字的y坐标，然后扫描该行右侧区域
         是否存在蓝色像素来判断开关是否开启。
 
-        开关UI特征（来自知识库 message_settings_page.md）:
+        开关UI特征:
         - 开启状态: 蓝色 BGR≈(255,143,47)
-        - 关闭状态: 白色/浅灰（与背景几乎一致）
-        - 开关x位置: 约 x=420~490
-        - 检测方式: 扫描开关文字y坐标±20px范围内x=420~490区域的蓝色像素
+        - 关闭状态: 浅灰色（与白色背景几乎一致）
+        - 开关x位置: 约 x=460~520（532宽度）或 x=470~530（540宽度）
+        - 检测方式: 扫描开关文字y坐标±25px范围内x=420~530区域的蓝色像素
 
         Args:
             switch_text: 开关标题文字（如 "连续播放语音消息"）
@@ -682,10 +683,13 @@ class AWBase:
         img = self.take_screenshot()
         assert img is not None, "截图失败"
 
-        # 开关区域: x=420~490, y=text_y-20 ~ text_y+20
-        scan_x1, scan_x2 = 420, 490
-        scan_y1 = max(0, text_y - 20)
-        scan_y2 = min(img.shape[0], text_y + 20)
+        # 开关区域: x=420~530, y=text_y-25 ~ text_y+25
+        # 适配 532/540 两种分辨率宽度
+        img_w = img.shape[1]
+        scan_x1 = 420
+        scan_x2 = min(img_w, 530)
+        scan_y1 = max(0, text_y - 25)
+        scan_y2 = min(img.shape[0], text_y + 25)
 
         switch_region = img[scan_y1:scan_y2, scan_x1:scan_x2]
 
@@ -723,11 +727,32 @@ class AWBase:
             logger.info(f"✅ 开关 '{switch_text}' 已是{state_text}状态，无需切换")
             return True
 
-        # 点击开关区域（文字右侧的开关位置 x≈460）
+        # 点击开关区域（页面右侧的 toggle 控件）
         pos = self.find_text_by_ocr(switch_text, timeout=3, region=region)
         assert pos is not None, f"未找到开关文字 '{switch_text}'"
-        self.tap(460, pos[1])
-        self.sleep(0.5)
+        # 通过扫描文字行右侧找到开关控件的精确 x 位置
+        img = self.take_screenshot()
+        img_w = img.shape[1] if img is not None else 540
+        text_y = pos[1]
+        # 扫描文字行 (y±5) 右侧 (x从img_w-80到img_w) 的非白色像素
+        scan_y1 = max(0, text_y - 8)
+        scan_y2 = min(img.shape[0], text_y + 8)
+        scan_x1 = img_w - 80
+        row_strip = img[scan_y1:scan_y2, scan_x1:img_w]
+        # 找非白色像素 (开关控件的灰色或蓝色)
+        non_white = (row_strip[:, :, 0].astype(int) < 245) | \
+                    (row_strip[:, :, 1].astype(int) < 245) | \
+                    (row_strip[:, :, 2].astype(int) < 245)
+        nw_x = np.where(non_white.any(axis=0))[0]
+        if len(nw_x) > 3:
+            # 取非白色像素的中心 x
+            tap_x = scan_x1 + int(nw_x.mean())
+        else:
+            # 兜底：使用经验值
+            tap_x = img_w - 40
+        logger.info(f"🔘 点击开关: img_w={img_w}, tap=({tap_x}, {text_y})")
+        self.tap(tap_x, text_y)
+        self.sleep(1.0)
 
         # 验证切换结果
         new_state = self.is_switch_on(switch_text, region=region)

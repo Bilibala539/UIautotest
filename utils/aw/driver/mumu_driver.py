@@ -70,19 +70,36 @@ class MuMuDriver(BasePlatformDriver):
         self._device_serial = f"127.0.0.1:{self._device_port}"
 
         # 检测桌面是否可用，决定运行模式
-        self._adb_mode = not self._check_desktop_available()
+        # 默认使用 ADB 模式：更稳定（pyautogui 模式下窗口大小可能与设备分辨率不一致）
+        # 设置 FORCE_PYAUTOGUI_MODE=1 可强制使用 pyautogui 模式
+        if os.environ.get("FORCE_PYAUTOGUI_MODE") == "1":
+            self._adb_mode = not self._check_desktop_available()
+        else:
+            self._adb_mode = True
         mode_label = "ADB" if self._adb_mode else "pyautogui"
         logger.info(f"🤖 MuMuDriver 初始化: 实例ID={instance_id}, ADB={self._device_serial}, 模式={mode_label}")
 
     @staticmethod
     def _check_desktop_available() -> bool:
         """检测桌面是否可用（能否截图）"""
+        # 临时禁用 failsafe 来完成检测
+        original_failsafe = pyautogui.FAILSAFE
+        pyautogui.FAILSAFE = False
         try:
             pyautogui.screenshot(region=(0, 0, 1, 1))
+            # 检查鼠标是否在屏幕角落（会导致后续 failsafe 触发）
+            pos = pyautogui.position()
+            screen_w, screen_h = pyautogui.size()
+            in_corner = pos in [(0, 0), (screen_w - 1, 0), (0, screen_h - 1), (screen_w - 1, screen_h - 1)]
+            if in_corner:
+                logger.warning("⚠️ 鼠标在屏幕角落，使用 ADB 模式避免 failsafe")
+                return False
             return True
         except OSError:
             logger.warning("⚠️ 桌面不可用（屏幕锁定/远程断开），切换到 ADB 模式")
             return False
+        finally:
+            pyautogui.FAILSAFE = original_failsafe
 
     @property
     def platform_name(self) -> str:

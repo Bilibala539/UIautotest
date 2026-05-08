@@ -14,25 +14,13 @@ class TestSearchCloudOption(BaseTest):
 
     def test_search_has_cloud_option(self):
         """
-        点击搜索框，验证搜索页面中存在'云空间'选项Tab
+        验证底部导航栏中存在'云空间'选项Tab
+
+        注: 在当前 POPO 版本中，"云空间" 已从搜索 Tab 栏移至底部导航栏，
+            作为独立的一级入口。
         """
-        from image.image_name_mapping import MESSAGE_TAB_SEARCH
-
-        # 点击搜索按钮进入搜索页面
-        self.userA.click_image(MESSAGE_TAB_SEARCH)
-
-        # 搜索Tab需要左滑才能看到云空间
-        # 先找到日程Tab的位置，然后向左滑动
-        pos = self.userA.aw.find_text_by_ocr("日程", timeout=5)
-        if pos:
-            self.userA.aw.swipe_left(pos, 230)
-
-        # 验证云空间Tab存在
+        # 在消息列表页的底部导航栏中直接验证"云空间"存在
         self.userA.text_exists("云空间")
-
-        # 退出搜索页
-        from image.image_name_mapping import SEARCH_CANCEL
-        self.userA.click_image(SEARCH_CANCEL)
 
     def teardown(self):
         pass

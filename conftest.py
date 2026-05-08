@@ -222,6 +222,49 @@ def _cleanup_intermediate_screenshots() -> None:
         logger.info(f"🧹 已清理 {cleaned} 张中间截图（用例通过，无需保留调试截图）")
 
 
+# ==================== 用例级别独立日志 ====================
+
+# 每个用例对应一个独立的 HTML 日志文件，以用例文件名命名
+_per_test_html_handler: Optional[HtmlFileHandler] = None
+_per_test_log_file: Optional[str] = None
+
+
+def _get_test_log_filename(item) -> str:
+    """从 pytest item 提取用例文件名作为日志文件名"""
+    # item.fspath 是测试文件的路径，取 stem（无扩展名）
+    test_file_stem = os.path.splitext(os.path.basename(str(item.fspath)))[0]
+    return os.path.join(log_dir, f"{test_file_stem}.html")
+
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_runtest_setup(item):
+    """每个用例开始前，创建以用例文件名命名的独立日志文件"""
+    global _per_test_html_handler, _per_test_log_file
+
+    _per_test_log_file = _get_test_log_filename(item)
+
+    # 创建新的 HTML handler
+    _per_test_html_handler = HtmlFileHandler(_per_test_log_file)
+    _per_test_html_handler.setLevel(logging.INFO)
+    _per_test_html_handler.setFormatter(
+        logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+
+    # 添加到根日志记录器
+    root_logger.addHandler(_per_test_html_handler)
+    logger.info(f"📝 用例日志: {_per_test_log_file}")
+
+
+@pytest.hookimpl(trylast=True)
+def pytest_runtest_teardown(item, nextitem):
+    """每个用例结束后，关闭用例级别的日志 handler"""
+    global _per_test_html_handler, _per_test_log_file
+
+    if _per_test_html_handler is not None:
+        root_logger.removeHandler(_per_test_html_handler)
+        _per_test_html_handler.close()
+        _per_test_html_handler = None
+
+
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
 def pytest_runtest_makereport(item, call):
     """
@@ -231,10 +274,13 @@ def pytest_runtest_makereport(item, call):
     outcome = yield
     rep = outcome.get_result()
 
+    # 确定当前日志文件路径（优先用例级别日志）
+    current_log = _per_test_log_file or log_file
+
     # ---- 用例 call 阶段结束后，在控制台打印 HTML 日志链接 ----
     if rep.when == "call":
         _result_emoji = "✅" if rep.passed else ("❌" if rep.failed else "⚠️")
-        _log_url = "file:///" + log_file.replace("\\", "/")
+        _log_url = "file:///" + current_log.replace("\\", "/")
         # 直接写入 stderr 以确保在 pytest 捕获日志时依然可见
         import sys
         sys.stderr.write(
@@ -260,15 +306,18 @@ def pytest_runtest_makereport(item, call):
             screenshot_dir = os.path.join(os.path.dirname(log_file), '..', 'screenshots')
             screenshot_dir = os.path.normpath(screenshot_dir)
             os.makedirs(screenshot_dir, exist_ok=True)
+            test_file_stem = os.path.splitext(os.path.basename(str(item.fspath)))[0]
             screenshot_path = os.path.join(
                 screenshot_dir,
-                f"FAIL_{item.name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
+                f"FAIL_{test_file_stem}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
             )
             img = aw.take_screenshot(save_path=screenshot_path)
             if img is not None:
                 logger.info(f"📸 用例失败截图已保存: {screenshot_path}")
-                # 将截图内嵌到 HTML 日志
+                # 将截图内嵌到 HTML 日志（全局 + 用例级别）
                 html_handler.append_fail_screenshot(item.nodeid, screenshot_path)
+                if _per_test_html_handler is not None:
+                    _per_test_html_handler.append_fail_screenshot(item.nodeid, screenshot_path)
             else:
                 logger.warning(f"⚠️ 用例失败截图失败（截图返回空）: {item.nodeid}")
         else:
@@ -601,8 +650,11 @@ def device_manager():
     设备只启动一次。
     """
     if os.environ.get("SKIP_SESSION_LOGIN") != "1":
-        pyautogui.hotkey('win', 'd')
-        time.sleep(0.5)
+        try:
+            pyautogui.hotkey('win', 'd')
+            time.sleep(0.5)
+        except pyautogui.FailSafeException:
+            logger.warning("⚠️ pyautogui failsafe 触发，跳过 Win+D（ADB 模式不需要）")
     manager = get_device_manager()
     yield manager
 

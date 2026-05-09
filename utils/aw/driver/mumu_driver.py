@@ -127,12 +127,25 @@ class MuMuDriver(BasePlatformDriver):
         if self._adb_mode:
             # ADB 模式：坐标已在设备空间，不需要转换
             return (x, y)
-        if self._window_rect is None:
-            self.get_window_rect()
-        if self._window_rect:
-            return self._window_rect.to_absolute(x, y)
-        logger.error(f"❌ 无法获取窗口区域，实例ID: {self.instance_id}")
-        return None
+        """
+        将标准 540x960 坐标映射到实际屏幕坐标
+
+        截图已统一 resize 到 540x960，所以内部操作坐标都是 540x960 空间。
+        但实际窗口像素可能因 DPI 缩放而更大（如 125% 下为 675x1200），
+        需要按比例映射后再加上窗口偏移。
+        """
+        rect = self.get_window_rect(refresh=True)
+        if not rect:
+            logger.error(f"❌ 无法获取窗口区域，实例ID: {self.instance_id}")
+            return None
+
+        left, top, width, height = rect
+        # 按比例映射: 540x960 → 实际窗口大小
+        scale_x = width / self.STANDARD_WIDTH
+        scale_y = height / self.STANDARD_HEIGHT
+        screen_x = left + int(x * scale_x)
+        screen_y = top + int(y * scale_y)
+        return (screen_x, screen_y)
 
     def focus_window(self) -> bool:
         if self._adb_mode:
@@ -140,6 +153,10 @@ class MuMuDriver(BasePlatformDriver):
         return WindowManager.focus_window(self.instance_id)
 
     # ==================== 截图 ====================
+
+    # 标准分辨率（所有模板图片和搜索区域都基于此分辨率）
+    STANDARD_WIDTH = 540
+    STANDARD_HEIGHT = 960
 
     def take_screenshot(self) -> Optional[np.ndarray]:
         if self._adb_mode:
@@ -158,6 +175,13 @@ class MuMuDriver(BasePlatformDriver):
             self._adb_mode = True
             return self._take_screenshot_adb()
         img = cv2.cvtColor(np.array(screenshot), cv2.COLOR_RGB2BGR)
+
+        # DPI 缩放适配：如果截图尺寸不是标准 540x960，则 resize 到标准尺寸
+        # 确保模板匹配和搜索区域坐标一致
+        h, w = img.shape[:2]
+        if w != self.STANDARD_WIDTH or h != self.STANDARD_HEIGHT:
+            img = cv2.resize(img, (self.STANDARD_WIDTH, self.STANDARD_HEIGHT),
+                             interpolation=cv2.INTER_AREA)
         return img
 
     def _take_screenshot_adb(self) -> Optional[np.ndarray]:

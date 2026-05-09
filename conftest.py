@@ -473,6 +473,12 @@ class UsersFactory:
             "password": "Superqa@163",
             "env": "test03",
             "name": "grpmax"
+        },
+        "wangying43": {
+            "uid": "wangying43@corp.netease.com",
+            "password": "Qwe1234!!",
+            "env": "prod",
+            "name": "王英"
         }
     }
     

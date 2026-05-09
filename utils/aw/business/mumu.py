@@ -409,23 +409,24 @@ class MuMuBusiness(CommonBusiness):
 
     def close_session_group_panel(self) -> bool:
         """
-        关闭展开的会话分组弹窗（点击蒙层区域）
+        关闭展开的会话分组弹窗（点击蒙层区域或按返回键）
 
         步骤:
-        1. 会话分组弹窗展开后，点击底部蒙层区域（会话列表区域）
-        2. 弹窗关闭，恢复正常消息列表视图
+        1. 会话分组弹窗展开后，按返回键关闭
+        2. 等待面板关闭动画
+        3. 验证回到消息列表页
 
         探索来源: explorer_output/screenshots/session_group_more.png
 
         Returns:
             bool: 操作是否成功
         """
-        logger.info("📋 [MuMu] 关闭会话分组弹窗（点击蒙层）")
-        # 点击底部蒙层区域（会话列表区域，在弹窗之外）
-        self.tap(270, 750)
+        logger.info("📋 [MuMu] 关闭会话分组弹窗")
+        # 按返回键关闭面板（比点击蒙层更可靠）
+        self.press_back()
         time.sleep(1)
-        # 验证弹窗已关闭 - 分组标签栏恢复，≡按钮可见
-        self.image_exists(SESSION_GROUP_MORE_BUTTON, timeout=5)
+        # 验证面板已关闭 - 消息列表页底部导航栏可见
+        self.image_exists(MESSAGE_TAB_BLUE, timeout=5)
         logger.info("✅ 会话分组弹窗已关闭")
         return True
 
@@ -544,6 +545,251 @@ class MuMuBusiness(CommonBusiness):
         time.sleep(0.5)
 
         logger.info(f"✅ 分组 '{group_name}' 已隐藏")
+        return True
+
+    def switch_session_group_tab(self, tab_name: str) -> bool:
+        """
+        切换会话分组Tab标签
+
+        步骤:
+        1. 在消息列表页的分组标签栏中，点击目标Tab名称
+        2. 等待列表刷新
+
+        探索来源: explorer_output/screenshots/m3_tab_atme.png
+
+        Args:
+            tab_name: Tab名称，如"最近"、"@我"、"未读"、"待处理"、"单聊"、"群组"
+        Returns:
+            bool: 操作是否成功
+        """
+        logger.info(f"📋 [MuMu] 切换到分组Tab: {tab_name}")
+        self.click_text(tab_name, timeout=5, region=(0, 275, 540, 45))
+        time.sleep(1)
+        logger.info(f"✅ 已切换到 '{tab_name}' Tab")
+        return True
+
+    def open_session_box(self) -> bool:
+        """
+        打开会话盒子页面
+
+        步骤:
+        1. 打开会话分组面板
+        2. 点击"会话盒子"条目
+        3. 进入会话盒子列表页
+
+        探索来源: explorer_output/screenshots/m3_step6_session_box.png
+
+        Returns:
+            bool: 操作是否成功
+        """
+        logger.info("📋 [MuMu] 打开会话盒子")
+        self.open_session_group_panel()
+        self.click_text("会话盒子", timeout=5)
+        time.sleep(1.5)
+        self.find_text_by_ocr("会话盒子", timeout=5)
+        logger.info("✅ 已进入会话盒子页面")
+        return True
+
+    def open_closed_sessions(self) -> bool:
+        """
+        打开关闭的会话页面
+
+        步骤:
+        1. 打开会话分组面板
+        2. 点击"关闭的会话"条目
+        3. 进入关闭的会话列表页
+
+        探索来源: explorer_output/screenshots/m3_closed_sessions.png
+
+        Returns:
+            bool: 操作是否成功
+        """
+        logger.info("📋 [MuMu] 打开关闭的会话")
+        self.open_session_group_panel()
+        self.click_text("关闭的会话", timeout=5)
+        time.sleep(1.5)
+        self.find_text_by_ocr("关闭的会话", timeout=5)
+        logger.info("✅ 已进入关闭的会话页面")
+        return True
+
+    def _find_menu_item(self, candidates: list, max_scrolls: int = 2) -> str:
+        """
+        在长按菜单中查找目标选项（支持滑动查找）
+
+        Args:
+            candidates: 候选文字列表，找到任一即返回
+            max_scrolls: 最多滑动次数
+        Returns:
+            str: 找到的菜单项文字，未找到返回None
+        """
+        # 先直接查找
+        for text in candidates:
+            pos = self.find_text_by_ocr(text, timeout=2)
+            if pos:
+                return text
+        # 尝试滑动菜单后查找
+        for _ in range(max_scrolls):
+            self.swipe(270, 850, 270, 700, duration=0.3)
+            time.sleep(0.5)
+            for text in candidates:
+                pos = self.find_text_by_ocr(text, timeout=2)
+                if pos:
+                    return text
+        return None
+
+    def long_press_session_pin(self) -> bool:
+        """
+        长按会话列表第一个会话项，点击置顶
+
+        步骤:
+        1. 在消息列表页长按第一个会话项
+        2. 在弹出菜单中点击"置顶"
+
+        探索来源: explorer_output/screenshots/m3_longpress_scrolled.png
+
+        Returns:
+            bool: 操作是否成功
+        """
+        logger.info("📋 [MuMu] 长按会话置顶/取消置顶")
+        # 确保窗口获得焦点
+        self.driver.focus_window()
+        time.sleep(0.3)
+        # 长按会话列表区域 - x偏右避免点到头像触发名片弹窗
+        self.long_press(350, 420, duration=1.5)
+        time.sleep(1)
+        # 菜单中可能显示"取消置顶"或"置顶"（先匹配长的避免子串误匹配）
+        target_text = self._find_menu_item(["取消置顶", "置顶"])
+        if not target_text:
+            # 菜单没弹出，可能是首次操作App未响应，重试
+            logger.info("⚠️ 菜单未弹出，重试长按")
+            self.tap(270, 300)  # 先点击一下激活页面
+            time.sleep(0.5)
+            self.long_press(350, 420, duration=1.5)
+            time.sleep(1)
+            target_text = self._find_menu_item(["取消置顶", "置顶"])
+        assert target_text is not None, "未找到'置顶'或'取消置顶'选项"
+        self.click_text(target_text, timeout=5)
+        time.sleep(1)
+        logger.info(f"✅ 会话已{target_text}")
+        return True
+
+    def long_press_session_add_to_pending(self) -> bool:
+        """
+        长按会话列表第一个会话项，点击添加到待处理
+
+        步骤:
+        1. 在消息列表页长按第一个会话项
+        2. 在弹出菜单中点击"添加到待处理"
+
+        探索来源: explorer_output/screenshots/m3_longpress_full.png
+
+        Returns:
+            bool: 操作是否成功
+        """
+        logger.info("📋 [MuMu] 长按会话切换待处理状态")
+        # 确保窗口获得焦点
+        self.driver.focus_window()
+        time.sleep(0.3)
+        # 长按会话列表区域 - x偏右避免点到头像触发名片弹窗
+        self.long_press(350, 420, duration=1.5)
+        time.sleep(1)
+        # 菜单中可能显示"添加到待处理"或"处理完成"，取决于当前状态
+        target_text = None
+        pos = self.find_text_by_ocr("添加到待处理", timeout=2)
+        if pos:
+            target_text = "添加到待处理"
+        else:
+            pos = self.find_text_by_ocr("处理完成", timeout=2)
+            if pos:
+                target_text = "处理完成"
+        if not target_text:
+            # 菜单可能需要滑动才能看到此选项
+            has_menu = self.find_text_by_ocr("置顶", timeout=2) or self.find_text_by_ocr("取消置顶", timeout=1)
+            if has_menu:
+                self.swipe(270, 850, 270, 700, duration=0.3)
+                time.sleep(0.5)
+                pos = self.find_text_by_ocr("添加到待处理", timeout=2)
+                if pos:
+                    target_text = "添加到待处理"
+                else:
+                    pos = self.find_text_by_ocr("处理完成", timeout=2)
+                    if pos:
+                        target_text = "处理完成"
+        assert target_text is not None, "未找到'添加到待处理'或'处理完成'选项"
+        self.click_text(target_text, timeout=5)
+        time.sleep(1)
+        logger.info(f"✅ 会话已{target_text}")
+        return target_text
+
+    def long_press_session_toggle_read_status(self) -> str:
+        """
+        长按会话列表第一个会话项，切换已读/未读状态
+
+        步骤:
+        1. 在消息列表页长按第一个会话项
+        2. 滑动菜单到下方查找"设为未读"或"设为已读"
+        3. 点击找到的选项
+
+        探索来源: explorer_output/screenshots/m3_longpress_scrolled.png
+
+        Returns:
+            str: 执行的操作 "设为未读" 或 "设为已读"
+        """
+        logger.info("📋 [MuMu] 长按会话切换已读/未读状态")
+        # 确保窗口获得焦点
+        self.driver.focus_window()
+        time.sleep(0.3)
+        # 长按会话列表区域 - x偏右避免点到头像触发名片弹窗
+        self.long_press(350, 420, duration=1.5)
+        time.sleep(1)
+
+        # 查找"设为未读"或"设为已读"（可能需要滑动菜单）
+        target_text = self._find_menu_item(["设为未读", "设为已读"])
+        assert target_text is not None, "未找到'设为未读'或'设为已读'选项"
+        self.click_text(target_text, timeout=5)
+        time.sleep(1)
+        logger.info(f"✅ 会话已{target_text}")
+        return target_text
+
+    def long_press_session_add_to_group(self, group_name: str = "") -> bool:
+        """
+        长按会话列表第一个会话项，点击添加至分组
+
+        步骤:
+        1. 在消息列表页长按第一个会话项
+        2. 滑动菜单到下方
+        3. 点击"添加至分组"
+        4. 在分组选择页面选择指定分组（如有group_name参数）
+
+        探索来源: explorer_output/screenshots/m3_longpress_scrolled.png
+
+        Args:
+            group_name: 要添加到的分组名称，为空则只打开分组选择页面
+        Returns:
+            bool: 操作是否成功
+        """
+        logger.info(f"📋 [MuMu] 长按会话添加至分组: {group_name}")
+        # 确保窗口获得焦点
+        self.driver.focus_window()
+        time.sleep(0.3)
+        # 长按会话列表区域 - x偏右避免点到头像触发名片弹窗
+        self.long_press(350, 420, duration=1.5)
+        time.sleep(1)
+        # 滑动菜单显示更多选项（添加至分组通常在菜单底部）
+        target_text = self._find_menu_item(["添加至分组"])
+        assert target_text is not None, "未找到'添加至分组'选项"
+        self.click_text("添加至分组", timeout=5)
+        time.sleep(1.5)
+
+        if group_name:
+            # 在分组选择页面点击指定分组名旁边的+号
+            pos = self.find_text_by_ocr(group_name, timeout=5)
+            assert pos is not None, f"未找到分组 '{group_name}'"
+            # 点击分组名右侧的+号 (偏移约150px)
+            self.tap(pos[0] + 150, pos[1])
+            time.sleep(1)
+
+        logger.info(f"✅ 会话已添加至分组 '{group_name}'")
         return True
 
     # ==================== 群组相关 ====================
@@ -1029,22 +1275,26 @@ class MuMuBusiness(CommonBusiness):
         "font_color": EXTENDED_EDIT_FONT_COLOR_A,
     }
 
-    # 模式B（真正的格式工具栏 styleBar）中每个格式按钮的 ADB 坐标
-    # 通过 uiautomator dump 确认：markdownBarRecyclerView 中的 styleBarFl 按钮
-    # 按钮间距固定，Y 中心 = 918
+    # styleBar 格式工具栏中每个格式按钮的 ADB 坐标
+    # 通过 uiautomator dump + 实际验证确认：
+    # 进入扩展编辑模式后，底部直接显示 styleBar（无需额外切换模式）
+    # styleBarFl 按钮顺序：T(段落标题) / B(加粗) / I(斜体) / U(下划线) / S(删除线) / A(字色)
+    # 按钮间距固定 72px，Y 中心 = 918
     _STYLE_BAR_ADB_COORDS = {
-        "bold": (108, 918),  # btn1 [84,894][132,942]  - B
-        "italic": (180, 918),  # btn2 [156,894][204,942] - I
-        "underline": (252, 918),  # btn3 [228,894][276,942] - U
-        "strikethrough": (324, 918),  # btn4 [300,894][348,942] - S
-        "font_color": (396, 918),  # btn5 [372,894][420,942] - A (字色)
+        "paragraph": (108, 918),  # btn0 [84,894][132,942]  - T (段落标题，点击弹出H1-H6)
+        "bold": (180, 918),       # btn1 [156,894][204,942] - B (加粗)
+        "italic": (252, 918),     # btn2 [228,894][276,942] - I (斜体)
+        "underline": (324, 918),  # btn3 [300,894][348,942] - U (下划线)
+        "strikethrough": (396, 918),  # btn4 [372,894][420,942] - S (删除线)
+        "font_color": (459, 918),     # btn5 [444,894][474,942] - A (字色，可能需要滑动)
     }
 
-    # flMarkdown 按钮的 ADB 坐标 — 用于在模式A和模式B之间切换
+    # flMarkdown 按钮的 ADB 坐标 — 位于 styleBar 左侧
+    # 注意：新版 UI 中进入扩展编辑后直接就是 styleBar，不再需要模式切换
     _FL_MARKDOWN_ADB_COORD = (42, 918)  # [18,876][66,960] 中心
 
-    # 需要向左滑动工具栏才能看到的格式（模式B中 RecyclerView 可能需要滚动）
-    _RICH_TEXT_SCROLL_FORMATS = {"style_6", "markdown"}
+    # 需要向左滑动工具栏才能看到的格式（RecyclerView 可能需要滚动）
+    _RICH_TEXT_SCROLL_FORMATS = {"font_color"}
 
     def _adb_tap(self, x: int, y: int) -> bool:
         """
@@ -1065,6 +1315,34 @@ class MuMuBusiness(CommonBusiness):
         time.sleep(0.3)
         return result
 
+    def _input_markdown_text(self, text: str) -> bool:
+        """
+        在 Markdown 编辑器中输入文本（处理特殊字符转义）
+
+        Markdown 语法常含空格和特殊字符（>, `, [, ], (, ), =），
+        ADB shell input text 需要将空格转义为 %s。
+        对于多行文本（如代码块中的换行），逐行输入并用 Enter 键换行。
+
+        Args:
+            text: 要输入的 Markdown 语法文本
+
+        Returns:
+            bool: 输入是否成功
+        """
+        lines = text.split('\n')
+        for i, line in enumerate(lines):
+            if line:
+                # 空格转义为 %s（ADB input text 要求）
+                escaped = line.replace(" ", "%s")
+                self._run_adb_command("shell", "input", "text", escaped)
+                time.sleep(0.2)
+            if i < len(lines) - 1:
+                # 换行: KEYCODE_ENTER = 66
+                self._run_adb_command("shell", "input", "keyevent", "66")
+                time.sleep(0.2)
+        logger.info(f"⌨️ Markdown 文本已输入: {text[:50]}...")
+        return True
+
     def _enter_extended_edit_mode(self) -> bool:
         """
         进入扩展编辑模式（富文本模式）
@@ -1082,11 +1360,20 @@ class MuMuBusiness(CommonBusiness):
         """
         logger.info("📝 [MuMu] 进入扩展编辑模式")
 
-        # 点击段落按钮（在输入框右侧，发送按钮左侧）
+        # 幂等检查：如果已经在扩展编辑模式（B图标可见），则跳过
+        if self.find_image(EXTENDED_EDIT_BOLD_B, timeout=2):
+            logger.info("✅ 已经在扩展编辑模式，跳过进入步骤")
+            return True
+
+        # 点击段落按钮（在输入框右侧）→ 弹出中间面板（显示 Aa 和 ?）
         self.click_image(CHAT_PARAGRAPH_BUTTON, region=Normal.HALF_DOWN)
         time.sleep(1)
 
-        # 验证进入扩展编辑模式：底部出现样式工具栏（模式A的装饰层B图标）
+        # 点击 "Aa" 进入格式工具栏（新版 UI 需要两步）
+        self.click_text("Aa", region=Normal.HALF_DOWN, timeout=5)
+        time.sleep(1)
+
+        # 验证进入扩展编辑模式：底部出现样式工具栏（B 图标可见）
         self.image_exists(EXTENDED_EDIT_BOLD_B, region=Normal.HALF_DOWN, timeout=5)
 
         logger.info("✅ 已进入扩展编辑模式")
@@ -1152,10 +1439,16 @@ class MuMuBusiness(CommonBusiness):
             logger.info("✅ 扩展编辑模式已自动退出，无需手动关闭")
             return True
 
-        # 仍在扩展编辑模式，通过按返回键退出
-        logger.info("⚠️ 扩展编辑模式仍在，按返回键退出")
-        self.press_back()
-        time.sleep(0.5)
+        # 仍在扩展编辑模式，尝试点击关闭按钮
+        if self.find_image(EXTENDED_EDIT_CLOSE_BUTTON, timeout=2, region=Normal.HALF_UP):
+            self.click_image(EXTENDED_EDIT_CLOSE_BUTTON, timeout=3, region=Normal.HALF_UP)
+            time.sleep(0.5)
+            logger.info("✅ 已手动关闭扩展编辑模式")
+        else:
+            # 关闭按钮未找到，尝试按返回键退出
+            logger.info("⚠️ 未找到关闭按钮，尝试按返回键退出")
+            self.press_back()
+            time.sleep(0.5)
 
         return True
 
@@ -1176,9 +1469,11 @@ class MuMuBusiness(CommonBusiness):
             return False
 
         logger.info(f"📝 向左滑动工具栏以显示 '{format_type}' 按钮")
-        # 在工具栏区域向左滑动（工具栏在底部，约 y=915）
-        self.swipe(400, 915, 100, 915, duration=0.3)
-        time.sleep(0.5)
+        # 在工具栏区域向左滑动（工具栏在底部，约 y=918）
+        # Markdown 按钮在最右端，需要多次滑动才能显示
+        for _ in range(3):
+            self.swipe(400, 918, 100, 918, duration=0.3)
+            time.sleep(0.5)
         return True
 
     def send_rich_text_message(self, recipient: str, message: str,
@@ -1186,23 +1481,19 @@ class MuMuBusiness(CommonBusiness):
         """
         发送富文本格式消息
 
-        POPO 扩展编辑模式的底部工具栏有两层 UI：
-        - 模式A（初始）：原生 View（图片/表情/翻译按钮）上覆盖了装饰性 B/I/U 图标，
-                         这些装饰图标不可点击，ADB tap 会被底层原生按钮拦截。
-        - 模式B（格式）：通过点击 flMarkdown 按钮切换，底部变为真正可点击的
-                         styleBar（markdownBarRecyclerView），包含 B/I/U/S/A 格式按钮。
+        POPO 扩展编辑模式进入后底部直接显示 styleBar 格式工具栏
+        （markdownBarRecyclerView），包含 T/B/I/U/S/A 格式按钮，可直接点击。
 
         完整流程:
         1. 搜索联系人进入聊天页面
-        2. 点击段落按钮进入扩展编辑模式（进入模式A）
-        3. 点击 flMarkdown 切换到模式B（激活真正的格式工具栏）
-        4. 通过 ADB tap 点击模式B中的格式按钮激活样式
-        5. 切回模式A（关闭格式工具栏），此时格式仍然生效
-        6. 点击输入区域，输入文本
-        7. 点击发送按钮
-        8. 验证发送成功
-        9. 退出扩展编辑模式
-        10. 返回消息列表页
+        2. 如果处于 Markdown 模式则退出
+        3. 点击段落按钮 → Aa 进入扩展编辑模式
+        4. 通过 ADB tap 点击 styleBar 中的格式按钮激活样式
+        5. 输入文本
+        6. 点击发送按钮
+        7. 验证发送成功
+        8. 退出扩展编辑模式
+        9. 返回消息列表页
 
         探索来源: explorer_output/records/exploration_record_richtext.md
 
@@ -1231,40 +1522,44 @@ class MuMuBusiness(CommonBusiness):
         # 1. 进入聊天页面
         self._enter_chat_page(recipient)
 
-        # 2. 进入扩展编辑模式（此时处于模式A）
+        # 2. 如果 POPO 记住了 Markdown 模式，先退出回到普通聊天输入模式
+        #    Markdown 编辑器底部有 "Plain Text" 标签，按一次 back 可退出
+        plain_pos = self.find_text_by_ocr("Plain", timeout=2)
+        if plain_pos:
+            logger.info("⚠️ 检测到 Markdown 编辑器模式，退出回到普通输入模式")
+            self.press_back()
+            time.sleep(1)
+            # 验证回到了普通聊天页面（有"发送给"文字），如果没有则再按一次
+            if not self.find_text_by_ocr("发送给", timeout=3):
+                # 可能已退出聊天页面，需重新进入
+                self._enter_chat_page(recipient)
+
+        # 3. 进入扩展编辑模式（直接显示 styleBar 格式工具栏）
         self._enter_extended_edit_mode()
 
-        # 3. 切换到模式B（真正的格式工具栏）
-        self._activate_style_bar()
-
-        # 4. 在模式B中，通过 ADB tap 点击格式按钮（滑动如需要）
+        # 4. 通过 ADB tap 点击格式按钮激活样式（滑动如需要）
         self._scroll_toolbar_to_format(format_type)
         ax, ay = adb_coord
         logger.info(f"📝 通过 ADB 点击格式按钮 '{format_type}' @ ({ax}, {ay})")
         self._adb_tap(ax, ay)
         time.sleep(0.5)
 
-        # 5. 切回模式A（关闭格式工具栏，格式仍然生效）
-        self._deactivate_style_bar()
-
-        # 6. 点击输入区域并输入文本
-        self.click_text("发送给", region=Normal.HALF_UP)
-        time.sleep(0.3)
+        # 5. 输入文本（扩展编辑模式中输入区域已聚焦，直接输入即可）
         self.input_text(str(message))
         time.sleep(0.5)
 
-        # 7. 点击发送按钮
+        # 6. 点击发送按钮
         self.click_image(EXTENDED_EDIT_SEND_BUTTON, region=Normal.HALF_DOWN)
         time.sleep(1)
 
-        # 8. 验证发送成功：消息文本出现在聊天区域
+        # 7. 验证发送成功：消息文本出现在聊天区域
         self.find_text_by_ocr(message, timeout=5)
 
-        # 9. 退出扩展编辑模式
+        # 8. 退出扩展编辑模式
         self._exit_extended_edit_mode()
         time.sleep(0.5)
 
-        # 10. 返回消息列表页
+        # 9. 返回消息列表页
         for i in range(5):
             self.press_back()
             time.sleep(0.5)
@@ -1329,34 +1624,55 @@ class MuMuBusiness(CommonBusiness):
         # 1. 进入聊天页面
         self._enter_chat_page(recipient)
 
-        # 2. 进入扩展编辑模式
-        self._enter_extended_edit_mode()
+        # 2-3. 进入 Markdown 编辑器
+        # 检查是否已经在 Markdown 编辑模式（POPO 会记住上次的编辑状态）
+        plain_pos = self.find_text_by_ocr("Plain", timeout=2)
+        if plain_pos:
+            logger.info("📝 已在 Markdown 编辑模式（POPO 记住了状态），跳过进入步骤")
+        else:
+            # 需要从头进入: 扩展编辑模式 → 滑动到 Markdown → 点击
+            self._enter_extended_edit_mode()
+            self._scroll_toolbar_to_format("markdown")
+            self.click_image(EXTENDED_EDIT_MARKDOWN, region=Normal.HALF_DOWN)
+            time.sleep(1)
 
-        # 3. 滑动到 Markdown 按钮并点击
-        self._scroll_toolbar_to_format("markdown")
-        # 注意: EXTENDED_EDIT_MARKDOWN 按钮在当前版本中已不存在
-        # 尝试通过 OCR 定位 Markdown/Md 文字
-        self.click_text("Md", timeout=5, region=Normal.HALF_DOWN)
+        # 4. 在 Markdown 编辑器中输入文本
+        #    Markdown 编辑器进入后焦点默认在编辑区域，直接输入即可
+        #    如果焦点不在，先点击 "Plain" 标签下方 dy=40 定位到编辑区域
+        self._input_markdown_text(markdown_text)
         time.sleep(0.5)
 
-        # 4. 点击输入区域并输入 Markdown 语法
-        self.click_text("发送给", region=Normal.HALF_UP)
-        time.sleep(0.3)
-        self.input_text(markdown_text)
-        time.sleep(0.5)
+        # 5. 检查文本是否输入成功（验证编辑区域有内容）
+        #    如果输入未成功（编辑器未聚焦），点击编辑区域后重试
+        verify_word = markdown_text.replace(">", "").replace("`", "").replace("=", "").strip()[:5]
+        if verify_word and not self.find_text_by_ocr(verify_word, timeout=2):
+            logger.info("⚠️ 首次输入未成功，点击编辑区域后重试")
+            self.click_text("Plain", dy=40, timeout=3)
+            time.sleep(0.3)
+            self._input_markdown_text(markdown_text)
+            time.sleep(0.5)
+            # 隐藏键盘
+            self.press_back()
+            time.sleep(0.5)
 
-        # 5. 发送
-        self.click_image(EXTENDED_EDIT_SEND_BUTTON, region=Normal.HALF_DOWN)
+        # 6. 发送（发送按钮在底部工具栏右侧）
+        send_pos = self.find_image(EXTENDED_EDIT_SEND_BUTTON, timeout=3)
+        if send_pos:
+            self.click_image(EXTENDED_EDIT_SEND_BUTTON, region=Normal.HALF_DOWN)
+        else:
+            # 发送按钮可能被键盘遮挡，用 ADB 直接点击已知坐标
+            logger.info("⚠️ 发送按钮不可见，通过 ADB 直接点击")
+            self._adb_tap(505, 922)
         time.sleep(1)
 
-        # 6. 验证发送成功
+        # 7. 验证发送成功
         self.find_text_by_ocr(verify_text, timeout=5)
 
-        # 7. 退出扩展编辑模式
+        # 8. 退出扩展编辑模式
         self._exit_extended_edit_mode()
         time.sleep(0.5)
 
-        # 8. 返回消息列表页
+        # 9. 返回消息列表页
         for i in range(5):
             self.press_back()
             time.sleep(0.5)
@@ -1757,7 +2073,13 @@ class MuMuBusiness(CommonBusiness):
         self.click_text(recipient_email, timeout=10)
         time.sleep(1)
 
-        self.text_exists("发送给", region=Normal.HALF_DOWN)
+        # 验证进入聊天页：底部出现"发送给"（普通模式）或"Plain"（扩展编辑模式被记忆）
+        pos = self.find_text_by_ocr("发送给", timeout=3)
+        if pos is None:
+            # POPO可能记住了上次的扩展编辑模式，输入区域显示"Plain Text"
+            # OCR可能识别为"PlainText"或"Plain Text"，用"Plain"做子串匹配
+            pos = self.find_text_by_ocr("Plain", timeout=2)
+            assert pos is not None, "进入聊天页失败: 底部未找到'发送给'或'Plain Text'"
         logger.info(f"[MuMu] 已进入聊天页: {recipient}")
 
     def send_image_from_album(self, recipient: str) -> bool:
@@ -2032,6 +2354,587 @@ class MuMuBusiness(CommonBusiness):
         if isclose:
             # 点击取消按钮，退出搜索页面
             self.click_image(SEARCH_CANCEL, region=Normal.HALF_UP)
+
+    # ==================== 日历相关 ====================
+
+    def view_calendar(self) -> bool:
+        """
+        查看日历页面
+
+        从消息列表页导航到日历Tab页面，验证日历会议室页面加载成功。
+
+        前置条件:
+        - 当前页面为消息列表页 (message_page)
+
+        步骤:
+        1. 点击底部Tab栏的"日历"
+        2. 验证日历会议室标题出现
+        3. 验证时区信息 UTC+08:00 出现
+        4. 返回消息列表页
+
+        探索来源: explorer_output/screenshots/explore_step1_calendar.png
+
+        Returns:
+            bool: 查看是否成功
+        """
+        logger.info("📅 [MuMu] 查看日历页面")
+
+        # 1. 点击日历Tab（限定底部导航栏区域，避免匹配消息列表中含"日历"的文字）
+        self.click_text("日历", region=Normal.BOTTOM_NAV)
+        time.sleep(2)
+
+        # 2. 验证日历页面加载
+        self.find_text_by_ocr("日历会议室", timeout=5)
+        self.find_text_by_ocr("UTC", timeout=3)
+
+        logger.info("✅ [MuMu] 日历页面查看成功")
+
+        # 3. 返回消息列表页
+        self.press_back()
+        time.sleep(1)
+
+        return True
+
+    def _open_calendar_sidebar(self) -> bool:
+        """
+        打开日历侧边栏
+
+        步骤:
+        1. 点击底部Tab栏的"日历"进入日历页面
+        2. 点击日历页面右侧的侧边栏按钮(≡)
+        3. 验证侧边栏已打开（出现"搜索日历本"文字）
+
+        探索来源: explorer_output/screenshots/calendar_step2_sidebar_opened.png
+
+        Returns:
+            bool: 操作是否成功
+        """
+        logger.info("📅 [MuMu] 打开日历侧边栏")
+
+        # 1. 进入日历页面（限定底部导航栏区域，避免匹配消息列表中含"日历"的文字）
+        self.click_text("日历", region=Normal.BOTTOM_NAV)
+        time.sleep(2)
+
+        # 1.5 处理可能出现的浮窗权限弹窗
+        cancel_pos = self.find_text_by_ocr("取消", timeout=2)
+        if cancel_pos:
+            auth_pos = self.find_text_by_ocr("授权", timeout=1)
+            if auth_pos:
+                logger.info("📅 检测到浮窗权限弹窗，点击取消")
+                self.tap(cancel_pos[0], cancel_pos[1])
+                time.sleep(1)
+
+        # 1.6 检查是否误入了日历子页面（如日历设置页），需要先返回到日历主视图
+        #     日历设置页特征：有"时区设置"/"通知设置"等文字
+        settings_check = self.find_text_by_ocr("时区设置", timeout=1)
+        if settings_check:
+            logger.info("📅 检测到日历设置子页面，逐步返回到日历主视图")
+            # 每次按Back后检查是否已离开设置页面，避免过度退出
+            for back_attempt in range(5):
+                self.press_back()
+                time.sleep(1)
+                # 检查是否还在设置页面
+                still_in_settings = self.find_text_by_ocr("时区设置", timeout=1)
+                if not still_in_settings:
+                    logger.info(f"📅 第{back_attempt + 1}次Back后已离开设置页面")
+                    break
+            time.sleep(1)
+            # 检查是否回到了日历主视图（有侧边栏按钮或底部导航栏）
+            # 如果退出到了桌面或其他页面，重新进入日历Tab
+            sidebar_btn = self.find_image(CALENDAR_SIDEBAR_BUTTON, timeout=2)
+            if not sidebar_btn:
+                # 可能在消息页或桌面，尝试点击日历Tab
+                nav_pos = self.find_text_by_ocr("日历", timeout=2, region=Normal.BOTTOM_NAV)
+                if nav_pos:
+                    logger.info("📅 点击底部日历Tab回到日历主视图")
+                    self.tap(nav_pos[0], nav_pos[1])
+                    time.sleep(2)
+                else:
+                    # 可能退出到了桌面，重新打开App再进日历
+                    logger.warning("⚠️ 可能退出到桌面，尝试重新打开App")
+                    if self.find_image(HOME_POPO_LOGO, timeout=2):
+                        self.start_app()
+                        time.sleep(5)
+                    self.click_text("日历", region=Normal.BOTTOM_NAV)
+                    time.sleep(2)
+
+        # 2. 检查侧边栏是否已经打开（避免重复点击）
+        if self.find_text_by_ocr("搜索日历本", timeout=2):
+            logger.info("📅 侧边栏已打开，跳过点击按钮")
+        else:
+            # 点击侧边栏按钮(≡)
+            self.click_image(CALENDAR_SIDEBAR_BUTTON, timeout=10)
+            time.sleep(2)
+
+        # 3. 验证侧边栏打开（使用 text_exists 断言）
+        self.text_exists("搜索日历本", timeout=5)
+        logger.info("✅ 日历侧边栏已打开")
+        return True
+
+    def _close_calendar_sidebar(self) -> bool:
+        """
+        关闭日历侧边栏（按返回键关闭）
+
+        Returns:
+            bool: 操作是否成功
+        """
+        logger.info("📅 [MuMu] 关闭日历侧边栏")
+        self.press_back()
+        time.sleep(1)
+        return True
+
+    def create_calendar_book(self, name: str) -> bool:
+        """
+        创建日历本
+
+        步骤:
+        1. 打开日历侧边栏
+        2. 点击搜索框右侧+号
+        3. 点击"新建日历本"
+        4. 输入日历名称
+        5. 点击"完成"
+        6. 处理"请设置谁可以看你的日历"弹窗 → 去设置 → 选择"仅自己可见"
+        7. 再次点击"完成"
+        8. 验证日历本出现在侧边栏
+        9. 关闭侧边栏，返回消息列表页
+
+        探索来源: explorer_output/screenshots/calendar_step4_new_calendar_page.png
+
+        Args:
+            name: 日历本名称
+        Returns:
+            bool: 创建是否成功
+        """
+        logger.info(f"📅 [MuMu] 创建日历本: {name}")
+
+        # 1. 打开日历侧边栏
+        self._open_calendar_sidebar()
+
+        # 2. 点击+号按钮（搜索框右侧，+号距"搜索日历本"文字中心约242px）
+        self.click_text("搜索日历本", timeout=5, dx=242)
+        time.sleep(1)
+
+        # 4. 点击"新建日历本"
+        self.click_text("新建日历本", timeout=5)
+        time.sleep(2)
+
+        # 5. 输入日历名称
+        self.click_text("日历名称", timeout=5)
+        time.sleep(0.3)
+        self.input_text(name)
+        time.sleep(0.5)
+
+        # 6. 点击完成
+        self.click_text("完成", timeout=5)
+        time.sleep(2)
+
+        # 7. 处理"请设置谁可以看你的日历"弹窗（可能出现）
+        go_set_pos = self.find_text_by_ocr("去设置", timeout=3)
+        if go_set_pos:
+            self.click_text("去设置", timeout=3)
+            time.sleep(1)
+            self.click_text("仅自己可见", timeout=5)
+            time.sleep(1)
+            # 再次点击完成
+            self.click_text("完成", timeout=5)
+            time.sleep(2)
+
+        # 8. 验证回到侧边栏且日历本存在
+        # 滚动查看侧边栏内容
+        self.swipe(350, 650, 350, 400)
+        time.sleep(0.5)
+        self.find_text_by_ocr(name, timeout=5)
+        logger.info(f"✅ 日历本 '{name}' 创建成功")
+
+        # 9. 关闭侧边栏，返回消息列表页
+        self._close_calendar_sidebar()
+        self.click_text("消息", region=Normal.BOTTOM_NAV)
+        time.sleep(1)
+
+        return True
+
+    def _click_calendar_book_menu(self, name: str) -> bool:
+        """
+        点击日历本右侧的...三点菜单图标，弹出操作菜单
+
+        日历侧边栏中每个日历本右侧有两个图标：
+        - ...（三点图标，x≈440）：点击弹出菜单（仅显示此日历本/分享日历/日历设置）
+        - ≡（排序图标，x≈485）：拖拽排序用
+
+        方法：先用 OCR 定位日历本名称获取 y 坐标，再点击该行的...图标位置
+
+        探索来源: 用户提供的侧边栏截图（2026-04-22 确认交互方式）
+
+        Args:
+            name: 日历本名称
+        Returns:
+            bool: 是否成功弹出菜单
+        """
+        logger.info(f"📅 [MuMu] 点击日历本 '{name}' 的...菜单图标")
+
+        # 1. OCR 定位日历本名称，获取 y 坐标
+        #    先在当前视图查找，找不到就先滚动到顶部，再逐步向下搜索
+        pos = self.find_text_by_ocr(name, timeout=5)
+        if pos is None:
+            # 先滚动到侧边栏列表顶部（向下拉回顶部）
+            logger.info(f"📅 当前视图未找到 '{name}'，滚动到顶部重试")
+            for _ in range(3):
+                self.swipe(350, 400, 350, 650)
+                time.sleep(0.5)
+            time.sleep(1)
+            pos = self.find_text_by_ocr(name, timeout=5)
+        if pos is None:
+            # 从顶部开始逐步向下搜索
+            logger.info(f"📅 顶部未找到 '{name}'，开始向下滚动搜索")
+            for scroll_attempt in range(20):
+                self.swipe(350, 600, 350, 350)
+                time.sleep(1)
+                pos = self.find_text_by_ocr(name, timeout=5)
+                if pos is not None:
+                    logger.info(f"📅 第{scroll_attempt + 1}次滚动后找到 '{name}'")
+                    break
+        assert pos is not None, f"未找到日历本 '{name}'"
+
+        # 2. 点击该行的...三点图标（侧边栏中...图标的 x 坐标固定在约 440）
+        #    使用名称的 y 坐标确保点击在正确的行
+        self.tap(440, pos[1])
+        time.sleep(1)
+
+        # 3. 验证菜单弹出（应出现"日历设置"选项）
+        self.find_text_by_ocr("日历设置", timeout=3)
+        logger.info(f"✅ 日历本 '{name}' 的菜单已弹出")
+        return True
+
+    def modify_calendar_book(self, name: str, new_name: str) -> bool:
+        """
+        修改日历本名称
+
+        步骤:
+        1. 打开日历侧边栏
+        2. 点击目标日历本右侧...图标，弹出菜单
+        3. 点击"日历设置"进入设置页面
+        4. 清空日历名称输入框，输入新名称
+        5. 点击"完成"
+        6. 验证修改后的名称出现在侧边栏
+        7. 关闭侧边栏，返回消息列表页
+
+        探索来源: 用户提供的侧边栏截图（2026-04-22 确认交互方式）
+
+        Args:
+            name: 当前日历本名称
+            new_name: 新的日历本名称
+        Returns:
+            bool: 修改是否成功
+        """
+        logger.info(f"📅 [MuMu] 修改日历本: {name} → {new_name}")
+
+        # 1. 打开日历侧边栏
+        self._open_calendar_sidebar()
+
+        # 2. 点击...菜单图标，弹出操作菜单（菜单函数内部处理滚动搜索）
+        self._click_calendar_book_menu(name)
+
+        # 3. 点击弹出菜单中的"日历设置"（注意：侧边栏底部也有固定的"日历设置"）
+        #    通过定位"分享日历"来确认菜单区域，然后向下偏移点击菜单中的"日历设置"
+        share_pos = self.find_text_by_ocr("分享日历", timeout=3)
+        assert share_pos is not None, "弹出菜单中未找到'分享日历'"
+        # "日历设置"在"分享日历"下方约40-50px（菜单项间距）
+        self.tap(share_pos[0], share_pos[1] + 45)
+        time.sleep(3)
+
+        # 验证已进入日历编辑/设置页面（应有"日历描述"或"日历颜色"等特征文字）
+        self.find_text_by_ocr("日历描述", timeout=5)
+
+        # 4. 点击日历名称进入编辑模式
+        name_pos = self.find_text_by_ocr(name, timeout=5)
+        assert name_pos is not None, f"编辑页中未找到日历名称 '{name}'"
+        # 先单击名称聚焦输入框
+        self.tap(name_pos[0], name_pos[1])
+        time.sleep(0.5)
+        # 清空输入框（使用 HOME+Shift+END+DEL 组合键，MuMu模拟器中 Ctrl+A 不可靠）
+        self._clear_input_field()
+        time.sleep(0.3)
+        # 输入新名称
+        self.input_text(new_name)
+        time.sleep(0.5)
+
+        # 6. 点击完成
+        self.click_text("完成", timeout=5)
+        time.sleep(2)
+
+        # 7. 验证修改后名称出现在侧边栏（先滚回顶部再搜索）
+        for _ in range(3):
+            self.swipe(350, 400, 350, 650)
+            time.sleep(0.3)
+        self.find_text_by_ocr(new_name, timeout=5)
+        logger.info(f"✅ 日历本已修改为 '{new_name}'")
+
+        # 8. 关闭侧边栏，返回消息列表页
+        self._close_calendar_sidebar()
+        self.click_text("消息", region=Normal.BOTTOM_NAV)
+        time.sleep(1)
+
+        return True
+
+    def delete_calendar_book(self, name: str) -> bool:
+        """
+        删除日历本
+
+        步骤:
+        1. 打开日历侧边栏
+        2. 点击目标日历本右侧...图标，弹出菜单
+        3. 点击"日历设置"进入设置页面
+        4. 滚动到底部，点击"删除日历"
+        5. 确认弹窗点击"删除"
+        6. 验证日历本已从侧边栏移除
+        7. 关闭侧边栏，返回消息列表页
+
+        探索来源: 用户提供的侧边栏截图（2026-04-22 确认交互方式）
+
+        Args:
+            name: 要删除的日历本名称
+        Returns:
+            bool: 删除是否成功
+        """
+        logger.info(f"📅 [MuMu] 删除日历本: {name}")
+
+        # 1. 打开日历侧边栏
+        self._open_calendar_sidebar()
+
+        # 2. 点击...菜单图标，弹出操作菜单（菜单函数内部处理滚动搜索）
+        self._click_calendar_book_menu(name)
+
+        # 4. 点击弹出菜单中的"日历设置"（通过"分享日历"位置偏移定位，避免和底部固定按钮混淆）
+        share_pos = self.find_text_by_ocr("分享日历", timeout=3)
+        assert share_pos is not None, "弹出菜单中未找到'分享日历'"
+        self.tap(share_pos[0], share_pos[1] + 45)
+        time.sleep(3)
+
+        # 验证已进入日历设置页面
+        self.find_text_by_ocr("日历描述", timeout=5)
+
+        # 5. 滚动到底部看到删除按钮
+        self.swipe_up(300)
+        time.sleep(0.5)
+        self.swipe_up(300)
+        time.sleep(0.5)
+
+        # 6. 点击"删除日历"
+        self.click_text("删除日历", timeout=5)
+        time.sleep(1)
+
+        # 7. 确认弹窗点击"删除"（精确匹配弹窗中的蓝色"删除"按钮）
+        #    弹窗中同时存在 "是否删除该日历？"、"取消"、"删除"、"删除日历"
+        #    通过 region 限制在弹窗按钮行(y:420~500)，避免误点"删除日历"文字
+        delete_btn = self.find_text_by_ocr("删除", timeout=5, region=(100, 420, 440, 500))
+        if delete_btn:
+            self.tap(delete_btn[0], delete_btn[1])
+        else:
+            # 降级：直接点击"删除"
+            self.click_text("删除", timeout=5)
+        time.sleep(3)
+
+        # 8. 删除后强制返回到消息列表页
+        #    策略: 先检查底部导航栏，如果有就直接点消息Tab，如果没有再按back
+        logger.info("📅 删除后强制返回到消息列表页")
+        for back_attempt in range(5):
+            # 优先检查底部导航栏是否可见（说明还在POPO内）
+            msg_nav = self.find_text_by_ocr("消息", timeout=1, region=Normal.BOTTOM_NAV)
+            if msg_nav:
+                logger.info(f"📅 第{back_attempt}次检查后发现底部导航栏，点击消息Tab")
+                self.tap(msg_nav[0], msg_nav[1])
+                time.sleep(1)
+                break
+            # 检查是否已回到消息列表页（消息Tab蓝色高亮）
+            msg_pos = self.find_image(MESSAGE_TAB_BLUE, timeout=1)
+            if msg_pos:
+                logger.info(f"📅 第{back_attempt}次Back后已回到消息列表页")
+                break
+            self.press_back()
+            time.sleep(1)
+
+        # 9. 重新打开侧边栏验证日历本已删除
+        self._open_calendar_sidebar()
+
+        # 滚回顶部再搜索确认删除
+        for _ in range(3):
+            self.swipe(350, 400, 350, 650)
+            time.sleep(0.3)
+        result = self.find_text_by_ocr(name, timeout=3)
+        assert result is None, f"日历本 '{name}' 删除后仍存在于侧边栏"
+        logger.info(f"✅ 日历本 '{name}' 已删除")
+
+        # 10. 关闭侧边栏，返回消息列表页
+        self._close_calendar_sidebar()
+        self.click_text("消息", region=Normal.BOTTOM_NAV)
+        time.sleep(1)
+
+        return True
+
+    def subscribe_calendar_book(self, keyword: str) -> bool:
+        """
+        订阅日历本
+
+        步骤:
+        1. 打开日历侧边栏
+        2. 点击搜索框进入订阅页面
+        3. 在推荐列表中找到目标日历本，点击"订阅"按钮
+        4. 验证按钮变为"退订"（表示订阅成功）
+        5. 关闭订阅页面
+        6. 验证日历本出现在"我订阅的"列表中
+        7. 关闭侧边栏，返回消息列表页
+
+        探索来源: explorer_output/screenshots/calendar_step14_search_click.png
+
+        Args:
+            keyword: 要订阅的日历本关键词（用于搜索或在推荐列表中定位）
+        Returns:
+            bool: 订阅是否成功
+        """
+        logger.info(f"📅 [MuMu] 订阅日历本: {keyword}")
+
+        # 1. 打开日历侧边栏
+        self._open_calendar_sidebar()
+
+        # 2. 点击搜索框进入订阅页面
+        self.click_text("搜索日历本", timeout=5)
+        time.sleep(2)
+
+        # 3. 验证进入订阅页面
+        self.find_text_by_ocr("订阅", timeout=5)
+
+        # 4. 搜索日历本（如果有搜索框）
+        search_pos = self.find_text_by_ocr("请输入日历本名称", timeout=3)
+        if search_pos:
+            self.tap(search_pos[0], search_pos[1])
+            time.sleep(0.3)
+            self.input_text(keyword)
+            time.sleep(2)
+
+        # 5. 找到目标日历本并点击"订阅"按钮
+        pos = self.find_text_by_ocr(keyword, timeout=5)
+        assert pos is not None, f"未找到日历本 '{keyword}'"
+        # 订阅按钮在日历本名称右侧
+        self.click_text("订阅", timeout=5)
+        time.sleep(2)
+
+        # 6. 验证订阅成功（按钮变为"退订"）
+        self.find_text_by_ocr("退订", timeout=5)
+        logger.info(f"✅ 日历本 '{keyword}' 订阅成功")
+
+        # 7. 关闭订阅页面（点击X按钮，左上角约 46,113）
+        self.press_back()
+        time.sleep(1)
+
+        # 8. 关闭侧边栏，返回消息列表页
+        self._close_calendar_sidebar()
+        self.click_text("消息", region=Normal.BOTTOM_NAV)
+        time.sleep(1)
+
+        return True
+
+    def unsubscribe_calendar_book(self, name: str) -> bool:
+        """
+        退订日历本
+
+        步骤:
+        1. 打开日历侧边栏
+        2. 滚动找到"我订阅的"区域中的目标日历本
+        3. 点击日历本右侧...按钮
+        4. 点击"退订日历"
+        5. 验证日历本已从"我订阅的"列表中移除
+        6. 关闭侧边栏，返回消息列表页
+
+        探索来源: explorer_output/screenshots/calendar_step17_subscribed_menu.png
+
+        Args:
+            name: 要退订的日历本名称
+        Returns:
+            bool: 退订是否成功
+        """
+        logger.info(f"📅 [MuMu] 退订日历本: {name}")
+
+        # 1. 打开日历侧边栏
+        self._open_calendar_sidebar()
+
+        # 2. 先直接搜索目标名称（可能"我订阅的"已展开且目标在当前视图内）
+        pos = self.find_text_by_ocr(name, timeout=3)
+        if pos:
+            logger.info(f"📅 直接找到 '{name}' @ {pos}")
+        else:
+            # 3. 先找"我订阅的"分组标题，确保它在屏幕上可见
+            logger.info(f"📅 未直接看到 '{name}'，寻找'我订阅的'分组")
+            subscribed_pos = None
+
+            # 从当前位置开始向下滚动搜索"我订阅的"
+            for scroll_attempt in range(20):
+                subscribed_pos = self.find_text_by_ocr("我订阅的", timeout=2)
+                if subscribed_pos:
+                    logger.info(f"📅 第{scroll_attempt}次滚动后找到'我订阅的' @ {subscribed_pos}")
+                    break
+                # 也检查目标名称本身（可能在展开的列表中）
+                pos = self.find_text_by_ocr(name, timeout=1)
+                if pos:
+                    logger.info(f"📅 第{scroll_attempt}次滚动后直接找到 '{name}' @ {pos}")
+                    break
+                self.scroll_down(clicks=3)
+                time.sleep(1)
+
+            if pos:
+                pass  # 已经找到目标
+            elif subscribed_pos:
+                # 4. 把"我订阅的"滚动到屏幕中上部（约y=500），确保展开后子项可见
+                if subscribed_pos[1] > 550:
+                    self.scroll_down(clicks=5)
+                    time.sleep(1)
+                    subscribed_pos = self.find_text_by_ocr("我订阅的", timeout=3)
+
+                if subscribed_pos:
+                    # 5. 点击展开"我订阅的"分组
+                    self.tap(subscribed_pos[0], subscribed_pos[1])
+                    time.sleep(1.5)
+
+                    # 检查目标是否出现
+                    pos = self.find_text_by_ocr(name, timeout=3)
+                    if pos:
+                        logger.info(f"📅 展开'我订阅的'后找到 '{name}' @ {pos}")
+
+                    if not pos:
+                        # 可能展开后子项在屏幕下方，使用scroll_down滚动查找
+                        # swipe在侧边栏中可能无效，scroll_down使用鼠标滚轮更可靠
+                        for sub_scroll in range(8):
+                            self.scroll_down(clicks=3)
+                            time.sleep(1)
+                            pos = self.find_text_by_ocr(name, timeout=2)
+                            if pos:
+                                logger.info(f"📅 展开后第{sub_scroll}次滚动找到 '{name}' @ {pos}")
+                                break
+
+        assert pos is not None, f"未找到日历本 '{name}'"
+
+        # 3. 点击目标日历本右侧的...三点菜单图标
+        self.tap(440, pos[1])
+        time.sleep(1)
+
+        # 4. 点击"退订日历"
+        self.click_text("退订日历", timeout=5)
+        time.sleep(2)
+
+        # 5. 验证退订成功（日历本从列表中消失）
+        # 滚回顶部搜索确认
+        for _ in range(3):
+            self.swipe(350, 400, 350, 650)
+            time.sleep(0.3)
+        result = self.find_text_by_ocr(name, timeout=3)
+        assert result is None, f"日历本 '{name}' 退订后仍存在于侧边栏"
+        logger.info(f"✅ 日历本 '{name}' 已退订")
+
+        # 6. 关闭侧边栏，返回消息列表页
+        self._close_calendar_sidebar()
+        self.click_text("消息", region=Normal.BOTTOM_NAV)
+        time.sleep(1)
+
+        return True
 
     # ==================== 群组管理相关 ====================
 

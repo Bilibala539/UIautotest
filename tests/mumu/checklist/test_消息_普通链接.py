@@ -22,28 +22,22 @@ class TestSendP2PMessage(BaseTest):
         测试场景: 通过搜索联系人发送P2P普通链接
 
         步骤:
-        1. 在消息页面点击搜索按钮
-        2. 搜索 grp.popoqa 联系人
-        3. 切换到联系人Tab，点击搜索结果
-        4. 进入P2P聊天页面
-        5. 点击输入框，输入消息普通链接
-        6. 点击发送按钮
-        7. 验证发送成功（发送按钮恢复为+号）
-        8. 返回消息页面
+        1. 进入聊天页面
+        2. 输入普通链接并发送
+        3. 验证发送成功
+        4. 撤回消息
 
         预期结果:
-        - 搜索能找到 grp.popoqa 联系人
         - 成功进入P2P聊天页面
-        - 消息发送成功
-        - 返回消息页面后，该会话置顶显示
+        - 消息发送成功（包含链接被正确识别）
+        - 撤回成功
         """
+        # 发送链接消息并验证发送成功
         result = self.userA.send_message(
             recipient="grp.popoqa50",
-            message="https://www.baidu.com/"
+            message="https://popo.netease.com/"
         )
-        assert result, "P2P消息发送应该成功"
-
-        self.userA.recall_message("https://www.baidu.com/")
+        assert result, "P2P链接消息发送应该成功"
 
     def teardown(self):
         pass

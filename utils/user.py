@@ -205,6 +205,34 @@ class PPUser:
         """将一个展示的会话分组移到隐藏区域"""
         return self.aw.disable_session_group(group_name)
 
+    def switch_session_group_tab(self, tab_name: str) -> bool:
+        """切换会话分组Tab标签"""
+        return self.aw.switch_session_group_tab(tab_name)
+
+    def open_session_box(self) -> bool:
+        """打开会话盒子页面"""
+        return self.aw.open_session_box()
+
+    def open_closed_sessions(self) -> bool:
+        """打开关闭的会话页面"""
+        return self.aw.open_closed_sessions()
+
+    def long_press_session_pin(self) -> bool:
+        """长按第一个会话项置顶"""
+        return self.aw.long_press_session_pin()
+
+    def long_press_session_add_to_pending(self) -> str:
+        """长按第一个会话项添加到待处理/处理完成"""
+        return self.aw.long_press_session_add_to_pending()
+
+    def long_press_session_toggle_read_status(self) -> str:
+        """长按第一个会话项切换已读/未读状态"""
+        return self.aw.long_press_session_toggle_read_status()
+
+    def long_press_session_add_to_group(self, group_name: str = "") -> bool:
+        """长按第一个会话项添加至分组"""
+        return self.aw.long_press_session_add_to_group(group_name)
+
     def create_team(self) -> bool:
         """创建群组"""
         return self.aw.create_team()

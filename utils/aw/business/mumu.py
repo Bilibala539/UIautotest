@@ -4125,3 +4125,915 @@ class MuMuBusiness(CommonBusiness):
 
         logger.info("✅ [MuMu] 应用外分享图片到POPO成功")
         return True
+
+
+    # ==================== 群设置页功能 ====================
+
+    def _enter_group_chat_from_list(self, group_name_keyword: str) -> None:
+        """
+        从会话列表直接点击群聊进入群聊天页面
+
+        在消息列表页 OCR 扫描找到含有指定关键词的群会话，直接点击进入。
+        适用于群名在会话列表可见的场景。
+
+        Args:
+            group_name_keyword: 群名关键词（如"内购"/"吴彦祖"）
+
+        Raises:
+            AssertionError: 会话列表中找不到匹配的群
+        """
+        logger.info(f"🔍 [MuMu] 从会话列表进入群聊: {group_name_keyword}")
+
+        # 先确保在消息列表页（防止残留在群设置/聊天等页面）
+        self._ensure_message_page()
+        time.sleep(1)
+
+        # 先滚动回列表顶部（防止之前滑动导致目标群不可见）
+        for _ in range(3):
+            self.swipe_down(400)
+            time.sleep(0.3)
+
+        # 在消息列表中查找含关键词的会话（最多滑动3次）
+        for scroll in range(4):
+            results = self.ocr_scan_page()
+            for r in results:
+                text = r.get('text', '')
+                cy = r.get('cy', 0)
+                cx = r.get('cx', 0)
+                if group_name_keyword in text and 280 < cy < 850:
+                    logger.info(f"✅ 找到群会话: '{text}' at ({cx},{cy})")
+                    self.tap(270, cy)
+                    time.sleep(2)
+                    return
+            if scroll < 3:
+                self.swipe_up(300)
+                time.sleep(0.5)
+
+        assert False, f"会话列表中未找到含 '{group_name_keyword}' 的群聊"
+
+    def _enter_group_settings_from_chat(self) -> None:
+        """
+        从群聊天页面进入群设置页面
+
+        点击群聊页面顶部群名称区域进入群设置。
+
+        前置条件: 当前在群聊天页面
+        """
+        logger.info("⚙️ [MuMu] 从群聊进入群设置")
+
+        # 群聊页面顶部有"N名群成员"文字，点击其上方进入群设置
+        members_pos = self.find_text_by_ocr("名群成员", timeout=5)
+        if members_pos:
+            self.tap(members_pos[0], members_pos[1], dy=-30)
+        else:
+            # 备选：直接点击标题栏中部
+            self.tap(270, 55)
+        time.sleep(2)
+
+        logger.info("✅ [MuMu] 已进入群设置页面")
+
+    def _return_to_message_list(self, max_back: int = 6) -> None:
+        """
+        从任意页面返回到消息列表页
+
+        Args:
+            max_back: 最大返回次数
+        """
+        for i in range(max_back):
+            self.press_back()
+            time.sleep(0.5)
+            if self.find_image(MESSAGE_TAB_BLUE, timeout=1):
+                logger.info("✅ 已返回消息列表页")
+                return
+        logger.warning("⚠️ 可能未完全返回消息列表页")
+
+    def open_group_settings_page(self, group_name_keyword: str) -> bool:
+        """
+        从会话列表进入群设置页面
+
+        步骤:
+        1. 在消息列表中找到群聊并点击进入
+        2. 点击群名称进入群设置
+        3. 验证到达群设置页面
+
+        Args:
+            group_name_keyword: 群名关键词
+
+        Returns:
+            bool: 是否成功进入群设置页面
+        """
+        logger.info(f"⚙️ [MuMu] 进入群设置页面: {group_name_keyword}")
+
+        self._enter_group_settings(group_name_keyword)
+
+        # 验证到达群设置页面
+        pos = self.find_text_by_ocr("群公告", timeout=10)
+        if pos is None:
+            self.swipe_up(200)
+            time.sleep(0.5)
+            pos = self.find_text_by_ocr("群公告", timeout=5)
+        assert pos is not None, "未进入群设置页面：找不到'群公告'"
+
+        logger.info("✅ [MuMu] 已进入群设置页面")
+        return True
+
+    def check_group_message_reminder(self, group_name_keyword: str) -> bool:
+        """
+        检查群消息提醒开关并切换
+
+        步骤:
+        1. 进入群设置页面
+        2. 找到"消息提醒"开关
+        3. 点击切换
+        4. 返回消息列表页
+
+        Args:
+            group_name_keyword: 群名关键词
+
+        Returns:
+            bool: 操作是否成功
+        """
+        logger.info(f"🔔 [MuMu] 切换群消息提醒: {group_name_keyword}")
+
+        self._enter_group_settings(group_name_keyword)
+
+        # 在群设置页中查找"消息提醒"
+        for scroll in range(3):
+            pos = self.find_text_by_ocr("消息提醒", timeout=3)
+            if pos is not None:
+                break
+            self.swipe_up(300)
+            time.sleep(0.5)
+
+        assert pos is not None, "群设置页面中未找到'消息提醒'"
+        logger.info(f"✅ 找到消息提醒选项 at {pos}")
+
+        # 点击开关（开关在文字右侧）
+        self.click_text("消息提醒", dx=200, timeout=5)
+        time.sleep(1)
+
+        self._return_to_message_list()
+        logger.info("✅ [MuMu] 群消息提醒切换完成")
+        return True
+
+    def verify_group_setting_default(self, group_name_keyword: str, setting_name: str) -> str:
+        """
+        验证群设置页面中某个设置项是否存在
+
+        步骤:
+        1. 进入群设置页面
+        2. 逐屏查找指定设置项
+        3. 截图记录状态
+        4. 返回
+
+        Args:
+            group_name_keyword: 群名关键词
+            setting_name: 设置项名称
+
+        Returns:
+            str: "found" 表示找到
+        """
+        logger.info(f"🔍 [MuMu] 验证群设置: {setting_name}")
+
+        self._enter_group_settings(group_name_keyword)
+
+        found = False
+        for screen in range(5):
+            pos = self.find_text_by_ocr(setting_name, timeout=3)
+            if pos is not None:
+                found = True
+                logger.info(f"✅ 在第{screen+1}屏找到 '{setting_name}' at {pos}")
+                break
+            self.swipe_up(300)
+            time.sleep(0.5)
+
+        assert found, f"群设置页面中未找到 '{setting_name}'"
+
+        self.take_screenshot(
+            save_path=f'E:\\UIAutotest\\explorer_output\\screenshots\\group_setting_{setting_name}.png'
+        )
+
+        self._return_to_message_list()
+        logger.info(f"✅ [MuMu] 群设置 '{setting_name}' 验证完成")
+        return "found"
+
+    def check_group_settings_item(self, group_identifier: str, item_name: str) -> dict:
+        """
+        在群设置页查找指定设置项
+
+        步骤:
+        1. 进入群设置页面
+        2. OCR 查找指定项目名称
+        3. 若未找到，向上滑动继续查找
+        4. 返回消息列表页
+
+        Args:
+            group_identifier: 群组标识（群号或群名关键词）
+            item_name: 设置项名称（如"消息提醒"/"自动翻译"/"入群验证"/"群管理"）
+
+        Returns:
+            dict: 包含 found/position/screen_index/item_name
+        """
+        logger.info(f"🔍 [MuMu] 查找群设置项: {item_name}")
+
+        self._enter_group_settings(group_identifier)
+
+        found = False
+        position = None
+        screen_index = None
+        for screen in range(5):
+            position = self.find_text_by_ocr(item_name, timeout=2, region=Normal.HALF_UP)
+            if not position:
+                position = self.find_text_by_ocr(item_name, timeout=2, region=Normal.HALF_DOWN)
+            if position:
+                found = True
+                screen_index = screen
+                logger.info(f"✅ 找到设置项 '{item_name}' @ {position} (第{screen + 1}屏)")
+                break
+            self.swipe_up(300)
+            time.sleep(0.5)
+
+        self._return_to_message_list()
+
+        return {
+            "found": found,
+            "position": position,
+            "screen_index": screen_index,
+            "item_name": item_name,
+        }
+
+    def open_group_qr_code(self, group_identifier: str) -> bool:
+        """
+        打开群二维码页面
+
+        步骤:
+        1. 进入群设置页面
+        2. 点击群二维码入口
+        3. 验证二维码页面出现
+        4. 返回
+
+        Args:
+            group_identifier: 群组标识（群号或群名关键词）
+
+        Returns:
+            bool: 是否成功打开
+        """
+        logger.info(f"📱 [MuMu] 打开群二维码: {group_identifier}")
+
+        self._enter_group_settings(group_identifier)
+
+        # 群二维码入口在群设置第一屏 - 点击群名称右侧二维码icon
+        clicked = False
+        for title in [group_identifier, "群聊名称", "群名称"]:
+            try:
+                self.click_text(title, dx=200, timeout=3, region=Normal.HALF_UP)
+                clicked = True
+                break
+            except AssertionError:
+                continue
+        assert clicked, "未找到群二维码入口"
+        time.sleep(1.5)
+
+        # 验证二维码页面
+        self.find_text_by_ocr("有效", timeout=5, region=Normal.HALF_UP)
+
+        logger.info("✅ [MuMu] 已打开群二维码页面")
+        # 返回群设置页面
+        self.press_back()
+        time.sleep(1)
+        self.text_exists("群公告", timeout=5)
+        return True
+
+    def open_group_announcement(self, group_identifier: str) -> bool:
+        """
+        打开群公告页面
+
+        步骤:
+        1. 进入群设置页面
+        2. 点击"群公告"
+        3. 验证进入公告页面
+
+        Args:
+            group_identifier: 群组标识（群号或群名关键词）
+
+        Returns:
+            bool: 是否成功进入
+        """
+        logger.info(f"📢 [MuMu] 打开群公告页面: {group_identifier}")
+
+        self._enter_group_settings(group_identifier)
+
+        self.click_text("群公告", timeout=5, region=Normal.HALF_DOWN)
+        time.sleep(1.5)
+
+        if self.find_image(GROUP_ANNOUNCEMENT_EMPTY_PLACEHOLDER, timeout=2):
+            logger.info("✅ 群公告页为空占位符已出现")
+        else:
+            self.find_text_by_ocr("编辑", timeout=3)
+
+        logger.info("✅ [MuMu] 已进入群公告页面")
+        return True
+
+    def open_group_announcement_page(self, group_name_keyword: str) -> bool:
+        """
+        打开群公告页面
+
+        步骤:
+        1. 进入群设置页面
+        2. 点击"群公告"
+        3. 验证进入公告页面
+        4. 返回
+
+        Args:
+            group_name_keyword: 群名关键词
+
+        Returns:
+            bool: 是否成功进入
+        """
+        logger.info(f"📢 [MuMu] 打开群公告页面: {group_name_keyword}")
+
+        self._enter_group_settings(group_name_keyword)
+
+        # 点击"群公告"
+        self.click_text("群公告", timeout=5)
+        time.sleep(1.5)
+
+        self.take_screenshot(
+            save_path=r'E:\UIAutotest\explorer_output\screenshots\group_announcement_page.png'
+        )
+
+        logger.info("✅ [MuMu] 已打开群公告页面")
+        self._return_to_message_list()
+        return True
+
+
+    # ==================== 群设置扩展方法 (用于28个单设备用例) ====================
+
+    def click_in_group_settings(self, group_identifier: str, click_text: str,
+                                  verify_text: str = None, region=None) -> bool:
+        """
+        进入群设置后点击指定文字项，并可选验证新页面
+
+        步骤:
+        1. 进入群设置页面
+        2. 逐屏滑动查找 click_text
+        3. 点击该文字
+        4. 若提供 verify_text，验证新页面包含该文字
+        5. 返回消息列表页
+
+        Args:
+            group_identifier: 群关键词
+            click_text: 要点击的文字
+            verify_text: 点击后新页面应包含的文字（可选）
+            region: 点击区域限定
+
+        Returns:
+            bool: 操作是否成功
+        """
+        logger.info(f"👆 [MuMu] 群设置中点击 '{click_text}' (验证: {verify_text})")
+
+        self._enter_group_settings(group_identifier)
+
+        # 逐屏查找并点击
+        clicked = False
+        for screen in range(5):
+            pos = self.find_text_by_ocr(click_text, timeout=2, region=region)
+            if pos:
+                self.tap(pos[0], pos[1])
+                clicked = True
+                logger.info(f"✅ 已点击 '{click_text}'")
+                time.sleep(1.5)
+                break
+            self.swipe_up(300)
+            time.sleep(0.5)
+
+        assert clicked, f"群设置页面未找到 '{click_text}'"
+
+        # 验证新页面
+        if verify_text:
+            found = self.find_text_by_ocr(verify_text, timeout=5)
+            assert found, f"点击 '{click_text}' 后未找到 '{verify_text}'"
+            logger.info(f"✅ 新页面包含 '{verify_text}'")
+
+        # 返回
+        self._return_to_message_list()
+        return True
+
+    def toggle_group_setting_switch(self, group_identifier: str, setting_name: str,
+                                      dx: int = 200) -> bool:
+        """
+        切换群设置页中某开关
+
+        步骤:
+        1. 进入群设置页
+        2. 查找 setting_name 文字位置
+        3. 点击文字右侧 +dx 像素处切换开关
+        4. 返回消息列表页
+
+        Args:
+            group_identifier: 群关键词
+            setting_name: 开关对应的文字标签
+            dx: 开关相对文字的x偏移（默认+200，开关在右侧）
+
+        Returns:
+            bool: 操作是否成功
+        """
+        logger.info(f"🔀 [MuMu] 切换群设置开关 '{setting_name}'")
+
+        self._enter_group_settings(group_identifier)
+
+        # 查找开关对应的文字
+        found_pos = None
+        for screen in range(5):
+            pos = self.find_text_by_ocr(setting_name, timeout=2)
+            if pos:
+                found_pos = pos
+                break
+            self.swipe_up(300)
+            time.sleep(0.5)
+
+        assert found_pos, f"群设置页面未找到 '{setting_name}'"
+        # 点击开关（右侧）
+        self.tap(found_pos[0] + dx, found_pos[1])
+        time.sleep(1)
+        logger.info(f"✅ 开关已切换")
+
+        self._return_to_message_list()
+        return True
+
+    def edit_group_description(self, group_identifier: str, description: str) -> bool:
+        """
+        编辑群描述
+
+        步骤:
+        1. 进入群设置页面
+        2. 点击 "群描述"
+        3. 在编辑页输入新描述
+        4. 点击保存
+        5. 验证toast "群描述修改成功" 或返回到设置页
+        6. 返回消息列表页
+
+        Args:
+            group_identifier: 群关键词
+            description: 新群描述内容
+
+        Returns:
+            bool: 操作是否成功
+        """
+        logger.info(f"📝 [MuMu] 编辑群描述: {description[:30]}")
+
+        self._enter_group_settings(group_identifier)
+
+        # 滑动查找群描述
+        pos = None
+        for screen in range(3):
+            pos = self.find_text_by_ocr("群描述", timeout=2)
+            if pos:
+                break
+            self.swipe_up(300)
+            time.sleep(0.5)
+        assert pos, "未找到群描述入口"
+
+        self.tap(pos[0], pos[1])
+        time.sleep(1.5)
+
+        # 进入编辑页后清空并输入
+        self.clear_input()
+        time.sleep(0.3)
+        self.input_text(description)
+        time.sleep(0.5)
+
+        # 点击保存/完成按钮
+        self.press_back()  # 收起键盘
+        time.sleep(0.5)
+        saved = False
+        for btn in ["保存", "完成"]:
+            try:
+                self.click_text(btn, timeout=2, region=Normal.HALF_UP)
+                saved = True
+                break
+            except AssertionError:
+                continue
+        if not saved:
+            # 点击右上角确认按钮
+            self._adb_tap(486, 107)
+        time.sleep(1.5)
+
+        logger.info(f"✅ 群描述已编辑")
+        self._return_to_message_list()
+        return True
+
+    def open_group_member_list(self, group_identifier: str) -> bool:
+        """
+        打开群成员列表
+
+        步骤:
+        1. 进入群设置页面
+        2. 点击 "群成员" 或 "N人"
+        3. 验证进入群成员列表页
+
+        Args:
+            group_identifier: 群关键词
+
+        Returns:
+            bool: 是否成功打开
+        """
+        logger.info(f"👥 [MuMu] 打开群成员列表: {group_identifier}")
+
+        self._enter_group_settings(group_identifier)
+
+        # 点击 "群成员"
+        self.click_text("群成员", timeout=5, region=Normal.HALF_UP)
+        time.sleep(1.5)
+
+        logger.info("✅ 已打开群成员列表")
+        return True
+
+    def click_group_qr_code(self, group_identifier: str) -> bool:
+        """
+        打开群二维码页面（不关闭，用于后续操作）
+
+        Args:
+            group_identifier: 群关键词
+
+        Returns:
+            bool: 是否成功打开
+        """
+        logger.info(f"📱 [MuMu] 打开群二维码页面: {group_identifier}")
+        self._enter_group_settings(group_identifier)
+
+        # 群二维码入口在群设置第一屏 - 群名称右侧icon
+        clicked = False
+        for title in [group_identifier, "群聊名称", "群名称"]:
+            try:
+                self.click_text(title, dx=200, timeout=3, region=Normal.HALF_UP)
+                clicked = True
+                break
+            except AssertionError:
+                continue
+        assert clicked, "未找到群二维码入口"
+        time.sleep(1.5)
+
+        # 验证进入二维码页
+        self.find_text_by_ocr("有效", timeout=5, region=Normal.HALF_UP)
+        logger.info("✅ 已打开群二维码页面")
+        return True
+
+
+
+    # ==================== 群主测试群管理 ====================
+
+    def _find_group_in_session_list(self, keyword: str, max_scrolls: int = 5) -> bool:
+        """
+        在会话列表中查找含指定关键词的会话
+
+        Args:
+            keyword: 关键词
+            max_scrolls: 最大滑动次数
+
+        Returns:
+            bool: 是否找到
+        """
+        # 先滚动到顶部
+        self._ensure_message_page()
+        time.sleep(1)
+        for _ in range(3):
+            self.swipe_down(400)
+            time.sleep(0.3)
+
+        for scroll in range(max_scrolls):
+            results = self.ocr_scan_page()
+            for r in results:
+                t = r.get('text', '')
+                cy = r.get('cy', 0)
+                if keyword in t and 280 < cy < 850:
+                    logger.info(f"✅ 会话列表找到 '{keyword}': '{t}' at cy={cy}")
+                    return True
+            if scroll < max_scrolls - 1:
+                self.swipe_up(350)
+                time.sleep(0.5)
+        return False
+
+    def rename_group_name(self, current_group_keyword: str, new_name: str) -> bool:
+        """
+        群主修改群名
+
+        步骤:
+        1. 进入群设置
+        2. 点击"群名称"
+        3. 清空并输入新名字
+        4. 点击保存/完成按钮
+        5. 返回消息列表页
+
+        Args:
+            current_group_keyword: 当前群名/群号关键词
+            new_name: 新群名
+
+        Returns:
+            bool: 操作是否成功
+        """
+        logger.info(f"✏️ [MuMu] 修改群名: {current_group_keyword} → {new_name}")
+
+        self._enter_group_settings(current_group_keyword)
+
+        # 点击"群名称"
+        found = False
+        for screen in range(3):
+            pos = self.find_text_by_ocr("群名称", timeout=2)
+            if pos:
+                self.tap(pos[0], pos[1])
+                found = True
+                time.sleep(1.5)
+                break
+            self.swipe_up(300)
+            time.sleep(0.5)
+        assert found, "未找到群名称入口"
+
+        # 清空 + 输入新名字
+        self.clear_input()
+        time.sleep(0.3)
+        self.input_text(new_name)
+        time.sleep(0.5)
+
+        # 点击保存
+        self.press_back()  # 收起键盘
+        time.sleep(0.5)
+        saved = False
+        for btn in ["保存", "完成", "确定"]:
+            try:
+                self.click_text(btn, timeout=2, region=Normal.HALF_UP)
+                saved = True
+                break
+            except AssertionError:
+                continue
+        if not saved:
+            self._adb_tap(486, 107)  # 右上角确认
+        time.sleep(2)
+
+        logger.info(f"✅ [MuMu] 群名已修改: {new_name}")
+        # 返回消息列表
+        for _ in range(6):
+            self.press_back()
+            time.sleep(0.5)
+            if self.find_image(MESSAGE_TAB_BLUE, timeout=1):
+                break
+        return True
+
+    def setup_owner_group(self, desired_name: str = "自动化测试群主群") -> str:
+        """
+        确保当前账号有一个作为群主的固定名测试群。
+        如果已存在则直接返回群名；否则通过 create_team 创建新群并改名。
+
+        步骤:
+        1. 在会话列表查找 desired_name
+        2. 找到 → 直接返回
+        3. 未找到 → 调用 create_team 创建新群
+        4. 新群默认名由成员组合，立即改名为 desired_name
+        5. 返回 desired_name
+
+        Args:
+            desired_name: 期望的群名
+
+        Returns:
+            str: 群名，用作后续测试的 group_identifier
+        """
+        logger.info(f"🎯 [MuMu] setup_owner_group: {desired_name}")
+
+        # Step 1: 检查是否已有
+        if self._find_group_in_session_list(desired_name):
+            logger.info(f"✅ 已存在群主测试群 '{desired_name}'，直接复用")
+            return desired_name
+
+        logger.info(f"⚠️ 未找到 '{desired_name}'，开始创建新群...")
+
+        # Step 2: 创建新群
+        self._ensure_message_page()
+        time.sleep(1)
+        try:
+            self.create_team()
+            time.sleep(2)
+        except Exception as e:
+            logger.error(f"❌ create_team 失败: {e}")
+            raise
+
+        # 创建成功后应该在新群的聊天页。获取群名 (顶部标题)
+        # 通过OCR 顶部区域拿到默认群名
+        time.sleep(2)
+        results = self.ocr_scan_page()
+        default_group_name = None
+        for r in results:
+            cy = r.get('cy', 0)
+            cx = r.get('cx', 0)
+            t = r.get('text', '')
+            # 顶部标题区 y<100, 中部
+            if 40 < cy < 100 and 150 < cx < 400 and len(t) > 2:
+                default_group_name = t
+                break
+
+        logger.info(f"新创建群默认名: {default_group_name}")
+
+        # Step 3: 进入群设置改群名
+        # 当前在聊天页，直接点击群名进入群设置
+        members_pos = self.find_text_by_ocr("名群成员", timeout=5)
+        if not members_pos:
+            # 兼容其他文字：N人
+            logger.warning("未找到'名群成员'，尝试点击标题栏中部")
+            self.tap(270, 55)
+        else:
+            self.tap(members_pos[0], members_pos[1], dy=-30)
+        time.sleep(2)
+
+        # 在群设置页改群名
+        pos = self.find_text_by_ocr("群名称", timeout=5)
+        assert pos, "群设置页未找到'群名称'"
+        self.tap(pos[0], pos[1])
+        time.sleep(1.5)
+
+        self.clear_input()
+        time.sleep(0.3)
+        self.input_text(desired_name)
+        time.sleep(0.5)
+
+        self.press_back()
+        time.sleep(0.5)
+        saved = False
+        for btn in ["保存", "完成", "确定"]:
+            try:
+                self.click_text(btn, timeout=2, region=Normal.HALF_UP)
+                saved = True
+                break
+            except AssertionError:
+                continue
+        if not saved:
+            self._adb_tap(486, 107)
+        time.sleep(2)
+
+        # 返回消息列表
+        for _ in range(6):
+            self.press_back()
+            time.sleep(0.5)
+            if self.find_image(MESSAGE_TAB_BLUE, timeout=1):
+                break
+
+        logger.info(f"✅ [MuMu] 已创建并改名为 '{desired_name}'")
+        return desired_name
+
+
+    # ==================== 群管理子页面操作 ====================
+
+    def enter_group_management(self, group_identifier: str) -> bool:
+        """
+        进入群管理子页面 (群主专属入口)
+
+        步骤:
+        1. 进入群设置
+        2. 找到并点击"群管理"
+        3. 验证进入群管理页
+
+        Args:
+            group_identifier: 群关键词
+
+        Returns:
+            bool: 是否成功进入
+        """
+        logger.info(f"🔧 [MuMu] 进入群管理: {group_identifier}")
+        self._enter_group_settings(group_identifier)
+        time.sleep(1)
+
+        # 滑动查找"群管理"
+        pos = None
+        for screen in range(5):
+            pos = self.find_text_by_ocr("群管理", timeout=2)
+            if pos:
+                break
+            self.swipe_up(300)
+            time.sleep(0.5)
+
+        assert pos, "未找到'群管理'入口（当前账号可能不是群主）"
+        self.tap(pos[0], pos[1])
+        time.sleep(2)
+
+        logger.info("✅ 已进入群管理页")
+        return True
+
+    def verify_in_group_management(self, group_identifier: str, setting_name: str) -> str:
+        """
+        进入群管理子页面，查找指定设置项
+
+        步骤:
+        1. 进入群设置
+        2. 点击群管理
+        3. 在群管理页逐屏查找 setting_name
+        4. 返回消息列表
+
+        Args:
+            group_identifier: 群关键词
+            setting_name: 设置项名称（如"转让群主"/"群管理员"/"解散群组"）
+
+        Returns:
+            str: "found" 表示找到
+        """
+        logger.info(f"🔍 [MuMu] 在群管理中查找 '{setting_name}'")
+        self.enter_group_management(group_identifier)
+
+        found = False
+        for screen in range(5):
+            pos = self.find_text_by_ocr(setting_name, timeout=2)
+            if pos:
+                found = True
+                logger.info(f"✅ 找到 '{setting_name}' at {pos} (第{screen+1}屏)")
+                break
+            self.swipe_up(300)
+            time.sleep(0.5)
+
+        assert found, f"群管理页面中未找到 '{setting_name}'"
+
+        # 返回消息列表
+        for _ in range(6):
+            self.press_back()
+            time.sleep(0.5)
+            if self.find_image(MESSAGE_TAB_BLUE, timeout=1):
+                break
+
+        logger.info(f"✅ 验证 '{setting_name}' 完成")
+        return "found"
+
+    def click_in_group_management(self, group_identifier: str, click_text: str,
+                                    verify_text: str = None) -> bool:
+        """
+        进入群管理页后点击指定项，验证新页面
+
+        Args:
+            group_identifier: 群关键词
+            click_text: 要点击的文字
+            verify_text: 点击后新页面应包含的文字（可选）
+
+        Returns:
+            bool: 操作是否成功
+        """
+        logger.info(f"👆 [MuMu] 群管理中点击 '{click_text}' (验证: {verify_text})")
+        self.enter_group_management(group_identifier)
+
+        # 滑动查找并点击
+        clicked = False
+        for screen in range(5):
+            pos = self.find_text_by_ocr(click_text, timeout=2)
+            if pos:
+                self.tap(pos[0], pos[1])
+                clicked = True
+                time.sleep(1.5)
+                break
+            self.swipe_up(300)
+            time.sleep(0.5)
+        assert clicked, f"群管理页未找到 '{click_text}'"
+
+        # 验证新页面
+        if verify_text:
+            found = self.find_text_by_ocr(verify_text, timeout=5)
+            assert found, f"点击 '{click_text}' 后未找到 '{verify_text}'"
+
+        # 返回消息列表
+        for _ in range(6):
+            self.press_back()
+            time.sleep(0.5)
+            if self.find_image(MESSAGE_TAB_BLUE, timeout=1):
+                break
+        return True
+
+    def toggle_group_management_switch(self, group_identifier: str, setting_name: str,
+                                         dx: int = 200) -> bool:
+        """
+        在群管理页切换开关
+
+        Args:
+            group_identifier: 群关键词
+            setting_name: 开关名称
+            dx: 开关相对文字的x偏移
+
+        Returns:
+            bool: 操作是否成功
+        """
+        logger.info(f"🔀 [MuMu] 群管理切换开关 '{setting_name}'")
+        self.enter_group_management(group_identifier)
+
+        found_pos = None
+        for screen in range(5):
+            pos = self.find_text_by_ocr(setting_name, timeout=2)
+            if pos:
+                found_pos = pos
+                break
+            self.swipe_up(300)
+            time.sleep(0.5)
+
+        assert found_pos, f"群管理页未找到 '{setting_name}'"
+        self.tap(found_pos[0] + dx, found_pos[1])
+        time.sleep(1)
+
+        # 返回消息列表
+        for _ in range(6):
+            self.press_back()
+            time.sleep(0.5)
+            if self.find_image(MESSAGE_TAB_BLUE, timeout=1):
+                break
+        logger.info(f"✅ 开关已切换")
+        return True

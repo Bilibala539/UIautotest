@@ -433,40 +433,22 @@ class UsersFactory:
             "name": "测试用户A"
         },
         "userB": {
-            "uid": "grp.popoqa93@corp.netease.com",
-            "password": "123Ykhwl",
+            "uid": "grp.popoqa73@corp.netease.com",
+            "password": "Lazermlfy1@",
             "env": "test03",
-            "name": "测试用户B"
+            "name": "grp73"
         },
         "userC": {
-            "uid": "grp.popoqa129@corp.netease.com",
-            "password": "Popoqa163",
+            "uid": "grp.popoqa74@corp.netease.com",
+            "password": "Lazermlfy1@",
             "env": "test03",
-            "name": "测试用户C"
+            "name": "grp74"
         },
-        "grp125": {
-            "uid": "grp.popoqa125@corp.netease.com",
-            "password": "popoGrp@2020",
+        "userD": {
+            "uid": "grp.popoqa75@corp.netease.com",
+            "password": "Lazermlfy1@",
             "env": "test03",
-            "name": "grp125"
-        },
-        "grp93": {
-            "uid": "grp.popoqa93@corp.netease.com",
-            "password": "123Ykhwl",
-            "env": "test03",
-            "name": "grp93"
-        },
-        "grp129": {
-            "uid": "grp.popoqa129@corp.netease.com",
-            "password": "Popoqa163",
-            "env": "test03",
-            "name": "grp129"
-        },
-        "grp52": {
-            "uid": "grp.popoqa52@corp.netease.com",
-            "password": "Popoqa163",
-            "env": "test03",
-            "name": "grp52"
+            "name": "grp75"
         },
         "grpmax": {
             "uid": "grp.superpopo@corp.netease.com",
@@ -479,7 +461,8 @@ class UsersFactory:
             "password": "Qwe1234!!",
             "env": "prod",
             "name": "王英"
-        }
+        },
+
     }
     
     def __init__(self, device_manager: DeviceManager, platform: str = "mumu"):

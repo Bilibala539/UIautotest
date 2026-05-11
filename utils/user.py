@@ -654,6 +654,73 @@ class PPUser:
             return self.aw.click_image(image_name)
         return False
 
+    # ==================== 群设置功能 ====================
+
+    def open_group_settings_page(self, group_identifier: str) -> bool:
+        """进入群设置页面"""
+        return self.aw.open_group_settings_page(group_identifier)
+
+    def check_group_message_reminder(self, group_identifier: str) -> bool:
+        """检查群消息提醒状态并切换"""
+        return self.aw.check_group_message_reminder(group_identifier)
+
+    def verify_group_setting_default(self, group_identifier: str, setting_name: str) -> str:
+        """验证群设置页面中某个设置项的默认状态"""
+        return self.aw.verify_group_setting_default(group_identifier, setting_name)
+
+    def open_group_qr_code(self, group_identifier: str) -> bool:
+        """打开群二维码页面"""
+        return self.aw.open_group_qr_code(group_identifier)
+
+    def open_group_announcement_page(self, group_identifier: str) -> bool:
+        """打开群公告页面"""
+        return self.aw.open_group_announcement_page(group_identifier)
+
+    # ==================== 群设置扩展代理 ====================
+
+    def click_in_group_settings(self, group_identifier: str, click_text: str,
+                                  verify_text=None, region=None) -> bool:
+        return self.aw.click_in_group_settings(group_identifier, click_text, verify_text, region)
+
+    def toggle_group_setting_switch(self, group_identifier: str, setting_name: str,
+                                      dx: int = 200) -> bool:
+        return self.aw.toggle_group_setting_switch(group_identifier, setting_name, dx)
+
+    def edit_group_description(self, group_identifier: str, description: str) -> bool:
+        return self.aw.edit_group_description(group_identifier, description)
+
+    def open_group_member_list(self, group_identifier: str) -> bool:
+        return self.aw.open_group_member_list(group_identifier)
+
+    def click_group_qr_code(self, group_identifier: str) -> bool:
+        return self.aw.click_group_qr_code(group_identifier)
+
+
+    # ==================== 群主测试群管理代理 ====================
+    def setup_owner_group(self, desired_name: str = "自动化测试群主群") -> str:
+        """确保有固定名的群主测试群"""
+        return self.aw.setup_owner_group(desired_name)
+
+    def rename_group_name(self, current_group_keyword: str, new_name: str) -> bool:
+        """修改群名"""
+        return self.aw.rename_group_name(current_group_keyword, new_name)
+
+
+    # ==================== 群管理子页面代理 ====================
+    def enter_group_management(self, group_identifier: str) -> bool:
+        return self.aw.enter_group_management(group_identifier)
+
+    def verify_in_group_management(self, group_identifier: str, setting_name: str) -> str:
+        return self.aw.verify_in_group_management(group_identifier, setting_name)
+
+    def click_in_group_management(self, group_identifier: str, click_text: str,
+                                    verify_text=None) -> bool:
+        return self.aw.click_in_group_management(group_identifier, click_text, verify_text)
+
+    def toggle_group_management_switch(self, group_identifier: str, setting_name: str,
+                                         dx: int = 200) -> bool:
+        return self.aw.toggle_group_management_switch(group_identifier, setting_name, dx)
+
     def __repr__(self):
         return f"PPUser(uid='{self.uid}', platform='{self.platform}', device={self.device})"
 

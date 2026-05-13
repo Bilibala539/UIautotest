@@ -18,7 +18,7 @@ from typing import List, Optional, Tuple
 from utils.window_manager import WindowManager
 
 # ==================【配置区】==================
-MUMU_INSTALL_PATH = r"C:\Program Files\Netease\MuMu\nx_main"  # MuMu12安装目录
+MUMU_INSTALL_PATH = r"D:\MuMuPlayer\nx_main"  # MuMu12安装目录
 DOWNLOAD_URL = r"http://10.220.28.153/client_android/popo_origin-feature_workhub_9027_dev.apk"  # 包体的下载链接
 
 DEVICE_COUNT = 1  # 启动设备数量（1-3）

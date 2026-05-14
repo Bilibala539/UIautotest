@@ -25,6 +25,7 @@ import paramiko
 from scp import SCPClient
 
 import time
+import socket
 
 import pyautogui
 import pytest
@@ -898,11 +899,26 @@ def _generate_and_upload_allure_report():
         sftp.close()
 
         logger.info(f"✅ 全部上传完成 → http://{_REPORT_HOST}/reports/allure-report/history.html")
+
+        # 上传成功后清理本地中间文件（释放磁盘空间）
+        _cleanup_local_artifacts(base_dir)
     except Exception as e:
         logger.error(f"❌ 报告上传失败: {e}")
     finally:
         if ssh:
             ssh.close()
+
+
+def _cleanup_local_artifacts(base_dir: str):
+    """删除本地 allure-results / allure-report 临时目录。"""
+    for name in ("allure-results", "allure-report", "sessions"):
+        path = os.path.join(base_dir, name)
+        if os.path.isdir(path):
+            try:
+                shutil.rmtree(path)
+                logger.info(f"🧹 已清理本地: {name}/")
+            except Exception as e:
+                logger.warning(f"⚠️ 清理 {name}/ 失败: {e}")
 
 
 def _write_custom_css(path: str):
@@ -1037,6 +1053,8 @@ def _save_session_data(base_dir: str):
         "ts":       datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "platform": _PLATFORM,
         "project":  _PROJECT,
+        "host":     socket.gethostname(),
+        "ip":       socket.gethostbyname(socket.gethostname()),
         "total": total, "passed": passed, "failed": failed,
         "skipped": skipped, "duration": duration,
         "tests": safe_tests,
@@ -1072,7 +1090,7 @@ def _sync_remote_history(sftp, session_data: dict):
     sid   = session_data["id"]
     index["sessions"] = [s for s in index["sessions"] if s["id"] != sid]
     index["sessions"].insert(0, {k: session_data[k]
-                                 for k in ("id","ts","platform","project","total","passed","failed","skipped","duration")})
+                                 for k in ("id","ts","platform","project","host","ip","total","passed","failed","skipped","duration")})
     _upload_json(f"{remote_dir}/index.json", index)
 
     # ── test_history.json ────────────────────────────────────────────

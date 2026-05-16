@@ -20,7 +20,7 @@ class TestServiceAccountMarkAsRead(BaseTest):
         2. 点击"设为已读"
         3. 验证灰点消失
         """
-        self.userA.mark_conversation_as_read("服务号助手")
+        self.userA.long_press_session_toggle_read_status()
 
     def teardown(self):
         pass

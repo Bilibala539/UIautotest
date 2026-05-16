@@ -9,21 +9,21 @@ HOME_POPO_LOGO = os.path.join(path, "桌面-logo.png")
 LOGIN_READ_CENTER_FALSE = os.path.join(path, "登录页-阅读同意勾选框-未勾选.png")
 LOGIN_READ_CENTER_TRUE = os.path.join(path, "登录页-阅读同意勾选框-已勾选.png")
 LOGIN_ENTER = os.path.join(path, "登录页-登录按钮.png")
-MESSAGE_TAB_BLUE = os.path.join(path, "消息tab页-导航栏消息蓝色高亮.png")
+MESSAGE_TAB_BLUE = os.path.join(test_path, "消息tab页-导航栏消息蓝色高亮.png")
 MESSAGE_TAB_GRUE = os.path.join(path, "消息tab页-导航栏消息灰色.png")
-MESSAGE_TAB_MSG_TEXT = os.path.join(path, "消息tab页-左上角消息文案.png")
+MESSAGE_TAB_MSG_TEXT = os.path.join(test_path, "消息tab页-左上角消息文案.png")
 MESSAGE_TAB_SEARCH = os.path.join(path, "会话列表页-搜索按钮.png")
 
 # 侧边栏
 SIDEBAR_SETTINGS = os.path.join(path, "侧边栏-设置.png")
 
 # 设置页
-SETTINGS_LOGOUT = os.path.join(path, "设置页-退出登录.png")
+SETTINGS_LOGOUT = os.path.join(test_path, "设置页-退出登录.png")
 SETTINGS_LOGOUT_CONFIRM = os.path.join(path, "退登确认弹窗-退出登录.png")
-SETTINGS_MESSAGE_ENTRY = os.path.join(path, "设置页-消息入口.png")
+SETTINGS_MESSAGE_ENTRY = os.path.join(test_path, "设置页-消息入口.png")
 
 # 消息设置页
-MSG_SETTINGS_TITLE = os.path.join(path, "消息设置页-页面标题消息.png")
+MSG_SETTINGS_TITLE = os.path.join(test_path, "消息设置页-页面标题消息.png")
 MSG_SETTINGS_SWITCH_ON = os.path.join(path, "消息设置页-开关-开启状态.png")
 MSG_SETTINGS_SWITCH_OFF = os.path.join(path, "消息设置页-开关-关闭状态.png")
 
@@ -49,8 +49,8 @@ MSG_GOOD = os.path.join(path, "会话窗口-赞按钮.png")
 MSG_MESSAGE_GOOD = os.path.join(path, "会话窗口-赞消息.png")
 
 # ==================== 聊天页 - 扩展编辑（富文本） ====================
-CHAT_PARAGRAPH_BUTTON = os.path.join(path, "聊天页-段落按钮.png")
-EXTENDED_EDIT_BOLD_B = os.path.join(path, "扩展编辑-加粗B按钮.png")
+CHAT_PARAGRAPH_BUTTON = os.path.join(test_path, "聊天页-段落按钮.png")
+EXTENDED_EDIT_BOLD_B = os.path.join(test_path, "扩展编辑-加粗B按钮.png")
 EXTENDED_EDIT_ITALIC_I = os.path.join(path, "扩展编辑-斜体I按钮.png")
 EXTENDED_EDIT_UNDERLINE_U = os.path.join(path, "扩展编辑-下划线U按钮.png")
 EXTENDED_EDIT_STRIKETHROUGH_S = os.path.join(path, "扩展编辑-删除线S按钮.png")
@@ -79,7 +79,7 @@ IMAGE_EDITOR_H = os.path.join(path, "图片编辑器-H.png")
 # 长按菜单相关（已验证通过）
 CHAT_REPLY_QUOTE_BAR = os.path.join(path, "聊天页-回复引用栏.png")
 CHAT_REPLY_QUOTE_CLOSE = os.path.join(path, "聊天页-引用关闭按钮.png")
-CHAT_COPY_SUCCESS_TOAST = os.path.join(path, "聊天页-复制成功toast.png")
+CHAT_COPY_SUCCESS_TOAST = os.path.join(test_path, "聊天页-复制成功toast.png")
 CHAT_MULTI_SELECT_TITLE = os.path.join(path, "聊天页-多选模式标题栏.png")
 CHAT_TRANSLATE_RESULT = os.path.join(path, "聊天页-翻译结果文案.png")
 CHAT_FAVORITE_TOAST = os.path.join(path, "聊天页-已收藏提示.png")
@@ -144,14 +144,14 @@ SEARCH_WANGYING_BLUE = os.path.join(path, "王英-蓝色高亮.png")
 SEARCH_WANGYING43_BLUE = os.path.join(path, "wangying43-蓝色高亮.png")
 SEARCH_WANGYING_HEAD = os.path.join(path, "王英头像彩色.png")
 
-SEARCH_CESHI_BLUE = os.path.join(path, "测试-蓝色高亮.png")
+SEARCH_CESHI_BLUE = os.path.join(test_path, "测试-蓝色高亮.png")
 SEARCH_123_BLUE = os.path.join(path, "123-蓝色高亮.png")
 SEARCH_GRPPOPOQA_BLUE = os.path.join(path, "grp.popoqa蓝色高亮.png")
 
 # 侧边栏
-SIDEBAR_MY_COLLECTION = os.path.join(path, "侧边栏-我的收藏.png")
+SIDEBAR_MY_COLLECTION = os.path.join(test_path, "侧边栏-我的收藏.png")
 SIDEBAR_DEVICE_MANAGEMENT = os.path.join(path, "侧边栏-登录设备管理.png")
-SIDEBAR_SETTINGS_BUTTON = os.path.join(path, "侧边栏-设置按钮.png")
+SIDEBAR_SETTINGS_BUTTON = os.path.join(test_path, "侧边栏-设置按钮.png")
 SIDEBAR_SERVICE_DESK = os.path.join(path, "侧边栏-服务台.png")
 
 # 个人资料页
@@ -194,6 +194,6 @@ CONTACTS_NAV_ELIFE_TAB = os.path.join(path, "通讯录页-底部导航栏易生�
 CONTACTS_NAV_MORE_TAB = os.path.join(path, "通讯录页-底部导航栏更多tab.png")
 
 # 会话分组
-SESSION_GROUP_MORE_BUTTON = os.path.join(path, "消息tab页-分组更多按钮.png")
+SESSION_GROUP_MORE_BUTTON = os.path.join(test_path, "消息tab页-分组更多按钮.png")
 
 

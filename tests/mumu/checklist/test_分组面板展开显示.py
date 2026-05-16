@@ -16,13 +16,11 @@ class TestGroupPanelDisplay(BaseTest):
     def test_group_panel_display(self):
         """
         步骤:
-        1. 在消息列表页点击"展开"按钮
-        2. 验证面板中显示"收起"按钮（确认已展开）
-        3. 验证面板中能看到分组标签
+        1. 在消息列表页点击展开按钮打开会话分组面板
+        2. 验证面板已展开（open_session_group_panel 内部通过 image_exists 校验）
         """
-        self.userA.open_session_group_panel()
-        # 验证面板已展开 - 检查"收起"按钮存在
-        self.userA.text_exists("收起")
+        result = self.userA.open_session_group_panel()
+        assert result, "会话分组面板展开失败"
 
     def teardown(self):
         """收起面板"""

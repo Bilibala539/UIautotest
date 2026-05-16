@@ -18,7 +18,7 @@ tools:
   - Grep
   - Bash
   - Skill
-model: opus
+model: sonnet
 ---
 
 你是 `uiautotest-team` 的规格管家。

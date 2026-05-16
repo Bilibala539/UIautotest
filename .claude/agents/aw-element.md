@@ -15,7 +15,7 @@ tools:
   - Glob
   - Grep
   - Bash
-model: opus
+model: sonnet
 ---
 
 你是 `uiautotest-team` 的元素截图专员。职责对应 `.codemaker/skills/aw-element/SKILL.md`。
@@ -37,6 +37,30 @@ test_path = r"E:\UIAutotest\image_ai"   # 暂存目录（新截取的草稿）
 
 - 新截的图先进 `image_ai/`，注册时用 `test_path`
 - 跑通后由 aw-verify 负责转正（image_ai → image，mapping 里 test_path → path）
+
+## ⛔ 安全规则：禁止 `python -c` 含 `#` 注释（最高优先级）
+
+**严禁**用 `python -c "..."` 执行包含 `#` 注释的 Python 代码。会触发沙箱警告，每次手动确认，阻塞自动化流程。
+
+```bash
+# ❌ 禁止：内联含 # 注释，触发 "Newline followed by #" 警告
+python -c "
+import numpy as np
+# analyze red pixels
+arr = np.array(img)
+"
+
+# ✅ 正确：写临时文件再执行
+cat > E:\UIAutotest\_temp.py << 'PYEOF'
+import numpy as np
+# this comment is fine in a .py file
+arr = np.array(img)
+print(arr.shape)
+PYEOF
+python E:\UIAutotest\_temp.py
+```
+
+**只要代码中有 `#`，就必须走"临时文件 → 执行"流程。**不带注释的简单单行/少行可以用 `-c`。
 
 ## 强制规则
 

@@ -1,0 +1,183 @@
+<rule>
+
+# AW 统一架构说明
+
+## 目录结构
+
+```
+utils/aw/
+├── __init__.py             # 统一入口: from utils.aw import create_aw
+├── aw_base.py              # 统一基础操作: OCR/图像匹配/tap/click_text（只维护一份）
+├── aw_helper.py            # 工厂函数 create_aw()，根据 platform 创建对应业务类
+├── search_region.py        # 屏幕区域常量 Normal.ALL / HALF_UP 等
+├── driver/                 # 平台驱动层（封装底层差异）
+│   ├── base_driver.py      # 抽象基类: 截图/窗口/输入/点击/滑动接口
+│   ├── mumu_driver.py      # MuMu: pyautogui截图 + WindowManager + ADB输入
+│   └── pc_driver.py        # PC: mss截图 + win32gui + 剪贴板输入
+└── business/               # 业务层（按平台分离）
+    ├── common.py            # 两端通用业务: go_to_messages/go_to_contacts 等
+    ├── mumu.py              # MuMu端专属: login/logout/create_team/群组操作 等
+    └── pc.py                # PC端专属: login/logout/search_contact/send_message 等
+
+tests/
+├── mumu/                   # MuMu端用例（自动识别为 platform="mumu"）
+│   └── test_xxx.py
+├── win/                    # PC端用例（自动识别为 platform="pc"）
+│   └── test_xxx.py
+└── conftest.py
+```
+
+## 核心设计
+
+```
+用例层 (tests/mumu/ 或 tests/win/)
+  self.userA.login()            ← 调用方式一样，底层走各自的实现
+  self.userA.aw.click_text()    ← 基础操作共用
+       ↓
+PPUser.aw → create_aw(platform)
+       ↓
+  platform="mumu" → MuMuBusiness (mumu.py)
+  platform="pc"   → PCBusiness   (pc.py)
+       ↓ 继承
+  CommonBusiness (common.py)  ← 两端通用的业务方法
+       ↓ 继承
+  AWBase (aw_base.py)         ← 基础操作，只维护一份
+       ↓ self.driver.xxx()
+  MuMuDriver / PCDriver      ← 底层平台差异
+```
+
+## 继承关系
+
+```
+MuMuBusiness → CommonBusiness → AWBase → (uses) MuMuDriver
+PCBusiness   → CommonBusiness → AWBase → (uses) PCDriver
+```
+
+## 平台选择规则（优先级从高到低）
+
+1. marker标记: `@pytest.mark.pc` 或 `@pytest.mark.mumu`
+2. 文件夹路径: `tests/win/` → pc，`tests/mumu/` → mumu
+3. 默认值: mumu
+
+## 维护规则
+
+- 基础操作 (aw_base.py): 只写一份，两端共用
+- 通用业务 (common.py): 两端 UI 流程一致的方法放这里
+- 平台业务 (mumu.py / pc.py): UI 流程/检查图片不同的方法各写各的
+- 新增业务方法时判断: 两端一样 → common.py，不一样 → 各自的文件
+- 新增平台: 只需在 business/ 和 driver/ 各加一个文件
+
+## PC端专属目录
+
+```
+image_pc/                       # PC端正式元素图片
+image_pc_ai/                    # PC端暂存元素图片
+image_pc/image_name_mapping.py  # PC端图片常量定义（PC_前缀）
+
+explorer_output/
+├── knowledge_pc/               # PC端知识库
+│   ├── app_map.json            # PC端结构索引
+│   └── pages/                  # PC端页面详情
+├── screenshots_pc/             # PC端探索截图
+├── elements_pc/                # PC端裁切元素暂存
+└── records_pc/                 # PC端探索记录
+
+tests/win/                      # PC端测试用例
+```
+
+## 多PC多用户架构
+
+PC端POPO不支持多开（同一台机器只能运行一个客户端实例），多用户交互测试需要多台PC。
+
+### 架构图
+
+```
+pytest 主控端 (本地 PC)
+├── PCDriver       → 本地 POPO 窗口 (userA)
+└── RemotePCDriver → 远程 PC POPO 窗口 (userB) ──SSH──► 远程 PC
+```
+
+### 三种平台模式
+
+| 平台 | 驱动 | 业务类 | 适用场景 |
+|------|------|--------|---------|
+| `mumu` | MuMuDriver | MuMuBusiness | 安卓模拟器测试 |
+| `pc` | PCDriver | PCBusiness | 本地PC单用户测试 |
+| `remote_pc` | RemotePCDriver | PCBusiness | 远程PC多用户测试 |
+
+### 远程PC前置条件
+
+1. 远程PC已安装POPO客户端并登录
+2. 远程PC已运行 `tools/screenshot_server.py`（HTTP截图服务，端口9876）
+3. 远程PC已开启SSH服务（OpenSSH Server）
+4. 本地PC可通过SSH连接远程PC
+
+### 远程PC配置方式
+
+**方式1：环境变量**
+```bash
+set PLATFORM=remote_pc
+set REMOTE_PC_HOST=192.168.1.100
+set REMOTE_PC_USERNAME=username
+set REMOTE_PC_PASSWORD=password
+set REMOTE_PC_SSH_PORT=22
+set REMOTE_PC_SCREENSHOT_PORT=9876
+```
+
+**方式2：用户配置（conftest.py USER_CONFIGS）**
+```python
+"userB": {
+    "uid": "grp.popoqa93@corp.netease.com",
+    "password": "123Ykhwl",
+    "env": "test03",
+    "name": "userB",
+    "remote_host": "192.168.1.100",
+    "remote_ssh_port": 22,
+    "remote_username": "username",
+    "remote_password": "password",
+    "remote_screenshot_port": 9876
+}
+```
+
+### 多用户测试用例模板（PC端）
+
+```python
+class TestMultiUserPC(BaseTest):
+    def setup(self):
+        # userA 使用本地PC
+        self.userA = self.users("userA")
+        # userB 使用远程PC（需配置 remote_host 等）
+        self.userB = self.users("userB")
+
+    def test_user_interaction(self):
+        # userA 发送消息
+        self.userA.send_message("grp.popoqa93", "Hello from userA")
+        # userB 查看消息
+        self.userB.text_exists("Hello from userA")
+```
+
+## PC端与安卓端关键差异
+
+| 维度 | MuMu (安卓) | PC (Win) | 远程PC |
+|------|------------|----------|--------|
+| 窗口大小 | 固定 540×960 | 不固定，需动态获取 | 不固定，需动态获取 |
+| 导航模式 | 底部Tab栏 + 返回键 | 侧边栏/菜单栏 + Escape | 侧边栏/菜单栏 + Escape |
+| 图片目录 | image/ + image_ai/ | image_pc/ + image_pc_ai/ | image_pc/ + image_pc_ai/ |
+| 图片常量前缀 | 无前缀 (如 LOGIN_ENTER) | PC_前缀 (如 PC_LOGIN_ENTER) | PC_前缀 |
+| 知识库 | knowledge/ | knowledge_pc/ | knowledge_pc/ |
+| 用例目录 | tests/mumu/ | tests/win/ | tests/win/ |
+| 输入方式 | ADB input text | 剪贴板 Ctrl+V | SSH→剪贴板 Ctrl+V |
+| App启停 | ADB monkey/force-stop | 进程启动/关闭 | SSH→进程启动/关闭 |
+| 截图方式 | pyautogui.screenshot | mss.grab | HTTP→mss.grab |
+| 多用户 | 多模拟器实例 | ❌ 不支持多开 | ✅ 多台PC |
+
+## driver 层两端差异对照
+
+| 能力 | MuMuDriver | PCDriver |
+|------|-----------|----------|
+| 截图 | pyautogui.screenshot | mss.grab (支持多显示器) |
+| 窗口定位 | WindowManager (按实例ID) | win32gui.EnumWindows (按标题关键词) |
+| 输入文字 | ADB input text / ADB 剪贴板 | 始终剪贴板Ctrl+V |
+| 初始化参数 | instance_id: int | window_keywords: list |
+
+</rule>

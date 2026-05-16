@@ -20,9 +20,9 @@ class TestLongPressPin(BaseTest):
         2. 点击"置顶"
         3. 验证会话被置顶
         """
-        # 使用非置顶的会话来测试置顶
-        self.userA.pin_conversation("工作日历")
+        # 使用已封装的置顶方法（自动判断当前状态切换置顶/取消置顶）
+        self.userA.long_press_session_pin()
 
     def teardown(self):
         """清理：取消置顶"""
-        self.userA.unpin_conversation("工作日历")
+        self.userA.long_press_session_pin()

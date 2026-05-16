@@ -81,7 +81,8 @@ os.makedirs(log_dir, exist_ok=True)
 
 # 创建 HTML 日志文件路径
 _log_timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-log_file = os.path.join(log_dir, f"test_{_log_timestamp}.html")
+_log_instance_id = os.environ.get("INSTANCE_ID", "0")
+log_file = os.path.join(log_dir, f"test_{_log_timestamp}_inst{_log_instance_id}.html")
 
 # 本次 session 的测试结果（供历史报告使用）
 _test_results: list = []
@@ -507,8 +508,24 @@ class UsersFactory:
         self._device_manager = device_manager
         self._platform = platform
         self._created_users: Dict[str, PPUser] = {}
-        self._device_index: int = 0
-        logger.info(f"👤 UsersFactory 初始化 (platform={platform}, scope=session)")
+
+        # 并行执行支持：INSTANCE_ID 环境变量指定设备索引 + 账号映射
+        instance_id = os.environ.get("INSTANCE_ID")
+        if instance_id is not None:
+            self._instance_id = int(instance_id)
+            self._device_index = self._instance_id
+            # 每个实例绑定不同账号，避免登录 session 互踢
+            # instance 0 → userA, instance 1 → userB, instance 2 → userC, instance 3 → userD
+            _ACCOUNT_KEYS = ["userA", "userB", "userC", "userD"]
+            if self._instance_id < len(_ACCOUNT_KEYS):
+                self._user_key_map = {"userA": _ACCOUNT_KEYS[self._instance_id]}
+            else:
+                self._user_key_map = {}
+        else:
+            self._instance_id = 0
+            self._device_index = 0
+            self._user_key_map = {}
+        logger.info(f"👤 UsersFactory 初始化 (platform={platform}, instance_id={self._instance_id}, scope=session)")
     
     def __call__(self, user_key: str) -> PPUser:
         """
@@ -526,6 +543,10 @@ class UsersFactory:
         Raises:
             ValueError: 如果用户配置不存在
         """
+        # 并行模式：将 "userA" 重映射到实例专属账号（避免同一账号多设备登录互踢）
+        if user_key in self._user_key_map:
+            user_key = self._user_key_map[user_key]
+
         # 相同 user_key 返回同一个用户实例（设备绑定不变）
         if user_key in self._created_users:
             user = self._created_users[user_key]

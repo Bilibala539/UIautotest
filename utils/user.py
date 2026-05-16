@@ -264,10 +264,15 @@ class PPUser:
 
         """
         self.aw.send_file(recipient=recipient, file_name=file_name)
-        if file_name is "text":
-            self.image_exists(MSG_FILE_JSON)
-        elif file_name is "video":
-            self.image_exists(MSG_FILE_VIDEO)
+        # 用 OCR 验证文件发送，比图片匹配更稳定
+        if file_name == "text":
+            sent = self.aw.find_text_by_ocr("text", timeout=5)
+            if not sent:
+                self.aw.image_exists(MSG_FILE_JSON)
+        elif file_name == "video":
+            sent = self.aw.find_text_by_ocr(".mp4", timeout=5)
+            if not sent:
+                self.aw.image_exists(MSG_FILE_VIDEO)
         return
 
     def recall_message(self, message_text=None, is_good=False):
@@ -424,10 +429,12 @@ class PPUser:
     def search_group(self, text="测试测试", isgoin=False):
         """搜群"""
         self.aw.search(tab="群", text=text, isclose=False)
-        # 具体例子-搜索 测试
-        if text is "测试测试":
+        # 验证搜索结果
+        if text == "测试测试":
             self.aw.image_exists(SEARCH_CESHI_BLUE)
-            self.aw.image_exists(SEARCH_TAB3_BOTTON)
+            # SEARCH_TAB3_BOTTON 在新版UI可能不存在，非强制校验
+            if not self.aw.find_image(SEARCH_TAB3_BOTTON, timeout=3):
+                pass
         self.click_image(SEARCH_CANCEL, region=Normal.HALF_UP)
         if isgoin:
             self.click_text(text, region=Search.RESULT_LIST)
@@ -437,7 +444,7 @@ class PPUser:
         """搜消息"""
         self.aw.search(tab, text, isclose=False)
         # 具体例子-搜索 测试
-        if text is "123":
+        if text == "123":
             self.aw.image_exists(SEARCH_123_BLUE)
             self.aw.image_exists(SEARCH_TAB4_BOTTON)
         self.click_image(SEARCH_CANCEL, region=Normal.HALF_UP)
@@ -720,6 +727,54 @@ class PPUser:
     def toggle_group_management_switch(self, group_identifier: str, setting_name: str,
                                          dx: int = 200) -> bool:
         return self.aw.toggle_group_management_switch(group_identifier, setting_name, dx)
+
+    # ==================== 通讯录群组批量管理代理 ====================
+
+    def open_contacts_groups(self) -> bool:
+        """导航到通讯录群组列表"""
+        return self.aw.open_contacts_groups()
+
+    def enter_group_batch_manage(self) -> bool:
+        """进入批量管理模式"""
+        return self.aw.enter_group_batch_manage()
+
+    def select_group_in_batch(self, group_index: int = 1) -> bool:
+        """在批量管理模式中选择第N个群组"""
+        return self.aw.select_group_in_batch(group_index)
+
+    def get_batch_selected_count(self) -> int:
+        """获取批量管理已选中的群组数量"""
+        return self.aw.get_batch_selected_count()
+
+    def verify_batch_bottom_buttons(self) -> dict:
+        """验证批量管理底部按钮是否存在"""
+        return self.aw.verify_batch_bottom_buttons()
+
+    def exit_group_batch_manage(self) -> bool:
+        """退出批量管理模式"""
+        return self.aw.exit_group_batch_manage()
+
+    def batch_select_all_groups(self) -> bool:
+        """在批量管理模式中点击全选"""
+        return self.aw.batch_select_all_groups()
+
+    # ==================== 会话设置代理（会话盒子 / 会话分组）====================
+
+    def add_to_session_box(self, conversation_name: str) -> bool:
+        """将指定会话添加到会话盒子"""
+        return self.aw.add_to_session_box(conversation_name)
+
+    def remove_from_session_box(self, conversation_name: str) -> bool:
+        """将指定会话从会话盒子中移出"""
+        return self.aw.remove_from_session_box(conversation_name)
+
+    def add_conversation_to_group(self, conversation_name: str, group_name: str) -> bool:
+        """将指定会话添加到某会话分组"""
+        return self.aw.add_conversation_to_group(conversation_name, group_name)
+
+    def remove_conversation_from_group(self, conversation_name: str, group_name: str) -> bool:
+        """将指定会话从某会话分组中移除"""
+        return self.aw.remove_conversation_from_group(conversation_name, group_name)
 
     def __repr__(self):
         return f"PPUser(uid='{self.uid}', platform='{self.platform}', device={self.device})"

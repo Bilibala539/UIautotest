@@ -17,17 +17,16 @@ class TestLongConversationName(BaseTest):
     def test_long_name_displays_correctly(self):
         """
         步骤:
-        1. 在消息列表中查找名称过长的会话（如"超极长的"）
+        1. 在消息列表中查找名称过长的会话
         2. 验证该会话在列表中可正常显示，未出现UI溢出
         3. 验证超长名称被截断显示
         """
-        # "超极长的" 是一个名称比较长的会话（全称可能更长）
-        # 在消息列表中查找它
-        pos = self.userA.aw.find_text_by_ocr("超极长的", timeout=5)
-        assert pos, "消息列表中未找到名称较长的会话'超极长的'"
+        # 找到消息列表中任意一个名称较长的现有会话
+        # OCR 能读到的长名: "吴彦祖，李欢，王英，陈昊等6人"
+        pos = self.userA.aw.find_text_by_ocr("吴彦祖", timeout=5)
+        assert pos, "消息列表中未找到名称较长的会话（尝试匹配'吴彦祖'）"
 
-        # 验证会话列表中能正常显示（能找到即说明渲染正常，未溢出）
-        # 补充：截图保存以供人工审核UI
+        # 截图保存以供人工审核UI
         self.userA.aw.take_screenshot(
             save_path="screenshots/test_long_conversation_name.png"
         )

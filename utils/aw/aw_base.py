@@ -734,10 +734,10 @@ class AWBase:
         img = self.take_screenshot()
         img_w = img.shape[1] if img is not None else 540
         text_y = pos[1]
-        # 扫描文字行 (y±5) 右侧 (x从img_w-80到img_w) 的非白色像素
+        # 扫描文字行 (y±8) 右侧 (x从img_w-120到img_w) 的非白色像素
         scan_y1 = max(0, text_y - 8)
         scan_y2 = min(img.shape[0], text_y + 8)
-        scan_x1 = img_w - 80
+        scan_x1 = img_w - 120
         row_strip = img[scan_y1:scan_y2, scan_x1:img_w]
         # 找非白色像素 (开关控件的灰色或蓝色)
         non_white = (row_strip[:, :, 0].astype(int) < 245) | \

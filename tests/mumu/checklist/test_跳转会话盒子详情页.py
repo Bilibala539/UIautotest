@@ -21,7 +21,7 @@ class TestOpenSessionBoxDetail(BaseTest):
         3. 验证进入会话盒子详情页
         """
         self.userA.open_session_group_panel()
-        self.userA.open_session_box_detail()
+        self.userA.open_session_box()
 
     def teardown(self):
         """返回消息列表"""

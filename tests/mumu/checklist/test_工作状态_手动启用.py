@@ -16,13 +16,19 @@ class TestEnableWorkStatus(BaseTest):
     def test_enable_work_status(self):
         """
         步骤:
-        1. 打开工作状态设置页面
+        1. 打开侧边栏 → 点击"工作状态"入口
         2. 点击"忙碌"状态
         3. 验证状态被启用
         """
-        self.userA.open_work_status_page()
-        self.userA.enable_work_status("忙碌")
+        self.userA.open_sidebar()
+        self.userA.click_text("工作状态", timeout=5)
+        import time; time.sleep(1)
+        self.userA.click_text("忙碌", timeout=5)
+        import time; time.sleep(0.5)
+        # 验证状态已启用
+        assert self.userA.text_exists("忙碌", timeout=3), "工作状态未成功启用"
 
     def teardown(self):
         """关闭工作状态页面"""
-        self.userA.close_work_status_page()
+        self.userA.aw.press_back()
+        self.userA.close_sidebar()

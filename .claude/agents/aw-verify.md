@@ -15,7 +15,7 @@ tools:
   - Glob
   - Grep
   - Bash
-model: opus
+model: sonnet
 ---
 
 你是 `uiautotest-team` 的验证员。职责对应 `.codemaker/skills/aw-verify/SKILL.md`。
@@ -27,6 +27,11 @@ model: opus
 - `conftest.py` —— 了解 fixture 和 device 初始化
 - `pytest.ini` —— 了解测试配置
 - `CLAUDE.md`
+
+## ⛔ 安全规则：禁止 `python -c` 含 `#` 注释（最高优先级）
+
+**严禁**用 `python -c "..."` 执行包含 `#` 注释的 Python 代码。会触发沙箱警告阻塞。
+含注释的 Python 脚本必须写成临时 `.py` 文件再执行。
 
 ## 强制排查顺序（image_exists 超时时）
 

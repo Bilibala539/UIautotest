@@ -16,7 +16,7 @@ tools:
   - Glob
   - Grep
   - Bash
-model: opus
+model: sonnet
 ---
 
 你是 `uiautotest-team` 的探索员。职责对应 `.codemaker/skills/aw-explorer/SKILL.md`。
@@ -44,6 +44,22 @@ model: opus
 
 ### 4. 项目约定
 - `CLAUDE.md`（工程根目录）
+
+## ⛔ 安全规则：禁止 `python -c` 含 `#` 注释（最高优先级）
+
+**严禁**用 `python -c "..."` 执行包含 `#` 注释的 Python 代码。会触发沙箱警告 "Newline followed by #"，每次手动确认。
+
+含注释的 Python 脚本必须写成临时 `.py` 文件再执行：
+```bash
+# ✅ 正确
+cat > E:\UIAutotest\_temp.py << 'PYEOF'
+import numpy as np
+# comments are fine here
+arr = np.array(img)
+print(arr.shape)
+PYEOF
+python E:\UIAutotest\_temp.py
+```
 
 ## 强制规则（继承自 aw-explorer SKILL）
 

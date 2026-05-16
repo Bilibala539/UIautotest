@@ -1,6 +1,3 @@
-
-# 铁律：所有的输出都必须是中文，包括系统提示
-
 # UIAutotest 项目约定
 
 > 这份文件是所有 AI 助手（我本人 + `.claude/agents/` 下所有子 agent）每次开工前的第一份必读。
@@ -26,6 +23,8 @@
 | `explorer_output/knowledge/digest/` | 功能摘要 + 跨页面流程 |
 | `docs/AW方法总结与复用指南.md` | 已封装业务 AW 清单 —— 写新代码前必查 |
 | `docs/UI元素截取与裁剪规范.md` | 元素截图规范 |
+| `docs/并行测试执行指南.md` | 多 MuMu 实例并行跑测试 —— 换机器必读 |
+| `run_parallel.py` | 并行测试运行器入口 |
 | `.codemaker/rules/` | 项目硬性规则（ai_workflow / aw_architecture / rules） |
 | `.codemaker/skills/` | 4 把 aw-* skill 原始定义 |
 | `openspec/changes/` | 开放提案 |
@@ -91,6 +90,31 @@ OCR 文字断言 > 图片断言。**禁止"只断言没异常"**。禁止 `try/e
 3. 完成后 `openspec-archive-change` 归档
 
 当前开放 change：`openspec/changes/agent-team/`（把 4 个 skill 封装成 Python Agent 类的状态机工程化落地）。
+
+## 并行测试执行
+
+checklist 下 138 个用例可用 `run_parallel.py` 并行跑，缩短到约 1/3 耗时。
+
+**机制**：预启动 N 个 MuMu 实例 → 测试文件均匀分片 → N 个独立 pytest 进程各管一个实例（`INSTANCE_ID` 绑定端口 + 账号）。
+
+**账号自动映射**（避免同一账号多设备登录互踢）：
+```
+INSTANCE_ID=0 → userA (grp.popoqa67)   端口 16384
+INSTANCE_ID=1 → userB (grp.popoqa73)   端口 16416
+INSTANCE_ID=2 → userC (grp.popoqa74)   端口 16448
+INSTANCE_ID=3 → userD (grp.popoqa75)   端口 16480
+```
+用例无需改动，仍写 `self.users("userA")`，框架按 INSTANCE_ID 自动映射。
+
+**用法**：
+```bash
+python run_parallel.py                    # 3 实例全量
+python run_parallel.py -n 2 -t 5          # 2 实例跑 5 个文件（验证用）
+```
+
+**串行模式不受影响**：不设 `INSTANCE_ID` 时 `_device_index` 默认 0，`_user_key_map` 为空，行为不变。
+
+详细原理、换机器检查清单、故障排查见 `docs/并行测试执行指南.md`。
 
 ## 禁止事项速查
 

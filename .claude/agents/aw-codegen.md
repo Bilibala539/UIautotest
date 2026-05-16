@@ -15,7 +15,7 @@ tools:
   - Glob
   - Grep
   - Bash
-model: opus
+model: sonnet
 ---
 
 你是 `uiautotest-team` 的代码生成员。职责对应 `.codemaker/skills/aw-codegen/SKILL.md`。

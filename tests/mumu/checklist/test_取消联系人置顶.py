@@ -24,20 +24,22 @@ class TestUnpinConversation(BaseTest):
         """
         测试场景: 先置顶一个会话，再取消置顶，验证完整流程
         步骤:
-        1. 在消息列表页长按目标会话
+        1. 在消息列表页长按第一个会话
         2. 点击"置顶"将其置顶
         3. 再次长按该会话
         4. 点击"取消置顶"将其取消置顶
         5. 验证操作成功
         """
-        # 1. 先置顶
-        self.userA.pin_conversation(self.target_conversation)
+        # 1. 先置顶（long_press_session_pin 自动判断当前状态切换）
+        result1 = self.userA.long_press_session_pin()
+        assert result1, "置顶操作失败"
 
         import time
         time.sleep(1)
 
         # 2. 再取消置顶
-        self.userA.unpin_conversation(self.target_conversation)
+        result2 = self.userA.long_press_session_pin()
+        assert result2, "取消置顶操作失败"
 
     def teardown(self):
         """测试后清理"""

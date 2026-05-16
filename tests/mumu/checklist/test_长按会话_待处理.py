@@ -20,7 +20,7 @@ class TestLongPressPending(BaseTest):
         2. 点击"待处理"
         3. 验证操作成功
         """
-        self.userA.add_conversation_to_pending("工作日历")
+        self.userA.long_press_session_add_to_pending()
 
     def teardown(self):
         pass

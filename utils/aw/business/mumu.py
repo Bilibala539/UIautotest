@@ -235,9 +235,8 @@ class MuMuBusiness(CommonBusiness):
         self.sleep(0.3)
         self.input_text(str(password))
         logger.info("🔑 已输入密码")
-        # 收起键盘，避免遮挡底部的勾选框和登录按钮
-        self.press_back()
-        self.sleep(0.5)
+        # 不按返回键收起键盘，避免部分模拟器版本中按返回键退出登录页面
+        # 步骤6和7会独立查找勾选框和登录按钮图片，超时后会自动重试
 
         # 6. 勾选协议（先检查未勾选状态，如果未找到说明已勾选）
         if self.find_image(LOGIN_READ_CENTER_FALSE, timeout=2):
@@ -251,8 +250,19 @@ class MuMuBusiness(CommonBusiness):
         self.click_image(LOGIN_ENTER)
         self.sleep(1.5)
 
-        # 8. 等待进入消息列表页
-        self.image_exists(MESSAGE_TAB_BLUE, timeout=15)
+        # 8. 等待进入消息列表页，期间可能弹出权限授权弹窗
+        for _ in range(5):
+            self.sleep(1)
+            # 处理可能出现的弹窗（悬浮窗权限、联系人同步授权等）
+            try:
+                self.pop_not_allowed()
+            except Exception:
+                pass
+            if self.find_image(MESSAGE_TAB_BLUE, timeout=2):
+                break
+        else:
+            # 最后一次尝试：直接断言图片存在
+            self.image_exists(MESSAGE_TAB_BLUE, timeout=5)
 
         # 9. 处理可能出现的弹窗
         self.pop_not_allowed()
@@ -381,6 +391,15 @@ class MuMuBusiness(CommonBusiness):
             if not isallow:
                 self.click_image(POPO_POP_CANCEL, timeout=2)
                 logger.info("弹窗已关闭")
+        # 处理登录后可能出现的联系人同步/授权弹窗（OCR方式补充检测）
+        elif self.find_text_by_ocr("授权", timeout=1) and \
+             self.find_text_by_ocr("取消", timeout=0.5):
+            if not isallow:
+                self.click_text("取消", timeout=2)
+                logger.info("授权弹窗已取消")
+            else:
+                self.click_text("授权", timeout=2)
+                logger.info("授权弹窗已同意")
         else:
             logger.info("未发现弹窗")
 

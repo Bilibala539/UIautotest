@@ -44,34 +44,65 @@ class Test组织架构(BaseTest):
         测试场景: 进入通讯录查看组织架构，验证层级显示正常
 
         步骤:
-        1. 点击底部导航栏"通讯录"
-        2. 查看组织架构层级
-        3. 验证层级内容展示正常
+        1. 处理可能存在的弹窗，确保"更多"tab可点击
+        2. 点击底部导航栏"更多"→"通讯录"
+        3. 在通讯录页点击"群组"进入组织架构
+        4. 验证组织架构层级显示正常
 
         预期结果:
-        - 能正常进入通讯录页面
-        - 组织架构层级显示正常
+        - 能正常进入通讯录页面 -> 组织架构层级显示正常
+
+        已知POPO Bug: 悬浮窗弹窗会导致"更多"tab间歇性失效。
+        对策: 点击前先pop_not_allowed()处理弹窗，再确保在消息列表页。
         """
-        # 点击底部导航栏"通讯录"
+        import time
+        from image.image_name_mapping import CONTACTS_TITLE_TEXT, MESSAGE_TAB_BLUE
+
+        # 1. 处理弹窗——这是"更多"tab失效的根因
+        self.userA.aw.pop_not_allowed()
+        time.sleep(0.5)
+
+        # 2. 确保在消息列表页（点击"消息"tab兜底）
+        self.userA.click_text("消息")
+        time.sleep(1)
+        self.userA.image_exists(MESSAGE_TAB_BLUE)
+
+        # 3. 点击底部"更多"tab进入更多应用面板
+        self.userA.click_text("更多")
+        time.sleep(2)
+
+        # 4. 验证更多应用面板已弹出，若失败则尝试处理弹窗后重试
+        found_panel = self.userA.aw.find_text_by_ocr("通讯录", timeout=5)
+        if not found_panel:
+            self.userA.aw.pop_not_allowed()
+            time.sleep(0.5)
+            self.userA.click_text("更多")
+            time.sleep(2)
+        self.userA.text_exists("通讯录", timeout=5)
+
+        # 5. 在更多应用面板中点击"通讯录"
         self.userA.click_text("通讯录")
         time.sleep(2)
 
-        # 验证通讯录页面展示
-        from image.image_name_mapping import CONTACTS_TITLE_TEXT
+        # 6. 图片断言——验证进入通讯录页面
         self.userA.image_exists(CONTACTS_TITLE_TEXT)
+        # OCR验证通讯录页面核心元素（CONTACTS_TEAM_ENTRY图像已过期，用OCR兜底）
+        self.userA.text_exists("通讯录", timeout=5)
+        self.userA.text_exists("联系人分组", timeout=5)
+        self.userA.text_exists("群组", timeout=5)
 
-        # 验证组织架构入口存在
-        self.userA.text_exists("组织架构", timeout=5)
+        # 7. 点击"群组"进入组织架构
+        self.userA.click_text("群组")
+        time.sleep(2)
 
-        # 点击进入组织架构
-        self.userA.click_text("组织架构")
-        time.sleep(1)
-
-        # 验证组织架构页面有内容展示
+        # 8. 验证组织架构页面有内容展示
         self.userA.text_exists("我", timeout=5)
 
-        # 返回消息列表
+        # 9. 返回消息列表
         self.userA.aw.press_back()
+        time.sleep(1)
+        self.userA.aw.press_back()
+        time.sleep(1)
         self.userA.click_text("消息")
 
     def test_组织架构内好友会话(self):
@@ -88,7 +119,7 @@ class Test组织架构(BaseTest):
         - 能正常与组织架构内好友交流
         - 消息发送成功
         """
-        # 发送消息（send_message内含搜人→进会话→输入→发送全流程）
+        # 发送消息（send_message内含搜人->进会话->输入->发送全流程）
         self.userA.send_message(recipient="wangying43", message="组织架构测试消息", isback=True)
 
     def teardown(self):

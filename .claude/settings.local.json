@@ -59,7 +59,10 @@
       "ExitWorktree(*)",
       "ScheduleWakeup(*)",
       "TeamCreate(*)",
-      "TeamDelete(*)"
+      "TeamDelete(*)",
+      "Bash(pytest \"tests/mumu/add/test_收藏列表链接展示及发送人检索.py::Test收藏列表::test_收藏列表打开并展示内容\" -v --tb=line --no-header --override-ini=\"addopts=\")",
+      "Bash(pytest \"tests/mumu/add/test_收藏列表链接展示及发送人检索.py\" -v --tb=line --override-ini=\"addopts=\")",
+      "Bash(python -c ' *)"
     ]
   }
 }

@@ -34,16 +34,17 @@ class Test个人资料页(BaseTest):
 
     def test_分享icon进入推荐页面(self):
         """
-        测试场景: 个人资料页点击分享icon进入推荐页面
+        测试场景: 个人资料页点击品牌/二维码icon进入"我的二维码"页
+
+        新版UI: 旧"分享"按钮已移除，右上角改为品牌/二维码图标(OCR识别为"品")，
+        点击后进入"我的二维码"页面，底部有"发送给同事或群组"按钮。
 
         步骤:
         1. 打开侧边栏→点击用户名区域进入个人资料页
-        2. 点击分享icon
-        3. 验证进入推荐页面
-
-        预期结果:
-        - 成功进入个人资料页
-        - 点击分享后进入推荐页面
+        2. 验证个人资料页加载（个性签名可见）
+        3. 点击右上角品牌/二维码图标("品")
+        4. 验证进入"我的二维码"页（"发送给同事或群组"可见）
+        5. 返回消息列表
         """
         from image.image_name_mapping import SIDEBAR_MY_COLLECTION
         import time
@@ -56,16 +57,18 @@ class Test个人资料页(BaseTest):
         # 验证进入个人资料页（应展示用户信息）
         self.userA.text_exists("个性签名", timeout=5)
 
-        # 点击分享icon进入推荐页面
-        self.userA.click_text("分享")
+        # 点击右上角品牌/二维码图标（OCR识别为"品"）
+        self.userA.click_text("品")
         time.sleep(1)
 
-        # 验证进入推荐页面
-        self.userA.text_exists("推荐", timeout=5)
+        # 验证进入"我的二维码"页面
+        self.userA.text_exists("发送给同事或群组", timeout=5)
 
-        # 返回消息列表
+        # 返回消息列表（从我的二维码页→个人资料页→消息列表）
         self.userA.aw.press_back()
+        time.sleep(0.5)
         self.userA.aw.press_back()
+        time.sleep(0.5)
 
     def teardown(self):
         pass

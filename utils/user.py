@@ -336,6 +336,24 @@ class PPUser:
         """打开设置页面"""
         return self.aw.open_settings()
 
+    # ==================== 日历模块（新版"任务管理"路径） ====================
+
+    def goto_calendar_3day_view(self) -> bool:
+        """进入日历三日视图并停留（不返回消息页）"""
+        return self.aw.goto_calendar_3day_view()
+
+    def open_calendar_book(self) -> bool:
+        """打开任务管理页（新版日历本管理入口）"""
+        return self.aw.open_calendar_book()
+
+    def open_my_created_calendar_book_list(self) -> bool:
+        """进入'我创建的'日历本/任务列表页"""
+        return self.aw.open_my_created_calendar_book_list()
+
+    def open_my_followed_calendar_book_list(self) -> bool:
+        """进入'我关注的'日历本/任务列表页（R36 订阅入口前置）"""
+        return self.aw.open_my_followed_calendar_book_list()
+
     def open_message_settings(self):
         """打开消息设置页面"""
         return self.aw.open_message_settings()

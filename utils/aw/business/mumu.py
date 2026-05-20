@@ -2568,26 +2568,15 @@ class MuMuBusiness(CommonBusiness):
 
     def create_calendar_book(self, name: str) -> bool:
         """
-        创建日历本
-
-        步骤:
-        1. 打开日历侧边栏
-        2. 点击搜索框右侧+号
-        3. 点击"新建日历本"
-        4. 输入日历名称
-        5. 点击"完成"
-        6. 处理"请设置谁可以看你的日历"弹窗 → 去设置 → 选择"仅自己可见"
-        7. 再次点击"完成"
-        8. 验证日历本出现在侧边栏
-        9. 关闭侧边栏，返回消息列表页
-
-        探索来源: explorer_output/screenshots/calendar_step4_new_calendar_page.png
-
-        Args:
-            name: 日历本名称
-        Returns:
-            bool: 创建是否成功
+        [DEPRECATED] 旧版"日历侧边栏"路径已与新版 UI（任务管理页）不一致，且
+        实现内部依赖 _open_calendar_sidebar，元素覆盖不全；保留签名仅为防止
+        旧调用方静默 NameError。新版重写后请改用对应"任务管理"路径的 AW
+        （见 openspec/changes 与后续 element/explorer 补图任务）。
         """
+        raise NotImplementedError(
+            "create_calendar_book(旧版侧边栏路径) 已废弃，新版 UI 路径"
+            "（任务管理 → 我创建的 → +）尚未实现，等待 element 补图后重写"
+        )
         logger.info(f"📅 [MuMu] 创建日历本: {name}")
 
         # 1. 打开日历侧边栏
@@ -2690,25 +2679,11 @@ class MuMuBusiness(CommonBusiness):
 
     def modify_calendar_book(self, name: str, new_name: str) -> bool:
         """
-        修改日历本名称
-
-        步骤:
-        1. 打开日历侧边栏
-        2. 点击目标日历本右侧...图标，弹出菜单
-        3. 点击"日历设置"进入设置页面
-        4. 清空日历名称输入框，输入新名称
-        5. 点击"完成"
-        6. 验证修改后的名称出现在侧边栏
-        7. 关闭侧边栏，返回消息列表页
-
-        探索来源: 用户提供的侧边栏截图（2026-04-22 确认交互方式）
-
-        Args:
-            name: 当前日历本名称
-            new_name: 新的日历本名称
-        Returns:
-            bool: 修改是否成功
+        [DEPRECATED] 同 create_calendar_book，旧版侧边栏路径已不适配新版 UI。
         """
+        raise NotImplementedError(
+            "modify_calendar_book(旧版侧边栏路径) 已废弃，等待新版 UI 路径重写"
+        )
         logger.info(f"📅 [MuMu] 修改日历本: {name} → {new_name}")
 
         # 1. 打开日历侧边栏
@@ -2761,24 +2736,11 @@ class MuMuBusiness(CommonBusiness):
 
     def delete_calendar_book(self, name: str) -> bool:
         """
-        删除日历本
-
-        步骤:
-        1. 打开日历侧边栏
-        2. 点击目标日历本右侧...图标，弹出菜单
-        3. 点击"日历设置"进入设置页面
-        4. 滚动到底部，点击"删除日历"
-        5. 确认弹窗点击"删除"
-        6. 验证日历本已从侧边栏移除
-        7. 关闭侧边栏，返回消息列表页
-
-        探索来源: 用户提供的侧边栏截图（2026-04-22 确认交互方式）
-
-        Args:
-            name: 要删除的日历本名称
-        Returns:
-            bool: 删除是否成功
+        [DEPRECATED] 同 create_calendar_book，旧版侧边栏路径已不适配新版 UI。
         """
+        raise NotImplementedError(
+            "delete_calendar_book(旧版侧边栏路径) 已废弃，等待新版 UI 路径重写"
+        )
         logger.info(f"📅 [MuMu] 删除日历本: {name}")
 
         # 1. 打开日历侧边栏
@@ -2856,24 +2818,11 @@ class MuMuBusiness(CommonBusiness):
 
     def subscribe_calendar_book(self, keyword: str) -> bool:
         """
-        订阅日历本
-
-        步骤:
-        1. 打开日历侧边栏
-        2. 点击搜索框进入订阅页面
-        3. 在推荐列表中找到目标日历本，点击"订阅"按钮
-        4. 验证按钮变为"退订"（表示订阅成功）
-        5. 关闭订阅页面
-        6. 验证日历本出现在"我订阅的"列表中
-        7. 关闭侧边栏，返回消息列表页
-
-        探索来源: explorer_output/screenshots/calendar_step14_search_click.png
-
-        Args:
-            keyword: 要订阅的日历本关键词（用于搜索或在推荐列表中定位）
-        Returns:
-            bool: 订阅是否成功
+        [DEPRECATED] 同 create_calendar_book，旧版侧边栏路径已不适配新版 UI。
         """
+        raise NotImplementedError(
+            "subscribe_calendar_book(旧版侧边栏路径) 已废弃，等待新版 UI 路径重写"
+        )
         logger.info(f"📅 [MuMu] 订阅日历本: {keyword}")
 
         # 1. 打开日历侧边栏
@@ -2918,23 +2867,11 @@ class MuMuBusiness(CommonBusiness):
 
     def unsubscribe_calendar_book(self, name: str) -> bool:
         """
-        退订日历本
-
-        步骤:
-        1. 打开日历侧边栏
-        2. 滚动找到"我订阅的"区域中的目标日历本
-        3. 点击日历本右侧...按钮
-        4. 点击"退订日历"
-        5. 验证日历本已从"我订阅的"列表中移除
-        6. 关闭侧边栏，返回消息列表页
-
-        探索来源: explorer_output/screenshots/calendar_step17_subscribed_menu.png
-
-        Args:
-            name: 要退订的日历本名称
-        Returns:
-            bool: 退订是否成功
+        [DEPRECATED] 同 create_calendar_book，旧版侧边栏路径已不适配新版 UI。
         """
+        raise NotImplementedError(
+            "unsubscribe_calendar_book(旧版侧边栏路径) 已废弃，等待新版 UI 路径重写"
+        )
         logger.info(f"📅 [MuMu] 退订日历本: {name}")
 
         # 1. 打开日历侧边栏
@@ -3017,6 +2954,139 @@ class MuMuBusiness(CommonBusiness):
         self.click_text("消息", region=Normal.BOTTOM_NAV)
         time.sleep(1)
 
+        return True
+
+    # ==================== 日历模块 - 新版"任务管理"UI 路径（导航层） ====================
+    # 适用于 2026-05 element 实测的新版 POPO：
+    #   message_page → "日历"Tab → 三日视图 → "去任务中查看"链接 → 任务管理页
+    # 与上方已 DEPRECATED 的"侧边栏"路径互斥，新增日历用例统一走本节方法。
+
+    def goto_calendar_3day_view(self) -> bool:
+        """
+        进入日历三日视图并停留
+
+        从消息列表页导航到日历模块，确保当前停留在"日历"子 Tab（三日视图），
+        不返回消息页。供后续 open_calendar_book / R36 等用例作为前置。
+
+        前置条件:
+        - 当前为消息列表页 (message_page)
+
+        步骤:
+        1. 点击底部导航栏"日历"进入日历模块
+        2. 验证三日视图已加载（CALENDAR_UTC_LABEL 时区标识可见）
+        3. 若误入"会议室"子 Tab，点回"日历"子 Tab
+
+        Returns:
+            bool: 是否成功停留在三日视图
+        """
+        logger.info("📅 [MuMu] 进入日历三日视图（新版导航）")
+
+        self.click_text("日历", region=Normal.BOTTOM_NAV)
+        time.sleep(2)
+
+        # 若停留在"会议室"子 Tab，需要切回"日历"子 Tab
+        if not self.find_image(CALENDAR_SUBTAB_CAL, timeout=2):
+            if self.find_image(CALENDAR_SUBTAB_ROOM, timeout=2):
+                logger.info("📅 当前在会议室子 Tab，切换到日历子 Tab")
+                self.click_image(CALENDAR_SUBTAB_CAL, timeout=5)
+                time.sleep(1)
+
+        # 断言三日视图特征（UTC 时区标识）
+        self.image_exists(CALENDAR_UTC_LABEL, timeout=5)
+        logger.info("✅ [MuMu] 已停留在日历三日视图")
+        return True
+
+    def open_calendar_book(self) -> bool:
+        """
+        打开"任务管理"页（即旧 spec 中的 calendar_book_page）
+
+        前置条件:
+        - 当前为消息列表页 (message_page)
+
+        步骤:
+        1. 调用 goto_calendar_3day_view 进入三日视图
+        2. 点击"去任务中查看"链接（CALENDAR_GOTO_BOOK_LINK）
+        3. 验证已进入任务管理页（CAL_BOOK_MY_CREATED 行可见）
+
+        Returns:
+            bool: 是否成功进入任务管理页
+        """
+        logger.info("📅 [MuMu] 打开任务管理页（新版日历本管理入口）")
+
+        self.goto_calendar_3day_view()
+
+        self.click_image(CALENDAR_GOTO_BOOK_LINK, timeout=10)
+        time.sleep(2)
+
+        # 任务管理页的稳定特征：右上角搜索图标 + "我创建的"行
+        self.image_exists(CAL_BOOK_SEARCH_ICON, timeout=5)
+        self.image_exists(CAL_BOOK_MY_CREATED, timeout=5)
+        logger.info("✅ [MuMu] 已进入任务管理页")
+        return True
+
+    def open_my_created_calendar_book_list(self) -> bool:
+        """
+        进入"我创建的"日历本/任务列表页
+
+        前置条件:
+        - 当前为消息列表页 (message_page)
+
+        步骤:
+        1. 调用 open_calendar_book 进入任务管理页
+        2. 点击"我创建的"行（CAL_BOOK_MY_CREATED）
+        3. 验证已进入"我创建的"列表页
+           （CAL_MY_CREATED_FILTER + CAL_MY_CREATED_PLUS 同时可见）
+
+        Returns:
+            bool: 是否成功进入"我创建的"列表页
+        """
+        logger.info("📅 [MuMu] 进入'我创建的'列表页")
+
+        self.open_calendar_book()
+
+        self.click_image(CAL_BOOK_MY_CREATED, timeout=10)
+        time.sleep(2)
+
+        # 我创建的页特征：顶部筛选条 + 右下角创建按钮
+        self.image_exists(CAL_MY_CREATED_FILTER, timeout=5)
+        self.image_exists(CAL_MY_CREATED_PLUS, timeout=5)
+        logger.info("✅ [MuMu] 已进入'我创建的'列表页")
+        return True
+
+    def open_my_followed_calendar_book_list(self) -> bool:
+        """
+        进入"我关注的"日历本/任务列表页（新版 UI 中订阅入口的归属区域）
+
+        说明: Excel R36 步骤里写的"我的订阅"在新版 UI 上对应"我关注的"区块。
+        本方法只负责把页面切到"我关注的"列表页这一前置步骤；后续"点+输入名字
+        →订阅"的内层操作元素尚未截图，需 element/explorer 补图后再扩展。
+
+        前置条件:
+        - 当前为消息列表页 (message_page)
+
+        步骤:
+        1. 调用 open_calendar_book 进入任务管理页
+        2. 点击"我关注的"行（CAL_BOOK_MY_FOLLOWED）
+        3. 验证已离开任务管理首页（CAL_BOOK_MY_CREATED 不再可见）
+           说明: 因"我关注的"列表页内部元素尚未截图，无法做正向 image_exists
+           断言；用"任务管理首页已离开"作为反向证据，保持断言强度可接受。
+
+        Returns:
+            bool: 是否成功进入"我关注的"列表页
+        """
+        logger.info("📅 [MuMu] 进入'我关注的'列表页")
+
+        self.open_calendar_book()
+
+        self.click_image(CAL_BOOK_MY_FOLLOWED, timeout=10)
+        time.sleep(2)
+
+        # 反向断言: 已离开任务管理首页（"我创建的"行不再在主视图）
+        still_on_book_page = self.find_image(CAL_BOOK_MY_CREATED, timeout=2)
+        assert still_on_book_page is None, (
+            "点击'我关注的'后仍停留在任务管理首页，未进入子页面"
+        )
+        logger.info("✅ [MuMu] 已进入'我关注的'列表页")
         return True
 
     # ==================== 群组管理相关 ====================

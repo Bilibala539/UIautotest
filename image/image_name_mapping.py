@@ -198,6 +198,8 @@ SESSION_GROUP_MORE_BUTTON = os.path.join(test_path, "消息tab页-分组更多�
 
 # ==================== 日历模块 - 三日视图（草稿 - 待 verify 转正） ====================
 # 注意：链接实际文案为"去任务中查看"（非知识库写的"去日历本中查看"），文件名按实际命名
+# 仅供已 DEPRECATED 的旧 AW (_open_calendar_sidebar / 旧 create_calendar_book 等) 引用，新代码不要用
+CALENDAR_SIDEBAR_BUTTON = os.path.join(test_path, "日历页-侧边栏按钮.png")
 CALENDAR_SUBTAB_CAL = os.path.join(test_path, "日历页-子Tab-日历选中.png")
 CALENDAR_SUBTAB_ROOM = os.path.join(test_path, "日历页-子Tab-会议室未选中.png")
 CALENDAR_ADD_PLUS = os.path.join(test_path, "日历页-右下角添加按钮.png")

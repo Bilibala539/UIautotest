@@ -18,6 +18,8 @@ tools:
   - Grep
   - Bash
   - Skill
+  - SendMessage
+  - TaskUpdate
 model: sonnet
 ---
 
@@ -25,8 +27,11 @@ model: sonnet
 
 ## ⛔ 强制前置阅读（每次开工必做）
 
-- `openspec/config.yaml` —— openspec 项目配置
-- `openspec/changes/` —— 当前有哪些开放 change（`ls openspec/changes/`）
+> **注意**：若 `openspec/` 目录不存在，跳过以下文件读取，直接告知用户：
+> "openspec/ 目录尚未初始化，请先运行 `openspec-propose` skill 创建第一个 change，或手动创建 `openspec/changes/` 目录。"
+
+- `openspec/config.yaml` —— openspec 项目配置（存在时读）
+- `openspec/changes/` —— 当前有哪些开放 change（存在时 ls）
 - `.codemaker/rules/rules.mdc`、`ai_workflow.mdc` —— 项目规范
 - `CLAUDE.md`
 

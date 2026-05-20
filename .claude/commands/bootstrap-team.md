@@ -23,7 +23,13 @@ description: 一键把 UIAutotest 6 人长期团队拉起来（orchestrator + ex
 - `team_name`: `uiautotest-team`
 - `name`: 对应 agent 名
 - `subagent_type`: 对应 agent 名（即 `.claude/agents/<name>.md` 的 name）
-- 初始任务：读自己蓝图里的"强制前置阅读"清单，读完汇报"我已就绪，职责是 XX"
+- 初始任务：读 `CLAUDE.md`，再读自己蓝图里"必读"一栏的文件，读完后以以下格式向 orchestrator 汇报：
+  ```
+  [就绪]
+  职责：<一句话>
+  已读文件：<列表>
+  待命
+  ```
 
 | name | subagent_type | 职责一句话 |
 |---|---|---|
@@ -39,10 +45,11 @@ description: 一键把 UIAutotest 6 人长期团队拉起来（orchestrator + ex
 
 5 个 teammate 全部回报就绪后，作为 orchestrator 发送一条群发消息（每个 teammate 各发一次），内容：
 
-> 团队就位。后续我会按需派活。任务开始前**必须**：
-> 1. 读完自己蓝图里的"强制前置阅读"清单
-> 2. 完工后通过 SendMessage 向我汇报产出摘要
-> 3. 发现超出职责范围的事，不要擅自做，回告我重新分派
+> 团队就位。后续我会用标准任务格式派活。收到任务后：
+> 1. 按自己蓝图的"上下文加载"规则加载相关知识（CLAUDE.md 必读，其余按需）
+> 2. 每完成一个关键节点主动发"[进度]"消息，不要等到最后才汇报
+> 3. 完工后用"[完成]"或"[失败]"格式向我回报
+> 4. 发现超出职责范围的事，不要擅自做，回告我重新分派
 
 ### 5. 报告给用户
 

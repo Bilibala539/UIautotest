@@ -1,213 +1,162 @@
-# Android UI 自动化测试框架
+# UIAutotest — 网易 POPO Android UI 自动化测试框架
 
-基于 pytest + MuMu模拟器 + ADB 的安卓 UI 自动化测试框架，支持图像识别和 OCR 定位。
+基于 **pytest + MuMu 模拟器 + ADB** 的安卓 UI 自动化测试框架，使用图像识别（OpenCV）+ OCR（PaddleOCR）定位元素。
 
-## 📋 功能特性
+配备 **AI Agent 团队**自动探索 App、截取元素、生成用例，并通过**双层知识库**（Graph + Embedding）管理应用知识。
 
-- ✅ **图像识别定位**: 基于 OpenCV 模板匹配
-- ✅ **OCR 文字识别**: 基于 PaddleOCR
-- ✅ **MuMu模拟器支持**: 原生ADB控制，无需Appium
-- ✅ **随机账号登录**: 从账号池中随机选择账号
-- ✅ **独立测试文件**: 每个用例文件包含 setup/teardown
-- ✅ **自动截图**: 失败时自动保存截图
-- ✅ **日志记录**: 详细的测试日志
-- ✅ **HTML 报告**: 生成美观的测试报告
+## 核心能力
 
-## 🚀 快速开始
+- **图像识别定位**：OpenCV 模板匹配，540x960 统一分辨率
+- **OCR 文字识别**：PaddleOCR，支持中文
+- **MuMu 模拟器**：原生 ADB 控制，支持多实例并行
+- **知识库驱动**：Graph（页面导航图谱）+ Embedding（语义检索）双层架构
+- **AI Agent 团队**：explorer/element/codegen/verify/orchestrator 五角色协同
+- **并行执行**：多 MuMu 实例分片跑测试，效率提升 3x
 
-### 1. 环境准备
+## 快速开始
 
-#### 软件要求
-- Python 3.8+
-- 网易MuMu模拟器12 (MuMu Player)
-- Windows 操作系统
+### 环境要求
+- Python 3.9+
+- 网易 MuMu 模拟器 12
+- Windows 10/11
 
-#### 安装MuMu模拟器
-1. 从官网下载 MuMu模拟器12: https://mumu.163.com/
-2. 安装到默认路径或自定义路径
-3. 创建模拟器实例
-
-### 2. 安装依赖
+### 安装
 
 ```bash
-# 克隆项目
 git clone <repository-url>
 cd UIAutotest
-
-# 创建虚拟环境（可选）
-python -m venv venv
-venv\Scripts\activate
-
-# 安装Python依赖
 pip install -r requirements.txt
 ```
 
-### 3. 配置项目
-
-#### 修改MuMu安装路径
-编辑 `utils/devices.py`，修改MuMu安装路径：
-```python
-MUMU_INSTALL_PATH = r"D:\MuMuPlayer\nx_main"  # 修改为你的MuMu安装路径
-```
-
-#### 配置测试账号
-编辑 `config/users_info.json`，添加测试账号信息。
-
-### 4. 运行测试
+### 运行测试
 
 ```bash
-# 运行所有测试
-pytest
+# 单文件
+pytest tests/mumu/checklist/test_发送P2P消息.py -v
 
-# 运行单个测试文件
-pytest tests/test01.py -v
+# 全量并行（3个MuMu实例）
+python run_parallel.py
 
-# 运行指定测试方法
-pytest tests/test01.py::TestClass::test_method -v
-
-# 生成HTML报告
-pytest --html=reports/report.html --self-contained-html
+# 指定数量
+python run_parallel.py -n 2 -t 5
 ```
 
-## 📁 项目结构
+## 项目结构
 
 ```
 UIAutotest/
-├── conftest.py              # pytest全局配置和fixtures
-├── requirements.txt         # Python依赖
-├── README.md               # 项目说明
-├── config/                 # 配置文件
-│   ├── user_data.py        # 用户数据管理
-│   └── users_info.json     # 测试账号配置
-├── tests/                  # 测试用例
-│   └── test01.py           # 示例测试文件
-├── utils/                  # 工具模块
-│   ├── devices.py          # 设备管理（MuMu模拟器）
-│   ├── image_recognition.py # 图像识别
-│   ├── ocr_recognition.py  # OCR文字识别
-│   ├── user.py             # 用户对象定义
-│   └── actions_words/      # 操作封装
-│       └── login_actions.py # MuMu操作类
-├── templates/              # 图像模板（用于图像识别）
-├── screenshots/            # 测试截图
-├── reports/                # 测试报告
-└── logs/                   # 日志文件
+├── conftest.py                    # pytest fixtures + 设备/用户管理
+├── run_parallel.py                # 并行测试运行器
+├── CLAUDE.md                      # AI Agent 项目规约（必读）
+│
+├── utils/
+│   ├── aw/aw_base.py             # AWBase — 设备交互唯一入口
+│   ├── aw/business/mumu.py       # 业务 AW 方法层
+│   └── user.py                   # PPUser — 测试用例便捷方法
+│
+├── tests/mumu/
+│   ├── checklist/                 # 主力用例（按功能分文件）
+│   ├── add/                       # 新增用例（待合并）
+│   └── workhub/                   # WorkHub 专项
+│
+├── image/                         # 正式元素图片（验证通过后）
+├── image_ai/                      # 暂存元素图片（新截的）
+├── image/image_name_mapping.py    # 图片常量注册表
+│
+├── explorer_output/knowledge/     # App 知识库（Obsidian vault）
+│   ├── app_map.json              # 导航图谱（页面+路径+type）
+│   ├── pages/                    # 页面文档（含[[双向链接]]）
+│   ├── draft/                    # 草稿区（验证前）
+│   ├── digest/                   # 功能摘要 + 跨页面索引
+│   └── backlinks.json            # 反向链接索引（自动生成）
+│
+├── mcp_servers/                   # MCP Server（知识库查询服务）
+│   ├── knowledge_graph/          # 图谱层：导航路径/反向链接/搜索
+│   └── vector_kb/                # 语义层：embedding 相似度检索
+│
+├── scripts/knowledge/             # 知识库维护脚本
+│   ├── backlinks_generator.py    # 反向链接生成
+│   ├── embedding_pipeline.py     # 向量索引构建
+│   ├── promote_knowledge.py      # 草稿转正
+│   └── auto_update.py            # 自动更新（git hook 触发）
+│
+├── .mcp.json                      # MCP Server 注册配置
+├── .chroma_db/                    # 向量数据库（本地，不入 git）
+│
+├── .claude/agents/                # AI Agent 团队配置
+│   ├── aw-orchestrator.md        # 总协调
+│   ├── aw-explorer.md            # App 探索员
+│   ├── aw-element.md             # 元素截图员
+│   ├── aw-codegen.md             # 代码生成员
+│   └── aw-verify.md              # 验证员
+│
+└── docs/                          # 人读文档
+    ├── AW方法总结与复用指南.md
+    ├── UI元素截取与裁剪规范.md
+    ├── 并行测试执行指南.md
+    └── 编排流程与失败处理.md
 ```
 
-## 🔧 核心API
+## 知识库系统
 
-### MuMuActions - 设备操作类
+采用 Graph + Embedding 双层架构，通过 MCP Server 供 agent 和人类使用：
+
+| 层 | 用途 | 查询方式 |
+|---|---|---|
+| Graph（knowledge_graph） | 页面导航、反向链接、BFS 路径 | `get_navigation_path(from, to)` |
+| Embedding（vector_kb） | 语义搜索、相似用例、上下文推荐 | `semantic_search("自然语言")` |
+
+可用 Obsidian 打开 `explorer_output/knowledge/` 作为 vault 查看交互式图谱（`Ctrl+G`）。
+
+### 知识更新流程
+
+```
+explorer 探索 → draft/*.md → promote 验证 → pages/*.md → git commit → 自动重建索引
+```
+
+## 编写测试用例
 
 ```python
-from utils.actions_words.login_actions import MuMuActions
+from conftest import BaseTest
 
-# 初始化
-actions = MuMuActions(device_port=7555)
+class TestExample(BaseTest):
+    def setup(self):
+        self.userA = self.users("userA")
 
-# 点击操作
-actions.tap(x=100, y=200)
+    def test_send_message(self):
+        self.userA.send_message(recipient="wangying43", message="测试消息", isback=True)
 
-# 输入文本
-actions.input_text("Hello World")
-
-# 按键事件
-actions.press_key(keycode=4)  # 返回键
-
-# 截屏
-screenshot = actions.take_screenshot()
+    def teardown(self):
+        pass
 ```
 
-### 图像识别
+### 关键规则
+- 元素定位用 `click_image` / `click_text`，禁止 `tap(x, y)`
+- 断言优先级：图片断言 > OCR 文字断言
+- 新元素先进 `image_ai/`，验证通过后转正到 `image/`
+- 写新 AW 前必查 `docs/AW方法总结与复用指南.md`
 
-```python
-from utils.image_recognition import aw_find_by_image
+## AI Agent 团队
 
-# 查找图像位置
-position = aw_find_by_image(device_port=7555, template_name="button.png", threshold=0.8)
-if position:
-    x, y = position
-    actions.tap(x, y)
-```
+| Agent | 职责 |
+|---|---|
+| orchestrator | 拆解需求、调度、汇总 |
+| explorer | 连接模拟器探索 App 页面，更新知识库 |
+| element | 从截图中截取 UI 元素并注册 |
+| codegen | 写业务 AW + pytest 用例 |
+| verify | 跑测试、诊断失败、转正图片和知识 |
 
-### OCR文字识别
+一键拉起团队：在 Claude Code 中使用 `/bootstrap-team`
 
-```python
-from utils.ocr_recognition import aw_find_by_ocr
-
-# 查找文字位置
-position = aw_find_by_ocr(device_port=7555, text="确认")
-if position:
-    x, y = position
-    actions.tap(x, y)
-```
-
-## 📝 编写测试用例
-
-```python
-import pytest
-from utils.image_recognition import aw_find_by_image
-from utils.ocr_recognition import aw_find_by_ocr
-from utils.actions_words.login_actions import MuMuActions
-
-class TestExample:
-    """示例测试类"""
-    
-    def test_login_flow(self, users):
-        """测试登录流程"""
-        # 获取设备端口
-        user = users[0]
-        device_port = user.device.device_port
-        
-        # 初始化操作类
-        actions = MuMuActions(device_port)
-        
-        # 使用图像识别点击登录按钮
-        login_btn = aw_find_by_image(device_port, "login_button.png")
-        assert login_btn is not None, "未找到登录按钮"
-        actions.tap(login_btn[0], login_btn[1])
-        
-        # 使用OCR识别确认文字
-        confirm = aw_find_by_ocr(device_port, "登录成功")
-        assert confirm is not None, "登录失败"
-```
-
-## 🔗 MuMu模拟器ADB端口规则
-
-| 模拟器实例 | ADB端口 |
-|-----------|---------|
-| 主实例(0) | 7555    |
-| 实例1     | 7556    |
-| 实例2     | 7557    |
-| 实例N     | 7555+N  |
-
-## 📊 测试报告
-
-测试完成后，HTML报告生成在 `reports/` 目录下。
+## 并行测试
 
 ```bash
-# 生成报告
-pytest --html=reports/report.html --self-contained-html
+python run_parallel.py          # 3 实例全量
+python run_parallel.py -n 2     # 2 实例
 ```
 
-## 🛠 常见问题
+账号自动映射，避免多设备登录互踢。详见 `docs/并行测试执行指南.md`。
 
-### Q: ADB连接失败？
-确保MuMu模拟器已启动，并且端口正确。可以手动测试：
-```bash
-adb connect 127.0.0.1:7555
-adb devices
-```
+## License
 
-### Q: 图像识别失败？
-1. 确保模板图片清晰，分辨率与模拟器匹配
-2. 调整threshold阈值（0.6-0.9之间）
-3. 检查templates目录下是否有对应图片
-
-### Q: OCR识别不准确？
-1. PaddleOCR对中文支持较好
-2. 确保文字清晰可见
-3. 可以指定region参数限定识别区域
-
-## 📄 许可证
-
-MIT License
+MIT

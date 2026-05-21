@@ -20,7 +20,14 @@
 | `image_ai/` | **暂存**元素图片（新截的） |
 | `image/image_name_mapping.py` | 所有图片常量 |
 | `explorer_output/knowledge/` | App 知识库（app_map.json + pages/*.md + digest/） |
-| `explorer_output/knowledge/digest/` | 功能摘要 + 跨页面流程 |
+| `explorer_output/knowledge/digest/` | 功能摘要 + 跨页面流程 + 关联索引 |
+| `explorer_output/knowledge/draft/` | 知识草稿区（explorer 写入，验证后转正到 pages/） |
+| `explorer_output/knowledge/backlinks.json` | 反向链接索引（自动生成） |
+| `.mcp.json` | MCP Server 注册（knowledge_graph + vector_kb） |
+| `mcp_servers/knowledge_graph/` | 图谱查询 MCP（导航路径/反向链接/页面搜索） |
+| `mcp_servers/vector_kb/` | 语义检索 MCP（embedding 相似度搜索） |
+| `.chroma_db/` | 向量数据库持久化存储 |
+| `scripts/knowledge/` | 知识库维护脚本（backlinks/embedding/promote/auto_update） |
 | `docs/AW方法总结与复用指南.md` | 已封装业务 AW 清单 —— 写新代码前必查 |
 | `docs/UI元素截取与裁剪规范.md` | 元素截图规范 |
 | `docs/并行测试执行指南.md` | 多 MuMu 实例并行跑测试 —— 换机器必读 |
@@ -115,6 +122,48 @@ python run_parallel.py -n 2 -t 5          # 2 实例跑 5 个文件（验证用�
 **串行模式不受影响**：不设 `INSTANCE_ID` 时 `_device_index` 默认 0，`_user_key_map` 为空，行为不变。
 
 详细原理、换机器检查清单、故障排查见 `docs/并行测试执行指南.md`。
+
+## 知识库系统（双层架构）
+
+知识库采用 **Graph + Embedding** 双层架构，通过 MCP Server 暴露给所有 agent：
+
+### Graph 层（knowledge_graph MCP）
+- **数据源**：`explorer_output/knowledge/`（Obsidian vault 格式）
+- **能力**：页面搜索、读取页面文档、反向链接查询、BFS 导航路径、关联页面
+- **[[双向链接]]**：pages/*.md 中用 `[[page_id]]` 声明关联，`backlinks_generator.py` 自动生成反向引用
+
+### Embedding 层（vector_kb MCP）
+- **数据源**：pages/*.md + tests/*.py + docs/*.md → ChromaDB 向量索引
+- **能力**：语义搜索、找相似测试用例、综合上下文推荐
+- **模型**：paraphrase-multilingual-MiniLM-L12-v2（支持中文）
+
+### 知识更新流程
+```
+explorer 探索新页面 → 写入 draft/*.md
+                       ↓
+promote_knowledge.py 验证（结构完整性 + 链接有效性）
+                       ↓
+验证通过 → 移入 pages/ + 更新 app_map.json
+                       ↓
+git commit → post-commit hook → auto_update.py
+                       ↓
+           backlinks 重建 + embedding 增量更新
+```
+
+### Agent 使用方式
+- 写新用例前：`find_related_context("功能描述")` → 获取页面文档+相似用例+规范
+- 找导航路径：`get_navigation_path("起点page_id", "终点page_id")`
+- 查谁引用了某页面：`get_backlinks("page_id")`
+- 模糊搜索：`semantic_search("自然语言描述")`
+
+### 维护脚本
+```bash
+python scripts/knowledge/backlinks_generator.py    # 重建反向链接
+python scripts/knowledge/embedding_pipeline.py     # 全量重建向量索引
+python scripts/knowledge/embedding_pipeline.py --incremental  # 增量更新
+python scripts/knowledge/promote_knowledge.py      # 验证并转正草稿
+python scripts/knowledge/auto_update.py --force    # 强制全量更新
+```
 
 ## 禁止事项速查
 

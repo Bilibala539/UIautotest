@@ -33,7 +33,9 @@
       "ScheduleWakeup(*)",
       "SendMessage(*)",
       "TeamCreate(*)",
-      "TeamDelete(*)"
+      "TeamDelete(*)",
+      "mcp__knowledge_graph__*",
+      "mcp__vector_kb__*"
     ]
   }
 }

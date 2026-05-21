@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "knowledge_graph": {
+      "command": "python",
+      "args": ["mcp_servers/knowledge_graph/server.py"],
+      "cwd": "E:\\UIAutotest"
+    },
+    "vector_kb": {
+      "command": "python",
+      "args": ["mcp_servers/vector_kb/server.py"],
+      "cwd": "E:\\UIAutotest"
+    }
+  }
+}

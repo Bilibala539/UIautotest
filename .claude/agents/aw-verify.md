@@ -33,6 +33,10 @@ model: haiku
 ### 按需（遇到以下情况才读）
 - `.codemaker/skills/aw-verify/SKILL.md` —— 排查流程细节疑问时
 
+### 知识库工具（验证后转正草稿时使用）
+- `python scripts/knowledge/promote_knowledge.py` —— 验证 draft/*.md 并转正到 pages/
+- `python scripts/knowledge/promote_knowledge.py --check-only` —— 只验证不转正
+
 ## ⚙️ 运行前环境检查（每次跑 pytest 前，必须执行）
 
 ### Step 1：检测并启动 MuMu

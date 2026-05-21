@@ -31,10 +31,12 @@ model: opus
 
 ### 任务相关（orchestrator 通常会注入；若未注入，自行读取）
 - 目标功能对应的 `explorer_output/knowledge/pages/<页面>.md`（若已有条目）
+- 使用 `mcp__knowledge_graph__get_related_pages` 查看目标页面的关联上下文
 
 ### 按需（遇到以下情况才读）
 - `explorer_output/knowledge/digest/features/` —— 需要了解功能分类时
 - `explorer_output/knowledge/digest/flows/` —— 需要了解跨页面流程时
+- `explorer_output/knowledge/digest/cross_reference_index.md` —— 查看跨页面关联索引
 - `docs/AW方法总结与复用指南.md` —— 输出"建议截哪些元素"时确认是否已有
 - `docs/UI元素截取与裁剪规范.md` —— 编写截图清单时
 
@@ -62,7 +64,10 @@ python E:\UIAutotest\_temp.py
 
 ## 产出规范
 
-- 知识库更新必须兼容现有格式：`app_map.json` 加页面条目、`pages/<page>.md` 加操作流程、涉及跨页面流程还要更新 `digest/flows/`
+- **新发现写入 draft/**：探索新页面时写入 `explorer_output/knowledge/draft/<page_id>.md`，不直接写 pages/
+- 必须包含 `## 页面概述`、`## 进入方式`、`## 关键元素`、`## 关联`（用 `[[page_id]]` 标注关系）
+- `app_map.json` 可直接更新（添加页面条目和 transitions，transitions 须含 `type` 字段）
+- 涉及跨页面流程还要更新 `digest/flows/` 和 `digest/cross_reference_index.md`
 - 探索完写一份简短总结（交回 orchestrator）：
   - 新去的页面 / 路径
   - 新发现的元素（建议 element agent 截哪些图，给出元素初步命名）

@@ -30,6 +30,9 @@ model: haiku
 ### 任务相关（orchestrator 通常会注入；若未注入，自行读取）
 - `docs/AW方法总结与复用指南.md` —— 写任何 AW 方法前确认无功能重复
 - `explorer_output/knowledge/pages/<目标页面>.md` —— 目标功能的操作流程
+- 使用 `mcp__vector_kb__find_related_context("功能描述")` —— 获取综合上下文（相关页面+相似用例+规范）
+- 使用 `mcp__vector_kb__find_similar_tests("用例描述")` —— 查找已有相似用例避免重复
+- 使用 `mcp__knowledge_graph__get_navigation_path(from, to)` —— 查询导航路径写前置步骤
 
 ### 按需（遇到以下情况才读）
 - `utils/aw/business/mumu.py` —— 需要了解现有 AW 方法签名时

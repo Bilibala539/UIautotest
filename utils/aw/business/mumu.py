@@ -852,6 +852,95 @@ class MuMuBusiness(CommonBusiness):
         logger.info(f"✅ 会话已添加至分组 '{group_name}'")
         return True
 
+    def mark_conversation_as_read(self, conversation_name: str) -> bool:
+        """
+        在消息列表中找到指定会话，长按它，在弹出菜单中点击"设为已读"或"设为未读"
+
+        说明: 长按菜单中"设为已读" / "设为未读"是动态切换的——
+        会话有未读消息时显示"设为已读"，已读时显示"设为未读"。
+        为提高自动化稳定性，任一项都算成功（点击哪个都会触发已读/未读切换）。
+
+        步骤:
+        1. OCR 定位指定 conversation_name 在消息列表中的 y 坐标
+        2. 在该 y 坐标对应的会话行上长按 (x 偏右避开头像)
+        3. 通过 _find_menu_item 在弹出菜单中查找 "设为已读" 或 "设为未读"
+           （_find_menu_item 内部已处理菜单 swipe-up）
+        4. 点击找到的那个选项
+
+        Args:
+            conversation_name: 要操作的会话名 (如 "服务号" / "会话盒子")
+        Returns:
+            bool: 操作是否成功
+        """
+        logger.info(f"📋 [MuMu] 长按会话 '{conversation_name}' → 切换已读/未读")
+        # 确保窗口获得焦点
+        self.driver.focus_window()
+        time.sleep(0.3)
+
+        # 1. 找到目标会话所在行
+        pos = self.find_text_by_ocr(conversation_name, timeout=10)
+        assert pos is not None, f"未在消息列表中找到会话 '{conversation_name}'"
+        target_y = pos[1]
+
+        # 2. 长按那条会话 (x=300 偏右避开头像)
+        self.long_press(300, target_y, duration=1.5)
+        time.sleep(1)
+
+        # 3. 在弹出菜单中查找 "设为已读" 或 "设为未读"
+        # _find_menu_item 内部已处理 swipe-up 滚动查找
+        target_text = self._find_menu_item(["设为已读", "设为未读"])
+        assert target_text is not None, (
+            f"未在长按菜单中找到'设为已读'或'设为未读'选项 (会话={conversation_name})"
+        )
+        self.click_text(target_text, timeout=5)
+        time.sleep(1)
+        logger.info(f"✅ 会话 '{conversation_name}' 已{target_text}")
+        return True
+
+    def close_conversation_box(self, conversation_name: str) -> bool:
+        """
+        在消息列表中找到指定会话盒子，长按它，在弹出菜单中点击"关闭会话"
+
+        说明: 长按菜单底部的红字"关闭会话"是关闭一个会话/盒子的真实菜单项。
+        没有独立的"关闭"菜单项。
+
+        步骤:
+        1. OCR 定位指定 conversation_name 在消息列表中的 y 坐标
+        2. 在该 y 坐标对应的会话行上长按 (x 偏右避开头像)
+        3. 通过 _find_menu_item 在弹出菜单中查找"关闭会话"
+           （_find_menu_item 内部已处理菜单 swipe-up 滚动查找）
+        4. 点击它
+
+        Args:
+            conversation_name: 要关闭的会话盒子名 (如 "会话盒子")
+        Returns:
+            bool: 操作是否成功
+        """
+        logger.info(f"📋 [MuMu] 长按会话 '{conversation_name}' → 关闭会话")
+        # 确保窗口获得焦点
+        self.driver.focus_window()
+        time.sleep(0.3)
+
+        # 1. 找到目标会话所在行
+        pos = self.find_text_by_ocr(conversation_name, timeout=10)
+        assert pos is not None, f"未在消息列表中找到会话 '{conversation_name}'"
+        target_y = pos[1]
+
+        # 2. 长按那条会话 (x=300 偏右避开头像)
+        self.long_press(300, target_y, duration=1.5)
+        time.sleep(1)
+
+        # 3. 在弹出菜单中查找 "关闭会话" (红色)
+        # _find_menu_item 内部已处理 swipe-up 滚动查找
+        target_text = self._find_menu_item(["关闭会话"])
+        assert target_text is not None, (
+            f"未在长按菜单中找到'关闭会话'选项 (会话={conversation_name})"
+        )
+        self.click_text(target_text, timeout=5)
+        time.sleep(1)
+        logger.info(f"✅ 会话 '{conversation_name}' 已关闭")
+        return True
+
     # ==================== 群组相关 ====================
 
     def create_team(self):
@@ -1946,7 +2035,6 @@ class MuMuBusiness(CommonBusiness):
     # 消息设置页面中的所有开关项（完整列表）
     MSG_SETTINGS_SWITCHES = [
         "AI智能识别快捷指令",
-        "AI智能识别任务",
         "双击会话背景发送语音",
         "连续播放语音消息",
         "语音消息自动转换出文字",
@@ -2422,8 +2510,8 @@ class MuMuBusiness(CommonBusiness):
         self.click_image(MESSAGE_TAB_SEARCH, region=Normal.HALF_UP)
 
         # tab左滑翻页
-        if tab in ["云空间", "任务", "应用"]:
-            self.swipe_left(self.text_exists("日程"), 230)
+        if tab in ["云空间", "应用"]:
+            self.swipe_left(self.text_exists("云空间"), 230)
         img_name = f"搜索页面-{tab}tab.png"
         img_name_miss = f"搜索页面-{tab}tab-未选中.png"
         if tab == "全部":
@@ -2437,657 +2525,6 @@ class MuMuBusiness(CommonBusiness):
         if isclose:
             # 点击取消按钮，退出搜索页面
             self.click_image(SEARCH_CANCEL, region=Normal.HALF_UP)
-
-    # ==================== 日历相关 ====================
-
-    def view_calendar(self) -> bool:
-        """
-        查看日历页面
-
-        从消息列表页导航到日历Tab页面，验证日历会议室页面加载成功。
-
-        前置条件:
-        - 当前页面为消息列表页 (message_page)
-
-        步骤:
-        1. 点击底部Tab栏的"日历"
-        2. 验证日历会议室标题出现
-        3. 验证时区信息 UTC+08:00 出现
-        4. 返回消息列表页
-
-        探索来源: explorer_output/screenshots/explore_step1_calendar.png
-
-        Returns:
-            bool: 查看是否成功
-        """
-        logger.info("📅 [MuMu] 查看日历页面")
-
-        # 1. 点击日历Tab（限定底部导航栏区域，避免匹配消息列表中含"日历"的文字）
-        self.click_text("日历", region=Normal.BOTTOM_NAV)
-        time.sleep(2)
-
-        # 2. 验证日历页面加载
-        self.find_text_by_ocr("日历会议室", timeout=5)
-        self.find_text_by_ocr("UTC", timeout=3)
-
-        logger.info("✅ [MuMu] 日历页面查看成功")
-
-        # 3. 返回消息列表页
-        self.press_back()
-        time.sleep(1)
-
-        return True
-
-    def _open_calendar_sidebar(self) -> bool:
-        """
-        打开日历侧边栏
-
-        步骤:
-        1. 点击底部Tab栏的"日历"进入日历页面
-        2. 点击日历页面右侧的侧边栏按钮(≡)
-        3. 验证侧边栏已打开（出现"搜索日历本"文字）
-
-        探索来源: explorer_output/screenshots/calendar_step2_sidebar_opened.png
-
-        Returns:
-            bool: 操作是否成功
-        """
-        logger.info("📅 [MuMu] 打开日历侧边栏")
-
-        # 1. 进入日历页面（限定底部导航栏区域，避免匹配消息列表中含"日历"的文字）
-        self.click_text("日历", region=Normal.BOTTOM_NAV)
-        time.sleep(2)
-
-        # 1.5 处理可能出现的浮窗权限弹窗
-        cancel_pos = self.find_text_by_ocr("取消", timeout=2)
-        if cancel_pos:
-            auth_pos = self.find_text_by_ocr("授权", timeout=1)
-            if auth_pos:
-                logger.info("📅 检测到浮窗权限弹窗，点击取消")
-                self.tap(cancel_pos[0], cancel_pos[1])
-                time.sleep(1)
-
-        # 1.6 检查是否误入了日历子页面（如日历设置页），需要先返回到日历主视图
-        #     日历设置页特征：有"时区设置"/"通知设置"等文字
-        settings_check = self.find_text_by_ocr("时区设置", timeout=1)
-        if settings_check:
-            logger.info("📅 检测到日历设置子页面，逐步返回到日历主视图")
-            # 每次按Back后检查是否已离开设置页面，避免过度退出
-            for back_attempt in range(5):
-                self.press_back()
-                time.sleep(1)
-                # 检查是否还在设置页面
-                still_in_settings = self.find_text_by_ocr("时区设置", timeout=1)
-                if not still_in_settings:
-                    logger.info(f"📅 第{back_attempt + 1}次Back后已离开设置页面")
-                    break
-            time.sleep(1)
-            # 检查是否回到了日历主视图（有侧边栏按钮或底部导航栏）
-            # 如果退出到了桌面或其他页面，重新进入日历Tab
-            sidebar_btn = self.find_image(CALENDAR_SIDEBAR_BUTTON, timeout=2)
-            if not sidebar_btn:
-                # 可能在消息页或桌面，尝试点击日历Tab
-                nav_pos = self.find_text_by_ocr("日历", timeout=2, region=Normal.BOTTOM_NAV)
-                if nav_pos:
-                    logger.info("📅 点击底部日历Tab回到日历主视图")
-                    self.tap(nav_pos[0], nav_pos[1])
-                    time.sleep(2)
-                else:
-                    # 可能退出到了桌面，重新打开App再进日历
-                    logger.warning("⚠️ 可能退出到桌面，尝试重新打开App")
-                    if self.find_image(HOME_POPO_LOGO, timeout=2):
-                        self.start_app()
-                        time.sleep(5)
-                    self.click_text("日历", region=Normal.BOTTOM_NAV)
-                    time.sleep(2)
-
-        # 2. 检查侧边栏是否已经打开（避免重复点击）
-        if self.find_text_by_ocr("搜索日历本", timeout=2):
-            logger.info("📅 侧边栏已打开，跳过点击按钮")
-        else:
-            # 点击侧边栏按钮(≡)
-            self.click_image(CALENDAR_SIDEBAR_BUTTON, timeout=10)
-            time.sleep(2)
-
-        # 3. 验证侧边栏打开（使用 text_exists 断言）
-        self.text_exists("搜索日历本", timeout=5)
-        logger.info("✅ 日历侧边栏已打开")
-        return True
-
-    def _close_calendar_sidebar(self) -> bool:
-        """
-        关闭日历侧边栏（按返回键关闭）
-
-        Returns:
-            bool: 操作是否成功
-        """
-        logger.info("📅 [MuMu] 关闭日历侧边栏")
-        self.press_back()
-        time.sleep(1)
-        return True
-
-    def create_calendar_book(self, name: str) -> bool:
-        """
-        [DEPRECATED] 旧版"日历侧边栏"路径已与新版 UI（任务管理页）不一致，且
-        实现内部依赖 _open_calendar_sidebar，元素覆盖不全；保留签名仅为防止
-        旧调用方静默 NameError。新版重写后请改用对应"任务管理"路径的 AW
-        （见 openspec/changes 与后续 element/explorer 补图任务）。
-        """
-        raise NotImplementedError(
-            "create_calendar_book(旧版侧边栏路径) 已废弃，新版 UI 路径"
-            "（任务管理 → 我创建的 → +）尚未实现，等待 element 补图后重写"
-        )
-        logger.info(f"📅 [MuMu] 创建日历本: {name}")
-
-        # 1. 打开日历侧边栏
-        self._open_calendar_sidebar()
-
-        # 2. 点击+号按钮（搜索框右侧，+号距"搜索日历本"文字中心约242px）
-        self.click_text("搜索日历本", timeout=5, dx=242)
-        time.sleep(1)
-
-        # 4. 点击"新建日历本"
-        self.click_text("新建日历本", timeout=5)
-        time.sleep(2)
-
-        # 5. 输入日历名称
-        self.click_text("日历名称", timeout=5)
-        time.sleep(0.3)
-        self.input_text(name)
-        time.sleep(0.5)
-
-        # 6. 点击完成
-        self.click_text("完成", timeout=5)
-        time.sleep(2)
-
-        # 7. 处理"请设置谁可以看你的日历"弹窗（可能出现）
-        go_set_pos = self.find_text_by_ocr("去设置", timeout=3)
-        if go_set_pos:
-            self.click_text("去设置", timeout=3)
-            time.sleep(1)
-            self.click_text("仅自己可见", timeout=5)
-            time.sleep(1)
-            # 再次点击完成
-            self.click_text("完成", timeout=5)
-            time.sleep(2)
-
-        # 8. 验证回到侧边栏且日历本存在
-        # 滚动查看侧边栏内容
-        self.swipe(350, 650, 350, 400)
-        time.sleep(0.5)
-        self.find_text_by_ocr(name, timeout=5)
-        logger.info(f"✅ 日历本 '{name}' 创建成功")
-
-        # 9. 关闭侧边栏，返回消息列表页
-        self._close_calendar_sidebar()
-        self.click_text("消息", region=Normal.BOTTOM_NAV)
-        time.sleep(1)
-
-        return True
-
-    def _click_calendar_book_menu(self, name: str) -> bool:
-        """
-        点击日历本右侧的...三点菜单图标，弹出操作菜单
-
-        日历侧边栏中每个日历本右侧有两个图标：
-        - ...（三点图标，x≈440）：点击弹出菜单（仅显示此日历本/分享日历/日历设置）
-        - ≡（排序图标，x≈485）：拖拽排序用
-
-        方法：先用 OCR 定位日历本名称获取 y 坐标，再点击该行的...图标位置
-
-        探索来源: 用户提供的侧边栏截图（2026-04-22 确认交互方式）
-
-        Args:
-            name: 日历本名称
-        Returns:
-            bool: 是否成功弹出菜单
-        """
-        logger.info(f"📅 [MuMu] 点击日历本 '{name}' 的...菜单图标")
-
-        # 1. OCR 定位日历本名称，获取 y 坐标
-        #    先在当前视图查找，找不到就先滚动到顶部，再逐步向下搜索
-        pos = self.find_text_by_ocr(name, timeout=5)
-        if pos is None:
-            # 先滚动到侧边栏列表顶部（向下拉回顶部）
-            logger.info(f"📅 当前视图未找到 '{name}'，滚动到顶部重试")
-            for _ in range(3):
-                self.swipe(350, 400, 350, 650)
-                time.sleep(0.5)
-            time.sleep(1)
-            pos = self.find_text_by_ocr(name, timeout=5)
-        if pos is None:
-            # 从顶部开始逐步向下搜索
-            logger.info(f"📅 顶部未找到 '{name}'，开始向下滚动搜索")
-            for scroll_attempt in range(20):
-                self.swipe(350, 600, 350, 350)
-                time.sleep(1)
-                pos = self.find_text_by_ocr(name, timeout=5)
-                if pos is not None:
-                    logger.info(f"📅 第{scroll_attempt + 1}次滚动后找到 '{name}'")
-                    break
-        assert pos is not None, f"未找到日历本 '{name}'"
-
-        # 2. 点击该行的...三点图标（侧边栏中...图标的 x 坐标固定在约 440）
-        #    使用名称的 y 坐标确保点击在正确的行
-        self.tap(440, pos[1])
-        time.sleep(1)
-
-        # 3. 验证菜单弹出（应出现"日历设置"选项）
-        self.find_text_by_ocr("日历设置", timeout=3)
-        logger.info(f"✅ 日历本 '{name}' 的菜单已弹出")
-        return True
-
-    def modify_calendar_book(self, name: str, new_name: str) -> bool:
-        """
-        [DEPRECATED] 同 create_calendar_book，旧版侧边栏路径已不适配新版 UI。
-        """
-        raise NotImplementedError(
-            "modify_calendar_book(旧版侧边栏路径) 已废弃，等待新版 UI 路径重写"
-        )
-        logger.info(f"📅 [MuMu] 修改日历本: {name} → {new_name}")
-
-        # 1. 打开日历侧边栏
-        self._open_calendar_sidebar()
-
-        # 2. 点击...菜单图标，弹出操作菜单（菜单函数内部处理滚动搜索）
-        self._click_calendar_book_menu(name)
-
-        # 3. 点击弹出菜单中的"日历设置"（注意：侧边栏底部也有固定的"日历设置"）
-        #    通过定位"分享日历"来确认菜单区域，然后向下偏移点击菜单中的"日历设置"
-        share_pos = self.find_text_by_ocr("分享日历", timeout=3)
-        assert share_pos is not None, "弹出菜单中未找到'分享日历'"
-        # "日历设置"在"分享日历"下方约40-50px（菜单项间距）
-        self.tap(share_pos[0], share_pos[1] + 45)
-        time.sleep(3)
-
-        # 验证已进入日历编辑/设置页面（应有"日历描述"或"日历颜色"等特征文字）
-        self.find_text_by_ocr("日历描述", timeout=5)
-
-        # 4. 点击日历名称进入编辑模式
-        name_pos = self.find_text_by_ocr(name, timeout=5)
-        assert name_pos is not None, f"编辑页中未找到日历名称 '{name}'"
-        # 先单击名称聚焦输入框
-        self.tap(name_pos[0], name_pos[1])
-        time.sleep(0.5)
-        # 清空输入框（使用 HOME+Shift+END+DEL 组合键，MuMu模拟器中 Ctrl+A 不可靠）
-        self._clear_input_field()
-        time.sleep(0.3)
-        # 输入新名称
-        self.input_text(new_name)
-        time.sleep(0.5)
-
-        # 6. 点击完成
-        self.click_text("完成", timeout=5)
-        time.sleep(2)
-
-        # 7. 验证修改后名称出现在侧边栏（先滚回顶部再搜索）
-        for _ in range(3):
-            self.swipe(350, 400, 350, 650)
-            time.sleep(0.3)
-        self.find_text_by_ocr(new_name, timeout=5)
-        logger.info(f"✅ 日历本已修改为 '{new_name}'")
-
-        # 8. 关闭侧边栏，返回消息列表页
-        self._close_calendar_sidebar()
-        self.click_text("消息", region=Normal.BOTTOM_NAV)
-        time.sleep(1)
-
-        return True
-
-    def delete_calendar_book(self, name: str) -> bool:
-        """
-        [DEPRECATED] 同 create_calendar_book，旧版侧边栏路径已不适配新版 UI。
-        """
-        raise NotImplementedError(
-            "delete_calendar_book(旧版侧边栏路径) 已废弃，等待新版 UI 路径重写"
-        )
-        logger.info(f"📅 [MuMu] 删除日历本: {name}")
-
-        # 1. 打开日历侧边栏
-        self._open_calendar_sidebar()
-
-        # 2. 点击...菜单图标，弹出操作菜单（菜单函数内部处理滚动搜索）
-        self._click_calendar_book_menu(name)
-
-        # 4. 点击弹出菜单中的"日历设置"（通过"分享日历"位置偏移定位，避免和底部固定按钮混淆）
-        share_pos = self.find_text_by_ocr("分享日历", timeout=3)
-        assert share_pos is not None, "弹出菜单中未找到'分享日历'"
-        self.tap(share_pos[0], share_pos[1] + 45)
-        time.sleep(3)
-
-        # 验证已进入日历设置页面
-        self.find_text_by_ocr("日历描述", timeout=5)
-
-        # 5. 滚动到底部看到删除按钮
-        self.swipe_up(300)
-        time.sleep(0.5)
-        self.swipe_up(300)
-        time.sleep(0.5)
-
-        # 6. 点击"删除日历"
-        self.click_text("删除日历", timeout=5)
-        time.sleep(1)
-
-        # 7. 确认弹窗点击"删除"（精确匹配弹窗中的蓝色"删除"按钮）
-        #    弹窗中同时存在 "是否删除该日历？"、"取消"、"删除"、"删除日历"
-        #    通过 region 限制在弹窗按钮行(y:420~500)，避免误点"删除日历"文字
-        delete_btn = self.find_text_by_ocr("删除", timeout=5, region=(100, 420, 440, 500))
-        if delete_btn:
-            self.tap(delete_btn[0], delete_btn[1])
-        else:
-            # 降级：直接点击"删除"
-            self.click_text("删除", timeout=5)
-        time.sleep(3)
-
-        # 8. 删除后强制返回到消息列表页
-        #    策略: 先检查底部导航栏，如果有就直接点消息Tab，如果没有再按back
-        logger.info("📅 删除后强制返回到消息列表页")
-        for back_attempt in range(5):
-            # 优先检查底部导航栏是否可见（说明还在POPO内）
-            msg_nav = self.find_text_by_ocr("消息", timeout=1, region=Normal.BOTTOM_NAV)
-            if msg_nav:
-                logger.info(f"📅 第{back_attempt}次检查后发现底部导航栏，点击消息Tab")
-                self.tap(msg_nav[0], msg_nav[1])
-                time.sleep(1)
-                break
-            # 检查是否已回到消息列表页（消息Tab蓝色高亮）
-            msg_pos = self.find_image(MESSAGE_TAB_BLUE, timeout=1)
-            if msg_pos:
-                logger.info(f"📅 第{back_attempt}次Back后已回到消息列表页")
-                break
-            self.press_back()
-            time.sleep(1)
-
-        # 9. 重新打开侧边栏验证日历本已删除
-        self._open_calendar_sidebar()
-
-        # 滚回顶部再搜索确认删除
-        for _ in range(3):
-            self.swipe(350, 400, 350, 650)
-            time.sleep(0.3)
-        result = self.find_text_by_ocr(name, timeout=3)
-        assert result is None, f"日历本 '{name}' 删除后仍存在于侧边栏"
-        logger.info(f"✅ 日历本 '{name}' 已删除")
-
-        # 10. 关闭侧边栏，返回消息列表页
-        self._close_calendar_sidebar()
-        self.click_text("消息", region=Normal.BOTTOM_NAV)
-        time.sleep(1)
-
-        return True
-
-    def subscribe_calendar_book(self, keyword: str) -> bool:
-        """
-        [DEPRECATED] 同 create_calendar_book，旧版侧边栏路径已不适配新版 UI。
-        """
-        raise NotImplementedError(
-            "subscribe_calendar_book(旧版侧边栏路径) 已废弃，等待新版 UI 路径重写"
-        )
-        logger.info(f"📅 [MuMu] 订阅日历本: {keyword}")
-
-        # 1. 打开日历侧边栏
-        self._open_calendar_sidebar()
-
-        # 2. 点击搜索框进入订阅页面
-        self.click_text("搜索日历本", timeout=5)
-        time.sleep(2)
-
-        # 3. 验证进入订阅页面
-        self.find_text_by_ocr("订阅", timeout=5)
-
-        # 4. 搜索日历本（如果有搜索框）
-        search_pos = self.find_text_by_ocr("请输入日历本名称", timeout=3)
-        if search_pos:
-            self.tap(search_pos[0], search_pos[1])
-            time.sleep(0.3)
-            self.input_text(keyword)
-            time.sleep(2)
-
-        # 5. 找到目标日历本并点击"订阅"按钮
-        pos = self.find_text_by_ocr(keyword, timeout=5)
-        assert pos is not None, f"未找到日历本 '{keyword}'"
-        # 订阅按钮在日历本名称右侧
-        self.click_text("订阅", timeout=5)
-        time.sleep(2)
-
-        # 6. 验证订阅成功（按钮变为"退订"）
-        self.find_text_by_ocr("退订", timeout=5)
-        logger.info(f"✅ 日历本 '{keyword}' 订阅成功")
-
-        # 7. 关闭订阅页面（点击X按钮，左上角约 46,113）
-        self.press_back()
-        time.sleep(1)
-
-        # 8. 关闭侧边栏，返回消息列表页
-        self._close_calendar_sidebar()
-        self.click_text("消息", region=Normal.BOTTOM_NAV)
-        time.sleep(1)
-
-        return True
-
-    def unsubscribe_calendar_book(self, name: str) -> bool:
-        """
-        [DEPRECATED] 同 create_calendar_book，旧版侧边栏路径已不适配新版 UI。
-        """
-        raise NotImplementedError(
-            "unsubscribe_calendar_book(旧版侧边栏路径) 已废弃，等待新版 UI 路径重写"
-        )
-        logger.info(f"📅 [MuMu] 退订日历本: {name}")
-
-        # 1. 打开日历侧边栏
-        self._open_calendar_sidebar()
-
-        # 2. 先直接搜索目标名称（可能"我订阅的"已展开且目标在当前视图内）
-        pos = self.find_text_by_ocr(name, timeout=3)
-        if pos:
-            logger.info(f"📅 直接找到 '{name}' @ {pos}")
-        else:
-            # 3. 先找"我订阅的"分组标题，确保它在屏幕上可见
-            logger.info(f"📅 未直接看到 '{name}'，寻找'我订阅的'分组")
-            subscribed_pos = None
-
-            # 从当前位置开始向下滚动搜索"我订阅的"
-            for scroll_attempt in range(20):
-                subscribed_pos = self.find_text_by_ocr("我订阅的", timeout=2)
-                if subscribed_pos:
-                    logger.info(f"📅 第{scroll_attempt}次滚动后找到'我订阅的' @ {subscribed_pos}")
-                    break
-                # 也检查目标名称本身（可能在展开的列表中）
-                pos = self.find_text_by_ocr(name, timeout=1)
-                if pos:
-                    logger.info(f"📅 第{scroll_attempt}次滚动后直接找到 '{name}' @ {pos}")
-                    break
-                self.scroll_down(clicks=3)
-                time.sleep(1)
-
-            if pos:
-                pass  # 已经找到目标
-            elif subscribed_pos:
-                # 4. 把"我订阅的"滚动到屏幕中上部（约y=500），确保展开后子项可见
-                if subscribed_pos[1] > 550:
-                    self.scroll_down(clicks=5)
-                    time.sleep(1)
-                    subscribed_pos = self.find_text_by_ocr("我订阅的", timeout=3)
-
-                if subscribed_pos:
-                    # 5. 点击展开"我订阅的"分组
-                    self.tap(subscribed_pos[0], subscribed_pos[1])
-                    time.sleep(1.5)
-
-                    # 检查目标是否出现
-                    pos = self.find_text_by_ocr(name, timeout=3)
-                    if pos:
-                        logger.info(f"📅 展开'我订阅的'后找到 '{name}' @ {pos}")
-
-                    if not pos:
-                        # 可能展开后子项在屏幕下方，使用scroll_down滚动查找
-                        # swipe在侧边栏中可能无效，scroll_down使用鼠标滚轮更可靠
-                        for sub_scroll in range(8):
-                            self.scroll_down(clicks=3)
-                            time.sleep(1)
-                            pos = self.find_text_by_ocr(name, timeout=2)
-                            if pos:
-                                logger.info(f"📅 展开后第{sub_scroll}次滚动找到 '{name}' @ {pos}")
-                                break
-
-        assert pos is not None, f"未找到日历本 '{name}'"
-
-        # 3. 点击目标日历本右侧的...三点菜单图标
-        self.tap(440, pos[1])
-        time.sleep(1)
-
-        # 4. 点击"退订日历"
-        self.click_text("退订日历", timeout=5)
-        time.sleep(2)
-
-        # 5. 验证退订成功（日历本从列表中消失）
-        # 滚回顶部搜索确认
-        for _ in range(3):
-            self.swipe(350, 400, 350, 650)
-            time.sleep(0.3)
-        result = self.find_text_by_ocr(name, timeout=3)
-        assert result is None, f"日历本 '{name}' 退订后仍存在于侧边栏"
-        logger.info(f"✅ 日历本 '{name}' 已退订")
-
-        # 6. 关闭侧边栏，返回消息列表页
-        self._close_calendar_sidebar()
-        self.click_text("消息", region=Normal.BOTTOM_NAV)
-        time.sleep(1)
-
-        return True
-
-    # ==================== 日历模块 - 新版"任务管理"UI 路径（导航层） ====================
-    # 适用于 2026-05 element 实测的新版 POPO：
-    #   message_page → "日历"Tab → 三日视图 → "去任务中查看"链接 → 任务管理页
-    # 与上方已 DEPRECATED 的"侧边栏"路径互斥，新增日历用例统一走本节方法。
-
-    def goto_calendar_3day_view(self) -> bool:
-        """
-        进入日历三日视图并停留
-
-        从消息列表页导航到日历模块，确保当前停留在"日历"子 Tab（三日视图），
-        不返回消息页。供后续 open_calendar_book / R36 等用例作为前置。
-
-        前置条件:
-        - 当前为消息列表页 (message_page)
-
-        步骤:
-        1. 点击底部导航栏"日历"进入日历模块
-        2. 验证三日视图已加载（CALENDAR_UTC_LABEL 时区标识可见）
-        3. 若误入"会议室"子 Tab，点回"日历"子 Tab
-
-        Returns:
-            bool: 是否成功停留在三日视图
-        """
-        logger.info("📅 [MuMu] 进入日历三日视图（新版导航）")
-
-        self.click_text("日历", region=Normal.BOTTOM_NAV)
-        time.sleep(2)
-
-        # 若停留在"会议室"子 Tab，需要切回"日历"子 Tab
-        if not self.find_image(CALENDAR_SUBTAB_CAL, timeout=2):
-            if self.find_image(CALENDAR_SUBTAB_ROOM, timeout=2):
-                logger.info("📅 当前在会议室子 Tab，切换到日历子 Tab")
-                self.click_image(CALENDAR_SUBTAB_CAL, timeout=5)
-                time.sleep(1)
-
-        # 断言三日视图特征（UTC 时区标识）
-        self.image_exists(CALENDAR_UTC_LABEL, timeout=5)
-        logger.info("✅ [MuMu] 已停留在日历三日视图")
-        return True
-
-    def open_calendar_book(self) -> bool:
-        """
-        打开"任务管理"页（即旧 spec 中的 calendar_book_page）
-
-        前置条件:
-        - 当前为消息列表页 (message_page)
-
-        步骤:
-        1. 调用 goto_calendar_3day_view 进入三日视图
-        2. 点击"去任务中查看"链接（CALENDAR_GOTO_BOOK_LINK）
-        3. 验证已进入任务管理页（CAL_BOOK_MY_CREATED 行可见）
-
-        Returns:
-            bool: 是否成功进入任务管理页
-        """
-        logger.info("📅 [MuMu] 打开任务管理页（新版日历本管理入口）")
-
-        self.goto_calendar_3day_view()
-
-        self.click_image(CALENDAR_GOTO_BOOK_LINK, timeout=10)
-        time.sleep(2)
-
-        # 任务管理页的稳定特征：右上角搜索图标 + "我创建的"行
-        self.image_exists(CAL_BOOK_SEARCH_ICON, timeout=5)
-        self.image_exists(CAL_BOOK_MY_CREATED, timeout=5)
-        logger.info("✅ [MuMu] 已进入任务管理页")
-        return True
-
-    def open_my_created_calendar_book_list(self) -> bool:
-        """
-        进入"我创建的"日历本/任务列表页
-
-        前置条件:
-        - 当前为消息列表页 (message_page)
-
-        步骤:
-        1. 调用 open_calendar_book 进入任务管理页
-        2. 点击"我创建的"行（CAL_BOOK_MY_CREATED）
-        3. 验证已进入"我创建的"列表页
-           （CAL_MY_CREATED_FILTER + CAL_MY_CREATED_PLUS 同时可见）
-
-        Returns:
-            bool: 是否成功进入"我创建的"列表页
-        """
-        logger.info("📅 [MuMu] 进入'我创建的'列表页")
-
-        self.open_calendar_book()
-
-        self.click_image(CAL_BOOK_MY_CREATED, timeout=10)
-        time.sleep(2)
-
-        # 我创建的页特征：顶部筛选条 + 右下角创建按钮
-        self.image_exists(CAL_MY_CREATED_FILTER, timeout=5)
-        self.image_exists(CAL_MY_CREATED_PLUS, timeout=5)
-        logger.info("✅ [MuMu] 已进入'我创建的'列表页")
-        return True
-
-    def open_my_followed_calendar_book_list(self) -> bool:
-        """
-        进入"我关注的"日历本/任务列表页（新版 UI 中订阅入口的归属区域）
-
-        说明: Excel R36 步骤里写的"我的订阅"在新版 UI 上对应"我关注的"区块。
-        本方法只负责把页面切到"我关注的"列表页这一前置步骤；后续"点+输入名字
-        →订阅"的内层操作元素尚未截图，需 element/explorer 补图后再扩展。
-
-        前置条件:
-        - 当前为消息列表页 (message_page)
-
-        步骤:
-        1. 调用 open_calendar_book 进入任务管理页
-        2. 点击"我关注的"行（CAL_BOOK_MY_FOLLOWED）
-        3. 验证已离开任务管理首页（CAL_BOOK_MY_CREATED 不再可见）
-           说明: 因"我关注的"列表页内部元素尚未截图，无法做正向 image_exists
-           断言；用"任务管理首页已离开"作为反向证据，保持断言强度可接受。
-
-        Returns:
-            bool: 是否成功进入"我关注的"列表页
-        """
-        logger.info("📅 [MuMu] 进入'我关注的'列表页")
-
-        self.open_calendar_book()
-
-        self.click_image(CAL_BOOK_MY_FOLLOWED, timeout=10)
-        time.sleep(2)
-
-        # 反向断言: 已离开任务管理首页（"我创建的"行不再在主视图）
-        still_on_book_page = self.find_image(CAL_BOOK_MY_CREATED, timeout=2)
-        assert still_on_book_page is None, (
-            "点击'我关注的'后仍停留在任务管理首页，未进入子页面"
-        )
-        logger.info("✅ [MuMu] 已进入'我关注的'列表页")
-        return True
 
     # ==================== 群组管理相关 ====================
 

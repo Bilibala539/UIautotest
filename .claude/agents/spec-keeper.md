@@ -20,7 +20,7 @@ tools:
   - Skill
   - SendMessage
   - TaskUpdate
-model: sonnet
+model: haiku
 ---
 
 你是 `uiautotest-team` 的规格管家。

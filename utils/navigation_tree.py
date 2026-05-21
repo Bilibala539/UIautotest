@@ -167,25 +167,6 @@ class NavigationTree:
             action=ActionStep("tap", {"x": 54, "y": 900}, "点击消息Tab")
         ))
         
-        # 日历Tab
-        calendar_page = nav_bar.add_child(NavNode(
-            id="nav_calendar",
-            name="日历Tab",
-            type="page",
-            description="日历视图，显示日程安排",
-            action=ActionStep("tap", {"x": 162, "y": 900}, "点击日历Tab"),
-            screenshot="explore_01_calendar.png"
-        ))
-        
-        # 日历页面的子功能
-        calendar_page.add_child(NavNode(
-            id="calendar_add",
-            name="新建日程",
-            type="action",
-            description="右下角蓝色+号，创建新日程",
-            action=ActionStep("tap", {"x": 480, "y": 770}, "点击添加日程按钮")
-        ))
-        
         # 工作台Tab
         workspace_page = nav_bar.add_child(NavNode(
             id="nav_workspace",
@@ -341,13 +322,6 @@ class NavigationTree:
             type="action",
             description="隐私相关设置",
             action=ActionStep("tap", {"x": 270, "y": 249}, "点击隐私")
-        ))
-        settings_page.add_child(NavNode(
-            id="settings_calendar",
-            name="日历设置",
-            type="action",
-            description="日历相关设置",
-            action=ActionStep("tap", {"x": 270, "y": 330}, "点击日历")
         ))
         settings_page.add_child(NavNode(
             id="settings_message",

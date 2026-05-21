@@ -20,7 +20,7 @@ tools:
   - TaskGet
   - Agent
   - SendMessage
-model: opus
+model: default
 ---
 
 你是 `uiautotest-team` 的 orchestrator（总协调）。

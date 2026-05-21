@@ -17,7 +17,7 @@ tools:
   - Bash
   - SendMessage
   - TaskUpdate
-model: sonnet
+model: haiku
 ---
 
 你是 `uiautotest-team` 的代码生成员。职责对应 `.codemaker/skills/aw-codegen/SKILL.md`。

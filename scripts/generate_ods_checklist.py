@@ -130,10 +130,6 @@ def categorize_feature(feature_id, tags, name):
     if any(k in feature_id for k in ["group", "team", "announcement", "exit_group"]):
         return "07-群组管理"
 
-    # 日历
-    if "calendar" in feature_id:
-        return "08-日历/日程"
-
     # 图片相关
     if "image" in feature_id or "album" in feature_id:
         return "09-图片编辑"

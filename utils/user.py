@@ -233,6 +233,14 @@ class PPUser:
         """长按第一个会话项添加至分组"""
         return self.aw.long_press_session_add_to_group(group_name)
 
+    def mark_conversation_as_read(self, conversation_name: str) -> bool:
+        """在消息列表中长按指定会话 → 设为已读"""
+        return self.aw.mark_conversation_as_read(conversation_name)
+
+    def close_conversation_box(self, conversation_name: str) -> bool:
+        """在消息列表中长按指定会话盒子 → 关闭"""
+        return self.aw.close_conversation_box(conversation_name)
+
     def create_team(self) -> bool:
         """创建群组"""
         return self.aw.create_team()
@@ -317,6 +325,10 @@ class PPUser:
         """打开侧边栏"""
         return self.aw.open_sidebar()
 
+    def close_sidebar(self):
+        """关闭侧边栏（press_back 回到消息列表页）"""
+        return self.aw.close_sidebar()
+
     def view_my_profile(self) -> dict:
         """
         查看我的个人资料，返回OCR采集到的个人信息字典
@@ -335,24 +347,6 @@ class PPUser:
     def open_settings(self):
         """打开设置页面"""
         return self.aw.open_settings()
-
-    # ==================== 日历模块（新版"任务管理"路径） ====================
-
-    def goto_calendar_3day_view(self) -> bool:
-        """进入日历三日视图并停留（不返回消息页）"""
-        return self.aw.goto_calendar_3day_view()
-
-    def open_calendar_book(self) -> bool:
-        """打开任务管理页（新版日历本管理入口）"""
-        return self.aw.open_calendar_book()
-
-    def open_my_created_calendar_book_list(self) -> bool:
-        """进入'我创建的'日历本/任务列表页"""
-        return self.aw.open_my_created_calendar_book_list()
-
-    def open_my_followed_calendar_book_list(self) -> bool:
-        """进入'我关注的'日历本/任务列表页（R36 订阅入口前置）"""
-        return self.aw.open_my_followed_calendar_book_list()
 
     def open_message_settings(self):
         """打开消息设置页面"""
@@ -471,7 +465,7 @@ class PPUser:
         """搜服务号"""
         self.aw.search(tab, text)
 
-    def search_xiaochengxu(self, tab="日程", text=""):
+    def search_xiaochengxu(self, tab="云空间", text=""):
         """搜小程序"""
         self.aw.search(tab, text)
 

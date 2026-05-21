@@ -1,0 +1,3 @@
+多用户测试文件: 2
+  test_会话透出_P2P消息.py ['userA', 'userB']
+  test_会话透出_群聊图片消息.py ['userA', 'userB']

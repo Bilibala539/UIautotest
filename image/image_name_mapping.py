@@ -121,12 +121,8 @@ SEARCH_TAB3_BOTTON = os.path.join(path, "默认排序包含成员下拉按钮.pn
 SEARCH_TAB4 = os.path.join(path, "搜索页面-消息tab.png")
 SEARCH_TAB4_BOTTON = os.path.join(path, "搜索页面-消息tab-条件按钮.png")
 SEARCH_TAB4_NO = os.path.join(path, "搜索页面-消息tab-未选中.png")
-SEARCH_TAB5 = os.path.join(path, "搜索页面-日程tab.png")
-SEARCH_TAB5_NO = os.path.join(path, "搜索页面-日程tab-未选中.png")
 SEARCH_TAB6 = os.path.join(path, "搜索页面-云空间tab.png")
 SEARCH_TAB6_NO = os.path.join(path, "搜索页面-云空间tab-未选中.png")
-SEARCH_TAB7 = os.path.join(path, "搜索页面-任务tab.png")
-SEARCH_TAB7_NO = os.path.join(path, "搜索页面-任务tab-未选中.png")
 SEARCH_TAB8 = os.path.join(path, "搜索页面-应用tab.png")
 SEARCH_TAB8_NO = os.path.join(path, "搜索页面-应用tab-未选中.png")
 
@@ -187,7 +183,6 @@ CONTACTS_ALPHABET_BAR = os.path.join(path, "通讯录页-字母索引栏.png")
 
 # 通讯录页 - 底部导航栏
 CONTACTS_NAV_MESSAGE_TAB = os.path.join(path, "通讯录页-底部导航栏消息tab.png")
-CONTACTS_NAV_CALENDAR_TAB = os.path.join(path, "通讯录页-底部导航栏日历tab.png")
 CONTACTS_NAV_CLOUD_TAB = os.path.join(path, "通讯录页-底部导航栏云空间tab.png")
 CONTACTS_NAV_WORKSPACE_TAB = os.path.join(path, "通讯录页-底部导航栏工作台tab.png")
 CONTACTS_NAV_ELIFE_TAB = os.path.join(path, "通讯录页-底部导航栏易生活tab.png")
@@ -196,29 +191,5 @@ CONTACTS_NAV_MORE_TAB = os.path.join(path, "通讯录页-底部导航栏更多ta
 # 会话分组
 SESSION_GROUP_MORE_BUTTON = os.path.join(test_path, "消息tab页-分组更多按钮.png")
 
-# ==================== 日历模块 - 三日视图（草稿 - 待 verify 转正） ====================
-# 注意：链接实际文案为"去任务中查看"（非知识库写的"去日历本中查看"），文件名按实际命名
-# 仅供已 DEPRECATED 的旧 AW (_open_calendar_sidebar / 旧 create_calendar_book 等) 引用，新代码不要用
-CALENDAR_SIDEBAR_BUTTON = os.path.join(test_path, "日历页-侧边栏按钮.png")
-CALENDAR_SUBTAB_CAL = os.path.join(test_path, "日历页-子Tab-日历选中.png")
-CALENDAR_SUBTAB_ROOM = os.path.join(test_path, "日历页-子Tab-会议室未选中.png")
-CALENDAR_ADD_PLUS = os.path.join(test_path, "日历页-右下角添加按钮.png")
-CALENDAR_GOTO_BOOK_LINK = os.path.join(test_path, "日历页-去任务中查看链接.png")
-CALENDAR_UTC_LABEL = os.path.join(test_path, "日历页-UTC时区标识.png")
-
-# ==================== 日历模块 - 任务管理页（即知识库的 calendar_book_page，草稿 - 待 verify 转正） ====================
-# 注意：这版 POPO 中"日历本管理"页实际呈现为"任务"页（标题"任务"，含全部任务/快捷方式/我关注的/我创建的/全部项目）
-# 常量名沿用 CAL_BOOK_* 以保持与原 spec 一致，但 UI 文案对应"任务管理"
-CAL_BOOK_SEARCH_ICON = os.path.join(test_path, "任务管理页-右上角搜索图标.png")
-CAL_BOOK_MY_FOLLOWED = os.path.join(test_path, "任务管理页-我关注的行.png")
-CAL_BOOK_MY_CREATED = os.path.join(test_path, "任务管理页-我创建的行.png")
-CAL_BOOK_CREATE_PLUS = os.path.join(test_path, "任务管理页-右下角创建按钮.png")
-
-# ==================== 日历模块 - 我创建的页（草稿 - 待 verify 转正） ====================
-# 注意：实际 UI 是"筛选标签条"（未完成×/截止时间▾/优先级▾/↕创建时），非知识库写的"筛选 ▾/排序 ▾"两个下拉
-# FILTER 取"截止时间 ▾"作为筛选语义代表；SORT 取右侧"↕ 创建时"含排序图标（"间"字被源 UI 自身截断）
-CAL_MY_CREATED_FILTER = os.path.join(test_path, "我创建的页-截止时间筛选.png")
-CAL_MY_CREATED_SORT = os.path.join(test_path, "我创建的页-创建时间排序.png")
-CAL_MY_CREATED_PLUS = os.path.join(test_path, "我创建的页-右下角创建按钮.png")
 
 

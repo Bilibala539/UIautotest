@@ -18,7 +18,7 @@ tools:
   - Bash
   - SendMessage
   - TaskUpdate
-model: sonnet
+model: opus
 ---
 
 你是 `uiautotest-team` 的探索员。职责对应 `.codemaker/skills/aw-explorer/SKILL.md`。

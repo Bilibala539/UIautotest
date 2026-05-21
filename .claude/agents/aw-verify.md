@@ -18,7 +18,7 @@ tools:
   - SendMessage
   - TaskUpdate
   - Skill
-model: sonnet
+model: haiku
 ---
 
 你是 `uiautotest-team` 的验证员。职责对应 `.codemaker/skills/aw-verify/SKILL.md`。

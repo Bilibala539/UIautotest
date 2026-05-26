@@ -5,11 +5,6 @@ pytest fixture 配置文件
 设计说明：
 - 设备(Device): Session级别，整个测试过程只启动一次
 - 用户(User): Function级别，每个测试用例独立创建，不共享状态
-
-平台选择规则 (优先级从高到低):
-1. marker 标记: @pytest.mark.mumu 或 @pytest.mark.pc
-2. 文件夹自动判断: tests/mumu/ → mumu, tests/win/ → pc
-3. 默认值: mumu
 """
 import os
 import base64
@@ -40,48 +35,17 @@ from utils.devices import adb_connect, start_devices, Device
 from typing import TYPE_CHECKING
 
 
-# ==================== 平台判断工具函数 ====================
-
-def _detect_platform(item) -> str:
-    """
-    检测测试用例的目标平台
-
-    优先级:
-    1. @pytest.mark.mumu / @pytest.mark.pc  (marker 标记优先)
-    2. 文件路径中的 tests/win/ 或 tests/mumu/ (文件夹自动判断)
-    3. 默认 "mumu"
-
-    Args:
-        item: pytest item (test node)
-
-    Returns:
-        str: "mumu" 或 "pc"
-    """
-    # 1. 检查 marker
-    markers = [m.name for m in item.iter_markers()]
-    if "pc" in markers:
-        return "pc"
-    if "mumu" in markers:
-        return "mumu"
-
-    # 2. 检查文件路径
-    fspath = str(item.fspath).replace("\\", "/")
-    if "/tests/win/" in fspath or "/tests/pc/" in fspath:
-        return "pc"
-    if "/tests/mumu/" in fspath:
-        return "mumu"
-
-    # 3. 默认
-    return "mumu"
-
 # ==================== 配置日志 ====================
-# 使用项目根目录下的logs文件夹
-log_dir = r"E:\UIAutotest\logs"
+# 统一输出目录
+_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+_OUTPUT_DIR = os.path.join(_BASE_DIR, "output")
+log_dir = os.path.join(_OUTPUT_DIR, "logs")
 os.makedirs(log_dir, exist_ok=True)
 
 # 创建 HTML 日志文件路径
 _log_timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
 _log_instance_id = os.environ.get("INSTANCE_ID", "0")
+_session_id = f"{_log_timestamp}_inst{_log_instance_id}"
 log_file = os.path.join(log_dir, f"test_{_log_timestamp}_inst{_log_instance_id}.html")
 
 # 本次 session 的测试结果（供历史报告使用）
@@ -216,8 +180,7 @@ def _cleanup_intermediate_screenshots() -> None:
     保留 FAIL_ 开头的用例失败截图。
     用例通过时调用，确保通过的用例不留下调试截图。
     """
-    screenshot_dir = os.path.join(os.path.dirname(log_file), '..', 'screenshots')
-    screenshot_dir = os.path.normpath(screenshot_dir)
+    screenshot_dir = os.path.join(_OUTPUT_DIR, 'screenshots')
     if not os.path.exists(screenshot_dir):
         return
 
@@ -320,10 +283,10 @@ def pytest_runtest_makereport(item, call):
             screenshot_dir = os.path.join(os.path.dirname(log_file), '..', 'screenshots')
             screenshot_dir = os.path.normpath(screenshot_dir)
             os.makedirs(screenshot_dir, exist_ok=True)
-            test_file_stem = os.path.splitext(os.path.basename(str(item.fspath)))[0]
+            test_name = item.name
             screenshot_path = os.path.join(
                 screenshot_dir,
-                f"FAIL_{test_file_stem}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
+                f"FAIL_{test_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
             )
             img = aw.take_screenshot(save_path=screenshot_path)
             if img is not None:
@@ -497,16 +460,14 @@ class UsersFactory:
 
     }
     
-    def __init__(self, device_manager: DeviceManager, platform: str = "mumu"):
+    def __init__(self, device_manager: DeviceManager):
         """
         初始化用户工厂
 
         Args:
             device_manager: 设备管理器实例
-            platform: 目标平台 ('mumu' 或 'pc')
         """
         self._device_manager = device_manager
-        self._platform = platform
         self._created_users: Dict[str, PPUser] = {}
 
         # 并行执行支持：INSTANCE_ID 环境变量指定设备索引 + 账号映射
@@ -525,7 +486,7 @@ class UsersFactory:
             self._instance_id = 0
             self._device_index = 0
             self._user_key_map = {}
-        logger.info(f"👤 UsersFactory 初始化 (platform={platform}, instance_id={self._instance_id}, scope=session)")
+        logger.info(f"👤 UsersFactory 初始化 (instance_id={self._instance_id}, scope=session)")
     
     def __call__(self, user_key: str) -> PPUser:
         """
@@ -550,10 +511,14 @@ class UsersFactory:
         # 相同 user_key 返回同一个用户实例（设备绑定不变）
         if user_key in self._created_users:
             user = self._created_users[user_key]
-            # 缓存命中但用户未登录（上一条用例 teardown 已退登），自动重新登录
             if not user.is_logged_in:
+                # 极端情况：登录态丢失（clear_app_data 等），需要重新登录
                 logger.info(f"🔐 [auto] 用户 {user_key} 未登录，自动登录: {user.uid}")
                 user.login()
+            else:
+                # 正常路径：上条用例 teardown 已 force-stop，重新拉起 App 即可
+                logger.info(f"📱 [auto] 用户 {user_key} 已登录，拉起 App")
+                user.open_app()
             return user
 
         # 分布式节点过滤：如果配置了 NODE_USERS，只创建本节点负责的用户
@@ -578,51 +543,46 @@ class UsersFactory:
 
         # 根据平台决定是否需要设备
         pp_device = None
-        if self._platform == "mumu":
-            if skip_device_setup:
-                # 跳过设备启动 — 模拟器已在运行，直接创建 PPDevice
-                from utils.devices import get_device_port_by_instance
-                instance_id = self._device_index
-                port = get_device_port_by_instance(instance_id)
-                self._device_index += 1
-                pp_device = PPDevice(device_port=port, instance_id=instance_id)
-                pp_device.size = (540, 960)
-                pp_device.is_ready = True
-                logger.info(f"⏭️ SKIP_SESSION_LOGIN: 复用已运行设备 instance={instance_id} port={port}")
-            else:
-                # MuMu 端需要启动模拟器设备
-                needed_devices = self._device_index + 1
-                self._device_manager.ensure_devices(needed_devices)
-                device = self._device_manager.get_device(self._device_index)
-                if device is None:
-                    raise RuntimeError(
-                        f"❌ 无法获取设备 index={self._device_index}，"
-                        f"已启动设备数={len(self._device_manager.devices)}，"
-                        f"请检查模拟器是否正常启动"
-                    )
-                self._device_index += 1
+        if skip_device_setup:
+            # 跳过设备启动 — 模拟器已在运行，直接创建 PPDevice
+            from utils.devices import get_device_port_by_instance
+            instance_id = self._device_index
+            port = get_device_port_by_instance(instance_id)
+            self._device_index += 1
+            pp_device = PPDevice(device_port=port, instance_id=instance_id)
+            pp_device.size = (540, 960)
+            pp_device.is_ready = True
+            logger.info(f"⏭️ SKIP_SESSION_LOGIN: 复用已运行设备 instance={instance_id} port={port}")
+        else:
+            # 启动模拟器设备
+            needed_devices = self._device_index + 1
+            self._device_manager.ensure_devices(needed_devices)
+            device = self._device_manager.get_device(self._device_index)
+            if device is None:
+                raise RuntimeError(
+                    f"❌ 无法获取设备 index={self._device_index}，"
+                    f"已启动设备数={len(self._device_manager.devices)}，"
+                    f"请检查模拟器是否正常启动"
+                )
+            self._device_index += 1
 
-                pp_device = PPDevice(device_port=device.adb_port, instance_id=device.instance_id)
-                pp_device.pos = device.pos
-                pp_device.size = device.size
-                pp_device.window_name = device.window_name
-                pp_device.is_ready = device.is_ready
+            pp_device = PPDevice(device_port=device.adb_port, instance_id=device.instance_id)
+            pp_device.pos = device.pos
+            pp_device.size = device.size
+            pp_device.window_name = device.window_name
+            pp_device.is_ready = device.is_ready
 
-        # 创建用户实例（带 platform 参数，不立即登录）
+        # 创建用户实例
         user = PPUser(
             uid=config["uid"],
             password=config["password"],
             device=pp_device,
-            platform=self._platform,
             env=config["env"],
             name=config.get("name", ""),
             need_login=True,
         )
 
-        if self._platform == "mumu":
-            logger.info(f"✅ 创建用户 {user_key}: {user.uid} -> 设备 {pp_device.adb_address} (MuMu)")
-        else:
-            logger.info(f"✅ 创建用户 {user_key}: {user.uid} (PC)")
+        logger.info(f"✅ 创建用户 {user_key}: {user.uid} -> 设备 {pp_device.adb_address}")
 
         # 缓存用户实例
         self._created_users[user_key] = user
@@ -641,9 +601,18 @@ class UsersFactory:
     def session_cleanup(self) -> None:
         """
         Session 结束时的清理操作
-        每条用例已在结束时退登，此处仅清理缓存
+        统一退登所有用户，然后清理缓存
         """
-        logger.info("🧹 ================================================== Session 结束，清理用户缓存 ==================================================")
+        logger.info("🧹 ================================================== Session 结束，统一退登 ==================================================")
+        for user_key, user in self._created_users.items():
+            if user.is_logged_in:
+                try:
+                    logger.info(f"🚪 [session] 退登用户: {user_key} ({user.uid})")
+                    user.logout()
+                except Exception as e:
+                    logger.warning(f"⚠️ [session] 退登失败: {user_key}, force-stop: {e}")
+                    user.close_app()
+            user._logged_in = False
         self._created_users.clear()
         self._device_index = 0
         logger.info("✅ ================================================== Session 清理完成 ==================================================")
@@ -661,9 +630,9 @@ class BaseTest:
 
     生命周期 (每条用例独立):
     - setup: 获取用户实例
-    - 框架自动: 登录 → 打开 POPO → 进入消息列表页
+    - 框架自动: open_app → 进入消息列表页（Session 首次调用时执行登录）
     - 执行测试方法
-    - 框架自动: 退登 → 关闭 POPO
+    - 框架自动: force-stop（保留登录态，Session 结束时统一退登）
 
     使用方式:
         class TestXXX(BaseTest):
@@ -708,19 +677,15 @@ def users(device_manager):
     用户工厂 fixture - Session 级别
 
     整个测试 Session 共享同一个 UsersFactory 实例。
-    首次调用 users("userA") 时触发: 启动设备 → 创建用户实例。
-    登录/退登由每条用例的 _auto_app_lifecycle 自动管理。
-
-    平台选择规则:
-    1. 环境变量 PLATFORM=pc → PC端
-    2. 默认 → MuMu端
+    首次调用 users("userA") 时触发: 启动设备 → 创建用户实例 → 登录。
+    后续用例复用已登录用户，通过 open_app() 拉起 App。
+    Session 结束时统一退登。
 
     Yields:
         UsersFactory: 用户工厂实例 (Session 级别共享)
     """
-    platform = os.environ.get("PLATFORM", "mumu")
-    factory = UsersFactory(device_manager, platform=platform)
-    logger.info(f"👤 ================================================== Session 开始，创建 UsersFactory (platform={platform}) ==================================================")
+    factory = UsersFactory(device_manager)
+    logger.info(f"👤 ================================================== Session 开始，创建 UsersFactory ==================================================")
 
     yield factory
 
@@ -735,11 +700,10 @@ def _auto_app_lifecycle(users, request):
 
     生命周期:
     1. [setup] 注入 users 到测试类 + 执行用户自定义 setup()
-       （setup 中调用 self.users("userA") 时自动触发 login，确保后续业务操作可执行）
+       （setup 中调用 self.users("userA") 时自动触发 open_app，确保 App 在消息列表页）
     2. [yield] 执行测试方法
-    3. [teardown 前] 为所有已创建的用户执行: 退登 → 关闭 POPO
-       （正常退登失败时降级为 force-stop → 重启 → 再退登）
-    4. [teardown] 执行用户自定义 teardown()
+    3. [teardown] 执行用户自定义 teardown() → force-stop（保留登录态）
+       （Session 结束时统一退登）
     """
     instance = request.instance
 
@@ -759,13 +723,11 @@ def _auto_app_lifecycle(users, request):
 
             setup_success = True
         except Exception:
-            # setup 或 login 失败时，先关闭所有用户的 POPO，避免下一个用例看到脏状态
-            logger.error("❌ setup/login 阶段失败，执行清理...")
+            # setup 失败时，force-stop 清理脏状态，保留登录态让下条用例 open_app 重新拉起
+            logger.error("❌ setup 阶段失败，force-stop 清理...")
             for user_key, user in users.get_all_users().items():
-                logger.info(f"📱 [cleanup] 关闭 POPO: {user_key}")
+                logger.info(f"📱 [cleanup] force-stop: {user_key}")
                 user.close_app()
-                # 标记为未登录，确保下一个用例会重新 login
-                user._logged_in = False
             raise  # 重新抛出异常，让 pytest 标记为 ERROR
 
     yield
@@ -778,25 +740,12 @@ def _auto_app_lifecycle(users, request):
             try:
                 instance.teardown()
             except Exception as e:
-                logger.warning(f"⚠️ 用户 teardown() 执行异常（不影响退登流程）: {e}")
+                logger.warning(f"⚠️ 用户 teardown() 执行异常（不影响清理流程）: {e}")
 
-        # 然后为所有用户退登并关闭 POPO
+        # 用例间只做 force-stop（保留登录态），下条用例通过 open_app() 重新拉起
         for user_key, user in users.get_all_users().items():
-            if user.is_logged_in:
-                try:
-                    # 第一次尝试：正常 logout（从当前页面直接退登）
-                    logger.info(f"🚪 [auto] 退登用户: {user_key} ({user.uid})")
-                    user.logout()
-                except Exception as e:
-                    # 正常 logout 失败（用例失败后页面状态未知）
-                    # 降级策略：force-stop → 标记未登录（放弃退登，下次用例重新登录）
-                    logger.warning(f"⚠️ [auto] 退登失败: {user_key}, force-stop 并标记未登录: {e}")
-                    user.close_app()
-                    user._logged_in = False
-
-            logger.info(f"📱 [auto] 关闭 POPO: {user_key}")
+            logger.info(f"📱 [auto] force-stop: {user_key}")
             user.close_app()
-            user._logged_in = False
 
 
 @pytest.fixture(scope="session")
@@ -823,12 +772,15 @@ def _generate_and_upload_allure_report():
     allure_results = os.path.join(base_dir, "allure-results")
     allure_report = os.path.join(base_dir, "allure-report")
 
-    if not os.path.isdir(allure_results):
-        logger.warning("allure-results 目录不存在，跳过报告生成")
-        return
-
-    # 先保存本次会话快照（日志 + session.json）
+    # 无论 allure-results 是否存在，都先保存并上传 session 数据
     sessions_dir, session_data = _save_session_data(base_dir)
+    # 并行模式下 worker 只保存本地，由 coordinator 统一上传
+    if os.environ.get("SKIP_REPORT_UPLOAD") != "1":
+        _upload_session_data(sessions_dir, session_data)
+
+    if not os.path.isdir(allure_results):
+        logger.warning("allure-results 目录不存在，跳过 Allure 报告生成")
+        return
 
     # 保留历史趋势：把上次报告的 history/ 拷回 allure-results/history/
     history_src = os.path.join(allure_report, "history")
@@ -893,7 +845,7 @@ def _generate_and_upload_allure_report():
     _write_history_html(os.path.join(allure_report, "history.html"))
     logger.info("📊 测试历史页面已生成")
 
-    # 上传到远程服务器
+    # 上传 Allure 报告到远程服务器
     ssh = None
     try:
         ssh = paramiko.SSHClient()
@@ -901,30 +853,54 @@ def _generate_and_upload_allure_report():
         ssh.connect(_REPORT_HOST, username=_REPORT_USER, password=_REPORT_PASS, timeout=30)
         logger.info(f"🔐 SSH 连接成功: {_REPORT_USER}@{_REPORT_HOST}")
 
-        stdin, stdout, stderr = ssh.exec_command(f"mkdir -p {_REPORT_REMOTE_DIR}/sessions")
-        stdout.channel.recv_exit_status()
-
         # 上传 allure-report/
         with SCPClient(ssh.get_transport()) as scp:
             scp.put(allure_report, _REPORT_REMOTE_DIR, recursive=True)
 
-        # 从远端拉取历史、合并本次数据、上传回去（远端是唯一数据源）
-        sftp = ssh.open_sftp()
-        _sync_remote_history(sftp, session_data)
+        logger.info(f"✅ Allure 报告上传完成 → http://{_REPORT_HOST}/reports/allure-report/")
+
+        # 上传成功后清理本地 allure 中间文件
+        _cleanup_local_artifacts(base_dir)
+    except Exception as e:
+        logger.error(f"❌ Allure 报告上传失败: {e}")
+    finally:
+        if ssh:
+            ssh.close()
+
+
+def _upload_session_data(sessions_dir: str, session_data: dict):
+    """独立上传 session 数据（不依赖 allure-results 是否存在）。"""
+    ssh = None
+    try:
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        ssh.connect(_REPORT_HOST, username=_REPORT_USER, password=_REPORT_PASS, timeout=30)
+
+        stdin, stdout, stderr = ssh.exec_command(f"mkdir -p {_REPORT_REMOTE_DIR}/sessions")
+        stdout.channel.recv_exit_status()
 
         # 上传本次 session 目录（logs + session.json）
-        session_subdir = os.path.join(sessions_dir, _log_timestamp)
+        session_subdir = os.path.join(sessions_dir, _session_id)
         if os.path.isdir(session_subdir):
             with SCPClient(ssh.get_transport()) as scp:
                 scp.put(session_subdir, f"{_REPORT_REMOTE_DIR}/sessions", recursive=True)
+
+        # 从远端拉取历史、合并本次数据、上传回去
+        sftp = ssh.open_sftp()
+        _sync_remote_history(sftp, session_data)
         sftp.close()
 
-        logger.info(f"✅ 全部上传完成 → http://{_REPORT_HOST}/reports/allure-report/history.html")
+        logger.info(f"✅ Session 数据上传完成: {session_data['id']}")
 
-        # 上传成功后清理本地中间文件（释放磁盘空间）
-        _cleanup_local_artifacts(base_dir)
+        # 上传成功后清理本地 sessions 目录
+        if os.path.isdir(sessions_dir):
+            try:
+                shutil.rmtree(sessions_dir)
+                logger.info("🧹 已清理本地: sessions/")
+            except Exception as e:
+                logger.warning(f"⚠️ 清理 sessions/ 失败: {e}")
     except Exception as e:
-        logger.error(f"❌ 报告上传失败: {e}")
+        logger.error(f"❌ Session 数据上传失败: {e}")
     finally:
         if ssh:
             ssh.close()
@@ -932,7 +908,7 @@ def _generate_and_upload_allure_report():
 
 def _cleanup_local_artifacts(base_dir: str):
     """删除本地 allure-results / allure-report 临时目录。"""
-    for name in ("allure-results", "allure-report", "sessions"):
+    for name in ("allure-results", "allure-report"):
         path = os.path.join(base_dir, name)
         if os.path.isdir(path):
             try:
@@ -1046,12 +1022,12 @@ body {
 def _save_session_data(base_dir: str):
     """保存本次会话日志快照和 session.json（不再写 index/history，由远端同步负责）"""
     import hashlib
-    sessions_dir = os.path.join(base_dir, "sessions")
-    session_dir  = os.path.join(sessions_dir, _log_timestamp)
+    sessions_dir = os.path.join(base_dir, "output", "sessions")
+    session_dir  = os.path.join(sessions_dir, _session_id)
     os.makedirs(session_dir, exist_ok=True)
 
     # 日志文件用 ASCII 安全名拷贝（避免 SCP 中文乱码）
-    logs_src = os.path.join(base_dir, "logs")
+    logs_src = os.path.join(base_dir, "output", "logs")
     logs_dst = os.path.join(session_dir, "logs")
     os.makedirs(logs_dst, exist_ok=True)
     log_name_map: dict = {}
@@ -1070,7 +1046,7 @@ def _save_session_data(base_dir: str):
     safe_tests = [dict(t, log=log_name_map.get(t["log"], t["log"])) for t in _test_results]
 
     session_data = {
-        "id":       _log_timestamp,
+        "id":       _session_id,
         "ts":       datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "platform": _PLATFORM,
         "project":  _PROJECT,
@@ -1083,7 +1059,7 @@ def _save_session_data(base_dir: str):
     with open(os.path.join(session_dir, "session.json"), "w", encoding="utf-8") as f:
         json.dump(session_data, f, ensure_ascii=False, indent=2)
 
-    logger.info(f"📁 会话快照已保存: sessions/{_log_timestamp}/")
+    logger.info(f"📁 会话快照已保存: sessions/{_session_id}/")
     return sessions_dir, session_data
 
 

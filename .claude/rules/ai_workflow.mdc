@@ -55,7 +55,7 @@ AI 必须按此流程逐步执行，不得跳步。
 ## 生成代码（Phase 4）
 - AW 方法: `方法名()` → utils/aw/business/mumu.py
 - PPUser 代理: `方法名()` → utils/user.py
-- 测试用例: tests/mumu/checklist/test_xxx.py
+- 测试用例: tests/checklist/test_xxx.py
 
 ## 验证结果（Phase 5）
 - 测试状态: ✅ 通过 / ❌ 失败（修复 N 轮后通过）
@@ -149,10 +149,10 @@ Phase 5: 运行验证 + 自检修复 + 图片转正（aw-verify）
 
 | 步骤 | 操作 | 完成条件 |
 |------|------|---------|
-| 4.1 | 在 `mumu.py`（或 `pc.py`）中编写业务 AW 方法 | 方法已添加，无 `self.tap(x,y)` |
+| 4.1 | 在 `mumu.py` 中编写业务 AW 方法 | 方法已添加，无 `self.tap(x,y)` |
 | 4.2 | 确保只调用 AWBase 方法，断言优先 `image_exists` | 代码符合编码规范 |
 | 4.3 | 在 `utils/user.py` 的 PPUser 中添加代理方法 | 代理方法已添加 |
-| 4.4 | 在 `tests/mumu/checklist/` 中创建测试用例 | 用例继承 BaseTest，setup/teardown 正确 |
+| 4.4 | 在 `tests/checklist/` 中创建测试用例 | 用例继承 BaseTest，setup/teardown 正确 |
 
 **完成标志**：AW 方法、PPUser 代理、测试用例三件齐全。
 
@@ -168,7 +168,7 @@ Phase 5: 运行验证 + 自检修复 + 图片转正（aw-verify）
 |------|------|---------|
 | 5.1 | 代码自检（硬编码坐标、断言方式、region、sleep） | 自检清单全部通过 |
 | 5.2 | 元素图片自检（命名、动态元素、留白、分辨率） | 自检清单全部通过 |
-| 5.3 | 运行 `pytest tests/mumu/checklist/test_xxx.py -v` | 测试运行完成 |
+| 5.3 | 运行 `pytest tests/checklist/test_xxx.py -v` | 测试运行完成 |
 | 5.4a | **测试通过** → 图片转正（`image_ai/` → `image/`，`test_path` → `path`） | 图片已转正 |
 | 5.4b | **测试失败** → 按排查流程修复（先查图片质量，再查代码逻辑） | 回到 5.3 重新运行 |
 | 5.5 | 更新知识库 `aw_status` 为 `"已实现"` | 知识库已更新 |

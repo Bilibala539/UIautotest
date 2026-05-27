@@ -165,7 +165,7 @@ claude
 > 帮我写一个「编辑群公告并保存」的 pytest 用例
    ↓ 派 aw-codegen
 
-> 跑一下 tests/mumu/group/test_announcement.py
+> 跑一下 tests/group/test_announcement.py
    ↓ 派 aw-verify
 ```
 
@@ -187,7 +187,7 @@ Team lead（主会话）会拆解任务、派活、串联串行流程、失败�
 一次需要多个视角同时评审某块代码 / 文档时：
 
 ```
-> 让 aw-verify 和 spec-keeper 并行审查 tests/mumu/group/ 里的新用例：
+> 让 aw-verify 和 spec-keeper 并行审查 tests/group/ 里的新用例：
   - aw-verify 看测试逻辑、断言质量
   - spec-keeper 看是否需要补充 openspec/specs
 ```
@@ -287,7 +287,7 @@ claude
 ### 场景 3：某个测试一直挂
 
 ```
-> aw-verify 帮我诊断 tests/mumu/message/test_recall.py 为什么一直失败，
+> aw-verify 帮我诊断 tests/message/test_recall.py 为什么一直失败，
   按图片优先、代码其次的顺序排查，最后给我修复建议
 ```
 

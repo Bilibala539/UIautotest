@@ -1,7 +1,7 @@
 """
 统一AW基础操作模块
 
-通过 PlatformDriver 抽象层实现一套代码兼容 MuMu 和 PC 两个平台。
+通过 PlatformDriver 抽象层实现统一的基础操作。
 所有 OCR、图像匹配、组合操作方法只维护一份。
 
 核心方法:
@@ -39,7 +39,7 @@ logger = logging.getLogger(__name__)
 # 图片模板和截图目录
 _BASE_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', '..'))
 TEMPLATE_DIR = os.path.join(_BASE_DIR, 'image')
-SCREENSHOT_DIR = os.path.join(_BASE_DIR, 'screenshots')
+SCREENSHOT_DIR = os.path.join(_BASE_DIR, 'output', 'screenshots')
 EXPLORER_SCREENSHOT_DIR = os.path.join(_BASE_DIR, 'explorer_output', 'screenshots')
 EXPLORER_ELEMENTS_DIR = os.path.join(_BASE_DIR, 'explorer_output', 'elements')
 
@@ -52,7 +52,7 @@ class AWBase:
     所有 OCR / 图像匹配 / 组合操作方法只维护一份。
 
     Args:
-        driver: 平台驱动实例 (MuMuDriver 或 PCDriver)
+        driver: 平台驱动实例
     """
 
     TEMPLATE_DIR = TEMPLATE_DIR
@@ -79,7 +79,7 @@ class AWBase:
 
     @property
     def platform(self) -> str:
-        """当前平台名称 ('mumu' 或 'pc')"""
+        """当前平台名称"""
         return self.driver.platform_name
 
     # ==================== OCR 引擎 ====================

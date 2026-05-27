@@ -4,7 +4,7 @@ sys.path.insert(0, "E:\\UIAutotest")
 
 from utils.aw import create_aw
 
-aw = create_aw(platform="mumu", instance_id=0)
+aw = create_aw(instance_id=0)
 
 # 启动POPO
 aw.start_app()

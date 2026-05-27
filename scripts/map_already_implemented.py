@@ -1,7 +1,7 @@
 """
 针对 '会话列表及会话盒子.xlsx' 的 '已实现 (50)' sheet：
 1. 解析每条用例 + ui自动化进度 字段提取出对应的 test_xxx.py 文件名
-2. 在 tests/mumu/checklist/ 找到对应文件
+2. 在 tests/checklist/ 找到对应文件
 3. 输出一份 mapping 表 + 找不到的告警
 """
 import json
@@ -11,7 +11,7 @@ from openpyxl import load_workbook
 
 EXCEL = r"C:\Users\wb.menglingzhao02\Desktop\会话列表及会话盒子.xlsx"
 SHEET = "已实现 (50)"
-TEST_ROOT = Path(r"E:\UIAutotest\tests\mumu")
+TEST_ROOT = Path(r"E:\UIAutotest\tests")
 
 # 收集所有 test 文件 (递归)
 all_py = list(TEST_ROOT.rglob("test_*.py"))

@@ -1,7 +1,7 @@
 """
 生成UI自动化用例.ods文件
 - 从知识库 app_map.json 读取已实现/未实现的功能列表
-- 从 tests/mumu/checklist/ 读取已有测试文件
+- 从 tests/checklist/ 读取已有测试文件
 - 标记已实现自动化的用例为绿色字体（使用段落+span级别样式确保兼容性）
 - 已自动化用例附上AW方法名称
 """

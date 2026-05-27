@@ -142,9 +142,9 @@ Step 2: 看 AW 操作逻辑（派回 aw-codegen）
 
 ```bash
 # 单文件
-pytest tests/mumu/checklist/test_xxx.py -v
+pytest tests/checklist/test_xxx.py -v
 # 单方法
-pytest tests/mumu/checklist/test_xxx.py::TestClass::test_method -v
+pytest tests/checklist/test_xxx.py::TestClass::test_method -v
 # 生成 HTML 报告
 pytest --html=reports/report.html --self-contained-html
 ```
@@ -194,7 +194,7 @@ pytest --html=reports/report.html --self-contained-html
 ```
 Excel文件：C:\...\xxx.xlsx
 源Sheet：Sheet1（默认）
-行号映射：[{rows: [2,3,4], test_file: "tests/mumu/.../test_xxx.py"}]
+行号映射：[{rows: [2,3,4], test_file: "tests/.../test_xxx.py"}]
 ```
 
 行号映射由 aw-codegen 在交付报告中提供，orchestrator 转发给 verify。

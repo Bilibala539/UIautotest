@@ -19,7 +19,8 @@ from utils.window_manager import WindowManager
 
 # ==================【配置区】==================
 MUMU_INSTALL_PATH = r"C:\Program Files\Netease\MuMu\nx_main"  # MuMu12安装目录
-DOWNLOAD_URL = r"http://10.220.28.153/client_android/popo_origin-fix_4.22.0_9054_online.apk"  # 包体的下载链接
+DOWNLOAD_URL = r"http://10.220.28.153/client_android/popo_origin-fix_4.22.0_9054_online.apk"  # 包体的下载链接（兜底）
+APK_BRANCH = "fix_4.22.0"  # 默认分支号，用于从构建平台查找最新包
 
 DEVICE_COUNT = 1  # 启动设备数量（1-3）
 LAUNCH_WAIT = 25  # 启动等待时间（秒）
@@ -128,48 +129,68 @@ ADB_PATH = get_adb()
 POPO_PACKAGE = "com.netease.popo"  # 网易POPO包名
 
 
-def get_latest_download_url(current_url: str) -> Tuple[str, bool]:
-    """动态获取最新的POPO Android下载地址"""
-    api_url = "http://10.220.28.152:8081/api/device_type/android/online/999/0/"
-    
-    def extract_version(text):
-        match = re.search(r'release_(4\.\d+\.\d+)', text)
-        if match:
-            parts = match.group(1).split('.')
-            return tuple(int(x) for x in parts)
-        return (0, 0, 0)
+def find_latest_apk_by_branch(branch_keyword: Optional[str] = None) -> Tuple[Optional[str], str]:
+    """
+    从构建平台查找指定分支的最新 APK 下载地址
+
+    Args:
+        branch_keyword: 分支关键词（如 "release_4.22.5" 或 "fix_4.22.0"）
+                        为 None 时使用配置区的 APK_BRANCH
+
+    Returns:
+        Tuple[Optional[str], str]: (下载URL, 包描述信息)
+            URL 为 None 表示查找失败
+    """
+    if branch_keyword is None:
+        branch_keyword = APK_BRANCH
+
+    api_url = "http://10.220.28.152:8081/api/device_type/android/online/200/0/"
 
     try:
-        print(f"[CHECK] 正在检测是否有新版本的安装包...")
+        print(f"[CHECK] 正在查找分支 '{branch_keyword}' 的最新安装包...")
         req = urllib.request.Request(api_url, headers={'User-Agent': 'Mozilla/5.0'})
-        with urllib.request.urlopen(req, timeout=5) as response:
+        with urllib.request.urlopen(req, timeout=10) as response:
             data = json.loads(response.read().decode('utf-8'))
-            
-            if data.get('status') == 1 and 'package' in data:
-                current_ver = extract_version(current_url)
-                latest_pkg = None
-                latest_ver = (0, 0, 0)
-                
-                for pkg in data['package']:
-                    branch_name = pkg.get('branch_name', '')
-                    if branch_name.startswith('origin/release_4.'):
-                        pkg_ver = extract_version(branch_name)
-                        if pkg_ver > latest_ver:
-                            latest_ver = pkg_ver
-                            latest_pkg = pkg
-                
-                if latest_pkg:
-                    if latest_ver > current_ver:
-                        new_url = latest_pkg.get('download_url', '')
-                        ver_str = ".".join(map(str, latest_ver))
-                        curr_str = ".".join(map(str, current_ver))
-                        print(f"   [OK] 检测到新版本 {ver_str} (当前配置 {curr_str})，将使用新的下载地址:\n         {new_url}")
-                        return new_url, True
-                    else:
-                        print(f"   [OK] 当前配置的版本已是最新或高于线上版本。")
+
+            if data.get('status') != 1 or 'package' not in data:
+                print(f"   [WARN] API 返回异常: {data.get('message', 'unknown')}")
+                return None, ""
+
+            # 筛选 branch_name 包含关键词的包，按 build 号降序取最新
+            matches = [
+                pkg for pkg in data['package']
+                if branch_keyword in pkg.get('branch_name', '')
+            ]
+
+            if not matches:
+                print(f"   [WARN] 未找到匹配 '{branch_keyword}' 的安装包（共搜索 {len(data['package'])} 个包）")
+                return None, ""
+
+            # 按 build 号降序排序，取最新的
+            matches.sort(key=lambda p: int(p.get('build', 0)), reverse=True)
+            latest = matches[0]
+
+            url = latest.get('download_url', '')
+            desc = (f"branch={latest.get('branch_name', '')} "
+                    f"build={latest.get('build', '')} "
+                    f"time={latest.get('create_time', '')} "
+                    f"file={latest.get('file_name', '')}")
+            print(f"   [OK] 找到最新包: {desc}")
+            print(f"        下载地址: {url}")
+            return url, desc
+
     except Exception as e:
-        print(f"   [WARN] 检测新版本失败，将使用默认配置: {e}")
-        
+        print(f"   [WARN] 查找安装包失败: {e}")
+        return None, ""
+
+
+def get_latest_download_url(current_url: str) -> Tuple[str, bool]:
+    """兼容旧接口：查找最新 APK，对比当前 URL 判断是否需要更新"""
+    url, desc = find_latest_apk_by_branch()
+    if url and url != current_url:
+        return url, True
+    if url:
+        return url, False
     return current_url, False
 
 
@@ -530,8 +551,11 @@ def start_devices(count: int = DEVICE_COUNT) -> List[Device]:
     ready_count = sum(1 for d in devices if d.is_ready)
     print(f"完成: {ready_count}/{count} 台设备就绪")
 
-    # 安装APK到所有设备
-    install_apk_to_all_devices(devices)
+    # 安装APK到所有设备（SKIP_APK_INSTALL=1 时跳过）
+    if os.environ.get("SKIP_APK_INSTALL") == "1":
+        print("[SKIP] 跳过APK安装 (SKIP_APK_INSTALL=1)")
+    else:
+        install_apk_to_all_devices(devices)
 
     # 激活所有设备窗口至前台（获得焦点）
     print("[WIN] 激活设备窗口至前台...")

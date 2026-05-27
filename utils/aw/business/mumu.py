@@ -210,6 +210,12 @@ class MuMuBusiness(CommonBusiness):
                               "-c", "android.intent.category.LAUNCHER", "1")
         self.sleep(8)
 
+        # 快速检查：如果已在消息列表页（force-stop 后重启保留了登录态），跳过登录
+        if self.find_image(MESSAGE_TAB_BLUE, timeout=3):
+            logger.info("✅ [MuMu] 已登录状态，跳过登录步骤")
+            self.pop_not_allowed()
+            return
+
         # 3. 点击邮箱 Tab
         self.click_text("邮箱", timeout=3)
         self.sleep(0.5)

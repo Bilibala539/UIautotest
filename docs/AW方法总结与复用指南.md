@@ -10,7 +10,6 @@
 PPUser (用户入口，user.py)
   └── user.aw → AWHelper (aw_helper.py)
         ├── MuMuBusiness (business/mumu.py)    ← Android 端业务方法
-        ├── PCBusiness (business/pc.py)         ← PC 端业务方法
         ├── CommonBusiness (business/common.py) ← 通用业务方法
         └── AWBase (aw_base.py)                 ← 基础操作(OCR/图像/点击/滑动)
 ```
@@ -93,7 +92,7 @@ PPUser (用户入口，user.py)
 
 ## 三、通用业务方法 (CommonBusiness 层)
 
-在 `utils/aw/business/common.py` 中，MuMu和PC共用。
+在 `utils/aw/business/common.py` 中，通用业务方法。
 
 | 方法 | 作用 |
 |------|------|
@@ -597,7 +596,6 @@ def test_recall_p2p_message(self):
 - ~~长按图片消息并编辑~~ ✅ 已实现 → `edit_image_from_chat_message()`
 - ~~使用工具编辑图片后发送~~ ✅ 已实现 → `select_edit_with_tools_send_image(recipient)`
 - 通讯录页面的完整操作
-- PC端大部分业务方法（目前仅有框架级实现）
 
 ---
 

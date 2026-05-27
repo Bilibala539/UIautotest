@@ -15,7 +15,7 @@
 | `utils/aw/aw_base.py` | AWBase —— 设备交互唯一入口 |
 | `utils/aw/business/mumu.py` | 业务 AW 方法层 |
 | `utils/user.py` | PPUser —— 暴露给测试用例的便捷方法 |
-| `tests/mumu/` | pytest 用例 |
+| `tests/` | pytest 用例 |
 | `image/` | **正式**元素图片（跑通后才进） |
 | `image_ai/` | **暂存**元素图片（新截的） |
 | `image/image_name_mapping.py` | 所有图片常量 |

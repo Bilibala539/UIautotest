@@ -149,7 +149,7 @@ def explore_one(aw, target_name: str, prefix: str) -> dict:
 
 def main():
     print("Connecting to running MuMu (instance_id=0, port 16384), no re-login ...")
-    aw = create_aw(platform="mumu", instance_id=0)
+    aw = create_aw(instance_id=0)
 
     # Bring popo window to the front; assumes popo is already running on the
     # message list page (caller's precondition).

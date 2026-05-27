@@ -13,7 +13,7 @@
 | `.claude/commands/*.md` | 2 | 自定义命令 `/bootstrap-team` 和 `/verify-team` |
 | `.claude/README.md` | 1 | 团队接入指南（人 + AI 都看） |
 | `.codemaker/rules/*.mdc` | 3 | 项目硬性规则集（rules / ai_workflow / aw_architecture） |
-| `.codemaker/skills/**/SKILL.md` | 8 | 4 个 mobile skill + 4 个 pc skill 的详细操作手册 |
+| `.codemaker/skills/**/SKILL.md` | 4 | 4 个 skill 的详细操作手册 |
 | `.codemaker/readme.md` | 1 | `.codemaker/` 目录说明 |
 | `docs/AW方法总结与复用指南.md` | 1 | AW 复用清单（agent 强制前置阅读） |
 | `docs/UI元素截取与裁剪规范.md` | 1 | 截图规范（agent 强制前置阅读） |
@@ -28,7 +28,7 @@
 
 ### 1. UIAutotest 工程代码已存在
 
-这套 agent teams 配置**依赖**项目业务代码（`utils/aw/`、`tests/mumu/`、`image/`、`conftest.py`、`explorer_output/knowledge/` 等）。如果新电脑上还没有 UIAutotest 工程：
+这套 agent teams 配置**依赖**项目业务代码（`utils/aw/`、`tests/`、`image/`、`conftest.py`、`explorer_output/knowledge/` 等）。如果新电脑上还没有 UIAutotest 工程：
 
 ```bash
 git clone <UIAutotest 仓库地址> E:\UIAutotest    # 或任意路径
@@ -200,13 +200,9 @@ CLAUDE.md
 .codemaker/rules/aw_architecture.mdc
 .codemaker/rules/rules.mdc
 .codemaker/skills/aw-codegen/SKILL.md
-.codemaker/skills/aw-codegen-pc/SKILL.md
 .codemaker/skills/aw-element/SKILL.md
-.codemaker/skills/aw-element-pc/SKILL.md
 .codemaker/skills/aw-explorer/SKILL.md
-.codemaker/skills/aw-explorer-pc/SKILL.md
 .codemaker/skills/aw-verify/SKILL.md
-.codemaker/skills/aw-verify-pc/SKILL.md
 docs/AW方法总结与复用指南.md
 docs/UI元素截取与裁剪规范.md
 openspec/config.yaml

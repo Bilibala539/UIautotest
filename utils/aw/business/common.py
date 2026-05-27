@@ -1,8 +1,8 @@
 """
 通用业务方法
 
-两端 UI 流程一致的业务操作放这里，只维护一份。
-MuMuBusiness 和 PCBusiness 都继承此类。
+通用的业务操作放这里，只维护一份。
+MuMuBusiness 继承此类。
 """
 import logging
 
@@ -16,8 +16,8 @@ class CommonBusiness(AWBase):
     """
     通用业务基类
 
-    包含两端 UI 流程完全一致的业务方法。
-    MuMuBusiness 和 PCBusiness 都继承此类。
+    包含通用的业务方法。
+    MuMuBusiness 继承此类。
     """
 
     def __init__(self, driver: BasePlatformDriver):

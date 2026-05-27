@@ -38,7 +38,7 @@ model: default
 |---|---|---|
 | 需要摸清 App 某个页面怎么走 | aw-explorer | 知识库 `explorer_output/knowledge/pages/*.md` 更新 |
 | 需要新的 UI 元素截图并注册 | aw-element | `image_ai/*.png` + `image/image_name_mapping.py` 新常量 |
-| 已有探索+元素，要写业务 AW 或 pytest 用例 | aw-codegen | `utils/aw/business/mumu.py`、`utils/user.py`、`tests/mumu/**/test_*.py` |
+| 已有探索+元素，要写业务 AW 或 pytest 用例 | aw-codegen | `utils/aw/business/mumu.py`、`utils/user.py`、`tests/**/test_*.py` |
 | 要跑测试 / 诊断失败 / 图片转正 | aw-verify | pytest 运行报告 + `image_ai → image` 转正 |
 | 涉及 `openspec/` 提案或规范 | spec-keeper | openspec change 更新 |
 
@@ -385,6 +385,43 @@ enrich-kb 有四种子模式，orchestrator 先判断再执行：
   │    ⚠️ 每页验证完后回到 message_page（首页），保证下一页验证起点一致
   │    ⚠️ 不跑 pytest，只做导航 + 元素存在性检查
   │
+  ├─ Step 1.5: orchestrator 双层知识库一致性同步
+  │    对每个巡检页面，检查 Graph 层和 Embedding 层是否一致：
+  │
+  │    ── 检查项 ──
+  │    ① Graph 层（app_map.json）：
+  │       - pages 节点是否有该页面定义
+  │       - elements 节点是否有该页面的元素列表
+  │       - elements 中图片引用的文件是否存在
+  │    ② Embedding 层（pages/*.md → ChromaDB）：
+  │       - pages/<page_id>.md 文档是否存在
+  │       - 文档内容是否与 app_map elements 一致（坐标、元素名、图片引用）
+  │
+  │    ── 自动修复 ──
+  │    | 不一致类型 | 修复动作 |
+  │    |-----------|---------|
+  │    | app_map 有 elements，但缺 pages/*.md | 基于 elements 数据自动生成 md 文档（含页面概述/进入方式/关键元素表/关联） |
+  │    | pages/*.md 有，但 app_map elements 缺失或过时 | 基于 verify 实测结果更新 app_map elements |
+  │    | 两层都有但内容矛盾（坐标不一致等） | 以 verify 实测为准统一更新两层 |
+  │    | elements 中图片引用指向不存在的文件 | 移除无效引用，标记为 needs_recapture |
+  │    | app_map pages 定义存在但无 detail 指向 | 补充 detail 字段指向对应 md 文件 |
+  │
+  │    ── 重建索引 ──
+  │    修复完成后执行：
+  │    ```bash
+  │    python scripts/knowledge/embedding_pipeline.py --incremental
+  │    python scripts/knowledge/backlinks_generator.py
+  │    ```
+  │
+  │    产出：双层同步报告
+  │    ```
+  │    双层一致性：
+  │      新生成 md 文档: <N> 个（列出文件名）
+  │      更新 app_map elements: <M> 个页面
+  │      移除无效图片引用: <K> 个
+  │      向量索引更新: <chunks 数> chunks
+  │    ```
+  │
   ├─ Step 2: orchestrator 汇总巡检报告
   │    产出格式：
   │    ```
@@ -401,6 +438,12 @@ enrich-kb 有四种子模式，orchestrator 先判断再执行：
   │    ❌ 失败（<J> 个）：
   │      - some_page：从 message_page 按文档路径无法到达，卡在第 2 步
   │      - ...
+  │    
+  │    双层一致性：
+  │      - Graph 层覆盖: <pages数>/<elements数>/<transitions数>
+  │      - Embedding 层覆盖: <md文档数>/<向量chunks数>
+  │      - 本次新生成文档: <列表>
+  │      - 本次修复不一致: <数量>
   │    
   │    建议操作：
   │      - ⚠️ 页面建议走 update-page 流程更新
@@ -425,6 +468,11 @@ enrich-kb 有四种子模式，orchestrator 先判断再执行：
 
 - **无 codegen**：enrich-kb 不生成可执行代码
 - **verify 仅做导航验证**：enrich-kb 中 verify 只验证路径可达性和元素存在性，不跑 pytest 测试用例
+- **双层同步原则**：任何知识库变更后，orchestrator 必须确保 Graph 层（app_map.json）和 Embedding 层（pages/*.md → ChromaDB）同时更新。具体规则：
+  - 新增/修改 app_map elements → 同步更新对应 pages/*.md 中的关键元素表
+  - 新增/修改 pages/*.md → 运行 `embedding_pipeline.py --incremental` 更新向量索引
+  - 新增/修改 pages/*.md 中的 `[[链接]]` → 运行 `backlinks_generator.py` 更新反向索引
+  - 每个 elements 页面必须有对应的 pages/*.md 文档（缺失则在 audit-kb Step 1.5 自动生成）
 - **无 Git checkpoint**：知识库更新是低风险操作，直接写入即可；但单次涉及 5+ 文件变更时，建议 commit 一次留痕
 - **draft 机制**：新页面先写 draft/，审核通过后才进 pages/，防止半成品污染知识库
 - **幂等性**：重复探索同一页面不应产生冲突，以最新探索结果为准覆盖旧内容
@@ -433,35 +481,41 @@ enrich-kb 有四种子模式，orchestrator 先判断再执行：
 
 ---
 
-### 模式三：fix-failed（修复失败用例）
+### 模式三：fix-batch（批量修复失败用例）
 
-**触发条件**：已有自动化用例运行失败，需要诊断原因并修复。
+**触发条件**：已有自动化用例运行失败，需要诊断原因并修复。包括单个用例失败、批量失败、CI 回归失败等所有"修复"场景。
 
-**流水线**：
+**触发关键词**：失败、报错、fix、修复、红了、启动修复、修复失败用例、跑挂了
+
+**详细编排**：见 `.claude/commands/fix-batch.md`
+
+**流水线概要**：
 
 ```
-用户输入（失败日志/pytest 报告/失败用例名）
+输入（session.json / 失败日志 / 用例名）
   │
-  ├─ Step 1: aw-verify 分析失败原因
-  │    输入：失败日志或用例路径
-  │    产出：失败分类 + 根因判断 + 建议回退目标
+  ├─ Phase 0: 失败聚类分析
+  │    读取所有失败用例 → 按根因分组 → 排优先级
+  │    （单个用例失败时此步退化为单组单用例）
   │
-  ├─ Step 2: 按根因分派修复（三选一）
-  │    ├─ 元素变化（图片匹配失败）→ aw-element 重新截图
-  │    ├─ 逻辑错误（AW 步骤有误）→ aw-codegen 修复代码
-  │    └─ 页面变化（导航路径变了）→ aw-explorer 重新探索
-  │
-  └─ Step 3: aw-verify 重跑验证
-       输入：修复后的文件列表
-       产出：通过/再次失败
-       ⚠️ 若再次失败，回到 Step 1 循环，最多 3 次
+  └─ Phase 1: 逐个处理（按优先级从高到低）
+       │
+       ├─ Step 0: 🔴 代码-用例一致性校验
+       │    代码 vs 文字用例对比
+       │    ├─ 一致 → Step 1 正常修复
+       │    └─ 不一致 → 删除用例 → convert-cases 重新生成
+       │
+       ├─ Step 1: aw-verify 诊断根因
+       ├─ Step 2: 按根因分派修复 agent
+       ├─ Step 3: aw-verify 重跑验证（最多 3 轮）
+       └─ Step 4: 附带修复检查（修公共方法后跑同组其他用例）
 ```
 
 **特点**：
-- 诊断驱动，先搞清楚问题再动手
-- 修复范围聚焦，不做无关改动
-- 循环结构：verify → 修复 → verify，最多 3 轮
-- Git 协议：修复前 checkpoint，通过后 commit fix
+- 先校验代码意图是否正确，不在错误代码上浪费时间
+- 聚类分析 + 优先级排序，先修高 ROI 的
+- 修公共方法后自动检查同组其他用例是否附带修复
+- 兼容单个用例和批量失败两种输入
 
 ---
 
@@ -471,7 +525,7 @@ orchestrator 收到需求后，按以下优先级匹配模式：
 
 | 判断依据 | 匹配模式 |
 |---------|---------|
-| 包含"失败""报错""fix""修复""红了"等关键词，或附带 pytest 失败日志 | fix-failed |
+| 包含"失败""报错""fix""修复""红了""启动修复""修复失败用例"等关键词，或附带 pytest 失败日志/session.json | fix-batch |
 | 包含"探索""补充知识""看看有什么""更新页面"等，且无"写用例""自动化"意图 | enrich-kb |
 | 包含文字用例、测试步骤、"转自动化""覆盖XX功能""写用例"等 | convert-cases |
 | 无法明确判断 | 问用户确认 |
@@ -483,6 +537,13 @@ orchestrator 收到需求后，按以下优先级匹配模式：
 - **端到端流程顺序**：explorer → element → codegen → verify。不要乱序。
 - **失败回退策略**：verify 报"图片匹配失败" → 回 element；报"AW 逻辑错" → 回 codegen；报"设备/页面对不上" → 回 explorer。最多回退 3 次，再不行把失败原因整理清楚交回给用户判断
 - **并行机会**：同一批用例如果涉及多个不相关页面，可以同时派出多个 explorer/element，但 codegen 和 verify 必须串行
+- **双层知识库同步（全局，所有模式必须遵守）**：
+  任何涉及知识库变更的操作完成后，orchestrator 必须确保 Graph 层和 Embedding 层同时更新：
+  1. **explorer 探索完成后**：app_map.json 更新 + 对应 pages/*.md 文档生成/更新 + 图片常量索引写入 md
+  2. **element 截图完成后**：image_name_mapping.py 注册常量 + app_map elements 补充 image 引用 + 对应 pages/*.md 补充常量索引
+  3. **verify 转正图片后**：mapping 的 test_path→path + app_map 标记 verified_date/image_verified
+  4. **任何 pages/*.md 变更后**：运行 `embedding_pipeline.py --incremental` + `backlinks_generator.py`
+  5. **每个 app_map elements 页面必须有对应的 pages/*.md 文档**，文档中必须包含"图片常量索引"段落列出该页面使用的所有 image 常量
 - **决定不清楚就问用户**，不要凭空猜
 
 ## 工作流模板

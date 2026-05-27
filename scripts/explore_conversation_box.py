@@ -108,7 +108,7 @@ def check_for_box_keywords(items, label):
 
 def main():
     print("Connecting to running MuMu (instance_id=0, port 16384), no re-login ...")
-    aw = create_aw(platform="mumu", instance_id=0)
+    aw = create_aw(instance_id=0)
 
     aw.driver.focus_window()
     time.sleep(0.6)

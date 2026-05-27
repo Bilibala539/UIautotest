@@ -2,7 +2,6 @@
 用户和设备定义模块
 提供PPUser和PPDevice类用于测试用户和设备管理
 
-支持 MuMu 和 PC 两个平台，通过 platform 参数切换。
 用户通过 user.aw.xxx() 方式调用AW方法。
 """
 import logging
@@ -49,27 +48,18 @@ class PPDevice:
 class PPUser:
     """
     测试用户类
-    
-    支持 MuMu 和 PC 两个平台，通过 platform 参数切换。
+
     通过 user.aw 属性访问所有AW方法。
-    
+
     使用示例:
-        # MuMu 端
         user = PPUser(uid="test@example.com", password="123456",
-                      device=device, platform="mumu")
-        
-        # PC 端
-        user = PPUser(uid="test@example.com", password="123456",
-                      platform="pc")
-        
-        # 调用方式完全一致
+                      device=device)
         user.aw.click_text("登录")
         user.aw.login(user.uid, user.password)
     """
 
     def __init__(self, uid: str, password: str,
                  device: Optional[PPDevice] = None,
-                 platform: str = "mumu",
                  env: str = "test3",
                  name: str = "", name_en: str = "", name_jp: str = "",
                  phone: str = "", role: str = "", department: str = "",
@@ -80,8 +70,7 @@ class PPUser:
         Args:
             uid: 用户ID/邮箱
             password: 密码
-            device: 关联的MuMu模拟器设备 (platform='mumu' 时必传)
-            platform: 平台类型 ('mumu' 或 'pc')
+            device: 关联的MuMu模拟器设备
             env: 测试环境
             name: 中文名
             name_en: 英文名
@@ -100,7 +89,6 @@ class PPUser:
         self.role = role
         self.department = department
         self.device = device
-        self.platform = platform
         self.env = env
         self.need_login = need_login
         self._logged_in = False
@@ -113,21 +101,12 @@ class PPUser:
         """
         获取AW实例
 
-        根据 platform 自动选择对应的驱动和业务类:
-        - platform='mumu': MuMuDriver + MuMuBusiness
-        - platform='pc': PCDriver + PCBusiness
-
         Returns:
-            MuMuBusiness 或 PCBusiness 实例
+            MuMuBusiness 实例
         """
         if self._aw is None:
-            if self.platform == "mumu":
-                assert self.device is not None, "MuMu 平台必须指定 device"
-                self._aw = create_aw(platform="mumu", instance_id=self.device.instance_id)
-            elif self.platform == "pc":
-                self._aw = create_aw(platform="pc")
-            else:
-                raise ValueError(f"不支持的平台: {self.platform}")
+            assert self.device is not None, "必须指定 device"
+            self._aw = create_aw(instance_id=self.device.instance_id)
         return self._aw
 
     def login(self) -> bool:
@@ -137,7 +116,7 @@ class PPUser:
         完成登录流程后 POPO 已在消息列表页，无需再调用 open_app()。
         完成登录后标记 _logged_in = True。
         """
-        logger.info(f"🔐 {self.uid} 正在登录 (平台: {self.platform})")
+        logger.info(f"🔐 {self.uid} 正在登录")
         self.aw.login(self.uid, self.password)
         self._logged_in = True
         logger.info(f"✅ {self.uid} 登录成功")
@@ -245,9 +224,13 @@ class PPUser:
         """创建群组"""
         return self.aw.create_team()
 
-    def delete_team(self) -> bool:
+    def setup_owner_group(self, group_name: str = "自动化测试群主群") -> str:
+        """确保当前账号有一个群主群（不存在则创建并改名）"""
+        return self.aw.setup_owner_group(group_name)
+
+    def delete_team(self, group_identifier: str) -> bool:
         """解散群组"""
-        return self.aw.delete_team()
+        return self.aw.delete_team(group_identifier)
 
     def send_message(self, recipient: str, message=None, isback=True):
         """
@@ -278,7 +261,7 @@ class PPUser:
             if not sent:
                 self.aw.image_exists(MSG_FILE_JSON)
         elif file_name == "video":
-            sent = self.aw.find_text_by_ocr(".mp4", timeout=5)
+            sent = self.aw.find_text_by_ocr(".mp", timeout=5)
             if not sent:
                 self.aw.image_exists(MSG_FILE_VIDEO)
         return
@@ -789,30 +772,18 @@ class PPUser:
         return self.aw.remove_conversation_from_group(conversation_name, group_name)
 
     def __repr__(self):
-        return f"PPUser(uid='{self.uid}', platform='{self.platform}', device={self.device})"
+        return f"PPUser(uid='{self.uid}', device={self.device})"
 
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
 
-    # MuMu 端示例
     device = PPDevice(device_port=16384, instance_id=0)
-    user_mumu = PPUser(
+    user = PPUser(
         uid="test@example.com",
         password="password123",
         device=device,
-        platform="mumu",
         env="test03"
     )
-    print(user_mumu)
-    print(f"AW Helper: {user_mumu.aw}")
-
-    # PC 端示例
-    user_pc = PPUser(
-        uid="test@example.com",
-        password="password123",
-        platform="pc",
-        env="test03"
-    )
-    print(user_pc)
-    print(f"AW Helper: {user_pc.aw}")
+    print(user)
+    print(f"AW Helper: {user.aw}")

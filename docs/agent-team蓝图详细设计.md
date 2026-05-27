@@ -260,7 +260,7 @@ class TeamContext:
     {
         "aw_file": "utils/aw/business/mumu.py",
         "user_file": "utils/user.py",
-        "test_file": "tests/mumu/checklist/test_msg_setting.py"
+        "test_file": "tests/checklist/test_msg_setting.py"
     }
     """
 
@@ -515,7 +515,7 @@ class BaseAgent(ABC):
 │   1. 根据操作流程生成 AW 业务方法              │
 │   2. 追加到 utils/aw/business/mumu.py        │
 │   3. 在 utils/user.py PPUser 中加代理方法     │
-│   4. 生成 pytest 用例文件到 tests/mumu/       │
+│   4. 生成 pytest 用例文件到 tests/       │
 │                                              │
 │  输出: ctx.generated_files                   │
 │        ctx.current_phase = Phase.VERIFY      │
@@ -695,7 +695,7 @@ device_instance_id: 0           # MuMu 模拟器实例 ID
 生成文件:
   - AW 方法: utils/aw/business/mumu.py (新增 toggle_notification)
   - PPUser:   utils/user.py (新增 toggle_notification)
-  - 测试用例: tests/mumu/checklist/test_msg_setting.py
+  - 测试用例: tests/checklist/test_msg_setting.py
   - 元素图片: 3 张（已转正）
 ═══════════════════════════════════════════
 ```
@@ -769,20 +769,20 @@ TeamContext(
 ═══════════════════════════════════════════════════════════════
 → 在 mumu.py 中追加 toggle_auto_play_voice() 方法
 → 在 user.py PPUser 中追加代理方法
-→ 生成 tests/mumu/checklist/test_msg_setting.py
+→ 生成 tests/checklist/test_msg_setting.py
 
 执行后 ctx 变化:
   generated_files = {
       "aw_file":   "utils/aw/business/mumu.py",
       "user_file": "utils/user.py",
-      "test_file": "tests/mumu/checklist/test_msg_setting.py"
+      "test_file": "tests/checklist/test_msg_setting.py"
   }
   current_phase = Phase.VERIFY
 
 ═══════════════════════════════════════════════════════════════
 第 4 轮：VerifyAgent 执行（场景 A：成功）
 ═══════════════════════════════════════════════════════════════
-→ pytest tests/mumu/checklist/test_msg_setting.py -v
+→ pytest tests/checklist/test_msg_setting.py -v
 → 输出: 1 passed in 12.34s
 → 图片转正: image_ai/→image/，test_path→path，is_verified=True
 
@@ -796,7 +796,7 @@ TeamContext(
 ═══════════════════════════════════════════════════════════════
 第 4 轮：VerifyAgent 执行（场景 B：失败 → 回退）
 ═══════════════════════════════════════════════════════════════
-→ pytest tests/mumu/checklist/test_msg_setting.py -v
+→ pytest tests/checklist/test_msg_setting.py -v
 → 输出: FAILED - 未找到图片 MSG_SETTING_AUTO_PLAY_SWITCH
 
 执行后 ctx 变化:
@@ -858,7 +858,7 @@ TeamContext(
               │  utils/devices.py        │
               │  image/image_name_mapping│
               │  conftest.py             │
-              │  tests/mumu/             │
+              │  tests/             │
               └──────────────────────────┘
                              │ 参考
                              ▼

@@ -32,7 +32,7 @@ pip install -r requirements.txt
 
 ```bash
 # 单文件
-pytest tests/mumu/checklist/test_发送P2P消息.py -v
+pytest tests/checklist/test_发送P2P消息.py -v
 
 # 全量并行（3个MuMu实例）
 python run_parallel.py
@@ -54,7 +54,7 @@ UIAutotest/
 │   ├── aw/business/mumu.py       # 业务 AW 方法层
 │   └── user.py                   # PPUser — 测试用例便捷方法
 │
-├── tests/mumu/
+├── tests/
 │   ├── checklist/                 # 主力用例（按功能分文件）
 │   ├── add/                       # 新增用例（待合并）
 │   └── workhub/                   # WorkHub 专项

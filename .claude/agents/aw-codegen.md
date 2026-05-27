@@ -37,7 +37,7 @@ model: haiku
 ### 按需（遇到以下情况才读）
 - `utils/aw/business/mumu.py` —— 需要了解现有 AW 方法签名时
 - `utils/user.py` —— 需要了解 PPUser 已暴露方法时
-- `tests/mumu/` —— 需要参照测试文件模板时
+- `tests/` —— 需要参照测试文件模板时
 - `.codemaker/rules/rules.mdc` 等 —— 遇到规则疑问时
 
 **复用优先**：已封装的方法直接调用，禁止重复实现。
@@ -94,7 +94,7 @@ model: haiku
 
 ```bash
 grep -n "tap(" E:/UIAutotest/utils/aw/business/mumu.py
-grep -n "tap(" E:/UIAutotest/tests/mumu/<本次写的文件>
+grep -n "tap(" E:/UIAutotest/tests/<本次写的文件>
 ```
 
 **有输出 → 不算交付完成**，当场用 Edit 工具将 `tap(x, y)` 替换为
@@ -117,7 +117,7 @@ grep -n "tap(" E:/UIAutotest/tests/mumu/<本次写的文件>
 
 - AW 方法：追加到 `utils/aw/business/mumu.py`
 - PPUser 便捷方法：追加到 `utils/user.py`
-- pytest 文件：`tests/mumu/<module>/test_<feature>.py`，按项目模板
+- pytest 文件：`tests/<module>/test_<feature>.py`，按项目模板
 - 每次交付告诉 orchestrator：改了哪些文件、新增了哪些图片常量、建议 verify 跑哪个 py 文件
 
 ## 禁止事项
@@ -138,8 +138,8 @@ grep -n "tap(" E:/UIAutotest/tests/mumu/<本次写的文件>
   - utils/aw/business/mumu.py（新增 <方法名>）
   - utils/user.py（新增便捷方法 <方法名>）  （若无则省略）
 新增图片常量：<常量名列表> 或 无
-建议 verify 命令：pytest tests/mumu/<路径>/test_<name>.py -v
-Excel行号映射：[{rows: [<行号列表>], test_file: "tests/mumu/<路径>/test_<name>.py"}]  （若无 Excel 驱动则省略）
+建议 verify 命令：pytest tests/<路径>/test_<name>.py -v
+Excel行号映射：[{rows: [<行号列表>], test_file: "tests/<路径>/test_<name>.py"}]  （若无 Excel 驱动则省略）
 遗留问题：<内容> 或 无
 ```
 

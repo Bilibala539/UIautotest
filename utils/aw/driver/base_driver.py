@@ -30,13 +30,13 @@ class BasePlatformDriver(ABC):
     """
     平台驱动抽象基类
     
-    所有具体平台驱动（MuMuDriver、PCDriver）必须继承此类并实现全部抽象方法。
+    所有具体平台驱动必须继承此类并实现全部抽象方法。
     """
 
     @property
     @abstractmethod
     def platform_name(self) -> str:
-        """平台标识名称，如 'mumu' 或 'pc'"""
+        """平台标识名称"""
         ...
 
     # ==================== 窗口操作 ====================

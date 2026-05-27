@@ -49,7 +49,7 @@ def needs_embedding_update(changed_files: list) -> bool:
     """判断是否需要更新 embedding"""
     patterns = [
         "explorer_output/knowledge/",
-        "tests/mumu/",
+        "tests/",
         "docs/",
     ]
     return any(any(p in f for p in patterns) for f in changed_files)

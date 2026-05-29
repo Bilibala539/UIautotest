@@ -287,11 +287,14 @@ def setup_devices(count: int, branch: str = None, skip_install: bool = False):
 
         # 如果指定了分支，用分支查找最新包
         if branch:
-            url, desc = find_latest_apk_by_branch(branch)
+            url, actual_branch, desc = find_latest_apk_by_branch(branch)
             if url:
                 apk_path = download_apk(url)
                 if apk_path:
                     install_apk_to_all_devices(devices, apk_path=apk_path)
+            # 把 API 返回的实际分支名写入 env，供通知使用
+            if actual_branch:
+                os.environ["APK_BRANCH"] = actual_branch
 
     ready = sum(1 for d in devices if d.is_ready)
     if ready == 0:
@@ -347,6 +350,11 @@ def main():
     else:
         print("\n启动 MuMu 实例...")
         setup_devices(n_instances, branch=args.branch)
+
+    # 若 setup_devices 未写入 APK_BRANCH（skip_install / no-setup 情形），用默认值兜底
+    if not os.environ.get("APK_BRANCH"):
+        from utils.devices import APK_BRANCH as _DEFAULT_APK_BRANCH
+        os.environ["APK_BRANCH"] = _DEFAULT_APK_BRANCH
 
     if not test_files:
         print("\n  设备已就绪，无测试文件需要执行")

@@ -15,23 +15,14 @@ class TestCreateTeam(BaseTest):
         """
         self.userA = self.users("userA")
 
-    def test_create_team(self):
+    def test_search_KM(self):
         """
-        测试场景: 创建群组并验证
-
-        步骤:
-        1. 点击会话列表的加号按钮
-        2. 点击创建群聊
-        3. 搜索并选择群成员
-        4. 确认创建
-        5. 验证群聊创建成功（页面出现"发起群聊"、"并邀请"、"加入群聊"文案）
         """
-        self.userA.search(text="网易KM", isclose=False)
+        self.userA.search(text="KM", isclose=False)
         self.userA.image_exists(SEARCH_RESULT_KM, region=Normal.HALF_UP)
         self.userA.click_image(KM_ICON, region=Normal.HALF_UP)
         time.sleep(5)
-        self.userA.click_image(RN_CLOSE, region=Normal.HALF_UP)
-        self.userA.click_image(SEARCH_CANCEL, region=Normal.HALF_UP)
+        self.userA.click_image(KM_LOGO, region=Normal.HALF_UP)
 
     def teardown(self):
         """

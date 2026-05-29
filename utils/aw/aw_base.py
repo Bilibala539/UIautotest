@@ -21,6 +21,7 @@ os.environ['FLAGS_enable_pir_in_executor'] = '0'
 os.environ['MKLDNN_VERBOSE'] = '0'
 os.environ['FLAGS_use_onednn'] = '0'
 
+import functools
 import logging
 import time
 from typing import Optional, Tuple
@@ -35,6 +36,38 @@ from utils.aw.driver.base_driver import BasePlatformDriver
 from utils.aw.search_region import Normal
 
 logger = logging.getLogger(__name__)
+
+
+def _screenshot_on_failure(func):
+    """AW 方法抛异常时立即截图；同一条异常链只截一次（标记打在异常对象上）。"""
+    @functools.wraps(func)
+    def wrapper(self: 'AWBase', *args, **kwargs):
+        try:
+            return func(self, *args, **kwargs)
+        except Exception as e:
+            if not getattr(e, '_aw_screenshot_taken', False):
+                e._aw_screenshot_taken = True
+                try:
+                    import allure
+                    ts = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
+                    path = os.path.join(
+                        SCREENSHOT_DIR,
+                        f"FAIL_{func.__name__}_{ts}.png",
+                    )
+                    os.makedirs(SCREENSHOT_DIR, exist_ok=True)
+                    img = self.take_screenshot(save_path=path)
+                    if img is not None:
+                        logger.error(f"❌ [{func.__name__}] 失败截图: {path}")
+                        allure.attach.file(
+                            path,
+                            name=f"失败截图 [{func.__name__}]",
+                            attachment_type=allure.attachment_type.PNG,
+                        )
+                except Exception:
+                    pass
+            raise
+    return wrapper
+
 
 # 图片模板和截图目录
 _BASE_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', '..'))
@@ -467,6 +500,7 @@ class AWBase:
         Returns:
             文字中心坐标 (窗口内)，未找到返回 None
         """
+        logger.info(f"🔍 找到文字 '{text}'")
         end_time = time.time() + timeout
 
         while time.time() < end_time:
@@ -504,6 +538,7 @@ class AWBase:
 
         return None
 
+    @_screenshot_on_failure
     def text_exists(self, text: str, timeout: int = 5,
                     region=Normal.ALL):
         """检查文字是否存在"""
@@ -580,6 +615,7 @@ class AWBase:
         logger.warning(f"⚠️ 未找到图片 '{template_name}'")
         return None
 
+    @_screenshot_on_failure
     def image_exists(self, template_name: str, threshold: float = 0.8,
                      timeout: int = 5,
                      region=Normal.ALL) -> bool:
@@ -600,6 +636,7 @@ class AWBase:
             return self.tap(pos[0], pos[1], dx, dy)
         return False
 
+    @_screenshot_on_failure
     def click_image(self, image: str, threshold: float = 0.8,
                     timeout: int = 10, dx: int = 0, dy: int = 0,
                     region=Normal.ALL):
@@ -654,6 +691,7 @@ class AWBase:
 
     # ==================== 开关操作 ====================
 
+    @_screenshot_on_failure
     def is_switch_on(self, switch_text: str, region=Normal.ALL) -> bool:
         """
         检测页面中指定开关的当前状态（通用方法）

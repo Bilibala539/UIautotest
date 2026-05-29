@@ -19,8 +19,8 @@ from utils.window_manager import WindowManager
 
 # ==================【配置区】==================
 MUMU_INSTALL_PATH = r"C:\Program Files\Netease\MuMu\nx_main"  # MuMu12安装目录
-DOWNLOAD_URL = r"http://10.220.28.153/client_android/popo_origin-fix_4.22.0_9054_online.apk"  # 包体的下载链接（兜底）
-APK_BRANCH = "fix_4.22.0"  # 默认分支号，用于从构建平台查找最新包
+DOWNLOAD_URL = r"http://10.220.28.153/client_android/popo_origin-release_4.23.0_9082_online.apk"  # 包体的下载链接（兜底）
+APK_BRANCH = "release_4.23.0"  # 默认分支号，用于从构建平台查找最新包
 
 DEVICE_COUNT = 1  # 启动设备数量（1-3）
 LAUNCH_WAIT = 25  # 启动等待时间（秒）
@@ -129,7 +129,7 @@ ADB_PATH = get_adb()
 POPO_PACKAGE = "com.netease.popo"  # 网易POPO包名
 
 
-def find_latest_apk_by_branch(branch_keyword: Optional[str] = None) -> Tuple[Optional[str], str]:
+def find_latest_apk_by_branch(branch_keyword: Optional[str] = None) -> Tuple[Optional[str], str, str]:
     """
     从构建平台查找指定分支的最新 APK 下载地址
 
@@ -138,7 +138,7 @@ def find_latest_apk_by_branch(branch_keyword: Optional[str] = None) -> Tuple[Opt
                         为 None 时使用配置区的 APK_BRANCH
 
     Returns:
-        Tuple[Optional[str], str]: (下载URL, 包描述信息)
+        Tuple[Optional[str], str, str]: (下载URL, 实际branch_name, 包描述信息)
             URL 为 None 表示查找失败
     """
     if branch_keyword is None:
@@ -154,7 +154,7 @@ def find_latest_apk_by_branch(branch_keyword: Optional[str] = None) -> Tuple[Opt
 
             if data.get('status') != 1 or 'package' not in data:
                 print(f"   [WARN] API 返回异常: {data.get('message', 'unknown')}")
-                return None, ""
+                return None, "", ""
 
             # 筛选 branch_name 包含关键词的包，按 build 号降序取最新
             matches = [
@@ -164,29 +164,30 @@ def find_latest_apk_by_branch(branch_keyword: Optional[str] = None) -> Tuple[Opt
 
             if not matches:
                 print(f"   [WARN] 未找到匹配 '{branch_keyword}' 的安装包（共搜索 {len(data['package'])} 个包）")
-                return None, ""
+                return None, "", ""
 
             # 按 build 号降序排序，取最新的
             matches.sort(key=lambda p: int(p.get('build', 0)), reverse=True)
             latest = matches[0]
 
-            url = latest.get('download_url', '')
-            desc = (f"branch={latest.get('branch_name', '')} "
+            url         = latest.get('download_url', '')
+            branch_name = latest.get('branch_name', '')
+            desc = (f"branch={branch_name} "
                     f"build={latest.get('build', '')} "
                     f"time={latest.get('create_time', '')} "
                     f"file={latest.get('file_name', '')}")
             print(f"   [OK] 找到最新包: {desc}")
             print(f"        下载地址: {url}")
-            return url, desc
+            return url, branch_name, desc
 
     except Exception as e:
         print(f"   [WARN] 查找安装包失败: {e}")
-        return None, ""
+        return None, "", ""
 
 
 def get_latest_download_url(current_url: str) -> Tuple[str, bool]:
     """兼容旧接口：查找最新 APK，对比当前 URL 判断是否需要更新"""
-    url, desc = find_latest_apk_by_branch()
+    url, _, desc = find_latest_apk_by_branch()
     if url and url != current_url:
         return url, True
     if url:

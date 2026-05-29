@@ -12,17 +12,24 @@ class TestOpenSessionBoxDetail(BaseTest):
 
     def setup(self):
         self.userA = self.users("userA")
+        self.group_name = self.userA.aw.setup_owner_group("会话盒子测试群")
+        if self.userA.aw.find_text_by_ocr("会话盒子", timeout=3):
+            self.userA.close_conversation_box("会话盒子")
+        self.userA.add_to_session_box(self.group_name)
+        self.userA.text_exists("会话盒子", timeout=10)
 
     def test_open_session_box_detail(self):
-        """
-        步骤:
-        1. 打开分组面板（点击"展开"）
-        2. 点击"会话盒子"标签
-        3. 验证进入会话盒子详情页
-        """
         self.userA.open_session_group_panel()
         self.userA.open_session_box()
 
     def teardown(self):
-        """返回消息列表"""
         self.userA.aw.press_back()
+        try:
+            if self.userA.aw.find_text_by_ocr("会话盒子", timeout=3):
+                self.userA.remove_from_session_box(self.group_name)
+        except Exception:
+            pass
+        try:
+            self.userA.aw.delete_team(self.group_name)
+        except Exception:
+            pass

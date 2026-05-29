@@ -16,8 +16,13 @@ Knowledge Graph MCP Server
 import json
 import re
 import sys
+import io
 from pathlib import Path
 from collections import deque
+
+# Windows 上强制 stdin/stdout 为 UTF-8（MCP 协议用 JSON UTF-8 通信）
+sys.stdin = io.TextIOWrapper(sys.stdin.buffer, encoding='utf-8')
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', newline='')
 
 KNOWLEDGE_DIR = Path(__file__).parent.parent.parent / "explorer_output" / "knowledge"
 PAGES_DIR = KNOWLEDGE_DIR / "pages"
@@ -27,13 +32,13 @@ BACKLINKS_PATH = KNOWLEDGE_DIR / "backlinks.json"
 
 def load_app_map():
     if APP_MAP_PATH.exists():
-        return json.loads(APP_MAP_PATH.read_text(encoding="utf-8"))
+        return json.loads(APP_MAP_PATH.read_text(encoding="utf-8-sig"))
     return {"pages": {}, "transitions": []}
 
 
 def load_backlinks():
     if BACKLINKS_PATH.exists():
-        return json.loads(BACKLINKS_PATH.read_text(encoding="utf-8"))
+        return json.loads(BACKLINKS_PATH.read_text(encoding="utf-8-sig"))
     return {"backlinks": {}, "forward_index": {}}
 
 

@@ -19,7 +19,7 @@ class Test收藏列表(BaseTest):
 
     def _open_sidebar(self):
         """打开侧边栏（通过点击左上角消息文案左侧头像区域）"""
-        self.userA.click_image(MESSAGE_TAB_MSG_TEXT, dx=-70)
+        self.userA.click_image(MESSAGE_TAB_MSG_TEXT, dx=-100)
         time.sleep(0.5)
 
     def _click_my_collection(self):

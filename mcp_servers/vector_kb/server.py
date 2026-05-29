@@ -12,12 +12,16 @@ Vector KB MCP Server
 
 import json
 import sys
+import io
+import re
 from pathlib import Path
 
 PROJ_ROOT = Path(__file__).parent.parent.parent
 CHROMA_DIR = PROJ_ROOT / ".chroma_db"
 
-sys.stdout.reconfigure(encoding='utf-8')
+# Windows 上强制 stdin/stdout 为 UTF-8（MCP 协议用 JSON UTF-8 通信）
+sys.stdin = io.TextIOWrapper(sys.stdin.buffer, encoding='utf-8')
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', newline='')
 sys.stderr.reconfigure(encoding='utf-8')
 
 
@@ -100,7 +104,17 @@ def find_similar_tests(description: str, n_results: int = 5) -> dict:
 
 
 def find_related_context(feature_description: str, n_results: int = 8) -> dict:
-    """为写新用例/AW提供综合上下文（跨所有来源类型搜索）"""
+    """
+    为写新用例/AW提供综合上下文（向量搜索 + 图谱关系串联）
+
+    流程:
+    1. 向量搜索找到语义相关的 pages/tests/docs
+    2. 对命中的 knowledge_pages，读取图谱数据丰富关系信息:
+       - backlinks: 谁引用了该页面
+       - navigation: 从消息列表页到该页面的路径
+       - linked_pages: 该页面引用了哪些其他页面
+    3. 组装返回综合上下文
+    """
     collection = get_collection()
 
     results = collection.query(
@@ -125,15 +139,115 @@ def find_related_context(feature_description: str, n_results: int = 8) -> dict:
         if source_type in grouped:
             grouped[source_type].append({
                 "source_file": meta["source_file"],
-                "content_preview": doc[:200],
+                "content_preview": doc[:300],
                 "similarity": round(1 - dist, 3),
             })
 
+    # 串联图谱层：对命中的 knowledge_pages 丰富关系信息
+    enriched_pages = []
+    seen_page_ids = set()
+    for item in grouped["knowledge_pages"]:
+        page_id = Path(item["source_file"]).stem
+        if page_id in seen_page_ids:
+            continue
+        seen_page_ids.add(page_id)
+
+        graph_info = _enrich_with_graph(page_id)
+        enriched_pages.append({
+            "page_id": page_id,
+            "source_file": item["source_file"],
+            "similarity": item["similarity"],
+            "content_preview": item["content_preview"],
+            **graph_info,
+        })
+
     return {
         "feature": feature_description,
-        "context": grouped,
+        "related_pages": enriched_pages,
+        "similar_tests": grouped["test_cases"],
+        "docs": grouped["docs"],
         "recommendation": _generate_recommendation(grouped),
     }
+
+
+def _enrich_with_graph(page_id: str) -> dict:
+    """
+    读取图谱层数据文件，为指定页面丰富关系信息。
+    直接读文件（不走 MCP 跨进程调用），因为共享同一个数据目录。
+    """
+    knowledge_dir = PROJ_ROOT / "explorer_output" / "knowledge"
+    app_map_path = knowledge_dir / "app_map.json"
+    backlinks_path = knowledge_dir / "backlinks.json"
+    pages_dir = knowledge_dir / "pages"
+
+    result = {
+        "backlinks": [],
+        "linked_pages": [],
+        "navigation_from_message_page": None,
+    }
+
+    # 读取 backlinks
+    try:
+        bl_data = json.loads(backlinks_path.read_text(encoding="utf-8-sig"))
+        backlinks = bl_data.get("backlinks", {}).get(page_id, [])
+        result["backlinks"] = [b["source_id"] for b in backlinks]
+    except Exception:
+        pass
+
+    # 读取页面中的 [[links]]
+    page_file = pages_dir / f"{page_id}.md"
+    if not page_file.exists():
+        for f in pages_dir.glob("*.md"):
+            if f.stem == page_id:
+                page_file = f
+                break
+    if page_file.exists():
+        try:
+            content = page_file.read_text(encoding="utf-8")
+            links = re.findall(r'\[\[([^\]]+)\]\]', content)
+            result["linked_pages"] = list(set(links))
+        except Exception:
+            pass
+
+    # 查找从 message_page 到该页面的导航路径（BFS）
+    try:
+        app_map = json.loads(app_map_path.read_text(encoding="utf-8-sig"))
+        transitions = app_map.get("transitions", [])
+        path = _bfs_path(transitions, "message_page", page_id)
+        if path:
+            result["navigation_from_message_page"] = path
+    except Exception:
+        pass
+
+    return result
+
+
+def _bfs_path(transitions: list, start: str, end: str) -> list:
+    """BFS 找最短导航路径"""
+    from collections import deque
+
+    adj = {}
+    for t in transitions:
+        if t.get("type") == "back":
+            continue
+        src = t["from"]
+        dst = t["to"]
+        adj.setdefault(src, []).append({"to": dst, "via": t.get("via", "")})
+
+    queue = deque([(start, [start])])
+    visited = {start}
+
+    while queue:
+        node, path = queue.popleft()
+        if node == end:
+            return path
+        for edge in adj.get(node, []):
+            nxt = edge["to"]
+            if nxt not in visited:
+                visited.add(nxt)
+                queue.append((nxt, path + [nxt]))
+
+    return None
 
 
 def _generate_recommendation(grouped: dict) -> str:
@@ -182,7 +296,7 @@ TOOLS = [
     },
     {
         "name": "find_related_context",
-        "description": "为写新用例或AW方法提供综合上下文（页面文档+相似用例+开发规范）",
+        "description": "为写新用例或AW方法提供综合上下文（向量搜索+图谱关系串联）。返回: related_pages(含backlinks/导航路径/关联页面) + similar_tests + docs",
         "inputSchema": {
             "type": "object",
             "properties": {

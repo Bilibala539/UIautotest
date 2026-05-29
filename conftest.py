@@ -48,6 +48,15 @@ _log_instance_id = os.environ.get("INSTANCE_ID", "0")
 _session_id = f"{_log_timestamp}_inst{_log_instance_id}"
 log_file = os.path.join(log_dir, f"test_{_log_timestamp}_inst{_log_instance_id}.html")
 
+# session 级别的只读元信息（通知用）
+_session_start_dt: str = datetime.now().strftime('%Y-%m-%d %H:%M')
+# APK 分支号：优先读 env var（run_parallel.py 或 CI 注入），兜底读 devices.py 里的默认值
+try:
+    from utils.devices import APK_BRANCH as _DEVICES_APK_BRANCH
+except Exception:
+    _DEVICES_APK_BRANCH = ""
+_apk_branch: str = os.environ.get("APK_BRANCH", "").strip() or _DEVICES_APK_BRANCH or "—"
+
 # 本次 session 的测试结果（供历史报告使用）
 _test_results: list = []
 _session_start_ts: float = time.time()
@@ -151,22 +160,15 @@ root_logger.setLevel(logging.INFO)
 for handler in root_logger.handlers[:]:
     root_logger.removeHandler(handler)
 
-# 创建 HTML 文件 handler
-html_handler = HtmlFileHandler(log_file)
-html_handler.setLevel(logging.INFO)
-html_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-
-# 创建控制台 handler
+# 创建控制台 handler（全局 HTML 日志由 per-test handler 负责，不再使用 session 级别文件）
 console_handler = logging.StreamHandler()
 console_handler.setLevel(logging.INFO)
 console_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
 
 # 添加handlers到根日志记录器
-root_logger.addHandler(html_handler)
 root_logger.addHandler(console_handler)
 
 logger = logging.getLogger(__name__)
-logger.info(f"📝 日志文件: {log_file}")
 
 
 # ==================== 中间截图清理 ====================
@@ -245,8 +247,8 @@ def pytest_runtest_teardown(item, nextitem):
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
 def pytest_runtest_makereport(item, call):
     """
-    失败自动截图，并将截图内嵌到 HTML 日志文件中；
-    每条用例执行完毕后在控制台输出 HTML 日志链接。
+    每条用例执行完毕后在控制台输出 HTML 日志链接；
+    失败截图由 AWBase._screenshot_on_failure 装饰器在方法抛异常时立即处理。
     """
     outcome = yield
     rep = outcome.get_result()
@@ -258,7 +260,6 @@ def pytest_runtest_makereport(item, call):
     if rep.when == "call":
         _result_emoji = "✅" if rep.passed else ("❌" if rep.failed else "⚠️")
         _log_url = "file:///" + current_log.replace("\\", "/")
-        # 直接写入 stderr 以确保在 pytest 捕获日志时依然可见
         import sys
         sys.stderr.write(
             f"\n{'='*60}\n"
@@ -267,44 +268,6 @@ def pytest_runtest_makereport(item, call):
             f"{'='*60}\n\n"
         )
         sys.stderr.flush()
-
-    if rep.when == "call" and rep.failed:
-        # 尝试从测试类实例的用户对象中获取 aw (AWBase)，进行截图
-        aw = None
-        instance = getattr(item, 'instance', None)
-        if instance is not None:
-            # 遍历实例属性，找到 PPUser 类型的用户，取其 aw 对象
-            for attr_val in vars(instance).values():
-                if hasattr(attr_val, 'aw') and hasattr(attr_val.aw, 'take_screenshot'):
-                    aw = attr_val.aw
-                    break
-
-        if aw is not None:
-            screenshot_dir = os.path.join(os.path.dirname(log_file), '..', 'screenshots')
-            screenshot_dir = os.path.normpath(screenshot_dir)
-            os.makedirs(screenshot_dir, exist_ok=True)
-            test_name = item.name
-            screenshot_path = os.path.join(
-                screenshot_dir,
-                f"FAIL_{test_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
-            )
-            img = aw.take_screenshot(save_path=screenshot_path)
-            if img is not None:
-                logger.info(f"📸 用例失败截图已保存: {screenshot_path}")
-                # 将截图内嵌到 HTML 日志（全局 + 用例级别）
-                html_handler.append_fail_screenshot(item.nodeid, screenshot_path)
-                if _per_test_html_handler is not None:
-                    _per_test_html_handler.append_fail_screenshot(item.nodeid, screenshot_path)
-                # 同步附加到 Allure 报告
-                allure.attach.file(
-                    screenshot_path,
-                    name="失败截图",
-                    attachment_type=allure.attachment_type.PNG
-                )
-            else:
-                logger.warning(f"⚠️ 用例失败截图失败（截图返回空）: {item.nodeid}")
-        else:
-            logger.warning(f"⚠️ 未找到可截图的用户对象，跳过失败截图: {item.nodeid}")
 
     # ---- 用例通过时，清理该用例期间产生的中间截图 ----
     if rep.when == "call" and rep.passed:
@@ -761,13 +724,21 @@ _REPORT_PASS     = "123456"
 _REPORT_REMOTE_DIR = "/var/www/html/reports"
 _PLATFORM        = "Android"
 _PROJECT         = "POPO-Android"
+# 测试结果通知群号（空字符串表示不通知；可通过 .env 的 POPO_NOTIFY_TID 覆盖）
+_POPO_NOTIFY_TID = os.environ.get("POPO_NOTIFY_TID", "7053705")
 
 
 def pytest_sessionfinish(session, exitstatus):
-    _generate_and_upload_allure_report()
+    session_uploaded = _generate_and_upload_allure_report()
+    if _test_results and os.environ.get("SKIP_REPORT_UPLOAD") != "1":
+        _p = sum(1 for t in _test_results if t["status"] == "passed")
+        _f = sum(1 for t in _test_results if t["status"] == "failed")
+        _s = len(_test_results) - _p - _f
+        _notify_popo_group(_p, _f, _s, round(time.time() - _session_start_ts, 1), session_uploaded)
 
 
-def _generate_and_upload_allure_report():
+def _generate_and_upload_allure_report() -> bool:
+    """生成并上传 Allure 报告，返回 session 数据是否成功上传。"""
     base_dir = os.path.dirname(os.path.abspath(__file__))
     allure_results = os.path.join(base_dir, "allure-results")
     allure_report = os.path.join(base_dir, "allure-report")
@@ -775,12 +746,13 @@ def _generate_and_upload_allure_report():
     # 无论 allure-results 是否存在，都先保存并上传 session 数据
     sessions_dir, session_data = _save_session_data(base_dir)
     # 并行模式下 worker 只保存本地，由 coordinator 统一上传
+    session_uploaded = False
     if os.environ.get("SKIP_REPORT_UPLOAD") != "1":
-        _upload_session_data(sessions_dir, session_data)
+        session_uploaded = _upload_session_data(sessions_dir, session_data)
 
     if not os.path.isdir(allure_results):
         logger.warning("allure-results 目录不存在，跳过 Allure 报告生成")
-        return
+        return session_uploaded
 
     # 保留历史趋势：把上次报告的 history/ 拷回 allure-results/history/
     history_src = os.path.join(allure_report, "history")
@@ -866,10 +838,11 @@ def _generate_and_upload_allure_report():
     finally:
         if ssh:
             ssh.close()
+    return session_uploaded
 
 
-def _upload_session_data(sessions_dir: str, session_data: dict):
-    """独立上传 session 数据（不依赖 allure-results 是否存在）。"""
+def _upload_session_data(sessions_dir: str, session_data: dict) -> bool:
+    """独立上传 session 数据（不依赖 allure-results 是否存在）。返回是否上传成功。"""
     ssh = None
     try:
         ssh = paramiko.SSHClient()
@@ -899,8 +872,10 @@ def _upload_session_data(sessions_dir: str, session_data: dict):
                 logger.info("🧹 已清理本地: sessions/")
             except Exception as e:
                 logger.warning(f"⚠️ 清理 sessions/ 失败: {e}")
+        return True
     except Exception as e:
         logger.error(f"❌ Session 数据上传失败: {e}")
+        return False
     finally:
         if ssh:
             ssh.close()
@@ -1102,6 +1077,40 @@ def _sync_remote_history(sftp, session_data: dict):
     _upload_json(f"{remote_dir}/test_history.json", hist)
 
     logger.info("🔄 远端 index.json / test_history.json 已同步")
+
+
+def _notify_popo_group(passed: int, failed: int, skipped: int, duration: float, session_uploaded: bool = False):
+    """测试结束后向 POPO 群发送简报，群号为空时跳过。"""
+    if not _POPO_NOTIFY_TID:
+        return
+    total  = passed + failed + skipped
+    rate   = f"{round(passed / total * 100)}%" if total else "—"
+    link   = (
+        f"http://{_REPORT_HOST}/reports/allure-report/history.html#s/{_session_id}"
+        if session_uploaded else
+        f"http://{_REPORT_HOST}/reports/allure-report/history.html"
+    )
+    msg = (
+        f"[{_PROJECT}] 自动化测试报告\n"
+        f"包体分支：{_apk_branch}\n"
+        f"执行时间：{_session_start_dt}\n"
+        f"通过率：{rate}\n"
+        f"---\n"
+        f"通过 {passed} / 失败 {failed} / 跳过 {skipped}  耗时 {int(duration)}s\n"
+        f"{link}"
+    )
+    try:
+        result = subprocess.run(
+            ["popo-cli", "popo", "message_send_team",
+             f"message={msg}", f"receiver={_POPO_NOTIFY_TID}", "source=AGENT"],
+            capture_output=True, text=True, encoding="utf-8", timeout=15,
+        )
+        if result.returncode == 0:
+            logger.info(f"📣 测试结果已通知到 POPO 群 {_POPO_NOTIFY_TID}")
+        else:
+            logger.warning(f"⚠️ POPO 群通知失败: {result.stderr.strip()}")
+    except Exception as e:
+        logger.warning(f"⚠️ POPO 群通知失败（不影响测试结果）: {e}")
 
 
 def _write_history_html(path: str):

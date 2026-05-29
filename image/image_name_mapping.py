@@ -37,6 +37,8 @@ OPEN_DOOR_BLUETOOTH_POP_CANCEL = os.path.join(path, "移动开门-蓝牙弹窗-�
 SESSIONLIST_PLUS_BUTTON = os.path.join(path, "会话列表页右上角+按钮.png")
 SESSIONLIST_PLUS_BUTTON_CREATETEAM = os.path.join(path, "会话列表页右上角+菜单-创建群聊.png")
 ICON_FUWUHAO = os.path.join(path, "服务号标签icon.png")
+SESSION_BOX = os.path.join(path, "会话盒子icon.png")
+SESSION_BOX_CLOSE = os.path.join(path, "消息列表-长按会话盒子-关闭.png")
 
 # 会话窗口页
 MSG_P2P_UNDER_BOTTON = os.path.join(path, "p2p底部快捷按钮.png")
@@ -46,6 +48,7 @@ MSG_FILE_VIDEO = os.path.join(path, "会话窗口-视频文件.png")
 MSG_UNREAD_ICON = os.path.join(path, "会话窗口-未读icon.png")
 MSG_GOOD = os.path.join(path, "会话窗口-赞按钮.png")
 MSG_MESSAGE_GOOD = os.path.join(path, "会话窗口-赞消息.png")
+MSG_team_CALL = os.path.join(path, "群会话窗口右上角-视频通话按钮.png")
 
 # ==================== 聊天页 - 扩展编辑（富文本） ====================
 CHAT_PARAGRAPH_BUTTON = os.path.join(path, "聊天页-段落按钮.png")
@@ -90,7 +93,7 @@ ADDLINK_OK_BUTTON = os.path.join(path, "全部标签页-添加链接弹窗-右�
 # 小程序
 KM_ICON = os.path.join(path, "网易KM-头像.png")
 KM_LOGO = os.path.join(path, "网易KM-logo.png")
-RN_CLOSE = os.path.join(path, "RN小程序-关闭按钮.png")
+KM_LOGO = os.path.join(path, "RN小程序-KM标志.png")
 OPEN_DOOR_ICON = os.path.join(path, "移动开门icon.png")
 OPEN_DOOR_LOGO = os.path.join(path, "移动开门-logo.png")
 OPEN_DOOR_CLOSE = os.path.join(path, "移动开门-关闭按钮.png")
@@ -169,6 +172,7 @@ FILE_SELECT_MORE_SEARCH = os.path.join(path, "文件选择器-搜索按钮.png")
 
 # ==================== 群设置页（草稿 - 待验证） ====================
 GROUP_ANNOUNCEMENT_EMPTY_PLACEHOLDER = os.path.join(path, "群公告编辑页-空公告输入框占位符.png")
+GROUP_INFO_EDITING_BUTTON = os.path.join(path, "群信息页-编辑按钮.png")
 
 # ==================== 通讯录页 ====================
 CONTACTS_TITLE_TEXT = os.path.join(path, "通讯录页-左上角通讯录文案.png")

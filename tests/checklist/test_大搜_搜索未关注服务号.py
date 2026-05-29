@@ -14,7 +14,7 @@ class TestCreateTeam(BaseTest):
         """
         self.userA = self.users("userA")
 
-    def test_create_team(self):
+    def test_search_fuwuhao(self):
 
         self.userA.search(text="阿鱼", isclose=False)
         self.userA.image_exists(SEARCH_RESULT_AYU)

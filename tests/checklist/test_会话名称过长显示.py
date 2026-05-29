@@ -4,6 +4,7 @@
 操作步骤: 查看名称过长的会话在分组详情中的显示
 预期结果: 最多显示两行，超出部分用省略号显示
 """
+import os
 import time
 from conftest import BaseTest
 
@@ -27,7 +28,7 @@ class TestLongConversationName(BaseTest):
         assert pos, "消息列表中未找到名称较长的会话"
 
         self.userA.aw.take_screenshot(
-            save_path="screenshots/test_long_conversation_name.png"
+            save_path=os.path.join(self.userA.aw.SCREENSHOT_DIR, "test_long_conversation_name.png")
         )
 
     def teardown(self):

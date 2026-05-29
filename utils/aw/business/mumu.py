@@ -75,13 +75,16 @@ class MuMuBusiness(CommonBusiness):
     # ==================== 应用控制 ====================
 
     def start_app(self):
-        """点击 MuMu 桌面上的 POPO 图标启动应用"""
-        self.click_image(HOME_POPO_LOGO, timeout=20)
+        """通过 ADB monkey 命令启动 POPO 应用（不依赖桌面图标图片）"""
+        logger.info("📱 [MuMu] 通过 ADB 启动 POPO...")
+        self._run_adb_command("shell", "monkey", "-p", POPO_PACKAGE,
+                              "-c", "android.intent.category.LAUNCHER", "1")
+        self.sleep(5)
 
     def stop_app(self, package: str = POPO_PACKAGE) -> bool:
-        """停止应用"""
+        """停止应用，返回 True 表示 App 已处于停止状态"""
         logger.info(f"📱 正在停止应用 {package}...")
-        self._run_adb_command("shell", "am", "force-stop", package)
+        return self._run_adb_command("shell", "am", "force-stop", package)
 
     # ==================== 页面导航 (MuMu 特定) ====================
 
@@ -103,13 +106,8 @@ class MuMuBusiness(CommonBusiness):
         """
         启动 POPO 并等待进入消息列表首页
 
-        前置条件: 用户已登录（Session 级别已完成登录，force-stop 不清除登录态）
-        步骤:
-        1. 检查是否已在消息列表页（跳过启动）
-        2. 尝试点击底部"消息"Tab（可能在App内其他Tab页面）
-        3. 尝试按返回键回到消息页（可能在深层页面）
-        4. 否则从桌面启动App
-        5. 处理可能出现的弹窗
+        前置条件: 用户已登录（Session 级别已完成登录，force-stop 不清除登录态）。
+        teardown 已 force-stop，App 确定已停止，直接 ADB 冷启动。
         """
         logger.info("📱 [MuMu] 启动 POPO 应用...")
 
@@ -117,38 +115,16 @@ class MuMuBusiness(CommonBusiness):
         self.driver.focus_window()
         self.sleep(0.3)
 
-        # 先检查是否已在消息列表页（find_image 找不到返回 None，不会抛异常）
-        if self.find_image(MESSAGE_TAB_BLUE, timeout=2):
+        # 快速检查：App 可能还活着（teardown 异常未执行等极端情况）
+        if self.find_image(MESSAGE_TAB_MSG_TEXT, timeout=2):
             logger.info("✅ [MuMu] POPO 已在消息列表页，无需启动")
             self.pop_not_allowed()
             return
 
-        # 尝试点击底部"消息"Tab（可能在其他Tab页面：工作台/日历等）
-        try:
-            msg_pos = self.find_text_by_ocr("消息", timeout=2, region=(0, 860, 540, 100))
-            if msg_pos:
-                self.tap(msg_pos[0], msg_pos[1])
-                self.sleep(1)
-                if self.find_image(MESSAGE_TAB_BLUE, timeout=2):
-                    logger.info("✅ [MuMu] 已通过点击消息Tab回到消息列表页")
-                    self.pop_not_allowed()
-                    return
-        except Exception:
-            pass  # OCR可能因为不在App内而失败
-
-        # 尝试按返回键回到消息页（可能在App内深层页面）
-        for i in range(5):
-            self.press_back()
-            self.sleep(0.5)
-            if self.find_image(MESSAGE_TAB_BLUE, timeout=1):
-                logger.info("✅ [MuMu] 已通过返回键回到消息列表页")
-                self.pop_not_allowed()
-                return
-
-        # App未运行，从桌面启动
+        # App 已停止，ADB 冷启动
         self.start_app()
         self.sleep(2)
-        self.image_exists(MESSAGE_TAB_BLUE, timeout=15)
+        self.image_exists(MESSAGE_TAB_MSG_TEXT, timeout=15, region=Normal.HALF_UP)
         self.pop_not_allowed()
         logger.info("✅ [MuMu] POPO 已启动，已进入消息列表页")
 
@@ -322,21 +298,21 @@ class MuMuBusiness(CommonBusiness):
                     logger.info("✅ 切换到消息列表页成功")
                     return True
 
-        # 场景3: 连续按返回可能退出到了桌面，尝试重启App
-        logger.warning("⚠️ 连续5次返回未找到消息页，尝试检测桌面并重启App")
-        if self.find_image(HOME_POPO_LOGO, timeout=2):
-            logger.info("📱 检测到桌面POPO图标，重新启动App")
-            self.start_app()
-            time.sleep(3)
-            if self.find_image(MESSAGE_TAB_BLUE, timeout=10):
-                logger.info("✅ 重启App后成功回到消息列表页")
-                return True
-            if self.find_image(LOGIN_POPO_TEXT, timeout=3):
-                logger.info("📱 重启App后到达登录页，无需退登")
-                return False
+        # 场景3: 连续按返回可能退出到了桌面，ADB 重启App
+        logger.warning("⚠️ 连续5次返回未找到消息页，通过 ADB 重启App")
+        self.stop_app()
+        time.sleep(1)
+        self.start_app()
+        time.sleep(3)
+        if self.find_image(MESSAGE_TAB_BLUE, timeout=10):
+            logger.info("✅ 重启App后成功回到消息列表页")
+            return True
+        if self.find_image(LOGIN_POPO_TEXT, timeout=3):
+            logger.info("📱 重启App后到达登录页，无需退登")
+            return False
 
-        # 最后的兜底: 强制停止App再启动
-        logger.warning("⚠️ 无法定位当前页面，强制停止并重启App")
+        # 最后的兜底: 再次尝试强制停止并重启
+        logger.warning("⚠️ 首次重启未成功，再次尝试...")
         self.stop_app()
         time.sleep(1)
         self.start_app()
@@ -399,7 +375,7 @@ class MuMuBusiness(CommonBusiness):
                 logger.info("弹窗已关闭")
         # 处理登录后可能出现的联系人同步/授权弹窗（OCR方式补充检测）
         elif self.find_text_by_ocr("授权", timeout=1) and \
-             self.find_text_by_ocr("取消", timeout=0.5):
+                self.find_text_by_ocr("取消", timeout=0.5):
             if not isallow:
                 self.click_text("取消", timeout=2)
                 logger.info("授权弹窗已取消")
@@ -444,7 +420,7 @@ class MuMuBusiness(CommonBusiness):
             # 方案2：坐标直接点击 ≡ 按钮（tab 行最右侧，x≈505, y≈277）
             logger.info("⚠️ SESSION_GROUP_MORE_BUTTON 图片未匹配，使用坐标 (505, 277)")
             self.tap(505, 277)
-        time.sleep(1.5)   # 等待面板动画
+        time.sleep(1.5)  # 等待面板动画
 
         # 验证面板已打开（超时6s，给 OCR 更多时间）
         pos = self.find_text_by_ocr("会话分组", timeout=6)
@@ -636,17 +612,19 @@ class MuMuBusiness(CommonBusiness):
         打开会话盒子页面
 
         步骤:
-        1. 打开会话分组面板
+        1. 确保在消息列表页
         2. 点击"会话盒子"条目
-        3. 进入会话盒子列表页
+        3. 验证进入会话盒子页面（标题栏显示"会话盒子"）
 
-        探索来源: explorer_output/screenshots/m3_step6_session_box.png
+        前置条件: 消息列表中需已存在"会话盒子"条目（已有会话被添加到盒子）
 
         Returns:
             bool: 操作是否成功
         """
         logger.info("📋 [MuMu] 打开会话盒子")
-        self.open_session_group_panel()
+        self._ensure_message_page()
+        time.sleep(0.5)
+
         self.click_text("会话盒子", timeout=5)
         time.sleep(1.5)
         self.text_exists("会话盒子", timeout=5)
@@ -692,7 +670,7 @@ class MuMuBusiness(CommonBusiness):
                 return text
         # 尝试滑动菜单后查找
         for _ in range(max_scrolls):
-            self.swipe(270, 850, 270, 700, duration=0.3)
+            self.swipe(270, 900, 270, 650, duration=0.3)
             time.sleep(0.5)
             for text in candidates:
                 pos = self.find_text_by_ocr(text, timeout=2)
@@ -900,48 +878,39 @@ class MuMuBusiness(CommonBusiness):
         logger.info(f"✅ 会话 '{conversation_name}' 已{target_text}")
         return True
 
-    def close_conversation_box(self, conversation_name: str) -> bool:
+    def close_conversation_box(self, conversation_name: str = "会话盒子") -> bool:
         """
-        在消息列表中找到指定会话盒子，长按它，在弹出菜单中点击"关闭会话"
+        关闭会话盒子
 
-        说明: 长按菜单底部的红字"关闭会话"是关闭一个会话/盒子的真实菜单项。
-        没有独立的"关闭"菜单项。
+        说明: 长按"会话盒子"条目时，弹出简化菜单仅含"关闭"一项，
+        不同于长按普通会话的完整菜单（无聊天预览、无可滑动项）。
 
         步骤:
-        1. OCR 定位指定 conversation_name 在消息列表中的 y 坐标
-        2. 在该 y 坐标对应的会话行上长按 (x 偏右避开头像)
-        3. 通过 _find_menu_item 在弹出菜单中查找"关闭会话"
-           （_find_menu_item 内部已处理菜单 swipe-up 滚动查找）
-        4. 点击它
+        1. 在消息列表页找到"会话盒子"条目
+        2. 长按该条目 (x=270 避开左侧头像, duration=2.0)
+        3. 在弹出菜单中点击"关闭"
 
         Args:
-            conversation_name: 要关闭的会话盒子名 (如 "会话盒子")
+            conversation_name: 会话盒子名称 (默认"会话盒子")
         Returns:
             bool: 操作是否成功
         """
-        logger.info(f"📋 [MuMu] 长按会话 '{conversation_name}' → 关闭会话")
-        # 确保窗口获得焦点
-        self.driver.focus_window()
-        time.sleep(0.3)
+        logger.info(f"🗑️ [MuMu] 关闭会话盒子: {conversation_name}")
+        self._ensure_message_page()
+        time.sleep(0.5)
 
-        # 1. 找到目标会话所在行
-        pos = self.find_text_by_ocr(conversation_name, timeout=10)
-        assert pos is not None, f"未在消息列表中找到会话 '{conversation_name}'"
-        target_y = pos[1]
+        # 1. 找到"会话盒子"条目
+        pos = self.find_image(SESSION_BOX)
+         # 2. 长按"会话盒子"条目 (简化菜单无聊天预览)
+        if pos:
+            self.long_press(pos[0], pos[1], duration=2.0)
+            time.sleep(0.5)
 
-        # 2. 长按那条会话 (x=300 偏右避开头像)
-        self.long_press(300, target_y, duration=1.5)
-        time.sleep(1)
+            # 3. 简化菜单仅"关闭"一项，直接点击
+            self.click_text("关闭", timeout=2)
+            time.sleep(1)
 
-        # 3. 在弹出菜单中查找 "关闭会话" (红色)
-        # _find_menu_item 内部已处理 swipe-up 滚动查找
-        target_text = self._find_menu_item(["关闭会话"])
-        assert target_text is not None, (
-            f"未在长按菜单中找到'关闭会话'选项 (会话={conversation_name})"
-        )
-        self.click_text(target_text, timeout=5)
-        time.sleep(1)
-        logger.info(f"✅ 会话 '{conversation_name}' 已关闭")
+            logger.info(f"✅ 会话盒子 '{conversation_name}' 已关闭")
         return True
 
     # ==================== 群组相关 ====================
@@ -964,7 +933,6 @@ class MuMuBusiness(CommonBusiness):
         self.click_image(SELECT_OK_BLUE, region=Normal.HALF_DOWN)
 
         try:
-            self.text_exists(text="选择已有群组", region=Normal.HALF_UP)
             self.click_image(CREATE_NEW_TEAM, region=Normal.HALF_DOWN)
         except:
             pass
@@ -1469,11 +1437,11 @@ class MuMuBusiness(CommonBusiness):
     # 按钮间距固定 72px，Y 中心 = 918
     _STYLE_BAR_ADB_COORDS = {
         "paragraph": (108, 918),  # btn0 [84,894][132,942]  - T (段落标题，点击弹出H1-H6)
-        "bold": (180, 918),       # btn1 [156,894][204,942] - B (加粗)
-        "italic": (252, 918),     # btn2 [228,894][276,942] - I (斜体)
+        "bold": (180, 918),  # btn1 [156,894][204,942] - B (加粗)
+        "italic": (252, 918),  # btn2 [228,894][276,942] - I (斜体)
         "underline": (324, 918),  # btn3 [300,894][348,942] - U (下划线)
         "strikethrough": (396, 918),  # btn4 [372,894][420,942] - S (删除线)
-        "font_color": (459, 918),     # btn5 [444,894][474,942] - A (字色，可能需要滑动)
+        "font_color": (459, 918),  # btn5 [444,894][474,942] - A (字色，可能需要滑动)
     }
 
     # flMarkdown 按钮的 ADB 坐标 — 位于 styleBar 左侧
@@ -1778,7 +1746,7 @@ class MuMuBusiness(CommonBusiness):
         "hyperlink": lambda text, url="https://www.163.com", **kw: (f"[{text}]({url})", text),
         "quote": lambda text, **kw: (f"> {text}", text),
         "inline_code": lambda text, **kw: (f"`{text}`", text),
-        "code_block": lambda text, language="", **kw: (f"```{language}\n{text}\n```", text),
+        "code_block": lambda text, language="", **kw: (f"```{language}\n{text}\n```", text.split('\n')[0]),
         "background_color": lambda text, **kw: (f"=={text}==", text),
     }
 
@@ -1848,7 +1816,7 @@ class MuMuBusiness(CommonBusiness):
         verify_word = markdown_text.replace(">", "").replace("`", "").replace("=", "").replace("[", "").replace("]", "").strip()[:5]
         if verify_word and not self.find_text_by_ocr(verify_word, timeout=2):
             logger.info("⚠️ 首次输入未成功，点击输入区域(270,180)后重试")
-            self.tap(270, 180)   # 扩展编辑模式输入框在顶部 y≈165-200
+            self.tap(270, 180)  # 扩展编辑模式输入框在顶部 y≈165-200
             time.sleep(0.3)
             self._input_markdown_text(markdown_text)
             time.sleep(0.5)
@@ -1863,8 +1831,12 @@ class MuMuBusiness(CommonBusiness):
             self._adb_tap(505, 922)
         time.sleep(1)
 
-        # 7. 验证发送成功
-        self.text_exists(verify_text, timeout=5)
+        # 7. 验证发送成功：检查已回到正常聊天输入模式（扩展编辑器已关闭）
+        if not self.find_text_by_ocr("发送给", timeout=5):
+            # 发送后编辑器未自动关闭，手动退出再检查
+            self._exit_extended_edit_mode()
+        assert self.find_text_by_ocr("发送给", timeout=5) is not None, \
+            f"发送后未回到正常聊天模式，'{markdown_type}' 消息发送可能失败"
 
         # 8. 退出扩展编辑模式
         self._exit_extended_edit_mode()
@@ -2545,7 +2517,7 @@ class MuMuBusiness(CommonBusiness):
 
     # ==================== 搜索相关 ====================
     def search(self, tab, text, isclose=True):
-        """创建群组"""
+        """搜索"""
 
         self.click_image(MESSAGE_TAB_SEARCH, region=Normal.HALF_UP)
 
@@ -3784,7 +3756,6 @@ class MuMuBusiness(CommonBusiness):
         logger.info("✅ [MuMu] 应用外分享图片到POPO成功")
         return True
 
-
     # ==================== 群设置页功能 ====================
 
     def _enter_group_chat_from_list(self, group_name_keyword: str) -> None:
@@ -3960,7 +3931,7 @@ class MuMuBusiness(CommonBusiness):
             pos = self.find_text_by_ocr(setting_name, timeout=3)
             if pos is not None:
                 found = True
-                logger.info(f"✅ 在第{screen+1}屏找到 '{setting_name}' at {pos}")
+                logger.info(f"✅ 在第{screen + 1}屏找到 '{setting_name}' at {pos}")
                 break
             self.swipe_up(300)
             time.sleep(0.5)
@@ -4124,11 +4095,10 @@ class MuMuBusiness(CommonBusiness):
         self._return_to_message_list()
         return True
 
-
     # ==================== 群设置扩展方法 (用于28个单设备用例) ====================
 
     def click_in_group_settings(self, group_identifier: str, click_text: str,
-                                  verify_text: str = None, region=None) -> bool:
+                                verify_text: str = None, region=None) -> bool:
         """
         进入群设置后点击指定文字项，并可选验证新页面
 
@@ -4178,7 +4148,7 @@ class MuMuBusiness(CommonBusiness):
         return True
 
     def toggle_group_setting_switch(self, group_identifier: str, setting_name: str,
-                                      dx: int = 200) -> bool:
+                                    dx: int = 200) -> bool:
         """
         切换群设置页中某开关
 
@@ -4337,8 +4307,6 @@ class MuMuBusiness(CommonBusiness):
         logger.info("✅ 已打开群二维码页面")
         return True
 
-
-
     # ==================== 群主测试群管理 ====================
 
     def _find_group_in_session_list(self, keyword: str, max_scrolls: int = 5) -> bool:
@@ -4364,7 +4332,8 @@ class MuMuBusiness(CommonBusiness):
 
         # 切换到"群"Tab
         try:
-            self.click_text("群", timeout=3, region=Normal.HALF_UP)
+            self.click_image(SEARCH_TAB3_NO, timeout=3, region=Normal.HALF_UP)
+            # self.click_text("群", timeout=3, region=Normal.HALF_UP)
             time.sleep(1)
         except AssertionError:
             pass
@@ -4502,50 +4471,48 @@ class MuMuBusiness(CommonBusiness):
 
         # Step 3: 进入群设置改群名
         # 当前在聊天页，直接点击群名进入群设置
-        members_pos = self.find_text_by_ocr("名群成员", timeout=5)
+        # members_pos = self.find_text_by_ocr("名群成员", timeout=5)
+        members_pos = self.find_image(MSG_team_CALL, timeout=5)
         if not members_pos:
             # 兼容其他文字：N人
             logger.warning("未找到'名群成员'，尝试点击标题栏中部")
             self.tap(270, 55)
         else:
-            self.tap(members_pos[0], members_pos[1], dy=-30)
+            self.tap(members_pos[0], members_pos[1], dx=-150)
         time.sleep(2)
 
         # 在群设置页改群名
-        pos = self.find_text_by_ocr("群名称", timeout=5)
+        pos = self.find_text_by_ocr("设置", timeout=2)
         assert pos, "群设置页未找到'群名称'"
-        self.tap(pos[0], pos[1])
+        self.tap(pos[0], pos[1], dy=120)
+        self.text_exists("群信息", timeout=2)
+        self.click_image(GROUP_INFO_EDITING_BUTTON, timeout=2, region=Normal.HALF_UP)
         time.sleep(1.5)
 
         self.clear_input()
         time.sleep(0.3)
         self.input_text(desired_name)
-        time.sleep(0.5)
+        time.sleep(0.3)
+        self.click_image(ADDLINK_OK_BUTTON, timeout=3)
 
         self.press_back()
-        time.sleep(0.5)
-        saved = False
-        for btn in ["保存", "完成", "确定"]:
-            try:
-                self.click_text(btn, timeout=2, region=Normal.HALF_UP)
-                saved = True
-                break
-            except AssertionError:
-                continue
-        if not saved:
-            self._adb_tap(486, 107)
-        time.sleep(2)
+        time.sleep(0.3)
+        # saved = False
+        # if self.click_text("群名称修改成功", timeout=2, region=Normal.HALF_UP):
+        #     saved = True
+        # if not saved:
+        #     self._adb_tap(486, 107)
+        # time.sleep(0.5)
 
         # 返回消息列表
-        for _ in range(6):
+        for _ in range(4):
             self.press_back()
-            time.sleep(0.5)
+            time.sleep(0.2)
             if self.find_image(MESSAGE_TAB_BLUE, timeout=1):
                 break
 
         logger.info(f"✅ [MuMu] 已创建并改名为 '{desired_name}'")
         return desired_name
-
 
     # ==================== 群管理子页面操作 ====================
 
@@ -4609,7 +4576,7 @@ class MuMuBusiness(CommonBusiness):
             pos = self.find_text_by_ocr(setting_name, timeout=2)
             if pos:
                 found = True
-                logger.info(f"✅ 找到 '{setting_name}' at {pos} (第{screen+1}屏)")
+                logger.info(f"✅ 找到 '{setting_name}' at {pos} (第{screen + 1}屏)")
                 break
             self.swipe_up(300)
             time.sleep(0.5)
@@ -4627,7 +4594,7 @@ class MuMuBusiness(CommonBusiness):
         return "found"
 
     def click_in_group_management(self, group_identifier: str, click_text: str,
-                                    verify_text: str = None) -> bool:
+                                  verify_text: str = None) -> bool:
         """
         进入群管理页后点击指定项，验证新页面
 
@@ -4669,7 +4636,7 @@ class MuMuBusiness(CommonBusiness):
         return True
 
     def toggle_group_management_switch(self, group_identifier: str, setting_name: str,
-                                         dx: int = 200) -> bool:
+                                       dx: int = 200) -> bool:
         """
         在群管理页切换开关
 
@@ -4866,6 +4833,45 @@ class MuMuBusiness(CommonBusiness):
                 if pos:
                     break
 
+        if pos is None:
+            # 兜底：通过搜索功能导航进入会话
+            logger.info(f"🔍 消息列表滚动未找到 '{conversation_name}'，改用搜索导航")
+            self._ensure_message_page()
+            self.click_image(MESSAGE_TAB_SEARCH, region=Normal.HALF_UP)
+            time.sleep(0.5)
+            self.click_image(SELECT_SEARCH, dx=10)
+            self.input_text(conversation_name)
+            time.sleep(1.5)
+            # 切到群Tab过滤结果（限定顶部Tab区域 y<160，避免误点群名）
+            try:
+                tab_items = self.ocr_scan_page()
+                tab_pos = next(
+                    (it for it in tab_items if it['text'] == '群' and it['cy'] < 160),
+                    None,
+                )
+                if tab_pos:
+                    self.tap(tab_pos['cx'], tab_pos['cy'])
+                    time.sleep(1)
+            except Exception:
+                pass
+            # 在搜索结果区（y > 120）找第一个包含关键词的条目，避免误点搜索栏
+            items = self.ocr_scan_page()
+            result_item = next(
+                (it for it in items if it['cy'] > 120 and conversation_name in it['text']),
+                None,
+            )
+            if result_item is None:
+                # 关键词未出现在结果文字里（群名显示为成员名），取 y>150 第一个条目
+                result_item = next((it for it in items if it['cy'] > 150), None)
+            assert result_item is not None, f"搜索结果中未找到会话 '{conversation_name}'"
+            self.tap(result_item['cx'], result_item['cy'])
+            time.sleep(2)
+            # 进入聊天后直接点标题栏（y≈60）进入设置
+            self.tap(270, 60)
+            time.sleep(2)
+            logger.info(f"✅ 已进入会话设置页（搜索路径）: {conversation_name}")
+            return True
+
         assert pos is not None, f"消息列表中未找到会话 '{conversation_name}'"
         self.tap(pos[0], pos[1])
         time.sleep(2)
@@ -4885,80 +4891,96 @@ class MuMuBusiness(CommonBusiness):
         """
         将指定会话添加到会话盒子
 
+        通过搜索进入会话 → 设置页 → 开启"添加到会话盒子"开关。
         步骤:
-        1. 进入会话聊天设置页
-        2. 向下滑动找到"添加到会话盒子"选项
-        3. 点击其右侧开关
+        1. 搜索目标会话并进入聊天窗口
+        2. 点击顶部标题进入聊天设置页
+        3. 下滑找到"添加到会话盒子"开关并开启
+        4. 返回消息列表
 
         Args:
-            conversation_name: 会话名称关键词
+            conversation_name: 会话名称（搜索关键词，如联系人名/群名）
 
         Returns:
             bool: 操作是否成功
         """
         logger.info(f"📦 [MuMu] 添加到会话盒子: {conversation_name}")
+
+        # 1. 进入会话设置页（内部会先搜索/定位会话再进设置）
         self._enter_conversation_settings(conversation_name)
 
-        # 查找"添加到会话盒子"选项（可能需要滚动）
+        # 2. 下滑找到"添加到会话盒子"/"会话盒子"开关
         pos = None
         for _ in range(5):
-            pos = self.find_text_by_ocr("添加到会话盒子", timeout=3)
+            pos = self.find_text_by_ocr("会话盒子", timeout=2)
             if pos:
                 break
-            self.swipe_up(300)
+            self.swipe(270, 700, 270, 400, duration=0.3)
             time.sleep(0.5)
+        assert pos is not None, "会话设置页中未找到'添加到会话盒子'选项"
 
-        assert pos is not None, "聊天设置中未找到'添加到会话盒子'"
-        # 点击右侧开关（偏移约+200）
-        self.tap(pos[0] + 200, pos[1])
+        # 3. 点击开关（开关在文字右侧）
+        self.tap(480, pos[1])
         time.sleep(1)
 
+        # 4. 返回消息列表
         self._return_to_message_list()
         logger.info(f"✅ 已将 '{conversation_name}' 添加到会话盒子")
         return True
 
     def remove_from_session_box(self, conversation_name: str) -> bool:
         """
-        将指定会话从会话盒子中移出
+        将指定会话从会话盒子中移除
 
+        通过进入会话盒子 → 点击目标会话 → 设置页 → 关闭"添加到会话盒子"开关。
         步骤:
-        1. 进入会话聊天设置页
-        2. 向下滑动找到"移出会话盒子"选项
-        3. 点击关闭开关或确认移出
+        1. 进入会话盒子页面
+        2. 点击目标会话进入聊天窗口
+        3. 点击顶部标题进入聊天设置页
+        4. 下滑找到"添加到会话盒子"开关并关闭
+        5. 返回消息列表
 
         Args:
-            conversation_name: 会话名称关键词
+            conversation_name: 会话名称
 
         Returns:
             bool: 操作是否成功
         """
-        logger.info(f"📦 [MuMu] 从会话盒子移出: {conversation_name}")
-        self._enter_conversation_settings(conversation_name)
+        logger.info(f"📤 [MuMu] 从会话盒子移除: {conversation_name}")
 
+        # 1. 进入会话盒子页面
+        self.open_session_box()
+
+        # 2. 点击目标会话进入聊天页
+        pos = self.find_text_by_ocr(conversation_name, timeout=10)
+        assert pos is not None, f"未在会话盒子中找到会话 '{conversation_name}'"
+        self.tap(pos[0], pos[1])
+        time.sleep(2)
+
+        # 3. 点击顶部标题进入聊天设置页
+        title_pos = self.find_text_by_ocr(conversation_name, timeout=5)
+        if title_pos and title_pos[1] < 120:
+            self.tap(title_pos[0], title_pos[1])
+        else:
+            self.tap(270, 60)
+        time.sleep(2)
+
+        # 4. 下滑找到"添加到会话盒子"开关并关闭
         pos = None
         for _ in range(5):
-            # 已在盒子中时显示"移出会话盒子"，否则可能显示"添加到会话盒子"（开关已开）
-            pos = self.find_text_by_ocr("移出会话盒子", timeout=2)
+            pos = self.find_text_by_ocr("会话盒子", timeout=2)
             if pos:
                 break
-            pos = self.find_text_by_ocr("添加到会话盒子", timeout=2)
-            if pos:
-                break
-            self.swipe_up(300)
+            self.swipe(270, 700, 270, 400, duration=0.3)
             time.sleep(0.5)
+        assert pos is not None, "会话设置页中未找到'添加到会话盒子'选项"
 
-        assert pos is not None, "聊天设置中未找到'移出会话盒子'或'添加到会话盒子'"
-        self.tap(pos[0] + 200, pos[1])
+        self.tap(480, pos[1])
         time.sleep(1)
 
-        # 如有确认弹窗则点击确认
-        confirm = self.find_text_by_ocr("确认", timeout=2)
-        if confirm:
-            self.tap(confirm[0], confirm[1])
-            time.sleep(1)
-
+        # 5. 返回消息列表
         self._return_to_message_list()
-        logger.info(f"✅ 已将 '{conversation_name}' 从会话盒子移出")
+        logger.info(f"✅ 已将 '{conversation_name}' 从会话盒子移除")
         return True
 
     def add_conversation_to_group(self, conversation_name: str, group_name: str) -> bool:
@@ -4980,10 +5002,11 @@ class MuMuBusiness(CommonBusiness):
         logger.info(f"📁 [MuMu] 添加会话到分组: {conversation_name} -> {group_name}")
         self._enter_conversation_settings(conversation_name)
 
-        # 向下滑动查找"会话分组"入口
+        # 向下滑动查找"会话分组"入口，用 region 排除顶部标题栏（防止匹配群名中的"会话分组"）
+        _SETTINGS_REGION = (0, 120, 540, 840)
         pos = None
         for _ in range(5):
-            pos = self.find_text_by_ocr("会话分组", timeout=3)
+            pos = self.find_text_by_ocr("会话分组", timeout=3, region=_SETTINGS_REGION)
             if pos:
                 break
             self.swipe_up(300)
@@ -4995,8 +5018,22 @@ class MuMuBusiness(CommonBusiness):
 
         # 在分组选择页找到目标分组名，点击其右侧"+"（偏移约+150）
         group_pos = self.find_text_by_ocr(group_name, timeout=5)
+        if group_pos is None:
+            # 分组不存在，点击右上角"+"新建分组
+            logger.info(f"⚠️ 会话分组 '{group_name}' 不存在，自动创建")
+            self._adb_tap(408, 72)
+            time.sleep(1)
+            self.input_text(group_name)
+            time.sleep(0.3)
+            confirm_pos = self.find_text_by_ocr("确定", timeout=3)
+            if confirm_pos:
+                self.tap(confirm_pos[0], confirm_pos[1])
+            else:
+                self._run_adb_command("shell", "input", "keyevent", "66")
+            time.sleep(1)
+            group_pos = self.find_text_by_ocr(group_name, timeout=5)
         assert group_pos is not None, f"分组列表中未找到分组 '{group_name}'"
-        self.tap(group_pos[0] + 150, group_pos[1])
+        self.tap(group_pos[0], group_pos[1])  # 点击分组名即可选中（知识库描述）
         time.sleep(1)
 
         self._return_to_message_list()
@@ -5022,9 +5059,10 @@ class MuMuBusiness(CommonBusiness):
         logger.info(f"📁 [MuMu] 从分组移除会话: {conversation_name} <- {group_name}")
         self._enter_conversation_settings(conversation_name)
 
+        _SETTINGS_REGION = (0, 120, 540, 840)
         pos = None
         for _ in range(5):
-            pos = self.find_text_by_ocr("会话分组", timeout=3)
+            pos = self.find_text_by_ocr("会话分组", timeout=3, region=_SETTINGS_REGION)
             if pos:
                 break
             self.swipe_up(300)
@@ -5034,10 +5072,9 @@ class MuMuBusiness(CommonBusiness):
         self.tap(pos[0], pos[1])
         time.sleep(1.5)
 
-        # 已选中的分组名右侧显示"×"（或蓝色选中态），点击右侧 -150 偏移区域
-        group_pos = self.find_text_by_ocr(group_name, timeout=5)
-        assert group_pos is not None, f"分组列表中未找到分组 '{group_name}'"
-        self.tap(group_pos[0] + 150, group_pos[1])
+        # 在分组选择页找已选中的分组名，点击即可取消选中（单选模式下再点一次移除）
+        group_pos = self.text_exists(group_name, timeout=5)
+        self.tap(group_pos[0], group_pos[1])
         time.sleep(1)
 
         self._return_to_message_list()

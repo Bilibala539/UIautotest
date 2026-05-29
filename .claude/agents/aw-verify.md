@@ -37,6 +37,22 @@ model: haiku
 - `python scripts/knowledge/promote_knowledge.py` —— 验证 draft/*.md 并转正到 pages/
 - `python scripts/knowledge/promote_knowledge.py --check-only` —— 只验证不转正
 
+## 用例文件规范检查
+
+验证前先扫描目标文件，确认符合以下规范（references rules.mdc §4.1）：
+
+- **每个文件只含一个 test 方法**（parametrize 算一个方法）
+- 发现多个 test 方法 → 报告给 orchestrator，不跑测试，等 codegen 拆分后再验证
+
+```bash
+# 快速检查文件里有几个 test 方法
+grep -c "def test_" tests/checklist/test_xxx.py
+```
+
+输出 > 1 → 文件违规，上报。
+
+---
+
 ## ⚙️ 运行前环境检查（每次跑 pytest 前，必须执行）
 
 ### Step 1：检测并启动 MuMu

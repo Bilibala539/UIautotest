@@ -77,7 +77,7 @@ class MuMuDriver(BasePlatformDriver):
         else:
             self._adb_mode = True
         mode_label = "ADB" if self._adb_mode else "pyautogui"
-        logger.info(f"🤖 MuMuDriver 初始化: 实例ID={instance_id}, ADB={self._device_serial}, 模式={mode_label}")
+        logger.info(f"🤖 MuMu实例 初始化: 实例ID={instance_id}, ADB={self._device_serial}, 模式={mode_label}")
 
     @staticmethod
     def _check_desktop_available() -> bool:

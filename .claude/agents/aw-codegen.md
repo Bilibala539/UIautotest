@@ -49,10 +49,20 @@ model: haiku
 ## 强制规则
 
 1. **禁止 tap 坐标** —— 用 `click_image` / `click_text`，绝不用 `tap(x, y)`
+1a. **OCR `click_text` 偏移补偿** —— 点击筛选器标签（如"全部消息"/"日程"）、弹窗/菜单选项（如"文本消息"/"近7天"/"确定"）、底部栏按钮时，OCR 返回的文字中心坐标天然偏上，必须加 `dy=8~12` 偏移。搜索结果列表中的联系人/消息条目无需加。
+    例：`click_text("文本消息", dy=10)`、`click_text("日程", dy=10)`
 2. **断言优先级** —— 优先图片断言，次之 OCR 文字断言，**禁止只断言"没异常"**。尽量使用截图图像识别，尽量不用 OCR
 3. **方法签名规范** —— 遵循 skill 中的参数命名约定（isback / isclose / isshow 等）
-4. **测试合并原则** —— 同一功能不同参数合并成一个 py 文件用 `@pytest.mark.parametrize`；不要一条用例一个文件
+4. **每个文件只含一个 test 方法** —— 不同测试场景各自独立一个 py 文件；同一测试场景的不同参数变体用 `@pytest.mark.parametrize` 合并在同一文件（参考 rules.mdc §4.1）
 5. **元素图片用 test_path 注册** —— 新图走暂存目录，跑通后由 verify 转正
+6. **前置数据自己造** —— 用例如果需要群组/消息/日程/会话盒子等前置数据，直接调用现有 AW 方法创建，不允许假设数据已存在。常用方法：`setup_owner_group()` 建群、`send_message()` 发消息、`add_to_session_box()` 加入会话盒子、`create_team()` 建群
+7. **创建了"痕迹"必须清理** —— 用例中如果创建了数据或修改了状态（发消息、添加会话到分组/盒子、改群名、改备注等），必须在 `teardown()` 或测试方法末尾加上逆向清理逻辑：
+   - 发过的消息 → `recall_message()` 撤回或 `delete_message()` 删除
+   - 加入会话盒子的会话 → `close_conversation_box()` 关闭
+   - 添加的会话分组 → `remove_conversation_from_group()` 移除
+   - 创建的群组 → `delete_team()` 解散
+   - 修改的备注 → 还原备注
+   - 注意：`teardown()` 中的清理用 `try/except` 包裹（清理失败不应阻塞测试结果）
 
 ## 📡 中间进度汇报（关键节点必须主动发）
 

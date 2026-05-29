@@ -48,6 +48,12 @@ class Normal:
 class Search:
     # 大搜结果列表
     RESULT_LIST = (0, 198, x, y)
+    # 大搜输入框
+    RESULT_INPUT = (48, 42, 387, 99)
+    # 最近搜索
+    RECENT_SEARCH = (38, 168, 500, 340)
+    # 搜索tab栏
+    SEARCH_TAB = (30, 100, x, 159)
 
 # ==================== V: 垂直分区 (左/右) ====================
 class V:

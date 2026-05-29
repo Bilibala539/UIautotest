@@ -22,6 +22,7 @@ os.environ['MKLDNN_VERBOSE'] = '0'
 os.environ['FLAGS_use_onednn'] = '0'
 
 import functools
+import inspect
 import logging
 import time
 from typing import Optional, Tuple
@@ -39,7 +40,11 @@ logger = logging.getLogger(__name__)
 
 
 def _screenshot_on_failure(func):
-    """AW 方法抛异常时立即截图；同一条异常链只截一次（标记打在异常对象上）。"""
+    """AW 方法抛异常时立即截图；同一条异常链只截一次（标记打在异常对象上）。
+    如果方法有 region 参数且不是全屏，额外追加一张裁切截图。
+    """
+    _sig = inspect.signature(func)
+
     @functools.wraps(func)
     def wrapper(self: 'AWBase', *args, **kwargs):
         try:
@@ -63,6 +68,36 @@ def _screenshot_on_failure(func):
                             name=f"失败截图 [{func.__name__}]",
                             attachment_type=allure.attachment_type.PNG,
                         )
+                        # 如果有 region 参数且是有效的子区域，额外保存裁切截图
+                        try:
+                            bound = _sig.bind(self, *args, **kwargs)
+                            bound.apply_defaults()
+                            region = bound.arguments.get('region')
+                            if (region is not None
+                                    and isinstance(region, (tuple, list))
+                                    and len(region) == 4):
+                                rx, ry, rw, rh = int(region[0]), int(region[1]), int(region[2]), int(region[3])
+                                ih, iw = img.shape[:2]
+                                # 只在 region 不是全屏时才裁切
+                                if not (rx == 0 and ry == 0 and rw >= iw and rh >= ih):
+                                    x2 = min(rx + rw, iw)
+                                    y2 = min(ry + rh, ih)
+                                    cropped = img[ry:y2, rx:x2]
+                                    crop_path = os.path.join(
+                                        SCREENSHOT_DIR,
+                                        f"FAIL_{func.__name__}_{ts}_region.png",
+                                    )
+                                    success, buf = cv2.imencode('.png', cropped)
+                                    if success:
+                                        buf.tofile(crop_path)
+                                        logger.error(f"❌ [{func.__name__}] 失败截图(region裁切 {rx},{ry},{rw},{rh}): {crop_path}")
+                                        allure.attach.file(
+                                            crop_path,
+                                            name=f"失败截图-region裁切 [{func.__name__}]",
+                                            attachment_type=allure.attachment_type.PNG,
+                                        )
+                        except Exception:
+                            pass
                 except Exception:
                     pass
             raise
@@ -121,7 +156,6 @@ class AWBase:
     def _get_ocr_engine(cls) -> PaddleOCR:
         """获取OCR引擎单例（自动检测 2.x / 3.x）"""
         if cls._ocr_engine is None:
-            logger.info("🔧 初始化PaddleOCR引擎...")
             cls._ocr_engine = PaddleOCR(
                 use_textline_orientation=False,
                 use_doc_orientation_classify=False,
@@ -132,7 +166,6 @@ class AWBase:
             # 运行时检测：有 predict 方法就是 3.x，否则是 2.x
             cls._ocr_use_predict = hasattr(cls._ocr_engine, 'predict')
             ver = "3.x (predict)" if cls._ocr_use_predict else "2.x (ocr)"
-            logger.info(f"✅ PaddleOCR引擎初始化完成 — API: {ver}")
         return cls._ocr_engine
 
     # ==================== 截图 ====================
@@ -500,7 +533,7 @@ class AWBase:
         Returns:
             文字中心坐标 (窗口内)，未找到返回 None
         """
-        logger.info(f"🔍 找到文字 '{text}'")
+        logger.info(f"🔍 开始寻找文字 '{text}'")
         end_time = time.time() + timeout
 
         while time.time() < end_time:
@@ -547,6 +580,14 @@ class AWBase:
             return pos
         else:
             assert False
+
+    @_screenshot_on_failure
+    def text_not_exists(self, text: str, timeout: int = 3,
+                        region=Normal.ALL) -> bool:
+        """断言文字不存在（存在则 assert 失败）"""
+        pos = self.find_text_by_ocr(text, timeout=timeout, region=region)
+        assert pos is None, f"断言失败: 文字 '{text}' 仍然存在"
+        return True
 
     # ==================== 图像模板匹配 ====================
 

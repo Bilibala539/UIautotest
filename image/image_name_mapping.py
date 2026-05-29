@@ -113,7 +113,9 @@ CREATE_NEW_TEAM = os.path.join(path, "选择已有群组-创建新的群组.png"
 # 大搜
 SEARCH_CANCEL = os.path.join(path, "搜索页面-输入框右侧取消.png")
 SEARCH_AI = os.path.join(path, "搜索页面-AI icon.png")
-SEARCH_EMPTY = os.path.join(path, "搜索页面-空态图片.png")
+SEARCH_EMPTY = os.path.join(path, "搜索页面-空态图标.png")
+SEARCH_CLEAN_RECENT_SEARCH = os.path.join(path, "搜索页面-清空最近搜索.png")
+SEARCH_CLEAN_RECENT_SEARCH_CONFIRM = os.path.join(path, "清空搜索历史弹窗-清空按钮.png")
 
 SEARCH_TAB1 = os.path.join(path, "搜索页面-全部tab.png")
 SEARCH_TAB2 = os.path.join(path, "搜索页面-联系人tab.png")
@@ -122,6 +124,7 @@ SEARCH_TAB3 = os.path.join(path, "搜索页面-群tab.png")
 SEARCH_TAB3_NO = os.path.join(path, "搜索页面-群tab-未选中.png")
 SEARCH_TAB3_BOTTON = os.path.join(path, "默认排序包含成员下拉按钮.png")
 SEARCH_TAB4 = os.path.join(path, "搜索页面-消息tab.png")
+# SEARCH_TAB4_BOTTON 已过期：旧版是整行 4 按钮拼图（484x53），新版 UI 改为 4 个独立下拉条，请改用 SEARCH_FILTER_MSG_* 系列常量
 SEARCH_TAB4_BOTTON = os.path.join(path, "搜索页面-消息tab-条件按钮.png")
 SEARCH_TAB4_NO = os.path.join(path, "搜索页面-消息tab-未选中.png")
 SEARCH_TAB6 = os.path.join(path, "搜索页面-云空间tab.png")
@@ -145,6 +148,19 @@ SEARCH_WANGYING_HEAD = os.path.join(path, "王英头像彩色.png")
 
 SEARCH_CESHI_BLUE = os.path.join(path, "测试-蓝色高亮.png")
 SEARCH_123_BLUE = os.path.join(path, "123-蓝色高亮.png")
+
+# 大搜 - 消息 Tab 空态（草稿，待验证）
+SEARCH_MSG_EMPTY_ICON = os.path.join(test_path, "搜索页/消息搜索-空态图标.png")
+SEARCH_MSG_EMPTY_TEXT = os.path.join(test_path, "搜索页/消息搜索-空态提示文字.png")
+
+# 大搜 - 筛选下拉按钮（草稿，待验证）
+SEARCH_FILTER_MSG_SENDER = os.path.join(test_path, "搜索页/消息搜索-发送者筛选按钮.png")
+SEARCH_FILTER_MSG_SESSION = os.path.join(test_path, "搜索页/消息搜索-所在会话筛选按钮.png")
+SEARCH_FILTER_MSG_TYPE = os.path.join(test_path, "搜索页/消息搜索-全部消息筛选按钮.png")
+SEARCH_FILTER_MSG_TIME = os.path.join(test_path, "搜索页/消息搜索-全部时间筛选按钮.png")
+SEARCH_FILTER_MSG_RANGE = os.path.join(path, "消息搜索-匹配范围筛选按钮.png")
+SEARCH_FILTER_GROUP_SORT = os.path.join(test_path, "搜索页/群搜索-默认排序筛选按钮.png")
+SEARCH_FILTER_GROUP_MEMBER = os.path.join(test_path, "搜索页/群搜索-包含成员筛选按钮.png")
 
 # 侧边栏
 SIDEBAR_MY_COLLECTION = os.path.join(path, "侧边栏-我的收藏.png")
@@ -193,5 +209,7 @@ CONTACTS_NAV_MORE_TAB = os.path.join(path, "通讯录页-底部导航栏更多ta
 # 会话分组
 SESSION_GROUP_MORE_BUTTON = os.path.join(path, "消息tab页-分组更多按钮.png")
 
+# workhub
+WORKHUB_TEXT = os.path.join(path, "workhub页面文案.png")
 
 

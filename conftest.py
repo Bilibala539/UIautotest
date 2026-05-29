@@ -551,10 +551,10 @@ class UsersFactory:
         self._created_users[user_key] = user
 
         # 首次创建时自动登录（login 包含: 打开 POPO → 登录 → 进入消息列表页）
-        if not user.is_logged_in:
-            logger.info(f"🔐 [auto] 首次创建，自动登录用户: {user_key} ({user.uid})")
-            user.login()
-
+        # if not user.is_logged_in:
+        #     logger.info(f"🔐 [auto] 首次创建，自动登录用户: {user_key} ({user.uid})")
+        #     user.login()
+        user.login()
         return user
     
     def get_all_users(self) -> Dict[str, PPUser]:

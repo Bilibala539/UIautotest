@@ -54,6 +54,7 @@ PPUser (用户入口，user.py)
 |------|------|------|------|
 | `find_text_by_ocr` | `(text, timeout=10, region=ALL, case_sensitive=False) → (x,y)\|None` | OCR找文字，返回文字中心坐标，**未找到返回None** | 🔍 判断层 |
 | `text_exists` | `(text, timeout=5, region=ALL) → bool` | **断言**文字必须存在，不存在则assert失败 | ✅ 断言层 |
+| `text_not_exists` | `(text, timeout=3, region=ALL) → bool` | **断言**文字必须不存在，存在则assert失败 | ✅ 断言层 |
 | `click_text` | `(text, timeout=10, dx=0, dy=0, region=ALL)` | OCR找到文字后点击，找不到assert失败 | 👆 点击层 |
 
 ### 2.5 图像模板匹配
@@ -390,9 +391,37 @@ PPUser (用户入口，user.py)
 
 ---
 
-### 4.12 应用控制
+### 4.11c 🔙 返回消息列表页 `return_to_message_list(max_back=6, strict=False)`
 
-| 方法 | 作用 |
+**作用：** 从任意深度页面（聊天页、群设置、标签页管理等）连续按返回键，直到检测到消息列表页（`MESSAGE_TAB_BLUE`）为止。这是全工程唯一的「返回消息列表」实现，任何新 AW 方法均应调用此方法，**不要再写内联 for 循环**。
+
+**参数：**
+
+| 参数 | 类型 | 默认 | 说明 |
+|------|------|------|------|
+| `max_back` | int | 6 | 最多按几次返回键（深层页面可传更大值，如 8） |
+| `strict` | bool | False | `False` = 失败只记 warning；`True` = 失败直接 assert（适用于关键流程） |
+
+**典型用法：**
+
+```python
+# AW 层——普通用法，任意深度返回，失败只 warning
+self.return_to_message_list()
+
+# AW 层——严格模式，send_message 等关键流程，返回失败即报错
+self.return_to_message_list(max_back=5, strict=True)
+
+# AW 层——深层页面（群设置、搜索历史等 8 层）
+self.return_to_message_list(max_back=8)
+
+# PPUser 层——用例中直接调用
+self.userA.return_to_message_list()
+self.userA.return_to_message_list(max_back=8, strict=True)
+```
+
+---
+
+### 4.12 应用控制
 |------|------|
 | `start_app()` | 点击桌面POPO图标启动应用 |
 | `stop_app()` | ADB强制停止应用 |
@@ -437,6 +466,7 @@ PPUser (用户入口，user.py)
 | `user.search_group(text)` | 搜群 | 搜群并验证结果 |
 | `user.search_msg(tab, text)` | 搜消息 | 搜消息并验证结果 |
 | `user.send_image_from_album(recipient)` | `aw.send_image_from_album(...)` | 从相册选图直接发送（不编辑） |
+| `user.return_to_message_list(max_back, strict)` | `aw.return_to_message_list(...)` | 🔙 从任意深度返回消息列表页 |
 | `user.select_edit_send_image_from_album(recipient)` | `aw.select_edit_send_image_from_album(...)` | 相册选图→预览→编辑→完成→发送 |
 | `user.edit_image_from_chat_message()` | `aw.edit_image_from_chat_message()` | 长按图片消息→编辑图片→完成 |
 | `user.select_edit_with_tools_send_image(recipient)` | `aw.select_edit_with_tools_send_image(...)` | 相册选图→工具编辑→发送 |
@@ -449,6 +479,7 @@ PPUser (用户入口，user.py)
 | `user.image_exists(template_name, ...)` | 断言图片存在 |
 | `user.click_text(text, ...)` | 点击文字 |
 | `user.text_exists(text, ...)` | 断言文字存在 |
+| `user.text_not_exists(text, ...)` | 断言文字不存在 |
 | `user.input_text(text)` | 输入文本 |
 | `user.tap(x, y, ...)` | 点击坐标 |
 | `user.wait_and_click_text(text, timeout)` | 等待文字出现再点击 |

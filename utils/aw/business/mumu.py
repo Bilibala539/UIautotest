@@ -184,7 +184,6 @@ class MuMuBusiness(CommonBusiness):
         # 1. 启动 POPO（通过 monkey 命令模拟启动，比点击桌面图标更可靠）
         self._run_adb_command("shell", "monkey", "-p", POPO_PACKAGE,
                               "-c", "android.intent.category.LAUNCHER", "1")
-        self.sleep(8)
 
         # 快速检查：如果已在消息列表页（force-stop 后重启保留了登录态），跳过登录
         if self.find_image(MESSAGE_TAB_BLUE, timeout=3):
@@ -192,45 +191,40 @@ class MuMuBusiness(CommonBusiness):
             self.pop_not_allowed()
             return
 
-        # 3. 点击邮箱 Tab
-        self.click_text("邮箱", timeout=3)
-        self.sleep(0.5)
-
         # 4. 输入邮箱：点击邮箱输入框 → 清空 → 输入新邮箱
         #    不管输入框是空的（显示"输入邮箱"占位符）还是保留了旧邮箱，都先清空再输入
         #    页面布局: "邮箱"Tab y≈313, 邮箱输入框 y≈405, 密码输入框 y≈500
         #    用 dy=92 从"邮箱"Tab 偏移到邮箱输入框
         self.click_text("邮箱", timeout=3, dx=50, dy=92)
         self.sleep(0.5)
-        # 清空输入框（通过 ADB keyevent 移到末尾 + 逐字删除）
+        # 清空输入框（通过 ADB keyevent 删除）
         self._clear_input_field()
-        self.sleep(0.3)
+        self.sleep(0.1)
         self.input_text(str(uid))
         logger.info(f"📧 已输入邮箱: {uid}")
 
         # 5. 输入密码：点击密码输入框 → 清空 → 输入密码 → 收起键盘
         #    从"邮箱"Tab 偏移 dy=187 到密码输入框
         self.click_text("邮箱", timeout=3, dx=50, dy=187)
-        self.sleep(0.5)
+        self.sleep(0.2)
         # 清空密码输入框
         self._clear_input_field()
-        self.sleep(0.3)
+        self.sleep(0.1)
         self.input_text(str(password))
         logger.info("🔑 已输入密码")
         # 不按返回键收起键盘，避免部分模拟器版本中按返回键退出登录页面
         # 步骤6和7会独立查找勾选框和登录按钮图片，超时后会自动重试
 
         # 6. 勾选协议（先检查未勾选状态，如果未找到说明已勾选）
-        if self.find_image(LOGIN_READ_CENTER_FALSE, timeout=2):
+        if self.find_image(LOGIN_READ_CENTER_FALSE, timeout=1):
             self.click_image(LOGIN_READ_CENTER_FALSE)
-            self.sleep(0.3)
+            self.sleep(0.1)
             logger.info("☑️ 已勾选协议")
         else:
             logger.info("☑️ 协议已是勾选状态，无需再勾选")
 
         # 7. 点击登录按钮
         self.click_image(LOGIN_ENTER)
-        self.sleep(1.5)
 
         # 8. 等待进入消息列表页，期间可能弹出权限授权弹窗
         for _ in range(5):
@@ -240,11 +234,11 @@ class MuMuBusiness(CommonBusiness):
                 self.pop_not_allowed()
             except Exception:
                 pass
-            if self.find_image(MESSAGE_TAB_BLUE, timeout=2):
+            if self.find_image(MESSAGE_TAB_BLUE, timeout=1):
                 break
         else:
             # 最后一次尝试：直接断言图片存在
-            self.image_exists(MESSAGE_TAB_BLUE, timeout=5)
+            self.image_exists(MESSAGE_TAB_BLUE, timeout=1)
 
         # 9. 处理可能出现的弹窗
         self.pop_not_allowed()
@@ -1368,15 +1362,8 @@ class MuMuBusiness(CommonBusiness):
         self.image_exists(CHAT_PLUS_BUTTON, region=Normal.HALF_DOWN)
         logger.info(f"✅ [MuMu] 消息发送成功: '{message}' -> {recipient}")
         if isback:
-            # 10. 返回消息页面，最多按5次返回键直到找到 MESSAGE_TAB_BLUE
-            for i in range(5):
-                self.press_back()
-                time.sleep(0.5)
-                if self.find_image(MESSAGE_TAB_BLUE, timeout=1):
-                    break
-                logger.warning(f"⚠️ 第{i + 1}次未找到消息Tab，继续返回...")
-            else:
-                assert False, "❌ 返回消息页面失败：连续5次未找到 MESSAGE_TAB_BLUE"
+            # 10. 返回消息列表页
+            self.return_to_message_list(max_back=5, strict=True)
 
         return message
 
@@ -1731,11 +1718,7 @@ class MuMuBusiness(CommonBusiness):
         time.sleep(0.5)
 
         # 9. 返回消息列表页
-        for i in range(5):
-            self.press_back()
-            time.sleep(0.5)
-            if self.find_image(MESSAGE_TAB_BLUE, timeout=1):
-                break
+        self.return_to_message_list(max_back=5)
 
         logger.info(f"✅ [MuMu] 富文本消息发送成功: format={format_type}")
         return True
@@ -1843,11 +1826,7 @@ class MuMuBusiness(CommonBusiness):
         time.sleep(0.5)
 
         # 9. 返回消息列表页
-        for i in range(5):
-            self.press_back()
-            time.sleep(0.5)
-            if self.find_image(MESSAGE_TAB_BLUE, timeout=1):
-                break
+        self.return_to_message_list(max_back=5)
 
         logger.info(f"✅ [MuMu] Markdown消息发送成功: type={markdown_type}")
         return True
@@ -2530,7 +2509,7 @@ class MuMuBusiness(CommonBusiness):
             pass
         else:
             logger.info(f"tab是：{tab}")
-            self.click_image(os.path.join(path, img_name_miss))
+            self.click_image(os.path.join(path, img_name_miss), dy=-10)
         self.image_exists(img_name, region=Normal.HALF_UP)
         self.click_image(SELECT_SEARCH, dx=10)
         self.input_text(str(text))
@@ -2589,11 +2568,7 @@ class MuMuBusiness(CommonBusiness):
         logger.info(f"✅ [MuMu] 搜索聊天内容执行完成: {keyword}")
 
         # 5. 返回消息列表页
-        for i in range(8):
-            self.press_back()
-            time.sleep(0.5)
-            if self.find_image(MESSAGE_TAB_BLUE, timeout=1):
-                break
+        self.return_to_message_list(max_back=8)
 
         return True
 
@@ -2679,11 +2654,7 @@ class MuMuBusiness(CommonBusiness):
         logger.info(f"✅ [MuMu] 群公告设置成功")
 
         # 7. 返回消息列表页
-        for i in range(8):
-            self.press_back()
-            time.sleep(0.5)
-            if self.find_image(MESSAGE_TAB_BLUE, timeout=1):
-                break
+        self.return_to_message_list(max_back=8)
 
         return True
 
@@ -2913,14 +2884,7 @@ class MuMuBusiness(CommonBusiness):
         logger.info("✅ [MuMu] 云文档页面加载成功，显示发送者和时间过滤")
 
         # 4. 返回消息列表页
-        self.press_back()
-        time.sleep(0.5)
-        self.press_back()
-        time.sleep(0.5)
-        self.press_back()
-        time.sleep(0.5)
-        self.press_back()
-        time.sleep(1)
+        self.return_to_message_list()
 
         logger.info("✅ [MuMu] 查看消息历史-云文档完成")
         return True
@@ -2967,16 +2931,7 @@ class MuMuBusiness(CommonBusiness):
         logger.info(f"✅ [MuMu] 搜索关键词 '{keyword}' 完成")
 
         # 5. 返回消息列表页
-        self.press_back()
-        time.sleep(0.5)
-        self.press_back()
-        time.sleep(0.5)
-        self.press_back()
-        time.sleep(0.5)
-        self.press_back()
-        time.sleep(0.5)
-        self.press_back()
-        time.sleep(1)
+        self.return_to_message_list()
 
         logger.info("✅ [MuMu] 搜索消息历史完成")
         return True
@@ -3093,9 +3048,7 @@ class MuMuBusiness(CommonBusiness):
         logger.info(f"✅ [MuMu] 标签页 '{tab_name}' 添加成功")
 
         # 10. 返回消息列表页
-        for _ in range(6):
-            self.press_back()
-            time.sleep(0.5)
+        self.return_to_message_list()
 
         logger.info("✅ [MuMu] 添加自定义标签页完成")
         return True
@@ -3145,9 +3098,7 @@ class MuMuBusiness(CommonBusiness):
         tab_pos = self.find_text_by_ocr(tab_name, timeout=5)
         if not tab_pos:
             # 标签页不存在，退出管理页面
-            for _ in range(6):
-                self.press_back()
-                time.sleep(0.5)
+            self.return_to_message_list()
             logger.info(f"ℹ️ [MuMu] 标签页 '{tab_name}' 不存在，无需删除")
             return False
 
@@ -3168,9 +3119,7 @@ class MuMuBusiness(CommonBusiness):
             logger.warning(f"⚠️ [MuMu] 未在弹窗中找到删除选项，标签页 '{tab_name}' 可能未成功删除")
 
         # 8. 返回消息列表页
-        for _ in range(6):
-            self.press_back()
-            time.sleep(0.5)
+        self.return_to_message_list()
 
         logger.info(f"✅ [MuMu] 标签页 '{tab_name}' 删除完成")
         return True
@@ -3340,11 +3289,7 @@ class MuMuBusiness(CommonBusiness):
         logger.info("✅ [MuMu] 图片复制到输入框并发送成功")
 
         # 11. 返回消息列表页
-        for i in range(5):
-            self.press_back()
-            time.sleep(0.5)
-            if self.find_image(MESSAGE_TAB_BLUE, timeout=1):
-                break
+        self.return_to_message_list(max_back=5)
 
         return True
 
@@ -3550,11 +3495,7 @@ class MuMuBusiness(CommonBusiness):
         logger.info("➡️ 右滑完成")
 
         # 16. 返回消息列表页（多层返回）
-        for i in range(6):
-            self.press_back()
-            time.sleep(0.5)
-            if self.find_image(MESSAGE_TAB_BLUE, timeout=1):
-                break
+        self.return_to_message_list()
 
         logger.info("✅ [MuMu] 合并消息图片滑动验证成功")
         return True
@@ -3651,11 +3592,7 @@ class MuMuBusiness(CommonBusiness):
         logger.info("✅ 截图已分享到聊天")
 
         # 7. 返回消息列表页
-        for i in range(5):
-            self.press_back()
-            time.sleep(0.5)
-            if self.find_image(MESSAGE_TAB_BLUE, timeout=1):
-                break
+        self.return_to_message_list(max_back=5)
 
         logger.info("✅ [MuMu] 截图分享成功")
         return True
@@ -3747,11 +3684,7 @@ class MuMuBusiness(CommonBusiness):
         logger.info("✅ 图片已通过外部分享发送")
 
         # 10. 返回消息列表页
-        for i in range(6):
-            self.press_back()
-            time.sleep(0.5)
-            if self.find_image(MESSAGE_TAB_BLUE, timeout=1):
-                break
+        self.return_to_message_list()
 
         logger.info("✅ [MuMu] 应用外分享图片到POPO成功")
         return True
@@ -3821,12 +3754,13 @@ class MuMuBusiness(CommonBusiness):
 
         logger.info("✅ [MuMu] 已进入群设置页面")
 
-    def _return_to_message_list(self, max_back: int = 6) -> None:
+    def return_to_message_list(self, max_back: int = 6, strict: bool = False) -> None:
         """
         从任意页面返回到消息列表页
 
         Args:
-            max_back: 最大返回次数
+            max_back: 最大返回次数，默认6
+            strict:   True 时若未能回到消息列表页则 assert 失败
         """
         for i in range(max_back):
             self.press_back()
@@ -3834,6 +3768,8 @@ class MuMuBusiness(CommonBusiness):
             if self.find_image(MESSAGE_TAB_BLUE, timeout=1):
                 logger.info("✅ 已返回消息列表页")
                 return
+        if strict:
+            assert False, f"❌ 返回消息列表页失败：连续 {max_back} 次未找到 MESSAGE_TAB_BLUE"
         logger.warning("⚠️ 可能未完全返回消息列表页")
 
     def open_group_settings_page(self, group_name_keyword: str) -> bool:
@@ -3901,7 +3837,7 @@ class MuMuBusiness(CommonBusiness):
         self.click_text("消息提醒", dx=200, timeout=5)
         time.sleep(1)
 
-        self._return_to_message_list()
+        self.return_to_message_list()
         logger.info("✅ [MuMu] 群消息提醒切换完成")
         return True
 
@@ -3942,7 +3878,7 @@ class MuMuBusiness(CommonBusiness):
             save_path=f'E:\\UIAutotest\\explorer_output\\screenshots\\group_setting_{setting_name}.png'
         )
 
-        self._return_to_message_list()
+        self.return_to_message_list()
         logger.info(f"✅ [MuMu] 群设置 '{setting_name}' 验证完成")
         return "found"
 
@@ -3982,7 +3918,7 @@ class MuMuBusiness(CommonBusiness):
             self.swipe_up(300)
             time.sleep(0.5)
 
-        self._return_to_message_list()
+        self.return_to_message_list()
 
         return {
             "found": found,
@@ -4092,7 +4028,7 @@ class MuMuBusiness(CommonBusiness):
         )
 
         logger.info("✅ [MuMu] 已打开群公告页面")
-        self._return_to_message_list()
+        self.return_to_message_list()
         return True
 
     # ==================== 群设置扩展方法 (用于28个单设备用例) ====================
@@ -4144,7 +4080,7 @@ class MuMuBusiness(CommonBusiness):
             logger.info(f"✅ 新页面包含 '{verify_text}'")
 
         # 返回
-        self._return_to_message_list()
+        self.return_to_message_list()
         return True
 
     def toggle_group_setting_switch(self, group_identifier: str, setting_name: str,
@@ -4186,7 +4122,7 @@ class MuMuBusiness(CommonBusiness):
         time.sleep(1)
         logger.info(f"✅ 开关已切换")
 
-        self._return_to_message_list()
+        self.return_to_message_list()
         return True
 
     def edit_group_description(self, group_identifier: str, description: str) -> bool:
@@ -4248,7 +4184,7 @@ class MuMuBusiness(CommonBusiness):
         time.sleep(1.5)
 
         logger.info(f"✅ 群描述已编辑")
-        self._return_to_message_list()
+        self.return_to_message_list()
         return True
 
     def open_group_member_list(self, group_identifier: str) -> bool:
@@ -4409,11 +4345,7 @@ class MuMuBusiness(CommonBusiness):
 
         logger.info(f"✅ [MuMu] 群名已修改: {new_name}")
         # 返回消息列表
-        for _ in range(6):
-            self.press_back()
-            time.sleep(0.5)
-            if self.find_image(MESSAGE_TAB_BLUE, timeout=1):
-                break
+        self.return_to_message_list()
         return True
 
     def setup_owner_group(self, desired_name: str = "自动化测试群主群") -> str:
@@ -4505,11 +4437,7 @@ class MuMuBusiness(CommonBusiness):
         # time.sleep(0.5)
 
         # 返回消息列表
-        for _ in range(4):
-            self.press_back()
-            time.sleep(0.2)
-            if self.find_image(MESSAGE_TAB_BLUE, timeout=1):
-                break
+        self.return_to_message_list(max_back=4)
 
         logger.info(f"✅ [MuMu] 已创建并改名为 '{desired_name}'")
         return desired_name
@@ -4584,11 +4512,7 @@ class MuMuBusiness(CommonBusiness):
         assert found, f"群管理页面中未找到 '{setting_name}'"
 
         # 返回消息列表
-        for _ in range(6):
-            self.press_back()
-            time.sleep(0.5)
-            if self.find_image(MESSAGE_TAB_BLUE, timeout=1):
-                break
+        self.return_to_message_list()
 
         logger.info(f"✅ 验证 '{setting_name}' 完成")
         return "found"
@@ -4628,11 +4552,7 @@ class MuMuBusiness(CommonBusiness):
             assert found, f"点击 '{click_text}' 后未找到 '{verify_text}'"
 
         # 返回消息列表
-        for _ in range(6):
-            self.press_back()
-            time.sleep(0.5)
-            if self.find_image(MESSAGE_TAB_BLUE, timeout=1):
-                break
+        self.return_to_message_list()
         return True
 
     def toggle_group_management_switch(self, group_identifier: str, setting_name: str,
@@ -4665,11 +4585,7 @@ class MuMuBusiness(CommonBusiness):
         time.sleep(1)
 
         # 返回消息列表
-        for _ in range(6):
-            self.press_back()
-            time.sleep(0.5)
-            if self.find_image(MESSAGE_TAB_BLUE, timeout=1):
-                break
+        self.return_to_message_list()
         logger.info(f"✅ 开关已切换")
         return True
 
@@ -4924,7 +4840,7 @@ class MuMuBusiness(CommonBusiness):
         time.sleep(1)
 
         # 4. 返回消息列表
-        self._return_to_message_list()
+        self.return_to_message_list()
         logger.info(f"✅ 已将 '{conversation_name}' 添加到会话盒子")
         return True
 
@@ -4979,7 +4895,7 @@ class MuMuBusiness(CommonBusiness):
         time.sleep(1)
 
         # 5. 返回消息列表
-        self._return_to_message_list()
+        self.return_to_message_list()
         logger.info(f"✅ 已将 '{conversation_name}' 从会话盒子移除")
         return True
 
@@ -5036,7 +4952,7 @@ class MuMuBusiness(CommonBusiness):
         self.tap(group_pos[0], group_pos[1])  # 点击分组名即可选中（知识库描述）
         time.sleep(1)
 
-        self._return_to_message_list()
+        self.return_to_message_list()
         logger.info(f"✅ 已将 '{conversation_name}' 添加到分组 '{group_name}'")
         return True
 
@@ -5077,6 +4993,6 @@ class MuMuBusiness(CommonBusiness):
         self.tap(group_pos[0], group_pos[1])
         time.sleep(1)
 
-        self._return_to_message_list()
+        self.return_to_message_list()
         logger.info(f"✅ 已将 '{conversation_name}' 从分组 '{group_name}' 移除")
         return True

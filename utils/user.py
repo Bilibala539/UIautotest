@@ -116,7 +116,6 @@ class PPUser:
         完成登录流程后 POPO 已在消息列表页，无需再调用 open_app()。
         完成登录后标记 _logged_in = True。
         """
-        logger.info(f"🔐 {self.uid} 正在登录")
         self.aw.login(self.uid, self.password)
         self._logged_in = True
         logger.info(f"✅ {self.uid} 登录成功")
@@ -156,6 +155,18 @@ class PPUser:
         """
         logger.info(f"📱 {self.uid} 关闭 POPO")
         self.aw.close_app()
+
+    def return_to_message_list(self, max_back: int = 6, strict: bool = False) -> None:
+        """
+        从任意页面返回到消息列表页
+
+        连续按返回键直到检测到消息列表页（MESSAGE_TAB_BLUE）。
+
+        Args:
+            max_back: 最大返回次数，默认 6
+            strict:   True 时若未能回到消息列表页则 assert 失败
+        """
+        return self.aw.return_to_message_list(max_back=max_back, strict=strict)
 
     @property
     def is_logged_in(self) -> bool:
@@ -635,6 +646,11 @@ class PPUser:
                     region=Normal.ALL):
         """断言文字存在"""
         return self.aw.text_exists(text, timeout, region)
+
+    def text_not_exists(self, text: str, timeout: int = 3,
+                        region=Normal.ALL) -> bool:
+        """断言文字不存在（存在则 assert 失败）"""
+        return self.aw.text_not_exists(text, timeout, region)
 
     def input_text(self, text: str) -> bool:
         """输入文本"""

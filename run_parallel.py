@@ -10,11 +10,11 @@
     └─ 汇总结果
 
 用法：
-  python run_parallel.py                        # 3 实例跑全量
+  python run_parallel.py                        # 3 实例跑全量（不重装，与串行一致）
   python run_parallel.py -n 2                   # 2 实例
   python run_parallel.py -n 4 -t 10             # 4 实例跑前 10 个文件
-  python run_parallel.py --branch release_4.23.0  # 指定分支查找最新包
-  python run_parallel.py --debug                # 调试模式：跳过设备启动和换包
+  python run_parallel.py --reinstall             # 重装 APK 后再跑
+  python run_parallel.py --branch release_4.23.0 # 指定分支并重装
   python run_parallel.py --no-setup             # 跳过设备启动（已手动开好）
 """
 
@@ -230,7 +230,7 @@ def setup_devices(count: int, branch: str = None, skip_install: bool = False):
         install_apk_to_all_devices, download_apk
 
     if skip_install:
-        # 调试模式：启动设备但跳过 APK 安装
+        # 不重装 APK，仅启动设备并排列窗口
         from utils.devices import (
             is_mumu_running, close_all_mumu, start_emulator,
             get_adb_port, adb_connect, wait_device_ready, get_window_name,
@@ -315,11 +315,11 @@ def main():
     parser.add_argument("-t", "--tests", type=int, default=None,
                         help="限制测试文件数 (默认全部)")
     parser.add_argument("--branch", type=str, default=None,
-                        help="指定分支关键词查找最新 APK (如 release_4.23.0)")
+                        help="指定分支关键词查找最新 APK（自动触发 --reinstall）")
+    parser.add_argument("--reinstall", action="store_true",
+                        help="卸载旧版并重装 APK（默认不重装，与串行行为一致）")
     parser.add_argument("--no-setup", action="store_true",
                         help="跳过设备启动（假设已手动开好）")
-    parser.add_argument("--debug", action="store_true",
-                        help="调试模式：启动设备但跳过换包安装")
     parser.add_argument("--files", nargs="*", default=None,
                         help="指定要运行的测试文件列表（替代自动收集）")
     parser.add_argument("--file-list", type=str, default=None,
@@ -344,12 +344,13 @@ def main():
     # 2. 启动设备
     if args.no_setup:
         print("\n跳过设备启动 (--no-setup)")
-    elif args.debug:
-        print("\n调试模式: 启动设备，跳过换包...")
-        setup_devices(n_instances, skip_install=True)
-    else:
-        print("\n启动 MuMu 实例...")
+    elif args.reinstall or args.branch:
+        print("\n启动 MuMu 实例 + 重装 APK...")
         setup_devices(n_instances, branch=args.branch)
+        print("  下次如需跳过重装，去掉 --reinstall/--branch 即可")
+    else:
+        print("\n启动 MuMu 实例 (不重装，与串行一致)...")
+        setup_devices(n_instances, skip_install=True)
 
     # 若 setup_devices 未写入 APK_BRANCH（skip_install / no-setup 情形），用默认值兜底
     if not os.environ.get("APK_BRANCH"):

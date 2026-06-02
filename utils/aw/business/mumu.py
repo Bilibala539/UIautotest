@@ -13,12 +13,17 @@ import numpy as np
 from image.image_name_mapping import *
 from utils.aw.business.common import CommonBusiness
 from utils.aw.driver.base_driver import BasePlatformDriver
-from utils.aw.search_region import Normal
+from utils.aw.search_region import Normal, Search
 
 logger = logging.getLogger(__name__)
 
 POPO_PACKAGE = "com.netease.popo"
 POPO_ACTIVITY = "com.netease.popo.MainActivity"
+
+
+class POPOLoginRequired(Exception):
+    """open_app() 检测到登录页时抛出，由 UsersFactory 捕获后自动重登"""
+    pass
 
 
 def _get_adb_path() -> str:
@@ -102,29 +107,87 @@ class MuMuBusiness(CommonBusiness):
         logger.info("✅ 应用已停止")
         return True
 
+    def _is_popo_foreground(self) -> bool:
+        """ADB 检测 POPO 是否在前台（mCurrentFocus 行包含包名）"""
+        try:
+            result = self.driver._adb("shell", "dumpsys", "window", "windows")
+            if result is None or result.returncode != 0:
+                return False
+            for line in result.stdout.decode("utf-8", errors="ignore").splitlines():
+                if "mCurrentFocus" in line and POPO_PACKAGE in line:
+                    return True
+            return False
+        except Exception:
+            return False
+
+    def _is_popo_running(self) -> bool:
+        """ADB 检测 POPO 进程是否存在"""
+        try:
+            result = self.driver._adb("shell", "pidof", POPO_PACKAGE)
+            if result is None:
+                return False
+            return bool(result.stdout.decode("utf-8", errors="ignore").strip())
+        except Exception:
+            return False
+
     def open_app(self):
         """
         启动 POPO 并等待进入消息列表首页
 
-        前置条件: 用户已登录（Session 级别已完成登录，force-stop 不清除登录态）。
-        teardown 已 force-stop，App 确定已停止，直接 ADB 冷启动。
+        流程：
+        1. ADB 判断 POPO 是否运行 + 是否在前台
+        2. 在前台 → 图片判断当前页面（消息页/登录页/其他）
+        3. 未在前台（进程存在但被切走）→ force-stop 后重启
+        4. 未运行 → 直接冷启动
         """
         logger.info("📱 [MuMu] 启动 POPO 应用...")
-
-        # 确保模拟器窗口在前台
         self.driver.focus_window()
         self.sleep(0.3)
 
-        # 快速检查：App 可能还活着（teardown 异常未执行等极端情况）
-        if self.find_image(MESSAGE_TAB_MSG_TEXT, timeout=2):
-            logger.info("✅ [MuMu] POPO 已在消息列表页，无需启动")
-            self.pop_not_allowed()
-            return
+        # ── Step 1: ADB 判断运行状态 ──────────────────────────────
+        popo_running = self._is_popo_running()
+        popo_in_fg = self._is_popo_foreground() if popo_running else False
 
-        # App 已停止，ADB 冷启动
+        logger.info(f"  POPO 进程: {'运行中' if popo_running else '未运行'} | "
+                    f"前台: {'是' if popo_in_fg else '否'}")
+
+        # ── Step 2: 在前台 → 图片判断当前页面 ────────────────────
+        if popo_in_fg:
+            if self.find_image(MESSAGE_TAB_MSG_TEXT, timeout=2):
+                logger.info("✅ [MuMu] POPO 已在消息列表页，无需启动")
+                self.pop_not_allowed()
+                return
+            if self.find_image(LOGIN_POPO_TEXT, timeout=1):
+                logger.warning("⚠️ [MuMu] POPO 在前台但处于登录页，登录态丢失")
+                raise POPOLoginRequired("POPO 在前台但处于登录页，登录态已丢失")
+            # 在前台但在其他深层页面 → force-stop 重启更稳
+            logger.info("⚠️ [MuMu] POPO 在前台但不在消息页，force-stop 后重启")
+            self.stop_app()
+            self.sleep(0.5)
+
+        # ── Step 3: 进程存在但不在前台 → force-stop 再启 ─────────
+        elif popo_running:
+            logger.info("⚠️ [MuMu] POPO 进程存在但不在前台，force-stop 后重启")
+            self.stop_app()
+            self.sleep(0.5)
+
+        # ── Step 4: 冷启动 ────────────────────────────────────────
         self.start_app()
         self.sleep(2)
-        self.image_exists(MESSAGE_TAB_MSG_TEXT, timeout=15, region=Normal.HALF_UP)
+
+        for _ in range(8):
+            self.sleep(1)
+            self.pop_not_allowed()
+            if self.find_image(MESSAGE_TAB_MSG_TEXT, timeout=1):
+                self.pop_not_allowed()
+                logger.info("✅ [MuMu] POPO 已启动，已进入消息列表页")
+                return
+            if self.find_image(LOGIN_POPO_TEXT, timeout=1):
+                logger.warning("⚠️ [MuMu] 启动后检测到登录页，登录态丢失")
+                raise POPOLoginRequired("POPO 启动后落在登录页，登录态已丢失")
+
+        # 超时兜底
+        self.image_exists(MESSAGE_TAB_MSG_TEXT, timeout=5, region=Normal.HALF_UP)
         self.pop_not_allowed()
         logger.info("✅ [MuMu] POPO 已启动，已进入消息列表页")
 
@@ -952,21 +1015,31 @@ class MuMuBusiness(CommonBusiness):
         Returns:
             bool: 操作是否成功
         """
-        logger.info(f"🗑️ [MuMu] 解散群组: {group_identifier}")
+        logger.info(f"🗑️ 开始解散群组: {group_identifier}")
         self.enter_group_management(group_identifier)
+
+        # 滑动查找"群管理"
+        pos = None
+        for screen in range(5):
+            pos = self.find_text_by_ocr("群管理", timeout=1)
+            if pos:
+                break
+            self.swipe_up(300)
+            time.sleep(0.2)
+
+        assert pos, "群管理页未找到'群管理'"
+        self.tap(pos[0], pos[1])
 
         # 滑动查找"解散群组"
         pos = None
         for screen in range(5):
-            pos = self.find_text_by_ocr("解散群组", timeout=2)
+            pos = self.find_text_by_ocr("解散群组", timeout=1)
             if pos:
                 break
             self.swipe_up(300)
-            time.sleep(0.5)
-
+            time.sleep(0.2)
         assert pos, "群管理页未找到'解散群组'"
         self.tap(pos[0], pos[1])
-        time.sleep(1)
 
         # 确认解散弹窗
         confirm_pos = self.find_text_by_ocr("解散", timeout=3)
@@ -2232,6 +2305,30 @@ class MuMuBusiness(CommonBusiness):
             assert pos is not None, "进入聊天页失败: 底部未找到'发送给'或'Plain Text'"
         logger.info(f"[MuMu] 已进入聊天页: {recipient}")
 
+    def send_image(self):
+        # 打开 + 面板
+        self.click_image(CHAT_PLUS_BUTTON, region=Normal.HALF_DOWN)
+        time.sleep(1)
+
+        # 点击相册
+        self.click_image(CHAT_PLUS_ALBUM, region=Normal.HALF_DOWN)
+        time.sleep(2)
+
+        # 点击第一张图片（相册网格第一行第一个位置，y≈200, x≈70）
+        self.tap(70, 200)
+        time.sleep(1)
+
+        # 点击发送
+        self.click_text("发送", region=Normal.HALF_DOWN, timeout=10)
+        time.sleep(2)
+
+        # 验证发送成功：回到聊天页，+ 按钮可见
+        self.image_exists(CHAT_PLUS_BUTTON, region=Normal.HALF_DOWN)
+
+        logger.info("[MuMu] 图片发送成功")
+        return True
+
+
     def send_image_from_album(self, recipient: str) -> bool:
         """
         从相册选图并发送（不进行编辑）
@@ -2255,27 +2352,7 @@ class MuMuBusiness(CommonBusiness):
 
         self._enter_chat_page(recipient)
 
-        # 打开 + 面板
-        self.click_image(CHAT_PLUS_BUTTON, region=Normal.HALF_DOWN)
-        time.sleep(1)
-
-        # 点击相册
-        self.click_image(CHAT_PLUS_ALBUM, region=Normal.HALF_DOWN)
-        time.sleep(2)
-
-        # 点击第一张图片（相册网格第一行第一个位置，y≈200, x≈70）
-        self.tap(70, 200)
-        time.sleep(1)
-
-        # 点击发送
-        self.click_text("发送", region=Normal.HALF_DOWN, timeout=10)
-        time.sleep(2)
-
-        # 验证发送成功：回到聊天页，+ 按钮可见
-        self.image_exists(CHAT_PLUS_BUTTON, region=Normal.HALF_DOWN)
-
-        logger.info("[MuMu] 图片发送成功")
-        return True
+        self.send_image()
 
     def select_edit_send_image_from_album(self, recipient: str) -> bool:
         """
@@ -2509,8 +2586,8 @@ class MuMuBusiness(CommonBusiness):
             pass
         else:
             logger.info(f"tab是：{tab}")
-            self.click_image(os.path.join(path, img_name_miss), dy=-10)
-        self.image_exists(img_name, region=Normal.HALF_UP)
+            self.click_image(os.path.join(path, img_name_miss), dy=-10, region=Search.SEARCH_TAB, y=133)
+        self.image_exists(img_name, region=Search.SEARCH_TAB)
         self.click_image(SELECT_SEARCH, dx=10)
         self.input_text(str(text))
         if isclose:

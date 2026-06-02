@@ -11,6 +11,7 @@ from typing import Optional
 from image.image_name_mapping import *
 from utils.aw import create_aw, AWHelper
 from utils.aw.search_region import *
+from utils.aw.popo_cli import PopoCLI
 
 logger = logging.getLogger(__name__)
 
@@ -95,6 +96,8 @@ class PPUser:
 
         # AW 实例延迟初始化
         self._aw: Optional[AWHelper] = None
+        # CLI 造数客户端延迟初始化（uid 在首次访问时自动注入）
+        self._cli: Optional[PopoCLI] = None
 
     @property
     def aw(self) -> AWHelper:
@@ -108,6 +111,13 @@ class PPUser:
             assert self.device is not None, "必须指定 device"
             self._aw = create_aw(instance_id=self.device.instance_id)
         return self._aw
+
+    @property
+    def cli(self) -> PopoCLI:
+        """获取 CLI 造数客户端，uid 自动绑定为当前用户"""
+        if self._cli is None:
+            self._cli = PopoCLI(uid=self.uid)
+        return self._cli
 
     def login(self) -> bool:
         """
@@ -396,6 +406,10 @@ class PPUser:
     def send_image_from_album(self, recipient: str) -> bool:
         """从相册选图并直接发送"""
         return self.aw.send_image_from_album(recipient)
+
+    def send_image(self) -> bool:
+        """发送图片"""
+        return self.aw.send_image()
 
     def select_edit_send_image_from_album(self, recipient: str) -> bool:
         """从相册选图 → 进入预览 → 编辑 → 完成 → 发送"""

@@ -185,3 +185,42 @@ python scripts/knowledge/auto_update.py --force    # 强制全量更新
 | MuMu 开关控件点击 | 点 x=450-480, y=555；不要用模板匹配图片 |
 | 管理标签页：删除自定义标签页 | 点右侧三点按钮（x≈510）→ 底部弹窗 → 选删除；左侧 icon 只是切换展示/隐藏，不是删除 |
 | Python 多行命令 | 走 PowerShell 执行；避免 CodeMaker Hub 路径校验报错 |
+
+<!-- codemap:start -->
+## Codemap MCP
+
+**Always use codemap tools for code exploration before falling back to Grep/Read.**
+
+### Tools Quick Reference
+
+| Tool | Use case |
+|------|----------|
+| `search_code` | Fuzzy keyword or concept search (FTS + vector). For exact name lookup, use find_symbol. |
+| `find_symbol` | Exact/prefix/suffix name lookup. Use when you know the symbol name. |
+| `get_symbol_detail` | Get a symbol's location, signature, docs, and body. |
+| `get_call_chain` | Trace upstream callers and/or downstream callees. |
+| `get_type_hierarchy` | Class/interface parent and child hierarchy. |
+| `get_dependencies` | Find all symbols that reference a given symbol. |
+| `get_graph_stats` | Graph statistics: file/symbol/edge counts. |
+| `flame_profile_calls` | Runtime flame profile caller/callee (non-lite mode only). |
+| `search_knowledge` | Business rules and architecture docs from codeindex. |
+| `query_cypher` | Count/aggregate structural queries: "how many functions in X?", "which class has most methods?", duplicate names, cross-cutting analysis. |
+
+**Name resolution:** Pass `symbol_name` — simple name (`parse_config`) or qualified (`ClassName.method`). No module prefix needed.
+
+**Symbol ID:** `filepath:kind:scopedName` (e.g. `player.py:method:Player.attack`, `models.py:class:Outer.Inner`)
+
+### Slash commands
+- `/codemap-exploring` — Explore unfamiliar code
+- `/codemap-debugging` — Debug via call chains
+- `/codemap-impact-analysis` — Impact analysis before changes
+
+### Rules
+
+- **After `get_symbol_detail`: edit immediately.** Do NOT re-Read the same file.
+- **Use `search_code` first**, not broad `find_symbol` prefix queries.
+- **Use batch queries:** `search_code({matches: ["A", "B"]})`, `find_symbol({symbol_name: ["X", "Y"]})`.
+- **For obvious single-file bugs: skip codemap.** Error → Read → Edit.
+- **Counting or aggregation questions** (how many, which has most, rank by): use `query_cypher`, NOT read/grep.
+
+<!-- codemap:end -->

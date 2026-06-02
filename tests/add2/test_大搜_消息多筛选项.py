@@ -16,23 +16,20 @@ class TestSearchFilterMultiMsg(BaseTest):
     def test_multi_filter_time_and_session(self):
         """R40: 消息tab组合筛选近7天 + 所在会话"""
         self.userA.search(tab="消息", text="测试", isclose=False)
-        self.userA.aw.sleep(0.5)
+        self.userA.aw.sleep(0.2)
         self.userA.image_exists(SEARCH_FILTER_MSG_TIME, region=Normal.HALF_UP, timeout=5)
         # 筛选时间
         self.userA.click_image(SEARCH_FILTER_MSG_TIME, region=Normal.HALF_UP)
-        self.userA.aw.sleep(0.5)
-        self.userA.click_text("近7天", dy=10)
-        self.userA.aw.sleep(0.5)
+        self.userA.aw.sleep(0.2)
+        self.userA.click_text("近7天")
+        self.userA.click_image(ADDLINK_OK_BUTTON, region=Normal.HALF_UP)
+        self.userA.aw.sleep(0.2)
         # 筛选所在会话
         self.userA.click_image(SEARCH_FILTER_MSG_SESSION, region=Normal.HALF_UP)
-        self.userA.aw.sleep(0.5)
-        found = self.userA.aw.find_text_by_ocr("确定", timeout=3, region=Normal.HALF_DOWN)
-        if found:
-            self.userA.click_text("确定", dy=10, region=Normal.HALF_DOWN)
-        else:
-            self.userA.aw.press_back()
-        self.userA.aw.sleep(0.5)
-        self.userA.image_exists(SEARCH_FILTER_MSG_TIME, region=Normal.HALF_UP, timeout=5)
+        self.userA.aw.sleep(0.2)
+        self.userA.click_text("确定", dy=10, region=Normal.HALF_DOWN)
+        self.userA.aw.sleep(0.2)
+        self.userA.image_exists(SEARCH_FILTER_MSG_TIME_7BLUE, region=Normal.HALF_UP, timeout=5)
         self.userA.click_image(SEARCH_CANCEL, region=Normal.HALF_UP)
 
     def teardown(self):

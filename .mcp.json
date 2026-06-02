@@ -1,13 +1,28 @@
 {
   "mcpServers": {
+    "codemap": {
+      "args": [
+        "serve",
+        "--root",
+        "E:\\UIAutotest",
+        "--db",
+        "E:\\UIAutotest\\.codemaker\\codemap\\graph.db"
+      ],
+      "command": "C:\\Users\\wb.menglingzhao02\\AppData\\Local\\codemap\\codemap.exe",
+      "type": "stdio"
+    },
     "knowledge_graph": {
+      "args": [
+        "mcp_servers/knowledge_graph/server.py"
+      ],
       "command": "python",
-      "args": ["mcp_servers/knowledge_graph/server.py"],
       "cwd": "E:\\UIAutotest"
     },
     "vector_kb": {
+      "args": [
+        "mcp_servers/vector_kb/server.py"
+      ],
       "command": "python",
-      "args": ["mcp_servers/vector_kb/server.py"],
       "cwd": "E:\\UIAutotest"
     }
   }

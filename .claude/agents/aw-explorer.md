@@ -56,7 +56,43 @@ PYEOF
 python E:\UIAutotest\_temp.py
 ```
 
-## 强制规则（继承自 aw-explorer SKILL）
+## 探索前置数据准备（popo-cli 造数）
+
+部分页面需要先有数据才能进入。**在导航到这类页面前，用 Bash 直接调 `popo-cli` 准备数据**，不要走 UI 流程造数。
+
+常见场景：
+
+| 目标页面 | 需要的数据 | 准备命令 |
+|---|---|---|
+| 群成员管理、移除成员 | 群里有多个成员 | `popo-cli popo team_create ...` + `popo-cli popo team_invite ...` |
+| 聊天页文件/图片消息 | 会话里有对应消息 | `popo-cli popo message_send_p2p message=...` |
+| 消息未读状态 | 对端刚发过消息 | `popo-cli popo message_send_p2p ...` |
+| 日程详情、日历页 | 存在一条日程 | `popo-cli popo calendar_schedule_create ...` |
+
+**调用规范：**
+
+```bash
+# 获取当前用户 uid（供后续命令使用）
+popo-cli popo team_current_user_info
+
+# 创建测试群（返回 tid）
+popo-cli popo team_create uid=<uid> "uidList=[\"grp.popoqa67@corp.netease.com\"]" type=1 name=探索测试群
+
+# 发一条文本消息（造出"有消息"的会话状态）
+popo-cli popo message_send_p2p "message=探索用前置消息" receiver=grp.popoqa67@corp.netease.com source=AGENT
+
+# 创建日程
+popo-cli popo calendar_schedule_create title=探索测试会议 startTime=2026-07-01T14:00:00+08:00 endTime=2026-07-01T15:00:00+08:00
+```
+
+返回值解析（提取 tid / scheduleId 等）：
+
+```bash
+# 用 python 解析 JSON 取 tid
+popo-cli popo team_create ... | python -c "import sys,json; d=json.load(sys.stdin); print(d['data']['data']['data']['data']['tid'])"
+```
+
+> 造数完成后继续正常 AWBase 导航流程；造出的测试数据探索完后无需清理（临时群/消息不影响后续）。
 
 1. **探索前必须先加载知识库** —— 参见上方强制前置第 2 条。**没加载知识库禁止开始探索。**
 2. **只能用 AWBase 方法** —— 设备交互一切走 `E:\UIAutotest\utils\aw\aw_base.py`，**严禁直接 ADB shell / Playwright / 自造调用**。AWBase 没封装的操作，先在 AWBase 加方法再用。

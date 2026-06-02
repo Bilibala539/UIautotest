@@ -106,6 +106,7 @@ SELECT_OK_BLUE = os.path.join(path, "选人组件-确认按钮蓝色.png")
 SELECT_CIRCLE = os.path.join(path, "选人组件-圆形勾选框.png")
 SELECT_CIRCLE_BLUE = os.path.join(path, "选人组件-圆形勾选框-蓝色.png")
 SELECT_CANCEL = os.path.join(path, "选人组件-左上角关闭按钮.png")
+SELECT_SELECTED_DELETE = os.path.join(path, "选人组件-已选-删除已选按钮.png")
 
 # 选择已有群组
 CREATE_NEW_TEAM = os.path.join(path, "选择已有群组-创建新的群组.png")
@@ -156,11 +157,15 @@ SEARCH_MSG_EMPTY_TEXT = os.path.join(test_path, "搜索页/消息搜索-空态�
 # 大搜 - 筛选下拉按钮（草稿，待验证）
 SEARCH_FILTER_MSG_SENDER = os.path.join(test_path, "搜索页/消息搜索-发送者筛选按钮.png")
 SEARCH_FILTER_MSG_SESSION = os.path.join(test_path, "搜索页/消息搜索-所在会话筛选按钮.png")
-SEARCH_FILTER_MSG_TYPE = os.path.join(test_path, "搜索页/消息搜索-全部消息筛选按钮.png")
+SEARCH_FILTER_MSG_TYPE = os.path.join(path, "消息搜索-全部消息筛选按钮.png")
+SEARCH_FILTER_MSG_TYPE_TEXT_BLUE = os.path.join(path, "消息搜索-全部消息筛选按钮-文本消息蓝色.png")
 SEARCH_FILTER_MSG_TIME = os.path.join(test_path, "搜索页/消息搜索-全部时间筛选按钮.png")
+SEARCH_FILTER_MSG_TIME_7BLUE = os.path.join(path, "消息搜索-全部时间-近7天蓝色.png")
 SEARCH_FILTER_MSG_RANGE = os.path.join(path, "消息搜索-匹配范围筛选按钮.png")
 SEARCH_FILTER_GROUP_SORT = os.path.join(test_path, "搜索页/群搜索-默认排序筛选按钮.png")
-SEARCH_FILTER_GROUP_MEMBER = os.path.join(test_path, "搜索页/群搜索-包含成员筛选按钮.png")
+SEARCH_FILTER_GROUP_MEMBER = os.path.join(path, "群搜索-包含成员筛选按钮.png")
+SEARCH_FILTER_GROUP_MEMBER_BLUE = os.path.join(path, "群搜索-包含成员筛选按钮蓝色.png")
+SEARCH_FILTER_DELETE = os.path.join(path, "搜索-筛选清空按钮.png")
 
 # 侧边栏
 SIDEBAR_MY_COLLECTION = os.path.join(path, "侧边栏-我的收藏.png")

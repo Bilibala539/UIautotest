@@ -481,7 +481,17 @@ class UsersFactory:
             else:
                 # 正常路径：上条用例 teardown 已 force-stop，重新拉起 App 即可
                 logger.info(f"📱 [auto] 用户 {user_key} 已登录，拉起 App")
-                user.open_app()
+                try:
+                    user.open_app()
+                except Exception as e:
+                    # open_app 检测到登录页：登录态意外丢失，自动重登
+                    from utils.aw.business.mumu import POPOLoginRequired
+                    if isinstance(e, POPOLoginRequired):
+                        logger.warning(f"⚠️ [auto] open_app 检测到登录页，重置登录态并重新登录: {user_key}")
+                        user._logged_in = False
+                        user.login()
+                    else:
+                        raise
             return user
 
         # 分布式节点过滤：如果配置了 NODE_USERS，只创建本节点负责的用户

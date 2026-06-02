@@ -96,6 +96,11 @@ def _screenshot_on_failure(func):
                                             name=f"失败截图-region裁切 [{func.__name__}]",
                                             attachment_type=allure.attachment_type.PNG,
                                         )
+                                        self._embed_screenshot_to_log(
+                                            f"❌ 失败截图-region裁切 [{func.__name__}] ({rx},{ry},{rw},{rh})",
+                                            cropped,
+                                            crop_path,
+                                        )
                         except Exception:
                             pass
                 except Exception:
@@ -680,9 +685,27 @@ class AWBase:
     @_screenshot_on_failure
     def click_image(self, image: str, threshold: float = 0.8,
                     timeout: int = 10, dx: int = 0, dy: int = 0,
-                    region=Normal.ALL):
+                    region=Normal.ALL, x=0, y=0):
         """模板匹配找到图片后点击"""
         pos = self.find_image(image, threshold=threshold, timeout=timeout, region=region)
+        if pos:
+
+            if x is not 0:
+                logger.info(f"坐标调整：{pos}--->({x},{pos[1]})")
+                pos_change = (x, pos[1])
+                assert pos is not None, f"点击图片失败: 未找到 '{image}'"
+                return self.tap(pos_change[0], pos_change[1], dx, dy)
+            elif y is not 0:
+                logger.info(f"坐标调整：{pos}--->({pos[0]},{y})")
+                pos_change = (pos[0], y)
+                assert pos is not None, f"点击图片失败: 未找到 '{image}'"
+                return self.tap(pos_change[0], pos_change[1], dx, dy)
+            elif x is not 0 and y is not 0:
+                logger.info(f"坐标调整：{pos}--->({pos[0]},{pos[1]})")
+                pos_change = (pos[0], pos[1])
+                assert pos is not None, f"点击图片失败: 未找到 '{image}'"
+                return self.tap(pos_change[0], pos_change[1], dx, dy)
+
         assert pos is not None, f"点击图片失败: 未找到 '{image}'"
         return self.tap(pos[0], pos[1], dx, dy)
 

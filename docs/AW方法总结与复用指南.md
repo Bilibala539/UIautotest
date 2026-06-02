@@ -8,13 +8,16 @@
 
 ```
 PPUser (用户入口，user.py)
-  └── user.aw → AWHelper (aw_helper.py)
-        ├── MuMuBusiness (business/mumu.py)    ← Android 端业务方法
-        ├── CommonBusiness (business/common.py) ← 通用业务方法
-        └── AWBase (aw_base.py)                 ← 基础操作(OCR/图像/点击/滑动)
+  ├── user.aw → AWHelper (aw_helper.py)
+  │     ├── MuMuBusiness (business/mumu.py)    ← Android 端业务方法
+  │     ├── CommonBusiness (business/common.py) ← 通用业务方法
+  │     └── AWBase (aw_base.py)                 ← 基础操作(OCR/图像/点击/滑动)
+  └── user.cli → PopoCLI (aw/popo_cli.py)       ← API 造数（仅用于 setup/teardown）
 ```
 
-**调用链路**：`self.userA.send_message(...)` → `PPUser.send_message()` → `self.aw.send_message()` → `MuMuBusiness.send_message()`
+**UI 调用链路**：`self.userA.send_message(...)` → `PPUser.send_message()` → `self.aw.send_message()` → `MuMuBusiness.send_message()`
+
+**造数调用链路**：`self.userA.cli.create_team_cli(...)` → `PopoCLI.create_team_cli()` → `popo-cli team_create`
 
 ---
 
@@ -487,7 +490,270 @@ self.userA.return_to_message_list(max_back=8, strict=True)
 
 ---
 
-## 六、复用指南 — 编写新用例时的正确姿势
+## 六、CLI 造数方法 (PopoCLI)
+
+> **⚠️ 仅用于造数，不做 UI 验证。**
+> 这些方法通过 `popo-cli` API 直接操作数据，速度快（1-2s）、无副作用，
+> 适合在 `setup()` / `teardown()` 中准备或清理测试前置数据。
+> **不要在测试步骤中调用，UI 验证必须走 `user.aw` 方法。**
+
+通过 `self.userA.cli` 访问，uid 自动绑定为当前用户，无需手动传入。  
+源文件：`utils/aw/popo_cli.py`
+
+---
+
+### 6.1 群组管理
+
+#### `create_team_cli(uid_list, name=None) → (tid, name)`
+
+创建群组，当前用户自动成为群主并入群。
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `uid_list` | `list[str]` | 被邀请成员的 uid 列表（不含当前用户自身） |
+| `name` | `str\|None` | 群名，不传则系统自动生成 |
+
+**返回：** `(tid: str, name: str)`
+
+```python
+tid, name = self.userA.cli.create_team_cli(
+    name="消息透出测试群",
+    uid_list=["grp.popoqa67@corp.netease.com"],
+)
+```
+
+---
+
+#### `invite_member_cli(tid, uid_list, name=None) → dict`
+
+邀请成员加入已有群组。
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `tid` | `str` | 群 ID |
+| `uid_list` | `list[str]` | 被邀请成员的 uid 列表 |
+| `name` | `str\|None` | 群名（可选，仅用于标注，不影响操作） |
+
+**返回：** `{"tid": str, "name": str, "pass_num": int}`  
+注：群成员列表/总人数 popo-cli 无对应接口，不在返回值中。
+
+```python
+result = self.userA.cli.invite_member_cli(
+    tid=tid,
+    uid_list=["grp.popoqa73@corp.netease.com"],
+    name="测试群",
+)
+# result["pass_num"] == 1
+```
+
+---
+
+#### `kick_member_cli(tid, uid_list, name=None) → dict`
+
+从群组移除成员，自动反查被移除人的姓名。
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `tid` | `str` | 群 ID |
+| `uid_list` | `list[str]` | 被移除成员的 uid 列表 |
+| `name` | `str\|None` | 群名（可选） |
+
+**返回：** `{"tid": str, "name": str, "kicked_uids": list, "kicked_names": list}`  
+注：剩余成员列表/人数 popo-cli 无对应接口，不在返回值中。
+
+```python
+result = self.userA.cli.kick_member_cli(
+    tid=tid,
+    uid_list=["grp.popoqa73@corp.netease.com"],
+    name="测试群",
+)
+# result["kicked_names"] == ["grp73"]
+```
+
+---
+
+#### `update_team_name_cli(tid, name) → dict`
+
+修改群名。
+
+**返回：** `{"tid": str, "name": str}`
+
+```python
+result = self.userA.cli.update_team_name_cli(tid=tid, name="新群名")
+```
+
+---
+
+### 6.2 消息发送（文本 / 图片 / 文件）
+
+`send_message_p2p_cli` 和 `send_message_team_cli` 支持三种消息类型，**三选一传参**。
+
+| 消息类型 | 传参 | 返回值 |
+|---------|------|--------|
+| 文本 | `message="内容"` | `str` — 消息内容 |
+| 图片 | `image_path="E:/xx.png"` | `str` — 图片本地路径 |
+| 文件 | `file_path="E:/xx.pdf"` | `(filename: str, file_path: str)` |
+
+#### `send_message_p2p_cli(receiver, *, message, image_path, file_path)`
+
+向指定用户发送 P2P 消息。
+
+```python
+# 文本
+msg = self.userA.cli.send_message_p2p_cli(
+    receiver="grp.popoqa67@corp.netease.com", message="测试消息"
+)
+# msg == "测试消息"
+
+# 图片
+path = self.userA.cli.send_message_p2p_cli(
+    receiver="grp.popoqa67@corp.netease.com", image_path="E:/shot.png"
+)
+
+# 文件
+fname, fpath = self.userA.cli.send_message_p2p_cli(
+    receiver="grp.popoqa67@corp.netease.com", file_path="E:/report.pdf"
+)
+```
+
+#### `send_message_team_cli(tid, *, message, image_path, file_path)`
+
+向群组发送消息，`tid` 替换 `receiver`，其余同上。
+
+```python
+msg = self.userA.cli.send_message_team_cli(tid="8479417", message="群消息")
+
+fname, fpath = self.userA.cli.send_message_team_cli(
+    tid="8479417", file_path="E:/attach.zip"
+)
+```
+
+---
+
+### 6.3 日历
+
+#### `create_schedule_cli(title, start_time, end_time, participants=None, location=None, content=None) → dict`
+
+创建日程/会议，自动发送邀请通知。
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `title` | `str` | 会议标题 |
+| `start_time` | `str` | 开始时间（ISO-8601，含时区，如 `2026-06-10T14:00:00+08:00`） |
+| `end_time` | `str` | 结束时间（ISO-8601） |
+| `participants` | `list[str]\|None` | 参与人 uid 列表 |
+| `location` | `str\|None` | 地点 |
+| `content` | `str\|None` | 备注 |
+
+**返回：** `{"schedule_id": int, "title": str, "participants": list[str]}`
+
+```python
+info = self.userA.cli.create_schedule_cli(
+    title="项目评审",
+    start_time="2026-06-10T14:00:00+08:00",
+    end_time="2026-06-10T15:00:00+08:00",
+    participants=["grp.popoqa67@corp.netease.com"],
+)
+schedule_id = info["schedule_id"]
+```
+
+---
+
+#### `update_schedule_cli(schedule_id, title=None, start_time=None, end_time=None, add_participants=None, remove_participants=None, location=None, content=None) → dict`
+
+修改日程，操作后自动查询并返回修改后的完整信息。
+
+**返回：** `{"schedule_id": int, "title": str, "start_time": str, "end_time": str, "participants": list[{"uid", "name"}]}`
+
+```python
+info = self.userA.cli.update_schedule_cli(
+    schedule_id=schedule_id,
+    title="新会议名",
+    end_time="2026-06-10T16:00:00+08:00",
+    add_participants=["grp.popoqa73@corp.netease.com"],
+)
+```
+
+---
+
+#### `confirm_schedule_cli(schedule_id, status) → dict`
+
+接受或拒绝日程邀请，操作前自动查询日程信息。
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `schedule_id` | `int` | 日程 ID |
+| `status` | `int` | `1`=接受，`2`=拒绝 |
+
+**返回：** `{"schedule_id": int, "title": str, "participants": list[{"uid", "name"}]}`
+
+```python
+info = self.userA.cli.confirm_schedule_cli(schedule_id=schedule_id, status=1)
+```
+
+---
+
+#### `quit_schedule_cli(schedule_id) → dict`
+
+退出日程（参与人主动退出），操作前自动查询日程名称。
+
+**返回：** `{"schedule_id": int, "title": str}`
+
+```python
+info = self.userA.cli.quit_schedule_cli(schedule_id=schedule_id)
+```
+
+---
+
+### 6.4 完整造数示例
+
+```python
+class TestGroupMemberManage(BaseTest):
+    def setup(self):
+        self.userA = self.users("userA")
+        # 造数：创建测试群并邀请成员
+        self.tid, self.gname = self.userA.cli.create_team_cli(
+            name="成员管理测试群",
+            uid_list=["grp.popoqa67@corp.netease.com"],
+        )
+        inv = self.userA.cli.invite_member_cli(
+            tid=self.tid,
+            uid_list=["grp.popoqa73@corp.netease.com"],
+            name=self.gname,
+        )
+        assert inv["pass_num"] == 1
+
+    def test_kick_member(self):
+        # UI 操作：在群管理页移除成员，验证 UI 反馈
+        self.userA.aw.enter_group_management(self.gname)
+        # ... UI 验证 ...
+
+    def teardown(self):
+        # 造数清理：用 CLI 快速移除成员，无需走 UI
+        self.userA.cli.kick_member_cli(
+            tid=self.tid,
+            uid_list=["grp.popoqa73@corp.netease.com"],
+        )
+```
+
+---
+
+### 6.5 造数 vs UI 操作对比
+
+| 场景 | 用造数 CLI | 用 UI 方法 |
+|------|-----------|-----------|
+| setup 中需要一个测试群 | ✅ `cli.create_team_cli(...)` — ~1s | ❌ UI 建群 10s+，受 App 状态影响 |
+| setup 中需要给群加成员 | ✅ `cli.invite_member_cli(...)` | ❌ 需走完整 UI 邀请流程 |
+| teardown 中清理群成员 | ✅ `cli.kick_member_cli(...)` | ❌ 需走完整 UI 移除流程 |
+| setup 中需要对端先发消息 | ✅ `cli.send_message_p2p_cli(...)` | ❌ 需要启动第二个模拟器 |
+| setup 中需要发图片/文件给对端 | ✅ `cli.send_message_p2p_cli(image_path=...)` | ❌ 需要模拟器相册/文件 |
+| setup 中需要创建会议并邀请参与人 | ✅ `cli.create_schedule_cli(...)` | ❌ 日历功能无 UI 封装 |
+| 测试"发消息"功能本身 | ❌ 不适用 | ✅ `user.send_message(...)` |
+| 验证消息/群成员是否正确展示 | ❌ 不适用 | ✅ `user.aw.text_exists(...)` 等 |
+
+---
+
+## 七、复用指南 — 编写新用例时的正确姿势
 
 ### ✅ 正确做法：调用已封装的业务方法
 
@@ -533,12 +799,24 @@ def test_recall_p2p_message(self):
 | 需要先打开侧边栏 | `user.open_sidebar()` | 已封装进入侧边栏的完整流程 |
 | 需要先进入设置页 | `user.open_settings()` | 已封装：侧边栏→设置 |
 | 需要登录/退登 | `user.login()` / `user.logout()` | 标准setup/teardown |
-| 需要创建群聊 | `user.create_team()` | 完整的建群流程 |
+| 需要创建群聊（UI验证建群功能） | `user.create_team()` | 完整的建群 UI 流程 |
+| **需要创建群聊（作为前置数据）** | `user.cli.create_team_cli(name, uid_list)` | ⚡ CLI 造数，~1s，返回 `(tid, name)` |
+| **需要给已有群邀请成员（前置数据）** | `user.cli.invite_member_cli(tid, uid_list)` | ⚡ CLI 造数，返回 `{"tid", "pass_num"}` |
+| **需要移除群成员（teardown 清理）** | `user.cli.kick_member_cli(tid, uid_list)` | ⚡ CLI 造数，返回 `{"kicked_names"}` |
+| **需要修改群名（前置数据）** | `user.cli.update_team_name_cli(tid, name)` | ⚡ CLI 造数，返回 `{"tid", "name"}` |
+| **需要对端发文本消息（前置数据）** | `user.cli.send_message_p2p_cli(receiver, message=...)` | ⚡ CLI 造数，返回消息内容字符串 |
+| **需要对端发图片消息（前置数据）** | `user.cli.send_message_p2p_cli(receiver, image_path=...)` | ⚡ CLI 造数，返回图片路径 |
+| **需要对端发文件消息（前置数据）** | `user.cli.send_message_p2p_cli(receiver, file_path=...)` | ⚡ CLI 造数，返回 `(filename, path)` |
+| **需要群里有一条消息（前置数据）** | `user.cli.send_message_team_cli(tid, message=...)` | ⚡ CLI 造数，返回消息内容字符串 |
+| **需要创建会议/日程（前置数据）** | `user.cli.create_schedule_cli(title, start, end, participants=...)` | ⚡ CLI 造数，返回 `{"schedule_id", "title"}` |
+| **需要修改日程（前置数据）** | `user.cli.update_schedule_cli(schedule_id, ...)` | ⚡ CLI 造数，返回修改后的完整信息 |
+| **需要接受/拒绝日程邀请** | `user.cli.confirm_schedule_cli(schedule_id, status=1)` | ⚡ CLI 造数，返回 `{"title", "participants"}` |
+| **需要退出日程（teardown 清理）** | `user.cli.quit_schedule_cli(schedule_id)` | ⚡ CLI 造数，返回 `{"title"}` |
 | 需要查看个人资料 | `user.view_my_profile()` | 返回资料字典 |
 
 ---
 
-## 七、图片常量索引
+## 八、图片常量索引
 
 所有图片常量定义在 `image/image_name_mapping.py` 中。
 
@@ -597,7 +875,7 @@ def test_recall_p2p_message(self):
 
 ---
 
-## 八、搜索区域常量 (search_region.py)
+## 九、搜索区域常量 (search_region.py)
 
 | 常量 | 值 (x, y, w, h) | 含义 |
 |------|-----------------|------|
@@ -611,7 +889,7 @@ def test_recall_p2p_message(self):
 
 ---
 
-## 九、尚未实现的功能（需要新建AW）
+## 十、尚未实现的功能（需要新建AW）
 
 - `delete_team()` — 解散群组（方法存在但为空实现）
 - 转发消息
@@ -631,3 +909,5 @@ def test_recall_p2p_message(self):
 ---
 
 > **总结核心要点：** 在编写任何新的测试用例或业务AW时，首先检查本文档中是否已有可复用的方法。特别是 `send_message`、`search`、`open_sidebar`、`login`/`logout` 这些高频方法，它们封装了完整的多步操作流程，直接调用即可，无需重复用基础AW逐步拼装。
+>
+> **造数原则：** 如果用例的 `setup()` 需要准备测试数据（如创建测试群、让对端先发一条消息），优先使用 `user.cli` 的造数方法（第六章），而不是驱动 UI 完成这些操作。造数方法速度快、不受 App 页面状态影响，可以显著提升用例稳定性。

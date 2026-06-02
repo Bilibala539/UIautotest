@@ -16,13 +16,13 @@ class TestSearchFilterByTime(BaseTest):
     def test_filter_by_recent_7_days(self):
         """R28: 消息tab筛选近7天消息"""
         self.userA.search(tab="消息", text="测试", isclose=False)
-        self.userA.aw.sleep(0.5)
-        self.userA.image_exists(SEARCH_FILTER_MSG_TIME, region=Normal.HALF_UP, timeout=5)
+        self.userA.aw.sleep(0.2)
         self.userA.click_image(SEARCH_FILTER_MSG_TIME, region=Normal.HALF_UP)
-        self.userA.aw.sleep(0.5)
+        self.userA.aw.sleep(0.2)
         self.userA.click_text("近7天", dy=10)
-        self.userA.aw.sleep(0.5)
-        self.userA.image_exists(SEARCH_FILTER_MSG_TIME, region=Normal.HALF_UP, timeout=5)
+        self.userA.click_image(ADDLINK_OK_BUTTON, region=Normal.HALF_UP)
+        self.userA.aw.sleep(0.2)
+        self.userA.image_exists(SEARCH_FILTER_MSG_TIME_7BLUE, region=Normal.HALF_UP, timeout=5)
         self.userA.click_image(SEARCH_CANCEL, region=Normal.HALF_UP)
 
     def teardown(self):

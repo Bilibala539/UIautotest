@@ -21,6 +21,8 @@ class TestSearchSchedule(BaseTest):
             end_time="2026-06-10T15:00:00+08:00",
         )
         self.schedule_id = self.schedule_info["schedule_id"]
+        # 等待日程搜索索引刷新（POPO 日程索引约需 10s）
+        self.userA.aw.sleep(12)
 
     def test_search_schedule(self):
         """R18: 日程tab搜索已有日程可查到"""

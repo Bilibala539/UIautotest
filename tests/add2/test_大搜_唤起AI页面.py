@@ -14,6 +14,8 @@ class TestInvokeAIPage(BaseTest):
 
     def test_invoke_ai_page(self):
         """R24: 点击搜索页右上角AI icon，验证跳转到AI助手页面"""
+        # 等消息列表页完全就绪（首次并行启动时 App 可能仍在登录过渡中）
+        self.userA.image_exists(MESSAGE_TAB_BLUE, timeout=15)
         self.userA.click_image(MESSAGE_TAB_SEARCH, region=Normal.HALF_UP)
         self.userA.click_image(SEARCH_AI, region=Search.SEARCH_TAB)
         self.userA.aw.find_image(WORKHUB_TEXT, region=Normal.HALF_UP)

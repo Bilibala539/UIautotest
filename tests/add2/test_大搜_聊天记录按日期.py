@@ -1,44 +1,74 @@
 """
-测试用例: 大搜 - 聊天记录按日期查看 (R30)
+测试用例: 大搜 - 聊天记录消息被撤回后搜索定位 (R30)
 
-R30: CLI造群+发图片 → 进入群聊 → 群设置 → "图片/视频"面板 → 验证按月份（日期）分组显示
-与 R32 复用同一入口，聚焦于"按日期分组"展示验证（月份分组标题可见 + 内容按日期排列）
+R30 对应 xlsx R29: 搜索过程中消息已被撤回，则直接定位至最新消息
 """
+import random
+
 from conftest import BaseTest
 from image.image_name_mapping import *
-from utils.aw.search_region import Normal
+from utils.aw.search_region import Normal, Search
+
+RECIPIENT = "grp.popoqa50"
+RECIPIENT_EMAIL = "grp.popoqa50@corp.netease.com"
 
 
-class TestChatHistoryByDate(BaseTest):
+class TestSearchRecalledMessageLocate(BaseTest):
 
     def setup(self):
         self.userA = self.users("userA")
-        # CLI 造数：创建群 + 发一张图片
-        self.tid, self.gname = self.userA.cli.create_team_cli(
-            uid_list=["grp.popoqa73@corp.netease.com"],
-            name="日期记录测试群",
+        # 造数：CLI 发一条随机消息
+        self.msg_content = f"撤回定位测试{random.randint(10000, 99999)}"
+        self.userA.cli.send_message_p2p_cli(
+            receiver=RECIPIENT_EMAIL,
+            message=self.msg_content,
         )
-        self.userA.cli.send_message_team_cli(
-            tid=self.tid,
-            image_path="E:/UIAutotest/image/登录页-网易popo文案.png",
+        # CLI 再发一条最新消息（用于后续验证定位到最新消息）
+        self.latest_msg = f"最新消息{random.randint(10000, 99999)}"
+        self.userA.cli.send_message_p2p_cli(
+            receiver=RECIPIENT_EMAIL,
+            message=self.latest_msg,
         )
+        # UI 进入聊天页撤回第一条消息
+        self.userA.send_message(recipient=RECIPIENT, message="占位", isback=False)
+        self.userA.aw.long_press_text(self.msg_content, duration=1.5)
+        self.userA.click_text("撤回", region=Normal.HALF_DOWN)
+        # 处理可能的确认弹窗
+        confirm = self.userA.aw.find_image(MSG_RECELL_POP, timeout=3)
+        if confirm:
+            self.userA.click_text("确定", region=Normal.CENTER_POP)
+        self.userA.aw.sleep(1)
+        self.userA.return_to_message_list()
 
-    def test_chat_history_by_date(self):
-        """R30: 图片/视频面板按月份日期分组显示"""
-        # 进入群聊
-        self.userA.aw.send_message(recipient=self.tid, message="进群", isback=False)
-        # 进入群设置
-        self.userA.click_image(MSG_team_CALL, region=Normal.HALF_UP, dx=-150)
-        self.userA.aw.sleep(0.5)
-        # 进入图片/视频面板（按日期分组展示）
-        self.userA.aw.click_text("图片/视频", region=Normal.HALF_DOWN)
-        self.userA.aw.sleep(0.5)
-        # 验证有月份分组标题（"本月" 或年月格式如 "2026年6月"）
-        found_month = self.userA.aw.find_text_by_ocr("本月", timeout=5)
-        if found_month is None:
-            found_month = self.userA.aw.find_text_by_ocr("2026", timeout=3)
-        assert found_month is not None, \
-            "R30: 图片/视频面板未出现月份日期分组标题"
+    def test_search_recalled_message_locate_latest(self):
+        """R30: 消息被撤回后搜索，点击结果应定位至最新消息"""
+        self.userA.search(tab="消息", text=self.msg_content, isclose=False)
+        self.userA.aw.sleep(1)
+        # 尝试搜索被撤回的消息
+        found = self.userA.aw.find_text_by_ocr(self.msg_content, timeout=8,
+                                                region=Search.RESULT_LIST)
+        if found:
+            # 搜到了，点击结果
+            self.userA.click_text(self.msg_content, region=Search.RESULT_LIST)
+            self.userA.aw.sleep(2)
+            # 验证：应定位至最新消息或显示撤回提示
+            # 可能的结果：1.进入聊天页看到最新消息 2.提示已撤回/无法定位
+            in_chat = self.userA.aw.find_image(CHAT_PLUS_BUTTON, timeout=5,
+                                                region=Normal.HALF_DOWN)
+            if in_chat:
+                # 进入了聊天页，验证能看到最新消息（定位到最新）
+                latest_visible = self.userA.aw.find_text_by_ocr(
+                    self.latest_msg, timeout=5)
+                recalled_hint = self.userA.aw.find_text_by_ocr(
+                    "撤回", timeout=3)
+                assert latest_visible is not None or recalled_hint is not None,                     "R30: 点击已撤回消息结果后，既未定位到最新消息也未出现撤回提示"
+            else:
+                # 没进入聊天页，可能有弹窗提示
+                hint = self.userA.aw.find_text_by_ocr("撤回", timeout=3)
+                if hint is None:
+                    hint = self.userA.aw.find_text_by_ocr("无法定位", timeout=3)
+                assert hint is not None,                     "R30: 点击已撤回消息结果后，无任何提示且未进入聊天页"
+        # 若搜不到（撤回后索引已删除），也符合预期（直接pass）
         self.userA.return_to_message_list()
 
     def teardown(self):

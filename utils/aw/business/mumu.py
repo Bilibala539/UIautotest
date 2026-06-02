@@ -266,14 +266,25 @@ class MuMuBusiness(CommonBusiness):
         self.input_text(str(uid))
         logger.info(f"📧 已输入邮箱: {uid}")
 
-        # 5. 输入密码：点击密码输入框 → 清空 → 输入密码 → 收起键盘
-        #    从"邮箱"Tab 偏移 dy=187 到密码输入框
-        self.click_text("邮箱", timeout=3, dx=50, dy=187)
-        self.sleep(0.2)
-        # 清空密码输入框
-        self._clear_input_field()
-        self.sleep(0.1)
-        self.input_text(str(password))
+        # 5. 输入密码：直接 OCR 找"输入密码"占位文字点击，避免偏移计算在并行时失效
+        #    重试2次：首次点击可能因焦点问题无效
+        for _attempt in range(2):
+            pwd_pos = self.find_text_by_ocr("输入密码", timeout=3)
+            if pwd_pos:
+                self.tap(pwd_pos[0], pwd_pos[1])
+            else:
+                # 占位符不可见（已有内容），用偏移兜底
+                self.click_text("邮箱", timeout=3, dx=50, dy=187)
+            self.sleep(0.3)
+            self._clear_input_field()
+            self.sleep(0.2)
+            self.input_text(str(password))
+            self.sleep(0.5)
+            # 验证密码已输入：占位符应已消失
+            still_placeholder = self.find_text_by_ocr("输入密码", timeout=1)
+            if still_placeholder is None:
+                break  # 密码成功输入
+            logger.warning(f"⚠️ 密码输入可能未生效（第{_attempt+1}次），重试")
         logger.info("🔑 已输入密码")
         # 不按返回键收起键盘，避免部分模拟器版本中按返回键退出登录页面
         # 步骤6和7会独立查找勾选框和登录按钮图片，超时后会自动重试

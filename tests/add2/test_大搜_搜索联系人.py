@@ -23,16 +23,17 @@ class TestSearchContact(BaseTest):
         result = self.userA.aw.find_text_by_ocr("王英", timeout=5, region=Search.RESULT_LIST)
         assert result is not None, f"搜索'{keyword}'未在联系人tab找到王英"
         self.userA.click_text("王英", region=Search.RESULT_LIST)
-        # 联系人搜索结果点击后可能先进入名片卡，需要再点一次"发消息"进入聊天页
-        # 也可能直接进入聊天页 —— 用 find_image 做条件分支而非断言
-        in_chat = self.userA.aw.find_image(CHAT_PLUS_BUTTON, timeout=5,
-                                            region=Normal.HALF_DOWN)
-        if in_chat is None:
-            # 可能在名片卡，尝试点击发消息按钮进入聊天
+        self.userA.aw.sleep(1)  # 等待页面跳转稳定
+        # 优先用 OCR 确认已进入聊天页（"发送给"是聊天输入框的标识文字）
+        in_chat_text = self.userA.aw.find_text_by_ocr("发送给", timeout=5)
+        if in_chat_text is None:
+            # 可能在名片卡，尝试点击发消息按钮
             send_btn = self.userA.aw.find_text_by_ocr("发消息", timeout=3)
             if send_btn:
                 self.userA.click_text("发消息")
-            self.userA.image_exists(CHAT_PLUS_BUTTON, region=Normal.HALF_DOWN, timeout=10)
+                self.userA.aw.sleep(1)
+        # 验证进入聊天页
+        self.userA.image_exists(CHAT_PLUS_BUTTON, region=Normal.HALF_DOWN, timeout=10)
         self.userA.return_to_message_list()
 
     def teardown(self):

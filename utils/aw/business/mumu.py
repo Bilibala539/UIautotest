@@ -5107,3 +5107,85 @@ class MuMuBusiness(CommonBusiness):
         self.return_to_message_list()
         logger.info(f"✅ 已将 '{conversation_name}' 从分组 '{group_name}' 移除")
         return True
+
+    def enter_image_editor_from_album(self, recipient: str) -> bool:
+        """
+        进入图片编辑器（从相册选图路径），不执行后续操作。
+        用于需要在编辑器中做自定义操作的用例。
+
+        Returns:
+            bool: 是否成功进入编辑器
+        """
+        logger.info(f"[MuMu] 进入图片编辑器（从相册）: {recipient}")
+        self._enter_chat_page(recipient)
+        self.click_image(CHAT_PLUS_BUTTON, region=Normal.HALF_DOWN)
+        time.sleep(1)
+        self.click_image(CHAT_PLUS_ALBUM, region=Normal.HALF_DOWN)
+        time.sleep(2)
+        self.tap(70, 200)
+        time.sleep(1.5)
+        self.click_image(ALBUM_PREVIEW_EDIT_BUTTON, region=Normal.HALF_DOWN, timeout=10)
+        time.sleep(1.5)
+        self.image_exists(IMAGE_EDITOR_TOOLBAR, region=Normal.HALF_DOWN, timeout=8)
+        logger.info("[MuMu] 已进入图片编辑器")
+        return True
+
+    def cancel_image_edit(self) -> bool:
+        """
+        在图片编辑器中取消编辑（点击左上X按钮），返回预览页。
+
+        Returns:
+            bool: 是否成功返回预览页
+        """
+        logger.info("[MuMu] 取消图片编辑")
+        self.click_text("X", timeout=5, region=Normal.HALF_UP)
+        time.sleep(1)
+        self.image_exists(ALBUM_PREVIEW_EDIT_BUTTON, region=Normal.HALF_DOWN, timeout=5)
+        logger.info("[MuMu] 已取消编辑，返回预览页")
+        return True
+
+    def edit_image_done_check_popup(self, recipient: str) -> bool:
+        """
+        从相册进入编辑器 → 点击完成 → 验证弹出操作弹窗
+
+        Returns:
+            bool: 是否弹出包含"发送给同事或群组"的操作弹窗
+        """
+        logger.info(f"[MuMu] 编辑图片完成后检查弹窗: {recipient}")
+        self.enter_image_editor_from_album(recipient)
+        self.click_image(IMAGE_EDITOR_DONE_BUTTON, region=Normal.HALF_DOWN, timeout=10)
+        time.sleep(1)
+        self.text_exists("发送给同事或群组")
+        logger.info("[MuMu] 编辑完成弹窗验证通过")
+        return True
+
+    def add_text_in_image_editor(self, recipient: str, text: str = "测试文本") -> bool:
+        """
+        在图片编辑器中使用文本工具添加文字。
+
+        Args:
+            recipient: 收件人
+            text: 要添加的文本
+
+        Returns:
+            bool: 是否成功添加文本
+        """
+        logger.info(f"[MuMu] 图片编辑器添加文本: {text}")
+        self.enter_image_editor_from_album(recipient)
+
+        # 点击文本工具T（底部工具栏第2个）
+        self.click_text("T", region=Normal.HALF_DOWN, dy=10)
+        time.sleep(1)
+        self.input_text(text)
+        time.sleep(0.5)
+        # 点击空白处确认
+        self.tap(270, 400)
+        time.sleep(0.5)
+        self.text_exists(text, timeout=5)
+
+        # 完成并退出
+        self.click_image(IMAGE_EDITOR_DONE_BUTTON, region=Normal.HALF_DOWN, timeout=10)
+        time.sleep(1)
+        self.press_back()
+        logger.info(f"[MuMu] 文本'{text}'添加成功")
+        return True

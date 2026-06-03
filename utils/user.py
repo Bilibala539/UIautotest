@@ -582,6 +582,22 @@ class PPUser:
         """P2P会话删除自定义标签页"""
         return self.aw.remove_custom_tab_page(recipient, tab_name)
 
+    def enter_image_editor_from_album(self, recipient: str) -> bool:
+        """进入图片编辑器（从相册选图路径）"""
+        return self.aw.enter_image_editor_from_album(recipient)
+
+    def cancel_image_edit(self) -> bool:
+        """在图片编辑器中取消编辑，返回预览页"""
+        return self.aw.cancel_image_edit()
+
+    def edit_image_done_check_popup(self, recipient: str) -> bool:
+        """编辑图片完成后验证操作弹窗"""
+        return self.aw.edit_image_done_check_popup(recipient)
+
+    def add_text_in_image_editor(self, recipient: str, text: str = "测试文本") -> bool:
+        """在图片编辑器中使用文本工具添加文字"""
+        return self.aw.add_text_in_image_editor(recipient, text)
+
     def merge_forward_message(self, message_text: str, forward_to: str = "grp.popoqa50") -> bool:
         """
         合并转发消息

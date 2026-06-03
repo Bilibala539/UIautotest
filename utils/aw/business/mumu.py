@@ -1428,8 +1428,8 @@ class MuMuBusiness(CommonBusiness):
             self.click_text("联系人", region=Normal.HALF_UP)
         time.sleep(2)
 
-        # 4. 点击搜索结果进入聊天页
-        self.click_text(str(recipient), timeout=10)
+        # 4. 点击搜索结果进入聊天页（用 RESULT_LIST region 排除搜索框区域）
+        self.click_text(str(recipient), timeout=10, region=Search.RESULT_LIST)
         time.sleep(1)
 
         # 5. 验证进入聊天页面（通过加号按钮判断）
@@ -2594,9 +2594,11 @@ class MuMuBusiness(CommonBusiness):
 
         self.click_image(MESSAGE_TAB_SEARCH, region=Normal.HALF_UP)
 
-        # tab左滑翻页
+        # tab左滑翻页（云空间/应用 在 tab 行右侧，需先左滑露出）
         if tab in ["云空间", "应用"]:
-            self.swipe_left(self.text_exists("云空间"), 230)
+            # 先左滑让隐藏的 tab 出现，再用图片点击，不依赖 text_exists
+            self.swipe(420, 133, 80, 133, duration=0.4)
+            time.sleep(0.5)
         img_name = f"搜索页面-{tab}tab.png"
         img_name_miss = f"搜索页面-{tab}tab-未选中.png"
         if tab == "全部":

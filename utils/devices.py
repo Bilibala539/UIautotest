@@ -18,7 +18,16 @@ from typing import List, Optional, Tuple
 from utils.window_manager import WindowManager
 
 # ==================【配置区】==================
-MUMU_INSTALL_PATH = r"C:\Program Files\Netease\MuMu\nx_main"  # MuMu12安装目录
+# MuMu12安装目录：优先读 MUMU_INSTALL_PATH 环境变量，方便在不同机器/盘符上覆盖
+_MUMU_DEFAULT_PATHS = [
+    r"C:\Program Files\Netease\MuMu\nx_main",
+    r"D:\MuMuPlayer\nx_main",
+    r"D:\Netease\MuMu\nx_main",
+    r"E:\MuMuPlayer\nx_main",
+]
+MUMU_INSTALL_PATH = os.environ.get("MUMU_INSTALL_PATH") or next(
+    (p for p in _MUMU_DEFAULT_PATHS if os.path.exists(p)), _MUMU_DEFAULT_PATHS[0]
+)
 DOWNLOAD_URL = r"http://10.220.28.153/client_android/popo_origin-release_4.23.0_9082_online.apk"  # 包体的下载链接（兜底）
 APK_BRANCH = "release_4.23.0"  # 默认分支号，用于从构建平台查找最新包
 

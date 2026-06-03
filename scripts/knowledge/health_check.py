@@ -34,6 +34,56 @@ AUDIT_STATE_PATH = KNOWLEDGE_DIR / "audit_state.json"
 REQUIRED_SECTIONS = ["## 页面概述", "## 进入方式", "## 关键元素"]
 RECOMMENDED_SECTIONS = ["## 关联", "## 页面布局"]
 LINK_PATTERN = re.compile(r'\[\[([^\]]+)\]\]')
+FRONTMATTER_PATTERN = re.compile(r'^---\n(.*?)\n---\n', re.DOTALL)
+
+
+def _parse_frontmatter_aliases(content: str) -> tuple:
+    """从 YAML frontmatter 提取 (page_id, [aliases])。"""
+    m = FRONTMATTER_PATTERN.match(content)
+    if not m:
+        return None, []
+    body = m.group(1)
+    page_id = None
+    aliases = []
+    cur_key = None
+    for line in body.split('\n'):
+        s = line.rstrip()
+        if not s:
+            continue
+        if line.startswith('  - ') and cur_key == 'aliases':
+            aliases.append(line[4:].strip().strip('"\''))
+            continue
+        if ':' in s and not s.startswith(' '):
+            k, _, v = s.partition(':')
+            k = k.strip()
+            v = v.strip()
+            cur_key = k
+            if k == 'page_id' and v:
+                page_id = v.strip('"\'')
+            elif k == 'aliases':
+                if v.startswith('[') and v.endswith(']'):
+                    aliases = [x.strip().strip('"\'') for x in v[1:-1].split(',') if x.strip()]
+    return page_id, aliases
+
+
+def _build_known_targets() -> set:
+    """已知 link 目标集合：app_map page_id + pages/draft 文件 stem + frontmatter aliases。"""
+    app_map = load_app_map()
+    known = set(app_map.get("pages", {}).keys())
+    for d in (PAGES_DIR, DRAFT_DIR):
+        if not d.exists():
+            continue
+        for f in d.glob("*.md"):
+            known.add(f.stem)
+            try:
+                content = f.read_text(encoding="utf-8")
+            except Exception:
+                continue
+            pid, aliases = _parse_frontmatter_aliases(content)
+            if pid:
+                known.add(pid)
+            known.update(aliases)
+    return known
 
 # 巡检时间衰减配置
 AUDIT_FRESHNESS_DAYS = {
@@ -46,19 +96,14 @@ AUDIT_FRESHNESS_DAYS = {
 
 def load_app_map():
     if APP_MAP_PATH.exists():
-        return json.loads(APP_MAP_PATH.read_text(encoding="utf-8"))
+        return json.loads(APP_MAP_PATH.read_text(encoding="utf-8-sig"))
     return {"pages": {}, "transitions": []}
 
 
 def check_broken_links() -> list:
-    """检查所有 [[link]] 是否指向存在的页面"""
+    """检查所有 [[link]] 是否指向存在的页面（含 frontmatter aliases）"""
     issues = []
-    app_map = load_app_map()
-    known_pages = set(app_map.get("pages", {}).keys())
-
-    # 也把文件名作为已知页面
-    for f in PAGES_DIR.glob("*.md"):
-        known_pages.add(f.stem)
+    known_pages = _build_known_targets()
 
     for md_file in PAGES_DIR.glob("*.md"):
         content = md_file.read_text(encoding="utf-8")

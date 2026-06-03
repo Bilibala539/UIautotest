@@ -29,6 +29,24 @@ APP_MAP_PATH = KNOWLEDGE_DIR / "app_map.json"
 
 REQUIRED_SECTIONS = ["## 页面概述", "## 进入方式", "## 关键元素"]
 LINK_PATTERN = re.compile(r'\[\[([^\]]+)\]\]')
+FRONTMATTER_PATTERN = re.compile(r'^---\n.*?\n---\n', re.DOTALL)
+
+
+def strip_frontmatter(content: str) -> str:
+    """剥掉 YAML frontmatter，返回正文。无 frontmatter 时原样返回。"""
+    return FRONTMATTER_PATTERN.sub('', content, count=1)
+
+
+def find_first_heading(body: str) -> str:
+    """跳过空行和 HTML 注释，返回首个真实段落。供 startswith # 检查使用。"""
+    for line in body.split('\n'):
+        s = line.strip()
+        if not s:
+            continue
+        if s.startswith('<!--') and s.endswith('-->'):
+            continue
+        return line
+    return ""
 
 
 def validate_draft(filepath: Path) -> dict:
@@ -42,19 +60,21 @@ def validate_draft(filepath: Path) -> dict:
     }
 
     content = filepath.read_text(encoding="utf-8")
+    body = strip_frontmatter(content)
 
-    # 检查标题
-    if not content.startswith("# "):
+    # 检查标题（跳过空行和 HTML 注释定位首个段落）
+    first = find_first_heading(body)
+    if not first.lstrip().startswith("# "):
         result["errors"].append("缺少一级标题")
         result["passed"] = False
 
     # 检查必要章节
     for section in REQUIRED_SECTIONS:
-        if section not in content:
+        if section not in body:
             result["warnings"].append(f"缺少章节: {section}")
 
     # 检查链接有效性
-    links = LINK_PATTERN.findall(content)
+    links = LINK_PATTERN.findall(body)
     result["links"] = links
     for link in links:
         target = PAGES_DIR / f"{link}.md"
@@ -88,13 +108,14 @@ def update_app_map(page_id: str, filepath: Path):
 
     # 从文档提取基本信息
     content = filepath.read_text(encoding="utf-8")
-    title_match = re.match(r'^# (.+)', content)
+    body = strip_frontmatter(content)
+    title_match = re.match(r'^# (.+)', body.lstrip())
     title = title_match.group(1) if title_match else page_id
 
     # 提取 signature（从关键元素段提取 OCR 文字）
     signature = []
     in_elements = False
-    for line in content.split('\n'):
+    for line in body.split('\n'):
         if '## 关键元素' in line:
             in_elements = True
             continue
@@ -132,10 +153,11 @@ def discover_cross_references(filepath: Path) -> list:
         list of dict: [{page_file, page_id, keyword, suggestion}]
     """
     content = filepath.read_text(encoding="utf-8")
+    body = strip_frontmatter(content)
     new_page_id = filepath.stem
 
     # 从一级标题提取核心功能词
-    title_match = re.match(r'^# (.+)', content)
+    title_match = re.match(r'^# (.+)', body.lstrip())
     if not title_match:
         return []
     title = title_match.group(1).strip()

@@ -58,8 +58,9 @@ def search_pages(query: str) -> list:
             score += content.lower().count(query_lower)
 
         if score > 0:
-            # 提取第一行作为标题
-            first_line = content.split('\n')[0].lstrip('# ')
+            # 提取第一行作为标题（跳过 YAML frontmatter）
+            body = re.sub(r'^---\n.*?\n---\n', '', content, count=1, flags=re.DOTALL)
+            first_line = body.lstrip().split('\n')[0].lstrip('# ')
             results.append({
                 "page_id": name,
                 "title": first_line,
@@ -71,17 +72,77 @@ def search_pages(query: str) -> list:
     return results[:10]
 
 
+def _parse_frontmatter(content: str) -> dict:
+    """解析 YAML frontmatter，提取顶层简单字段（page_id / aliases / status / verified_at 等）。
+    不引入 yaml 依赖，做最小手解析：list 字段用 `[a, b, c]` 行内或 `- xxx` 块内。
+    """
+    m = re.match(r'^---\n(.*?)\n---\n', content, re.DOTALL)
+    if not m:
+        return {}
+    body = m.group(1)
+    fm = {}
+    cur_key = None
+    for line in body.split('\n'):
+        line = line.rstrip()
+        if not line:
+            continue
+        if line.startswith('  - ') and cur_key:
+            fm.setdefault(cur_key, [])
+            if isinstance(fm[cur_key], list):
+                fm[cur_key].append(line[4:].strip().strip('"\''))
+            continue
+        if ':' in line and not line.startswith(' '):
+            k, _, v = line.partition(':')
+            k = k.strip()
+            v = v.strip()
+            cur_key = k
+            if v == '':
+                fm[k] = []  # 等待块内 - 列表
+            elif v.startswith('[') and v.endswith(']'):
+                fm[k] = [s.strip().strip('"\'') for s in v[1:-1].split(',') if s.strip()]
+            else:
+                fm[k] = v.strip('"\'')
+    return fm
+
+
+_alias_index_cache = None
+
+
+def _build_alias_index() -> dict:
+    """扫描 pages/ 与 draft/ 全量文件，构建 alias → file 索引。"""
+    idx = {}
+    DRAFT = KNOWLEDGE_DIR / "draft"
+    for d in (PAGES_DIR, DRAFT):
+        if not d.exists():
+            continue
+        for f in d.glob("*.md"):
+            idx[f.stem] = f  # 文件 stem 本身
+            try:
+                content = f.read_text(encoding="utf-8")
+            except Exception:
+                continue
+            fm = _parse_frontmatter(content)
+            pid = fm.get("page_id")
+            if isinstance(pid, str):
+                idx.setdefault(pid, f)
+            for a in fm.get("aliases", []) or []:
+                idx.setdefault(a, f)
+    return idx
+
+
 def get_page(page_id: str) -> dict:
-    """获取页面完整内容"""
-    filepath = PAGES_DIR / f"{page_id}.md"
-    if not filepath.exists():
-        # 尝试中文名
-        for f in PAGES_DIR.glob("*.md"):
-            if f.stem == page_id:
-                filepath = f
-                break
-        else:
-            return {"error": f"页面不存在: {page_id}"}
+    """获取页面完整内容（支持 page_id / 文件 stem / frontmatter aliases 解析）"""
+    global _alias_index_cache
+    if _alias_index_cache is None:
+        _alias_index_cache = _build_alias_index()
+
+    filepath = _alias_index_cache.get(page_id)
+    if filepath is None or not filepath.exists():
+        # 重建一次（文件可能新增）
+        _alias_index_cache = _build_alias_index()
+        filepath = _alias_index_cache.get(page_id)
+    if filepath is None or not filepath.exists():
+        return {"error": f"页面不存在: {page_id}"}
 
     content = filepath.read_text(encoding="utf-8")
     app_map = load_app_map()
@@ -91,15 +152,28 @@ def get_page(page_id: str) -> dict:
         "page_id": page_id,
         "content": content,
         "metadata": page_info,
+        "resolved_file": str(filepath.relative_to(KNOWLEDGE_DIR)),
     }
 
 
 def get_backlinks(page_id: str) -> dict:
-    """查询谁引用了指定页面"""
+    """查询谁引用了指定页面（先按 alias 解析到真 stem，再查 backlinks.json）"""
+    global _alias_index_cache
+    if _alias_index_cache is None:
+        _alias_index_cache = _build_alias_index()
+
+    # 解析到真实 stem
+    f = _alias_index_cache.get(page_id)
+    if f is None:
+        _alias_index_cache = _build_alias_index()
+        f = _alias_index_cache.get(page_id)
+    real_stem = f.stem if f else page_id
+
     bl_data = load_backlinks()
-    backlinks = bl_data.get("backlinks", {}).get(page_id, [])
+    backlinks = bl_data.get("backlinks", {}).get(real_stem, [])
     return {
         "page_id": page_id,
+        "resolved_stem": real_stem,
         "referenced_by": backlinks,
         "count": len(backlinks),
     }
@@ -167,7 +241,19 @@ def get_navigation_path(from_page: str, to_page: str) -> dict:
 
 
 def get_related_pages(page_id: str) -> dict:
-    """获取与指定页面相关的所有页面（正向链接 + 反向链接 + 导航邻居）"""
+    """获取与指定页面相关的所有页面（正向链接 + 反向链接 + 导航邻居）。
+    支持 alias / 中文文件 stem / 英文 page_id。
+    """
+    global _alias_index_cache
+    if _alias_index_cache is None:
+        _alias_index_cache = _build_alias_index()
+
+    f = _alias_index_cache.get(page_id)
+    if f is None:
+        _alias_index_cache = _build_alias_index()
+        f = _alias_index_cache.get(page_id)
+    real_stem = f.stem if f else page_id
+
     app_map = load_app_map()
     bl_data = load_backlinks()
 
@@ -178,21 +264,21 @@ def get_related_pages(page_id: str) -> dict:
         "linked_by": [],
     }
 
-    # 从 transitions 提取导航关系
+    # transitions 仍按 page_id（app_map 用的是英文）
     for t in app_map.get("transitions", []):
         if t["from"] == page_id:
             related["navigates_to"].append({"page": t["to"], "via": t.get("via", "")})
         if t["to"] == page_id:
             related["navigates_from"].append({"page": t["from"], "via": t.get("via", "")})
 
-    # 从 forward_index 提取正向链接
+    # forward_index 按文件 stem
     for source, targets in bl_data.get("forward_index", {}).items():
         source_id = Path(source).stem
-        if source_id == page_id:
+        if source_id == real_stem:
             related["links_to"] = targets
 
-    # 从 backlinks 提取反向链接
-    backlinks = bl_data.get("backlinks", {}).get(page_id, [])
+    # backlinks 按真 stem 查
+    backlinks = bl_data.get("backlinks", {}).get(real_stem, [])
     related["linked_by"] = [b["source_id"] for b in backlinks]
 
     return {"page_id": page_id, "related": related}

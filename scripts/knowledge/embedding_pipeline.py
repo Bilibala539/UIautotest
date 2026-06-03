@@ -61,6 +61,9 @@ SCAN_CONFIGS = [
 
 def chunk_text(text: str, chunk_size: int = 500, overlap: int = 50) -> list:
     """将文本按段落/标题分块，保持语义完整性"""
+    # 剥掉 YAML frontmatter，避免污染语义索引
+    text = re.sub(r'^---\n.*?\n---\n', '', text, count=1, flags=re.DOTALL)
+
     # 按标题或双换行分割
     sections = re.split(r'\n(?=## |\n\n)', text)
 

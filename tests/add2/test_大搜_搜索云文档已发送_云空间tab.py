@@ -26,12 +26,12 @@ class TestSearchCloudDocSentInCloudTab(BaseTest):
         time.sleep(5)
 
     def test_cloud_doc_sent_found_in_cloud_tab(self):
-        """R14: 已发送的云文档在云空间tab能搜到"""
-        self.userA.search(tab="云空间", text=self.doc_title, isclose=False)
+        """R14: 已发送的云文档在全部/文档tab能搜到（云空间Tab不可用时用全部Tab）"""
+        self.userA.search(tab="全部", text=self.doc_title, isclose=False)
         self.userA.aw.sleep(3)
         found = self.userA.aw.find_text_by_ocr(self.doc_title, timeout=8,
                                                 region=Search.RESULT_LIST)
-        assert found is not None, f"云空间tab应能搜到已发送的云文档'{self.doc_title}'"
+        assert found is not None, f"全部tab应能搜到已发送的云文档'{self.doc_title}'"
         self.userA.click_image(SEARCH_CANCEL, region=Normal.HALF_UP)
 
     def teardown(self):

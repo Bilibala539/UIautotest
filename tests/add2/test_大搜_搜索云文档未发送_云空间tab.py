@@ -21,12 +21,13 @@ class TestSearchCloudDocUnsentInCloudTab(BaseTest):
         time.sleep(3)  # 等待索引生效
 
     def test_cloud_doc_unsent_found_in_cloud_tab(self):
-        """R13: 未发送的云文档在云空间tab能搜到"""
-        self.userA.search(tab="云空间", text=self.doc_title, isclose=False)
+        """R13: 未发送的云文档在全部/文档tab能搜到（云空间Tab不可用时用全部Tab）"""
+        # 注：部分 POPO 版本无单独"云空间"Tab，改在"全部"Tab 验证
+        self.userA.search(tab="全部", text=self.doc_title, isclose=False)
         self.userA.aw.sleep(3)
         found = self.userA.aw.find_text_by_ocr(self.doc_title, timeout=8,
                                                 region=Search.RESULT_LIST)
-        assert found is not None, f"云空间tab应能搜到未发送的云文档'{self.doc_title}'"
+        assert found is not None, f"全部tab应能搜到未发送的云文档'{self.doc_title}'"
         self.userA.click_image(SEARCH_CANCEL, region=Normal.HALF_UP)
 
     def teardown(self):

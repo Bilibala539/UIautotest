@@ -30,10 +30,13 @@ class TestSearchRecalledMessageLocate(BaseTest):
             message=self.latest_msg,
         )
         # UI 进入聊天页撤回第一条消息
-        self.userA.send_message(recipient=RECIPIENT, message="占位", isback=False)
-        # 多次上滑直到找到 CLI 发的消息
+        # UI 进入聊天页：直接从消息列表点击会话
+        self.userA.click_text(RECIPIENT)
+        self.userA.aw.sleep(1)
+        self.userA.image_exists(CHAT_PLUS_BUTTON, region=Normal.HALF_DOWN, timeout=8)
+        # CLI 消息刚发，在最底部附近，找3次
         found = None
-        for _ in range(5):
+        for _ in range(3):
             found = self.userA.aw.find_text_by_ocr(self.msg_content, timeout=2)
             if found:
                 break

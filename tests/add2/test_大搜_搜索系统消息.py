@@ -23,9 +23,12 @@ class TestSearchDeletedMessage(BaseTest):
             receiver=RECIPIENT_EMAIL,
             message=self.msg_content,
         )
-        # UI 进入聊天页，删除该消息
-        self.userA.send_message(recipient=RECIPIENT, message="占位", isback=False)
-        # CLI 消息刚发，在"占位"上方，只需少量上翻即可找到
+        # UI 进入聊天页：直接从消息列表点击会话（CLI 刚发消息，该会话在列表顶部附近）
+        self.userA.click_text(RECIPIENT)
+        self.userA.aw.sleep(1)
+        # 确认进入聊天页
+        self.userA.image_exists(CHAT_PLUS_BUTTON, region=Normal.HALF_DOWN, timeout=8)
+        # CLI 消息刚发，在最底部附近，找3次
         found = None
         for _ in range(3):
             found = self.userA.aw.find_text_by_ocr(self.msg_content, timeout=2)

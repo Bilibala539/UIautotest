@@ -16,7 +16,7 @@ class TestChatHistoryImageClickLocate(BaseTest):
         self.userA = self.users("userA")
         # CLI 造数：创建测试群并发送一张图片
         self.tid, self.gname = self.userA.cli.create_team_cli(
-            uid_list=["grp.popoqa73@corp.netease.com"],
+            uid_list=["grp.popoqa50@corp.netease.com"],
             name="图片定位测试群",
         )
         self.userA.cli.send_message_team_cli(

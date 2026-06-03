@@ -27,9 +27,8 @@ class TestChatHistoryByImage(BaseTest):
 
     def test_chat_history_by_image(self):
         """R32: 聊天记录按图片/视频查看"""
-        # 搜索群名进入群聊（搜索结果点击后需确认到达聊天页）
-        self.userA.search(tab="群", text=self.gname, isclose=False)
-        self.userA.click_text(self.gname, region=Search.RESULT_LIST)
+        # 直接从消息列表点击刚造数的群（它在列表最顶部）进入聊天页
+        self.userA.click_text(self.gname)
         self.userA.aw.sleep(1)
         # 确认已进入聊天页（有加号按钮）
         self.userA.image_exists(CHAT_PLUS_BUTTON, region=Normal.HALF_DOWN, timeout=8)

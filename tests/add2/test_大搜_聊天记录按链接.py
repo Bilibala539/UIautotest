@@ -26,9 +26,8 @@ class TestChatHistoryImageClickLocate(BaseTest):
 
     def test_click_image_in_panel_locates_to_chat(self):
         """R33: 图片/视频面板中点击图片，跳转至会话并定位到该消息位置"""
-        # 搜索群名进入群聊
-        self.userA.search(tab="群", text=self.gname, isclose=False)
-        self.userA.click_text(self.gname, region=Search.RESULT_LIST)
+        # 直接从消息列表点击刚造数的群（它在列表最顶部）进入聊天页
+        self.userA.click_text(self.gname)
         self.userA.aw.sleep(1)
         # 确认已进入聊天页（有加号按钮）
         self.userA.image_exists(CHAT_PLUS_BUTTON, region=Normal.HALF_DOWN, timeout=8)

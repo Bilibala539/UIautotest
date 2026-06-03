@@ -9,8 +9,8 @@ from conftest import BaseTest
 from image.image_name_mapping import *
 from utils.aw.search_region import Normal, Search
 
-RECIPIENT = "grp.popoqa50"
-RECIPIENT_EMAIL = "grp.popoqa50@corp.netease.com"
+RECIPIENT = "grp.popoqa93"
+RECIPIENT_EMAIL = "grp.popoqa93@corp.netease.com"
 
 
 class TestSearchDeletedMessageStillShows(BaseTest):

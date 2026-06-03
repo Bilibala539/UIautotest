@@ -9,8 +9,8 @@ from conftest import BaseTest
 from image.image_name_mapping import *
 from utils.aw.search_region import Normal, Search
 
-RECIPIENT = "grp.popoqa50"
-RECIPIENT_EMAIL = "grp.popoqa50@corp.netease.com"
+RECIPIENT = "grp.popoqa93"
+RECIPIENT_EMAIL = "grp.popoqa93@corp.netease.com"
 
 
 class TestSearchDeletedMessage(BaseTest):
@@ -25,9 +25,9 @@ class TestSearchDeletedMessage(BaseTest):
         )
         # UI 进入聊天页，删除该消息
         self.userA.send_message(recipient=RECIPIENT, message="占位", isback=False)
-        # 多次上滑直到找到 CLI 发的消息（grp.popoqa50 历史消息多，需多滑几次）
+        # CLI 消息刚发，在"占位"上方，只需少量上翻即可找到
         found = None
-        for _ in range(5):
+        for _ in range(3):
             found = self.userA.aw.find_text_by_ocr(self.msg_content, timeout=2)
             if found:
                 break

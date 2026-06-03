@@ -249,9 +249,11 @@ class MuMuBusiness(CommonBusiness):
                               "-c", "android.intent.category.LAUNCHER", "1")
 
         # 快速检查：如果已在消息列表页（force-stop 后重启保留了登录态），跳过登录
-        # 底部导航Tab固定在 y>700，加 region 防止屏幕中部出现假阳性
+        # 用左上角"消息"文案图片判断，比底部 Tab 图片更稳定（不受未读消息状态影响）
+        # 同时保留底部 Tab region 检查作为备用
         _TAB_REGION = (0, 700, 540, 260)
-        if self.find_image(MESSAGE_TAB_BLUE, timeout=3, region=_TAB_REGION):
+        if (self.find_image(MESSAGE_TAB_MSG_TEXT, timeout=2)
+                or self.find_image(MESSAGE_TAB_BLUE, timeout=2, region=_TAB_REGION)):
             logger.info("✅ [MuMu] 已登录状态，跳过登录步骤")
             self.pop_not_allowed()
             return
@@ -1419,14 +1421,15 @@ class MuMuBusiness(CommonBusiness):
 
         # 3. 切换到对应Tab
         if is_group:
-            self.click_text("群组", region=Normal.HALF_UP)
+            # 大搜 Tab 标签是"群"（非"群组"），用图片匹配更稳定
+            self.click_image(os.path.join(path, "搜索页面-群tab-未选中.png"),
+                             region=Search.SEARCH_TAB, dy=-10)
         else:
             self.click_text("联系人", region=Normal.HALF_UP)
         time.sleep(2)
 
-        # 4. 点击搜索结果中的联系人/群组（用完整邮箱匹配，避免点到搜索框里的文字）
-        recipient_email = f"{recipient}@corp.netease.com" if "@" not in recipient else recipient
-        self.click_text(recipient_email, timeout=10)
+        # 4. 点击搜索结果进入聊天页
+        self.click_text(str(recipient), timeout=10)
         time.sleep(1)
 
         # 5. 验证进入聊天页面（通过加号按钮判断）
@@ -1470,7 +1473,8 @@ class MuMuBusiness(CommonBusiness):
 
         # 3. 切换到对应Tab
         if is_group:
-            self.click_text("群组", region=Normal.HALF_UP)
+            self.click_image(os.path.join(path, "搜索页面-群tab-未选中.png"),
+                             region=Search.SEARCH_TAB, dy=-10)
         else:
             self.click_text("联系人", region=Normal.HALF_UP)
         time.sleep(2)

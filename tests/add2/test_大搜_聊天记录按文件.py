@@ -25,6 +25,9 @@ class TestSearchDeletedMessageStillShows(BaseTest):
         )
         # UI 进入聊天页，本地删除该消息
         self.userA.send_message(recipient=RECIPIENT, message="占位", isback=False)
+        # 上滑确保最新消息（CLI 发的删除消息）在可见区域
+        self.userA.aw.swipe_up(distance=300)
+        self.userA.aw.sleep(0.5)
         self.userA.aw.long_press_text(self.msg_content, duration=1.5)
         self.userA.click_text("删除", region=Normal.HALF_DOWN)
         # 确认删除弹窗

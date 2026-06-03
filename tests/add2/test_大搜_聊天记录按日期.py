@@ -31,6 +31,9 @@ class TestSearchRecalledMessageLocate(BaseTest):
         )
         # UI 进入聊天页撤回第一条消息
         self.userA.send_message(recipient=RECIPIENT, message="占位", isback=False)
+        # 上滑确保最新消息（CLI 发的撤回消息）在可见区域
+        self.userA.aw.swipe_up(distance=300)
+        self.userA.aw.sleep(0.5)
         self.userA.aw.long_press_text(self.msg_content, duration=1.5)
         self.userA.click_text("撤回", region=Normal.HALF_DOWN)
         # 处理可能的确认弹窗

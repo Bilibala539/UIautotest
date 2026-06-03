@@ -25,6 +25,9 @@ class TestSearchMessageLocate(BaseTest):
         if found:
             self.userA.click_text(msg_content, region=Search.RESULT_LIST)
             self.userA.image_exists(CHAT_PLUS_BUTTON, region=Normal.HALF_DOWN, timeout=10)
+            # 跳转后消息可能不在当前可见区，上滑确保定位到的消息在屏幕内
+            self.userA.aw.swipe_up(distance=200)
+            self.userA.aw.sleep(0.5)
             self.userA.text_exists(msg_content, region=Normal.HALF_DOWN)
         self.userA.return_to_message_list()
 

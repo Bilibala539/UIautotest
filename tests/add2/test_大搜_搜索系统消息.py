@@ -25,8 +25,8 @@ class TestSearchDeletedMessage(BaseTest):
         )
         # UI 进入聊天页，删除该消息
         self.userA.send_message(recipient=RECIPIENT, message="占位", isback=False)
-        # 滑动到底部确保 CLI 发的消息在可见区域
-        self.userA.aw.swipe_down(distance=300)
+        # 滑动到底部确保 CLI 发的消息在可见区域（swipe_up = 手指上滑 = 显示更新的消息）
+        self.userA.aw.swipe_up(distance=300)
         self.userA.aw.sleep(0.5)
         self.userA.aw.long_press_text(self.msg_content, duration=1.5)
         self.userA.click_text("删除", region=Normal.HALF_DOWN)

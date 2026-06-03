@@ -2609,7 +2609,9 @@ class MuMuBusiness(CommonBusiness):
 
         # tab左滑翻页（云空间/应用 在 tab 行右侧，需先左滑露出）
         if tab in ["云空间", "应用"]:
-            # 先左滑让隐藏的 tab 出现，再用图片点击，不依赖 text_exists
+            # 左滑两次确保云空间 tab 完全出现（Tab 行较宽，可能需要多滑）
+            self.swipe(420, 133, 80, 133, duration=0.4)
+            time.sleep(0.3)
             self.swipe(420, 133, 80, 133, duration=0.4)
             time.sleep(0.5)
         img_name = f"搜索页面-{tab}tab.png"

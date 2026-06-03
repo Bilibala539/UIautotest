@@ -249,7 +249,9 @@ class MuMuBusiness(CommonBusiness):
                               "-c", "android.intent.category.LAUNCHER", "1")
 
         # 快速检查：如果已在消息列表页（force-stop 后重启保留了登录态），跳过登录
-        if self.find_image(MESSAGE_TAB_BLUE, timeout=3):
+        # 底部导航Tab固定在 y>700，加 region 防止屏幕中部出现假阳性
+        _TAB_REGION = (0, 700, 540, 260)
+        if self.find_image(MESSAGE_TAB_BLUE, timeout=3, region=_TAB_REGION):
             logger.info("✅ [MuMu] 已登录状态，跳过登录步骤")
             self.pop_not_allowed()
             return
@@ -308,7 +310,7 @@ class MuMuBusiness(CommonBusiness):
                 self.pop_not_allowed()
             except Exception:
                 pass
-            if self.find_image(MESSAGE_TAB_BLUE, timeout=1):
+            if self.find_image(MESSAGE_TAB_BLUE, timeout=1, region=_TAB_REGION):
                 break
         else:
             # 最后一次尝试：直接断言图片存在

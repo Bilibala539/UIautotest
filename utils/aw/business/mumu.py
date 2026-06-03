@@ -1428,8 +1428,21 @@ class MuMuBusiness(CommonBusiness):
             self.click_text("联系人", region=Normal.HALF_UP)
         time.sleep(2)
 
-        # 4. 点击搜索结果进入聊天页（用 RESULT_LIST region 排除搜索框区域）
-        self.click_text(str(recipient), timeout=10, region=Search.RESULT_LIST)
+        # 4. 点击搜索结果进入聊天页
+        if is_group:
+            # 群搜索结果显示群名（不是 tid 数字），点结果区第一个可点元素
+            # 取结果列表区第一条文字坐标并点击
+            first_result = self.find_text_by_ocr(".", timeout=5, region=Search.RESULT_LIST)
+            if first_result:
+                self.tap(first_result[0], first_result[1])
+            else:
+                # 兜底：直接 tap 结果列表区中部
+                self.tap(270, 300)
+        else:
+            # P2P：结果区域显示邮箱，用邮箱文本匹配
+            recipient_email = (f"{recipient}@corp.netease.com"
+                               if "@" not in recipient else recipient)
+            self.click_text(recipient_email, timeout=10, region=Search.RESULT_LIST)
         time.sleep(1)
 
         # 5. 验证进入聊天页面（通过加号按钮判断）

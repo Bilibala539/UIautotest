@@ -16,7 +16,7 @@ class TestChatHistoryByImage(BaseTest):
         self.userA = self.users("userA")
         # CLI 造数：创建测试群并发送一张图片
         self.tid, self.gname = self.userA.cli.create_team_cli(
-            uid_list=["grp.popoqa73@corp.netease.com"],
+            uid_list=["grp.popoqa50@corp.netease.com"],
             name="图片记录测试群",
         )
         self.userA.cli.send_message_team_cli(
@@ -27,8 +27,13 @@ class TestChatHistoryByImage(BaseTest):
 
     def test_chat_history_by_image(self):
         """R32: 聊天记录按图片/视频查看"""
-        # 通过 send_message 进入群聊，isback=False 留在聊天页
-        self.userA.aw.send_message(recipient=self.tid, message="进群", isback=False)
+        # 从消息列表精确找到群名并点击进入聊天页
+        pos = self.userA.aw.find_text_by_ocr(self.gname, timeout=5)
+        assert pos is not None, f"消息列表未找到群 '{self.gname}'"
+        self.userA.aw.tap(pos[0], pos[1])
+        self.userA.aw.sleep(1)
+        # 确认已进入聊天页（有加号按钮）
+        self.userA.image_exists(CHAT_PLUS_BUTTON, region=Normal.HALF_DOWN, timeout=8)
         # 点击群名称/群成员区域进入群设置
         self.userA.click_image(MSG_team_CALL, region=Normal.HALF_UP, dx=-150)
         time.sleep(0.5)

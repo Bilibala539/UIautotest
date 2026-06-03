@@ -249,7 +249,11 @@ class MuMuBusiness(CommonBusiness):
                               "-c", "android.intent.category.LAUNCHER", "1")
 
         # 快速检查：如果已在消息列表页（force-stop 后重启保留了登录态），跳过登录
-        if self.find_image(MESSAGE_TAB_BLUE, timeout=3):
+        # 用左上角"消息"文案图片判断，比底部 Tab 图片更稳定（不受未读消息状态影响）
+        # 同时保留底部 Tab region 检查作为备用
+        _TAB_REGION = (0, 700, 540, 260)
+        if (self.find_image(MESSAGE_TAB_MSG_TEXT, timeout=2)
+                or self.find_image(MESSAGE_TAB_BLUE, timeout=2, region=_TAB_REGION)):
             logger.info("✅ [MuMu] 已登录状态，跳过登录步骤")
             self.pop_not_allowed()
             return
@@ -266,14 +270,25 @@ class MuMuBusiness(CommonBusiness):
         self.input_text(str(uid))
         logger.info(f"📧 已输入邮箱: {uid}")
 
-        # 5. 输入密码：点击密码输入框 → 清空 → 输入密码 → 收起键盘
-        #    从"邮箱"Tab 偏移 dy=187 到密码输入框
-        self.click_text("邮箱", timeout=3, dx=50, dy=187)
-        self.sleep(0.2)
-        # 清空密码输入框
-        self._clear_input_field()
-        self.sleep(0.1)
-        self.input_text(str(password))
+        # 5. 输入密码：直接 OCR 找"输入密码"占位文字点击，避免偏移计算在并行时失效
+        #    重试2次：首次点击可能因焦点问题无效
+        for _attempt in range(2):
+            pwd_pos = self.find_text_by_ocr("输入密码", timeout=3)
+            if pwd_pos:
+                self.tap(pwd_pos[0], pwd_pos[1])
+            else:
+                # 占位符不可见（已有内容），用偏移兜底
+                self.click_text("邮箱", timeout=3, dx=50, dy=187)
+            self.sleep(0.3)
+            self._clear_input_field()
+            self.sleep(0.2)
+            self.input_text(str(password))
+            self.sleep(0.5)
+            # 验证密码已输入：占位符应已消失
+            still_placeholder = self.find_text_by_ocr("输入密码", timeout=1)
+            if still_placeholder is None:
+                break  # 密码成功输入
+            logger.warning(f"⚠️ 密码输入可能未生效（第{_attempt+1}次），重试")
         logger.info("🔑 已输入密码")
         # 不按返回键收起键盘，避免部分模拟器版本中按返回键退出登录页面
         # 步骤6和7会独立查找勾选框和登录按钮图片，超时后会自动重试
@@ -297,7 +312,7 @@ class MuMuBusiness(CommonBusiness):
                 self.pop_not_allowed()
             except Exception:
                 pass
-            if self.find_image(MESSAGE_TAB_BLUE, timeout=1):
+            if self.find_image(MESSAGE_TAB_BLUE, timeout=1, region=_TAB_REGION):
                 break
         else:
             # 最后一次尝试：直接断言图片存在
@@ -1406,14 +1421,28 @@ class MuMuBusiness(CommonBusiness):
 
         # 3. 切换到对应Tab
         if is_group:
-            self.click_text("群组", region=Normal.HALF_UP)
+            # 大搜 Tab 标签是"群"（非"群组"），用图片匹配更稳定
+            self.click_image(os.path.join(path, "搜索页面-群tab-未选中.png"),
+                             region=Search.SEARCH_TAB, dy=-10)
         else:
             self.click_text("联系人", region=Normal.HALF_UP)
         time.sleep(2)
 
-        # 4. 点击搜索结果中的联系人/群组（用完整邮箱匹配，避免点到搜索框里的文字）
-        recipient_email = f"{recipient}@corp.netease.com" if "@" not in recipient else recipient
-        self.click_text(recipient_email, timeout=10)
+        # 4. 点击搜索结果进入聊天页
+        if is_group:
+            # 群搜索结果显示群名（不是 tid 数字），点结果区第一个可点元素
+            # 取结果列表区第一条文字坐标并点击
+            first_result = self.find_text_by_ocr(".", timeout=5, region=Search.RESULT_LIST)
+            if first_result:
+                self.tap(first_result[0], first_result[1])
+            else:
+                # 兜底：直接 tap 结果列表区中部
+                self.tap(270, 300)
+        else:
+            # P2P：结果区域显示邮箱，用邮箱文本匹配
+            recipient_email = (f"{recipient}@corp.netease.com"
+                               if "@" not in recipient else recipient)
+            self.click_text(recipient_email, timeout=10, region=Search.RESULT_LIST)
         time.sleep(1)
 
         # 5. 验证进入聊天页面（通过加号按钮判断）
@@ -1457,7 +1486,8 @@ class MuMuBusiness(CommonBusiness):
 
         # 3. 切换到对应Tab
         if is_group:
-            self.click_text("群组", region=Normal.HALF_UP)
+            self.click_image(os.path.join(path, "搜索页面-群tab-未选中.png"),
+                             region=Search.SEARCH_TAB, dy=-10)
         else:
             self.click_text("联系人", region=Normal.HALF_UP)
         time.sleep(2)
@@ -2577,9 +2607,13 @@ class MuMuBusiness(CommonBusiness):
 
         self.click_image(MESSAGE_TAB_SEARCH, region=Normal.HALF_UP)
 
-        # tab左滑翻页
+        # tab左滑翻页（云空间/应用 在 tab 行右侧，需先左滑露出）
         if tab in ["云空间", "应用"]:
-            self.swipe_left(self.text_exists("云空间"), 230)
+            # 左滑两次确保云空间 tab 完全出现（Tab 行较宽，可能需要多滑）
+            self.swipe(420, 133, 80, 133, duration=0.4)
+            time.sleep(0.3)
+            self.swipe(420, 133, 80, 133, duration=0.4)
+            time.sleep(0.5)
         img_name = f"搜索页面-{tab}tab.png"
         img_name_miss = f"搜索页面-{tab}tab-未选中.png"
         if tab == "全部":

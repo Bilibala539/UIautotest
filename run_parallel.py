@@ -537,15 +537,27 @@ def upload_combined_session(results_data: dict, n_instances: int,
     os.makedirs(combined_dir, exist_ok=True)
 
     # 收集各实例的日志文件到合并目录
+    # 用 inst{N}_ 前缀区分不同实例的同名日志；同时更新 tests 里的 log 字段以保持对应
     logs_dst = os.path.join(combined_dir, "logs")
     os.makedirs(logs_dst, exist_ok=True)
+    # 建立 (inst_id, 原始log名) → 新文件名 的映射，供后续修正 tests 列表使用
+    log_rename_map: dict = {}   # key=(inst_id, orig_name), value=new_name
     for inst_id, dir_name, _ in instance_sessions:
         inst_logs = os.path.join(sessions_dir, dir_name, "logs")
         if os.path.isdir(inst_logs):
             for f in os.listdir(inst_logs):
                 src = os.path.join(inst_logs, f)
-                dst = os.path.join(logs_dst, f"inst{inst_id}_{f}")
+                new_name = f"inst{inst_id}_{f}"
+                dst = os.path.join(logs_dst, new_name)
                 shutil.copy2(src, dst)
+                log_rename_map[(inst_id, f)] = new_name
+
+    # 修正 combined_session.tests 里的 log 字段，使其与实际文件名一致
+    for t in combined_session["tests"]:
+        orig = t.get("log", "")
+        inst = t.get("instance_id", 0)
+        if orig and (inst, orig) in log_rename_map:
+            t["log"] = log_rename_map[(inst, orig)]
 
     with open(os.path.join(combined_dir, "session.json"), "w", encoding="utf-8") as f:
         json.dump(combined_session, f, ensure_ascii=False, indent=2)
@@ -620,18 +632,19 @@ def _sync_parallel_to_remote(sftp, session_data: dict, remote_base: str):
     _upload_json(f"{remote_dir}/index.json", index)
 
     # 更新 test_history.json
+    # 键必须使用 node_id（history.html 查历史时用的是 t.node_id）
     hist = _download_json(f"{remote_dir}/test_history.json", {})
     for t in session_data.get("tests", []):
-        key = t.get("name", t.get("file", "unknown"))
+        key = t.get("node_id") or t.get("name", t.get("file", "unknown"))
         if key not in hist:
             hist[key] = []
+        hist[key] = [r for r in hist[key] if r["session_id"] != sid]
         hist[key].append({
             "session_id": sid,
             "platform": "Android",
             "status": t.get("status", "error"),
             "duration": t.get("duration", 0),
             "log": t.get("log", ""),
-            "instance_id": t.get("instance_id", 0),
         })
     _upload_json(f"{remote_dir}/test_history.json", hist)
 

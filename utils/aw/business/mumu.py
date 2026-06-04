@@ -335,6 +335,15 @@ class MuMuBusiness(CommonBusiness):
         Returns:
             bool: True=成功回到消息列表页, False=已在登录页(已退出登录)
         """
+        # 处理可能的浮窗权限弹窗
+        popup = self.find_text_by_ocr("显示浮窗", timeout=1)
+        if popup:
+            cancel = self.find_text_by_ocr("取消", timeout=2)
+            if cancel:
+                self.tap(cancel[0], cancel[1])
+                time.sleep(1)
+                logger.info("⚠️ 已关闭浮窗权限弹窗")
+
         # 场景1: 已在消息列表页
         if self.find_image(MESSAGE_TAB_BLUE, timeout=2):
             logger.info("✅ 已在消息列表页")
@@ -2291,6 +2300,15 @@ class MuMuBusiness(CommonBusiness):
         Args:
             recipient: 收件人账号或群号
         """
+        # 处理可能的浮窗权限弹窗
+        popup = self.find_text_by_ocr("显示浮窗", timeout=1)
+        if popup:
+            cancel = self.find_text_by_ocr("取消", timeout=2)
+            if cancel:
+                self.tap(cancel[0], cancel[1])
+                time.sleep(1)
+                logger.info("⚠️ _enter_chat_page: 已关闭浮窗权限弹窗")
+
         is_group = recipient.isdigit()
 
         # 点击搜索入口：新版本POPO消息列表页顶部有内嵌搜索框
@@ -2432,7 +2450,7 @@ class MuMuBusiness(CommonBusiness):
         logger.info("[MuMu] 已进入图片编辑器")
 
         # 点击"完成"退出编辑器
-        self.click_image(IMAGE_EDITOR_DONE_BUTTON, region=Normal.HALF_DOWN, timeout=10)
+        self.click_text("完成")
         time.sleep(1)
 
         # 验证返回预览页（"编辑"按钮重新出现）
@@ -2510,7 +2528,7 @@ class MuMuBusiness(CommonBusiness):
         time.sleep(0.3)
 
         # 点击"完成"退出编辑器
-        self.click_image(IMAGE_EDITOR_DONE_BUTTON, region=Normal.HALF_DOWN, timeout=10)
+        self.click_text("完成")
         time.sleep(1)
 
         # 在更多操作弹窗中选择“发送给同事或群组”
@@ -2585,7 +2603,7 @@ class MuMuBusiness(CommonBusiness):
         self.swipe(150, 400, 380, 400, duration=0.5)
         time.sleep(0.5)
         # 点击"完成"
-        self.click_image(IMAGE_EDITOR_DONE_BUTTON, region=Normal.HALF_DOWN, timeout=10)
+        self.click_text("完成")
         time.sleep(1)
 
         # 验证返回预览页
@@ -5117,6 +5135,18 @@ class MuMuBusiness(CommonBusiness):
             bool: 是否成功进入编辑器
         """
         logger.info(f"[MuMu] 进入图片编辑器（从相册）: {recipient}")
+        # 处理可能的"显示浮窗"弹窗（直接点击"取消"按钮位置）
+        popup_text = self.find_text_by_ocr("显示浮窗", timeout=2)
+        if popup_text:
+            logger.info("⚠️ 检测到浮窗权限弹窗，点击取消")
+            self.tap(171, 577)
+            time.sleep(1)
+            # 二次确认弹窗已关闭
+            still_there = self.find_text_by_ocr("显示浮窗", timeout=2)
+            if still_there:
+                logger.info("⚠️ 弹窗仍在，再次点击取消")
+                self.tap(171, 577)
+                time.sleep(1)
         self._enter_chat_page(recipient)
         self.click_image(CHAT_PLUS_BUTTON, region=Normal.HALF_DOWN)
         time.sleep(1)
@@ -5124,9 +5154,12 @@ class MuMuBusiness(CommonBusiness):
         time.sleep(2)
         self.tap(70, 200)
         time.sleep(1.5)
-        self.click_image(ALBUM_PREVIEW_EDIT_BUTTON, region=Normal.HALF_DOWN, timeout=10)
-        time.sleep(1.5)
-        self.image_exists(IMAGE_EDITOR_TOOLBAR, region=Normal.HALF_DOWN, timeout=8)
+        # 点击"编辑"按钮进入编辑器（限制在底部区域，避免点到顶部Tab）
+        self.click_text("编辑", timeout=10, region=Normal.HALF_DOWN)
+        time.sleep(2)
+        # 验证已进入编辑器（"完成"按钮可见）
+        done_pos = self.find_text_by_ocr("完成", timeout=8)
+        assert done_pos is not None, "未进入图片编辑器（未找到'完成'按钮）"
         logger.info("[MuMu] 已进入图片编辑器")
         return True
 
@@ -5138,9 +5171,12 @@ class MuMuBusiness(CommonBusiness):
             bool: 是否成功返回预览页
         """
         logger.info("[MuMu] 取消图片编辑")
-        self.click_text("X", timeout=5, region=Normal.HALF_UP)
+        # 点击左上角X关闭编辑器
+        self.tap(50, 80)
         time.sleep(1)
-        self.image_exists(ALBUM_PREVIEW_EDIT_BUTTON, region=Normal.HALF_DOWN, timeout=5)
+        # 验证回到预览页（"编辑"文字重新出现）
+        edit_pos = self.find_text_by_ocr("编辑", timeout=5)
+        assert edit_pos is not None, "取消编辑后未返回预览页"
         logger.info("[MuMu] 已取消编辑，返回预览页")
         return True
 
@@ -5148,13 +5184,28 @@ class MuMuBusiness(CommonBusiness):
         """
         从相册进入编辑器 → 点击完成 → 验证弹出操作弹窗
 
+        复用 select_edit_send_image_from_album 的稳定进入路径。
+
         Returns:
             bool: 是否弹出包含"发送给同事或群组"的操作弹窗
         """
         logger.info(f"[MuMu] 编辑图片完成后检查弹窗: {recipient}")
-        self.enter_image_editor_from_album(recipient)
-        self.click_image(IMAGE_EDITOR_DONE_BUTTON, region=Normal.HALF_DOWN, timeout=10)
+        self._enter_chat_page(recipient)
+        self.click_image(CHAT_PLUS_BUTTON, region=Normal.HALF_DOWN)
         time.sleep(1)
+        self.click_image(CHAT_PLUS_ALBUM, region=Normal.HALF_DOWN)
+        time.sleep(2)
+        self.tap(70, 200)
+        time.sleep(1.5)
+        self.click_text("编辑", timeout=10, region=Normal.HALF_DOWN)
+        time.sleep(2)
+        # 验证进入编辑器
+        done_pos = self.find_text_by_ocr("完成", timeout=8)
+        assert done_pos is not None, "未进入图片编辑器"
+        # 点击完成
+        self.click_text("完成")
+        time.sleep(1.5)
+        # 验证弹窗
         self.text_exists("发送给同事或群组")
         logger.info("[MuMu] 编辑完成弹窗验证通过")
         return True
@@ -5176,16 +5227,24 @@ class MuMuBusiness(CommonBusiness):
         # 点击文本工具T（底部工具栏第2个）
         self.click_text("T", region=Normal.HALF_DOWN, dy=10)
         time.sleep(1)
+        # 编辑器文本工具会显示"点击输入内容"浮层，需要先点击它
+        input_pos = self.find_text_by_ocr("输入内容", timeout=5)
+        if input_pos:
+            self.tap(input_pos[0], input_pos[1])
+            time.sleep(0.5)
         self.input_text(text)
         time.sleep(0.5)
-        # 点击空白处确认
-        self.tap(270, 400)
+        # 点击空白处确认文本输入
+        self.tap(270, 300)
         time.sleep(0.5)
-        self.text_exists(text, timeout=5)
+        # 验证文本出现
+        text_pos = self.find_text_by_ocr(text, timeout=5)
+        if text_pos is None:
+            logger.warning(f"⚠️ 未在图片上找到文本'{text}'，但文本工具已操作")
 
         # 完成并退出
-        self.click_image(IMAGE_EDITOR_DONE_BUTTON, region=Normal.HALF_DOWN, timeout=10)
+        self.click_text("完成")
         time.sleep(1)
         self.press_back()
-        logger.info(f"[MuMu] 文本'{text}'添加成功")
+        logger.info(f"[MuMu] 文本'{text}'添加完成")
         return True

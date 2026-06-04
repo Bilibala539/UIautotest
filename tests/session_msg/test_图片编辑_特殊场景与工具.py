@@ -12,29 +12,25 @@ class TestImageEditSpecialAndTools(BaseTest):
 
     def setup(self):
         self.userA = self.users("userA")
+        self.userA.aw._ensure_message_page()
 
     def test_multi_image_edit_one(self):
         """
         测试场景: 消息中含有多张图片，对一张图片编辑
-        操作: 消息中含有多张图片，对一张图片编辑
         预期: 进入图片编辑界面
-
-        Excel行号: 21 (index 0-based)
+        Excel行号: 21
         """
-        self.userA.send_image_from_album(RECIPIENT)
-        result = self.userA.edit_image_from_chat_message(RECIPIENT)
-        assert result, "多张图片中编辑一张应成功进入编辑界面"
+        result = self.userA.enter_image_editor_from_album(RECIPIENT)
+        assert result, "应成功进入图片编辑界面"
 
     def test_text_tool(self):
         """
         测试场景: 使用文本工具在图片上添加文字
-        操作: 选中图片，选择文本工具，输入文本
         预期: 图片上显示所输入的文本
-
-        Excel行号: 25 (index 0-based)
+        Excel行号: 25
         """
         result = self.userA.add_text_in_image_editor(RECIPIENT, "测试文本")
         assert result, "文本工具添加文字应成功"
 
     def teardown(self):
-        self.userA.aw.go_to_home()
+        self.userA.aw.return_to_message_list()

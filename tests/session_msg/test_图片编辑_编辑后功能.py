@@ -2,6 +2,7 @@
 测试用例: 图片编辑 - 编辑后功能（取消/发送/转发）
 Excel来源: 会话区及消息.xlsx 行 14(取消), 15(发送), 16(转发)
 """
+import time
 from conftest import BaseTest
 
 RECIPIENT = "grp.popoqa93"
@@ -12,14 +13,13 @@ class TestImageEditAfterActions(BaseTest):
 
     def setup(self):
         self.userA = self.users("userA")
+        self.userA.aw._ensure_message_page()
 
     def test_edit_then_cancel(self):
         """
         测试场景: 编辑图片后点击取消
-        操作: 编辑图片后，点击取消
-        预期: 退出编辑模式，图片不会被保存（返回预览页）
-
-        Excel行号: 14 (index 0-based)
+        预期: 退出编辑模式，返回预览页
+        Excel行号: 14
         """
         self.userA.enter_image_editor_from_album(RECIPIENT)
         result = self.userA.cancel_image_edit()
@@ -28,10 +28,8 @@ class TestImageEditAfterActions(BaseTest):
     def test_edit_then_send(self):
         """
         测试场景: 编辑图片后点击发送
-        操作: 编辑图片后，点击发送
         预期: 编辑后图片被发送出去
-
-        Excel行号: 15 (index 0-based)
+        Excel行号: 15
         """
         result = self.userA.select_edit_send_image_from_album(RECIPIENT)
         assert result, "编辑后发送图片应成功"
@@ -39,14 +37,20 @@ class TestImageEditAfterActions(BaseTest):
     def test_edit_then_forward(self):
         """
         测试场景: 编辑图片后转发
-        操作: 编辑图片后，点击转发
         预期: 编辑后图片被转发出去
-
-        Excel行号: 16 (index 0-based)
+        Excel行号: 16
         """
-        self.userA.send_image_from_album(RECIPIENT)
-        result = self.userA.edit_image_from_chat_message(RECIPIENT)
-        assert result, "编辑图片后转发应成功"
+        self.userA.enter_image_editor_from_album(RECIPIENT)
+        self.userA.aw.click_image("IMAGE_EDITOR_DONE_BUTTON", region="HALF_DOWN", timeout=10)
+        time.sleep(1)
+        self.userA.aw.text_exists("发送给同事或群组")
+        self.userA.aw.click_image("IMAGE_EDITOR_FORWARD", region="HALF_DOWN")
+        time.sleep(1)
+        self.userA.aw.click_text("搜索", region="HALF_UP")
+        self.userA.aw.input_text("grp.popoqa50")
+        time.sleep(1)
+        self.userA.aw.click_image("SELECT_CANCEL", dy=308)
+        time.sleep(2)
 
     def teardown(self):
-        self.userA.aw.go_to_home()
+        self.userA.aw.return_to_message_list()

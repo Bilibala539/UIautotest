@@ -295,11 +295,12 @@ pytest tests/checklist/test_xxx.py -v
   **如果本轮 aw-verify 修改了 `utils/aw/business/mumu.py`**，在 commit 前执行基线回归：
 
   ```bash
-  # 1. 找出依赖被修改方法的测试文件
-  CHANGED_METHOD=$(git diff HEAD utils/aw/business/mumu.py | grep "^+def \|^-def " | awk '{print $2}' | tr -d '(:')
+  # 1. 找出依赖被修改方法的测试文件（用 sed 正确截取函数名）
+  CHANGED_METHOD=$(git diff HEAD utils/aw/business/mumu.py | grep "^+def \|^-def " | awk '{print $2}' | sed 's/(.*//')
   AFFECTED=$(grep -rl "$CHANGED_METHOD" E:/UIAutotest/tests/ 2>/dev/null | grep "\.py$")
 
-  # 2. 若有受影响文件，暂存修改，跑基线
+  # 2. 若有受影响文件，清空临时文件，暂存修改，跑基线
+  rm -f /tmp/uiat_baseline.txt /tmp/uiat_after.txt
   git stash
   for f in $AFFECTED; do
     pytest "$f" -v --tb=line 2>&1 | grep -E "PASSED|FAILED" >> /tmp/uiat_baseline.txt
@@ -310,16 +311,26 @@ pytest tests/checklist/test_xxx.py -v
   for f in $AFFECTED; do
     pytest "$f" -v --tb=line 2>&1 | grep -E "PASSED|FAILED" >> /tmp/uiat_after.txt
   done
+
+  # 4. 对比：统计真实回归（baseline PASS → after FAIL）和附带修好（baseline FAIL → after PASS）
+  REGRESSION=$(comm -23 \
+    <(grep "PASSED" /tmp/uiat_baseline.txt | awk '{print $1}' | sort) \
+    <(grep "PASSED" /tmp/uiat_after.txt   | awk '{print $1}' | sort) \
+    | wc -l)
+  BONUS=$(comm -13 \
+    <(grep "PASSED" /tmp/uiat_baseline.txt | awk '{print $1}' | sort) \
+    <(grep "PASSED" /tmp/uiat_after.txt   | awk '{print $1}' | sort) \
+    | wc -l)
+  echo "真实回归: $REGRESSION，附带修好: $BONUS"
   ```
 
-  对比结果：
+  对比判决：
 
-  | 变化 | 含义 | 动作 |
-  |------|------|------|
-  | baseline PASS → after FAIL | 真实回归 | `git checkout -- .`，本次修复放弃，记录后交人工 |
-  | baseline FAIL → after PASS | 附带修好 | 保留，一并 commit |
-  | 搞坏数 > 修好数 | 净负回归 | `git checkout -- .`，放弃，交人工 |
-  | 无真实回归 | 安全 | 继续 commit |
+  | 条件 | 动作 |
+  |------|------|
+  | `$REGRESSION -gt 0` 且 `$REGRESSION -gt $BONUS` | 净负回归 → `git checkout -- .`，放弃，交人工 |
+  | `$REGRESSION -gt 0` 且 `$REGRESSION -le $BONUS` | 有回归但附带修好更多 → 保留，commit 时注明 |
+  | `$REGRESSION -eq 0` | 无真实回归 → 安全，继续 commit |
 
   **如果未修改 mumu.py**，直接 commit：
 

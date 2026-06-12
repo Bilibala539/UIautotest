@@ -105,6 +105,69 @@ clusters = {
 
 ---
 
+## Phase 0.5: 共性根因分析（orchestrator 自行完成，不派 agent）
+
+> **目的**：修之前先找共性，同一 AW 方法导致多个失败时一次修好全部，不逐个修。
+
+### Step 1：提取 AW 方法
+
+从每个失败用例的 traceback 中提取最后调用的 `utils/aw/business/mumu.py` 方法：
+
+```
+示例 traceback：
+  tests/checklist/test_session_box.py:42 in test_open_session_box
+  utils/aw/business/mumu.py:885 in click_session_box    ← 提取这行
+```
+
+### Step 2：按方法分组
+
+```
+click_session_box → test_open_session_box, test_close_session_box, test_batch_session（3个）← 疑似共性
+enter_group_settings → test_group_name, test_group_announcement（2个）← 疑似共性
+tap_send_btn → test_send_image（1个）← 独立，不是共性
+```
+
+### Step 3：二次验证（防误归类）
+
+方法名相同 ≠ 同一根因。以下 **2 项均一致** 才确认为共性：
+
+| 验证项 | 比对方式 | 一致判定 |
+|--------|---------|---------|
+| 异常消息核心内容 | 提取 error message 中的元素名/图片名/OCR文字 | 指向同一个元素或图片 |
+| 失败栈帧行号 | mumu.py 内部失败的行号 | 同一行或 ±3 行以内 |
+
+### Step 4：交叉比对通过用例
+
+对每个疑似共性方法，检查是否有 PASS 用例也调用了它：
+
+```bash
+grep -rl "click_session_box" E:/UIAutotest/tests/
+```
+
+| 比对结果 | 修复方向 |
+|---------|---------|
+| 有 PASS 用例调用同方法且成功 | 方法本身没问题，对比成功 vs 失败用例的调用差异（参数/前置页面/传入值） |
+| 所有调用该方法的用例全部失败 | 方法本身有 bug，直接修方法 |
+| 没有 PASS 用例调用该方法 | 走通用诊断（Step 1） |
+
+### Step 5：输出修复优先级队列
+
+在原有 C1-C6 聚类基础上，共性问题排最前：
+
+```markdown
+## 修复计划（含共性分析结果）
+
+| 优先级 | 类型 | 根因 | 影响用例数 | 修复方向 |
+|--------|------|------|-----------|---------|
+| P0-共性 | 共性 AW 方法 | click_session_box 元素定位失败 | 3 | 直接修方法 |
+| P1-共性 | 共性 AW 方法 | enter_group_settings 匹配逻辑 | 2 | 对比成功用例调用差异 |
+| P2-独立 | C4-操作逻辑 | test_send_image 各自不同 | 1 | 逐个分析 |
+```
+
+**每轮 fix 后重新执行 Phase 0.5**——剩余失败的共性模式可能变了，不能沿用上轮分析结论。
+
+---
+
 ## Phase 1: 逐个修复（按优先级队列依次处理）
 
 对修复计划中的用例，按优先级从高到低逐个处理：

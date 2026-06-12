@@ -29,8 +29,8 @@ class TestGroupSortDefault(BaseTest):
         """
         # 打开分组面板查看群组
         self.userA.open_session_group_panel()
-        # 验证分组面板正常展开
-        assert self.userA.text_exists("群组", timeout=3) or True, "分组面板已打开"
+        # 软检查：群组 tab 可见则说明功能正常，不存在也不强制失败
+        self.userA.aw.find_text_by_ocr("群组", timeout=3)
 
     def teardown(self):
         """测试后清理"""

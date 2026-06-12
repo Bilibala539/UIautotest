@@ -4,6 +4,8 @@
 操作步骤: 创建长名称的群组并置顶，查看名称是否被截断
 预期结果: 超出部分的字符直接截断不显示（显示为"..."结束）
 """
+import time
+
 from conftest import BaseTest
 from image.image_name_mapping import MESSAGE_TAB_BLUE
 
@@ -16,7 +18,11 @@ class TestPinnedConversationNameTruncate(BaseTest):
         # 创建一个名称很长的群（超阈值才会触发截断，预期显示"..."结尾）
         self.long_group_name = "这是一个名称非常长的测试群组名称需要超过显示阈值"
         self.group_name = self.userA.aw.setup_owner_group(desired_name=self.long_group_name)
-        # 将该群置顶，使其显示在消息列表顶部置顶区域
+        # 通过搜索进入群设置再返回，确保该群出现在消息列表最近区域顶部
+        self.userA.aw._enter_group_settings(self.group_name)
+        self.userA.aw.return_to_message_list(max_back=8)
+        time.sleep(1)
+        # 现在该群在消息列表顶部，置顶它
         self.userA.long_press_session_pin()
 
     def test_pinned_conversation_name_truncated(self):

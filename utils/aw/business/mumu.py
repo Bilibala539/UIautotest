@@ -4183,36 +4183,6 @@ class MuMuBusiness(CommonBusiness):
         self.text_exists("群公告", timeout=5)
         return True
 
-    def open_group_announcement(self, group_identifier: str) -> bool:
-        """
-        打开群公告页面
-
-        步骤:
-        1. 进入群设置页面
-        2. 点击"群公告"
-        3. 验证进入公告页面
-
-        Args:
-            group_identifier: 群组标识（群号或群名关键词）
-
-        Returns:
-            bool: 是否成功进入
-        """
-        logger.info(f"📢 [MuMu] 打开群公告页面: {group_identifier}")
-
-        self._enter_group_settings(group_identifier)
-
-        self.click_text("群公告", timeout=5, region=Normal.HALF_DOWN)
-        time.sleep(1.5)
-
-        if self.find_image(GROUP_ANNOUNCEMENT_EMPTY_PLACEHOLDER, timeout=2):
-            logger.info("✅ 群公告页为空占位符已出现")
-        else:
-            self.find_text_by_ocr("编辑", timeout=3)
-
-        logger.info("✅ [MuMu] 已进入群公告页面")
-        return True
-
     def open_group_announcement_page(self, group_name_keyword: str) -> bool:
         """
         打开群公告页面
@@ -4236,6 +4206,11 @@ class MuMuBusiness(CommonBusiness):
         # 点击"群公告"
         self.click_text("群公告", timeout=5)
         time.sleep(1.5)
+
+        if self.find_image(GROUP_ANNOUNCEMENT_EMPTY_PLACEHOLDER, timeout=2):
+            logger.info("✅ 群公告页为空占位符已出现")
+        else:
+            self.find_text_by_ocr("编辑", timeout=3)
 
         self.take_screenshot(
             save_path=r'E:\UIAutotest\explorer_output\screenshots\group_announcement_page.png'

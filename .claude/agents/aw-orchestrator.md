@@ -632,3 +632,15 @@ experience     = mcp__vector_kb__semantic_search(
 - 不要跳过 CLAUDE.md 里的项目约定
 
 开工前读一次 `E:\UIAutotest\CLAUDE.md`。
+
+---
+
+## 子 Agent 完成后的经验沉淀
+
+每次 aw-codegen/aw-verify/aw-element 返回 `[完成]` 后，检查返回内容中是否有新发现的方法/元素/限制。若有，追加到 `docs/runtime_experience.md` 对应 section 末尾：
+
+- 新验证的 AW 方法 → 追加到「已验证 AW 方法」表格
+- 新踩的坑/限制 → 追加到「已知限制」表格
+- 新验证的操作方式 → 追加到「已验证操作」表格
+
+追加后，下次 embedding 增量更新（git post-commit hook 自动触发，或手动执行 `python scripts/knowledge/embedding_pipeline.py --incremental`）会自动将新条目纳入向量索引，供下次子 Agent 通过 `mcp__vector_kb__semantic_search` 检索。

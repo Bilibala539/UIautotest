@@ -1,919 +1,512 @@
-# agent-team 蓝图详细设计
+# agent-team 编排架构详细设计
 
-> 本文档详细解释 `openspec/changes/agent-team/` 下的工程化蓝图。
-> 目标：将当前 4 个对话驱动的 Markdown Skill 封装为 4 个代码驱动的 Python Agent 类，
-> 用状态机引擎自动串联，实现 `python -m agent_team "任务描述"` 一句话跑完整条流水线。
-
----
-
-## 一、名字解释
-
-在深入设计之前，先把蓝图中反复出现的核心名字逐一解释清楚。
-
-### 1.1 Agent（智能体）
-
-**Agent** 在蓝图中指一个可以独立执行特定任务的 Python 对象。每个 Agent 封装了一个技能（Skill）的全部操作逻辑，对外暴露统一接口 `execute(ctx) -> ctx`。蓝图中有 4 个具体 Agent：
-
-| Agent | 对应 Skill | 一句话职责 |
-|-------|-----------|----------|
-| ExplorerAgent | aw-explorer | 连接模拟器，探索 App 页面，产出地图 |
-| ElementAgent | aw-element | 从截图中裁切 UI 元素，注册到图片库 |
-| CodegenAgent | aw-codegen | 根据地图和元素写业务代码和测试用例 |
-| VerifyAgent | aw-verify | 跑测试，分析失败，把图片转正 |
-
-Agent 之间不直接对话，全部通过共享上下文传递信息。
-
-### 1.2 Orchestrator（编排器 / 调度器）
-
-**Orchestrator** 是整条流水线的总指挥。它维护一个"阶段 → Agent"的映射表，根据当前阶段选择对应的 Agent 执行，管理重试和回退策略。类比乐团指挥（orchestra conductor）——他不演奏任何乐器，但决定谁在什么时候演奏。
-
-### 1.3 TeamContext（团队上下文）
-
-**TeamContext** 是一个 `@dataclass` 数据容器，是 Agent 之间传递信息的唯一媒介。所有 Agent 都读写同一个 TeamContext 对象，不需要文件系统或消息队列中转。
-
-可以把它理解为**工单传递单**：每个工位（Agent）从工单上读取上一工位填写的信息，做完自己的活后把结果写回工单，传给下一工位。
-
-包含的核心字段：
-- 任务描述（要测什么）
-- 当前阶段（流水线走到了哪一步）
-- 知识库（探索发现了哪些页面和元素）
-- 元素列表（截了哪些图）
-- 生成文件路径（写了哪些代码）
-- 验证结果（测试通过了没有，没过的话回退到哪）
-- 重试计数（已经重试了几次）
-
-### 1.4 Phase（阶段 / 流水线节点）
-
-**Phase** 是一个枚举类型，定义了流水线的 6 个状态节点：
-
-```
-EXPLORE → ELEMENT → CODEGEN → VERIFY → DONE
-                                  ├→ EXPLORE / ELEMENT / CODEGEN（回退）
-                                  └→ FAILED（超过最大重试次数，放弃）
-```
-
-流水线按箭头方向正向流转，验证失败时反向回退，超过最大重试次数后进入 FAILED 终态。
-
-### 1.5 Skill（技能）
-
-**Skill** 指 `.codemaker/skills/` 下的 Markdown 文件，每个文件是一份给 AI 助手阅读的指令文档，描述如何完成某项工作（如如何截取 UI 元素）。蓝图**不删除**这些 Skill 文件，而是让 Agent 把 Skill 中描述的步骤**翻译成可执行的 Python 代码**。Skill 继续保留作为 AI 助手的参考文档。
-
-简单理解：**Skill = 菜谱（给人看的），Agent = 厨师（真正做菜的）**。
-
-### 1.6 ElementInfo（元素信息条目）
-
-**ElementInfo** 是描述一个 UI 元素图片的数据结构，包含 4 个字段：
-- `name`：元素中文名，如"消息设置页-开关按钮"
-- `image_path`：图片在磁盘上的路径
-- `constant_name`：在 `image_name_mapping.py` 中注册的常量名，如 `MSG_SETTING_SWITCH`
-- `is_verified`：该图片是否已通过测试验证（未通过为 `test_path` 暂存状态，通过后转正为 `path`）
-
-### 1.7 VerifyResult（验证结果）
-
-**VerifyResult** 是验证阶段结束后产出的诊断报告，包含 4 个字段：
-- `success`：bool，全部测试是否通过
-- `test_output`：pytest 的完整命令行输出
-- `failure_reasons`：失败原因的列表（可能多条）
-- `suggested_phase`：建议回退到哪个阶段（ELEMENT / CODEGEN / EXPLORE）
-
-### 1.8 回退（Rollback / Retry）
-
-**回退**指验证失败后，流水线不是直接报错退出，而是跳回之前的某个阶段重新执行。蓝图的回退策略是**递增回退**：
-
-| 重试次数 | 回退到 | 理由 |
-|---------|--------|------|
-| 第 1 次 | ELEMENT | 多半是元素图片截得不好，重新截图 |
-| 第 2 次 | CODEGEN | 图没问题，可能是代码逻辑写错了 |
-| 第 3 次 | EXPLORE | 代码也对，可能是页面路径变了，重新探索 |
-| 第 4 次 | — | 三次都修不好，标记 FAILED，输出完整诊断 |
+> 本文档描述的是**当前实际运行**的 Claude Code Agent Teams 架构。
+> 旧版文档（Python 状态机 `python -m agent_team` 命令行工具）已废弃，由此文档完整替换。
+> 所有 Agent 定义在 `.claude/agents/` 目录下，由 Claude Code 原生 multi-agent 能力驱动。
 
 ---
 
-## 二、为什么要做这个蓝图
-
-### 当前的问题
-
-现在的流程是**人 + AI 半自动**：
+## 一、架构概览
 
 ```
-用户说"帮我覆盖消息设置功能"
-  → orchestrator agent（对话中）拆解意图
-  → SendMessage 派给 aw-explorer agent → 探索页面
-  → SendMessage 派给 aw-element agent  → 截取元素
-  → SendMessage 派给 aw-codegen agent  → 写代码
-  → SendMessage 派给 aw-verify agent   → 跑验证
+┌─────────────────────────────────────────────────────────────────┐
+│                        用 户（人）                               │
+└─────────────────────────────┬───────────────────────────────────┘
+                              │ 对话 / 指令
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                   aw-orchestrator（主会话，永久）                  │
+│  职责：意图理解 / 工作流选择 / 派发前门禁 / Git 存档点 / 经验沉淀    │
+└──────┬────────────┬──────────────────┬───────────────┬──────────┘
+       │ SendMessage│ SendMessage      │ Agent()       │ Agent()
+       ▼            ▼                  ▼               ▼
+┌────────────┐ ┌─────────────┐ ┌───────────────┐ ┌──────────────┐
+│aw-explorer │ │ spec-keeper │ │  aw-element   │ │  aw-codegen  │
+│（长驻）    │ │（长驻）     │ │ （子 Agent）  │ │ （子 Agent） │
+└────────────┘ └─────────────┘ └───────────────┘ └──────────────┘
+                                                        │
+                                              生成代码后
+                                                        ▼
+                                              ┌──────────────┐
+                                              │  aw-verify   │
+                                              │ （子 Agent） │
+                                              └──────────────┘
 ```
 
-每一步都需要 orchestator 在对话中**手动派发**，产物（探索记录、元素列表、代码路径）靠**对话上下文**传递。一个功能从探索到验证通过通常要来回操作 10+ 次。
-
-### 蓝图要解决的核心问题
-
-**把对话驱动的流程变成代码驱动的状态机**。用一句话概括蓝图的野心：
-
-> `python -m agent_team "测试消息设置功能"` —— 回车之后，全流程自动跑完，人不需要参与。
-
----
-
-## 三、整体架构
+**双层知识库（所有 Agent 共享）**
 
 ```
-┌────────────────────────────────────────────────────────────┐
-│                      CLI 入口                              │
-│              python -m agent_team "任务描述"                │
-└────────────────────────┬───────────────────────────────────┘
-                         │
-                         ▼
-┌────────────────────────────────────────────────────────────┐
-│                    Orchestrator（调度器）                    │
-│                                                            │
-│   while phase not in (DONE, FAILED):                       │
-│       agent = phase_map[phase]                             │
-│       agent.validate_input(ctx)                            │
-│       ctx = agent.execute(ctx)                             │
-│       if 需要重试 and retry_count < max_retries: 继续        │
-│                                                            │
-│   Phase → Agent 映射表:                                     │
-│     EXPLORE → ExplorerAgent                                │
-│     ELEMENT → ElementAgent                                 │
-│     CODEGEN → CodegenAgent                                 │
-│     VERIFY  → VerifyAgent                                  │
-└────┬──────────┬──────────┬──────────┬──────────────────────┘
-     │          │          │          │
-     ▼          ▼          ▼          ▼
-┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐
-│Explorer │ │Element  │ │Codegen  │ │Verify   │
-│Agent    │ │Agent    │ │Agent    │ │Agent    │
-│         │ │         │ │         │ │         │
-│探索App  │ │截元素图  │ │写AW/用例│ │跑验证   │
-└────┬────┘ └────┬────┘ └────┬────┘ └────┬────┘
-     │          │          │          │
-     └──────────┴──────────┴──────────┘
-                    │
-                    ▼
-            ┌──────────────┐
-            │ TeamContext  │  ← 所有 Agent 共读共写的数据容器
-            │  (dataclass) │
-            └──────────────┘
+┌───────────────────────────────────────────────────────┐
+│  Graph 层（knowledge_graph MCP）                       │
+│  app_map.json + pages/*.md                            │
+│  能力：页面搜索 / 导航路径 / 反向链接                   │
+├───────────────────────────────────────────────────────┤
+│  Embedding 层（vector_kb MCP）                         │
+│  pages/*.md + tests/*.py + docs/*.md → ChromaDB       │
+│  能力：语义搜索 / 相似用例推荐 / 综合上下文注入          │
+└───────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 四、目录结构
+## 二、Agent 角色与生命周期
+
+### 2.1 生命周期对照表
+
+| Agent | 文件 | 生命周期 | 调用方式 | 设计原因 |
+|---|---|---|---|---|
+| aw-orchestrator | `.claude/agents/aw-orchestrator.md` | 主会话（永久） | 用户直接对话 | 需要持有全局状态、历史上下文 |
+| aw-explorer | `.claude/agents/aw-explorer.md` | 长驻 | `SendMessage` | 探索需要跨页面积累上下文，不能每次重置 |
+| aw-element | `.claude/agents/aw-element.md` | 子 Agent | `Agent()` | 截图操作无状态，每次任务独立执行 |
+| aw-codegen | `.claude/agents/aw-codegen.md` | 子 Agent | `Agent()` | 代码生成需要干净上下文，避免前次代码污染 |
+| aw-verify | `.claude/agents/aw-verify.md` | 子 Agent | `Agent()` | pytest 输出量大，不应污染后续对话 |
+| spec-keeper | `.claude/agents/spec-keeper.md` | 长驻 | `SendMessage` | 仅在走 openspec 流程时启用，需保留提案历史 |
+
+### 2.2 长驻 vs 子 Agent 的选择原则
+
+**长驻 Agent（SendMessage）**：适合需要"记住"跨轮次信息的角色。explorer 在探索第二个页面时需要知道第一个页面探索了什么；spec-keeper 在归档提案时需要知道整个提案生命周期。
+
+**子 Agent（Agent() spawn）**：适合无状态的一次性任务。截图只需要目标页面路径；代码生成只需要当次任务描述 + 注入的知识片段；验证只需要测试文件路径。每次 spawn 拿到干净上下文，不受前次执行结果干扰。
+
+---
+
+## 三、三种工作流模式
+
+### 3.1 convert-cases（文字用例 → 自动化脚本）
+
+这是最常用的主流程：将人工编写的文字测试用例自动转化为可运行的 pytest 脚本。
 
 ```
-E:\UIAutotest\
-└── agent_team/                     # ← 新增目录，蓝图的核心产物
-    ├── __init__.py                 # 模块导出，from agent_team import ...
-    ├── __main__.py                 # 支持 python -m agent_team 启动
-    ├── run.py                     # CLI 入口，封装启动逻辑
-    ├── config.py                  # 配置常量（MAX_RETRIES / LOG_DIR 等）
-    ├── context.py                 # TeamContext + Phase + ElementInfo + VerifyResult
-    ├── base_agent.py              # BaseAgent 抽象基类
-    ├── orchestrator.py            # 状态机调度器
-    └── agents/                    # 4 个具体 Agent 实现
-        ├── __init__.py
-        ├── explorer_agent.py      # 探索 Agent
-        ├── element_agent.py       # 截图 Agent
-        ├── codegen_agent.py       # 编码 Agent
-        └── verify_agent.py        # 验证 Agent
+用户提供文字用例
+        │
+        ▼
+orchestrator 解析意图，执行派发前门禁 G1-G5
+        │
+        ├── G1 未过 → SendMessage aw-explorer 探索目标页面
+        │               └── 更新知识库后回到门禁重新检查
+        │
+        ├── G2 未过 → Agent() spawn aw-element 截取缺失元素
+        │               └── 注册常量后回到门禁重新检查
+        │
+        ▼（所有门禁通过）
+orchestrator 执行 Git checkpoint（pre-codegen）
+        │
+        ▼
+Agent() spawn aw-codegen（注入批次空间认知）
+        │   输出：AW 方法 + PPUser 代理 + pytest 用例文件
+        ▼
+Agent() spawn aw-verify
+        │
+        ├── 通过 → 图片转正 image_ai/ → image/
+        │          Git commit "feat: [功能]"
+        │          orchestrator 提取经验 → runtime_experience.md
+        │
+        └── 失败 → 按根因路由
+                    ├── 图片问题  → 重新 spawn aw-element → 再次 verify
+                    ├── 代码问题  → 重新 spawn aw-codegen → 再次 verify
+                    └── 3 次失败 → git reset --hard HEAD，报告用户
+```
+
+**步骤细节**：
+
+| 步骤 | 执行者 | 可跳过条件 |
+|---|---|---|
+| Step 1：解析结构化步骤 | spec-keeper（可选） | 文字用例已足够清晰时，orchestrator 直接处理 |
+| Step 2：确认页面路径 | aw-explorer | 目标页面已在知识库（G1 通过）|
+| Step 3：截取 UI 元素 | aw-element | 所需图片常量已注册（G2 通过）|
+| Step 4：生成代码 | aw-codegen（子 Agent）| 不可跳过 |
+| Step 5：验证 | aw-verify（子 Agent）| 不可跳过 |
+
+---
+
+### 3.2 enrich-kb（丰富知识库）
+
+专门用于补充、更新、维护 App 知识库，不产出测试代码。
+
+```
+用户指令：探索某页面 / 更新某功能文档 / 知识库巡检
+        │
+        ▼
+orchestrator 路由到以下子模式之一：
+
+  new-page    → SendMessage aw-explorer 探索新页面
+               └── 写入 draft/*.md → promote_knowledge.py 验证 → 进 pages/
+
+  update-page → SendMessage aw-explorer 重新探索已有页面
+               └── 更新 pages/*.md，触发 embedding 增量更新
+
+  add-feature → SendMessage aw-explorer 针对特定功能点补充文档
+               └── 补充现有页面的功能描述
+
+  audit-kb    → aw-verify 执行知识库健康度检查
+               └── 检查孤立页面、失效链接、过期截图描述
+```
+
+该模式不涉及 aw-codegen，只用 explorer + verify 两个角色。
+
+---
+
+### 3.3 fix-batch（批量修复失败用例）
+
+专门处理 CI/本地跑出来的一批失败用例，按失败聚类批量修复。
+
+```
+Phase 0：读取失败日志
+  │  从 session.json / pytest output 提取所有失败用例
+  │  提取每条失败的 traceback、AW 方法调用栈
+  │
+  ▼
+Phase 0.5：共性根因分析
+  │  从 traceback 提取 AW 方法名 → 按方法分组
+  │  同一 AW 方法 ≥2 个用例失败 → 疑似共性故障
+  │  二次验证：比对异常消息 + 栈帧行号（±3 行）
+  │  交叉比对 PASS 用例，排除测试数据差异误判
+  │  输出优先级队列：共性故障组优先，单点故障后处理
+  │
+  ▼
+Phase 1：按优先级逐组修复（对每个故障组循环）
+  │
+  ├── aw-verify spawn → 诊断具体失败原因
+  │       │
+  │       ├── 图片质量问题    → spawn aw-element 重新截图
+  │       ├── AW 逻辑问题    → spawn aw-codegen 修复 AW 方法
+  │       ├── 用例代码问题   → spawn aw-codegen 修复用例
+  │       └── 环境/设备问题  → 人工介入，跳过本组
+  │
+  ├── aw-verify spawn → 重新跑修复后的用例验证（最多 3 轮）
+  │       ├── 通过 → 标记修复，进行 Git commit
+  │       └── 失败 → 继续下一轮修复迭代
+  │
+  └──（所有组处理完毕）
+  │
+  ▼
+Phase 2：汇总报告
+  修复成功 N 条，跳过 M 条，仍失败 K 条
+  输出每条失败的根因分类和建议
+```
+
+**共性分析的价值**：一个 AW 方法被修复后，所有依赖它的用例可以一次性全部修复，而不是逐条排查相同的错误。
+
+**AW 方法基线回归验证**（修改 `mumu.py` 时触发）：
+
+```
+git stash
+  → 跑受影响用例，记录基线通过数
+git stash pop
+  → 跑修复后版本，记录新通过数
+如果"搞坏数 > 修好数" → git revert 修改，报告用户
 ```
 
 ---
 
-## 五、核心数据结构设计
+## 四、派发前门禁 G1-G5
 
-### 5.1 Phase 阶段枚举
+在 orchestrator 向 aw-codegen spawn 子 Agent 之前，必须逐项通过以下门禁检查。这些检查防止 codegen 拿到不完整的上下文，避免产出无法运行的代码。
 
-```python
-from enum import Enum
+| # | 检查项 | 验证方式 | 不通过时的处置 |
+|---|---|---|---|
+| G1 | 目标页面已在知识库中 | `knowledge_graph.search_pages(页面名)` 有结果 | 先派 aw-explorer 探索页面，完成后重新检查 |
+| G2 | 目标 UI 元素图片已注册常量 | `image_name_mapping.py` 中存在对应常量 | 先派 aw-element 截取元素，完成后重新检查 |
+| G3 | test 方法末尾有清理调用 | 检查用例文字描述中包含还原步骤 | 在任务描述中补充清理步骤后再 spawn |
+| G4 | 清理后能回到消息首页 | 评估清理路径的可达性 | 补充清理步骤后再 spawn |
+| G5 | 同功能变体是否应合并 parametrize | 检查是否存在仅参数不同的同类用例 | 提示合并建议，**不阻断**派发（开发者自决）|
 
-class Phase(Enum):
-    """流水线的 6 个状态节点"""
-    EXPLORE  = "explore"    # 探索 App 页面
-    ELEMENT  = "element"    # 截取 UI 元素图片
-    CODEGEN  = "codegen"    # 生成 AW 代码和测试用例
-    VERIFY   = "verify"     # 运行测试并验证
-    DONE     = "done"       # 终态：全部通过
-    FAILED   = "failed"     # 终态：超过最大重试，放弃
+**为什么要有门禁**：子 Agent 的上下文是独立的，它在 spawn 时"看不到"主会话的历史。如果元素图片未注册，codegen 生成的代码引用了不存在的常量，verify 必然失败，造成不必要的重试往返。门禁将问题前置，减少无效轮次。
+
+---
+
+## 五、批次空间认知注入
+
+子 Agent（aw-codegen、aw-element、aw-verify）在 spawn 时，orchestrator 会构建一个包含相关知识片段的 prompt，而不是把全量知识库塞进去。
+
+### 5.1 Prompt 结构
+
+```
+┌─────────────────────────────────────────────────────────┐
+│ 批次空间认知（MCP 查询结果）                              │
+│                                                         │
+│  ① get_related_pages("目标页面")                        │
+│     → 目标页面文档 + 邻接页面 + 反向引用该页面的其他页面  │
+│                                                         │
+│  ② get_navigation_path("消息首页", "目标页面")           │
+│     → 从起点到目标页的 BFS 最短路径（操作步骤）           │
+│                                                         │
+│  ③ find_similar_tests("用例描述")                       │
+│     → 已有的相似测试用例（避免重复，提供代码参考）        │
+│                                                         │
+├─────────────────────────────────────────────────────────┤
+│ 已知经验（语义检索）                                      │
+│                                                         │
+│  ④ semantic_search("用例描述", source_type="docs")       │
+│     → docs/runtime_experience.md 中的相关踩坑记录        │
+│                                                         │
+├─────────────────────────────────────────────────────────┤
+│ 任务描述                                                  │
+│  具体用例文字 / AW 方法需求 / 截图目标                    │
+│                                                         │
+├─────────────────────────────────────────────────────────┤
+│ 完成标准                                                  │
+│  子 Agent 输出确认令牌 + 预期产出格式                     │
+└─────────────────────────────────────────────────────────┘
 ```
 
-**流转规则**：
+### 5.2 子 Agent 确认令牌
+
+子 Agent 必须在读完规定文件（CLAUDE.md、AW复用指南、元素常量）后输出：
 
 ```
-正常流程: EXPLORE → ELEMENT → CODEGEN → VERIFY → DONE
-
-失败回退: VERIFY ──→ ELEMENT  (重试1)
-                ──→ CODEGEN  (重试2)
-                ──→ EXPLORE  (重试3)
-                ──→ FAILED   (超过上限)
+阶段0完成：已读 CLAUDE.md / AW复用指南 / 元素常量
 ```
 
-### 5.2 TeamContext 团队上下文
+orchestrator 在接收到子 Agent 的回复后，验证令牌是否存在。若缺失，说明子 Agent 跳过了必读步骤，orchestrator 将重新 spawn 一次（最多重试 1 次）。
 
-```python
-from dataclasses import dataclass, field
-from typing import List, Optional, Dict
-from enum import Enum
+**设计原因**：子 Agent 每次 spawn 都是全新上下文，没有强制机制保证它读了规定文件。令牌是一个轻量级的契约，让 orchestrator 可以机械地验证前置条件。
 
-@dataclass
-class TeamContext:
-    """
-    所有 Agent 之间传递信息的唯一载体。
+### 5.3 知识注入而非全量推送
 
-    类比工单传递单：每个工位从工单上读上一工位填写的信息，
-    做完活后把结果写回工单，传给下一工位。
-    """
+全量知识库可能包含数十个页面文档和数百个测试用例，全部推入子 Agent 会：
+- 消耗大量 token，增加延迟和成本
+- 无关信息干扰生成质量
 
-    # ── 任务信息 ──
-    task_description: str
-    """任务描述文本，例如"测试消息设置页面的开关功能" """
+通过 MCP 查询精准注入相关片段，子 Agent 拿到的是"恰好需要的"上下文。
 
-    # ── 阶段控制 ──
-    current_phase: Phase = Phase.EXPLORE
-    """当前所处的流水线阶段，初始为 EXPLORE"""
+---
 
-    retry_count: int = 0
-    """已经重试的次数，初始为 0"""
+## 六、fix-batch 失败修复流程详解
 
-    max_retries: int = 3
-    """允许的最大重试次数，默认 3"""
+### 6.1 Phase 0.5 共性分析算法
 
-    # ── 探索阶段产出 ──
-    knowledge_base: dict = field(default_factory=dict)
-    """
-    探索 Agent 产出的知识库数据。
-    格式兼容 explorer_output/knowledge/app_map.json 结构。
-    包含 pages（页面字典）和 elements（元素字典）。
-    """
+```
+输入：N 条失败用例的 traceback
 
-    discovered_pages: List[str] = field(default_factory=list)
-    """探索发现的页面 ID 列表，如 ["message_page", "settings_page"]"""
+Step 1：提取 AW 方法调用
+  解析每条 traceback，提取 utils/aw/business/mumu.py 中的方法名
+  每条失败 → [method_A, method_B, ...]
 
-    # ── 截图阶段产出 ──
-    elements: List["ElementInfo"] = field(default_factory=list)
-    """截取的 UI 元素图片信息列表，每项是一个 ElementInfo"""
+Step 2：频率分组
+  统计每个 AW 方法被多少条失败涉及
+  ≥ 2 条涉及同一方法 → 候选共性故障
 
-    # ── 编码阶段产出 ──
-    generated_files: dict = field(default_factory=dict)
-    """
-    生成的文件路径映射:
-    {
-        "aw_file": "utils/aw/business/mumu.py",
-        "user_file": "utils/user.py",
-        "test_file": "tests/checklist/test_msg_setting.py"
-    }
-    """
+Step 3：二次验证（排除误判）
+  对候选组：比对异常消息相似度 + 栈帧行号（±3 行内）
+  若行号和异常一致 → 确认为共性故障
+  若行号不同但异常相同 → 可能是同类逻辑问题，标记为"疑似"
 
-    # ── 验证阶段产出 ──
-    verify_result: Optional["VerifyResult"] = None
-    """验证 Agent 的执行结果，包含成功/失败/回退建议"""
+Step 4：交叉比对 PASS 用例
+  PASS 用例如果也调用了相同 AW 方法 → 说明方法本身没问题
+  → 降级为单点故障（数据/环境差异）
 
-    # ── 执行记录 ──
-    logs: List[str] = field(default_factory=list)
-    """执行过程中的日志记录，供报告使用"""
+Step 5：输出优先级队列
+  [共性故障组1（影响 5 个用例）,
+   共性故障组2（影响 3 个用例）,
+   单点故障1, 单点故障2, ...]
 ```
 
-### 5.3 ElementInfo 元素信息
+### 6.2 修复路由规则
 
-```python
-@dataclass
-class ElementInfo:
-    """描述截取的一个 UI 元素图片"""
-
-    name: str
-    """元素中文名，如 "消息设置页-开关按钮" """
-
-    image_path: str
-    """图片在磁盘上的路径，如 "image_ai/消息设置页-开关按钮.png" """
-
-    constant_name: str
-    """在 image_name_mapping.py 中的常量名，如 "MSG_SETTING_SWITCH" """
-
-    is_verified: bool = False
-    """是否已通过测试验证。初始为 False，转正后变为 True"""
+```
+失败原因                          路由到
+──────────────────────────────────────────────────
+image_exists / click_image 失败   → aw-element 重新截图
+ImportError / AttributeError      → aw-codegen 修复代码
+AssertionError（业务逻辑失败）    → aw-codegen 修复用例
+ADB 连接错误 / 设备超时           → 人工介入（跳过）
+无法识别的错误                    → aw-codegen（默认）
 ```
 
-### 5.4 VerifyResult 验证结果
+### 6.3 修复轮次控制
 
-```python
-@dataclass
-class VerifyResult:
-    """验证 Agent 执行后产出的诊断报告"""
+每个故障组最多执行 3 轮修复迭代：
 
-    success: bool
-    """全部测试是否通过"""
-
-    test_output: str
-    """pytest 命令行的完整输出文本"""
-
-    failure_reasons: List[str] = field(default_factory=list)
-    """
-    失败原因列表，可能包含多条。示例:
-    - "图片匹配失败: image_ai/消息设置页-开关按钮.png 阈值 0.75 < 0.8"
-    - "ImportError: cannot import name 'toggle_notification'"
-    """
-
-    suggested_phase: Optional["Phase"] = None
-    """
-    失败时建议回退的阶段:
-    - 图片匹配失败 → Phase.ELEMENT
-    - 代码错误     → Phase.CODEGEN
-    - 设备问题     → Phase.EXPLORE
-    成功时为 None
-    """
+```
+轮次1：按初始根因路由修复 → verify
+轮次2：根据 verify 输出调整策略 → 再次修复 → verify
+轮次3：最后一次尝试 → verify
+失败：标记为"需人工介入"，记录诊断报告，跳过本组
 ```
 
 ---
 
-## 六、BaseAgent 抽象基类
+## 七、知识库双层架构与更新机制
 
-这是所有 4 个 Agent 的公共骨架，定义了统一的接口契约。
+### 7.1 两层能力对比
 
-```python
-from abc import ABC, abstractmethod
+| 维度 | Graph 层 | Embedding 层 |
+|---|---|---|
+| MCP Server | `knowledge_graph` | `vector_kb` |
+| 数据源 | `explorer_output/knowledge/` | pages/ + tests/ + docs/ |
+| 存储格式 | Markdown + JSON 索引 | ChromaDB 向量数据库 |
+| 查询方式 | 精确匹配 / BFS 图遍历 | 语义相似度搜索 |
+| 适用场景 | 导航路径、页面结构、反向链接 | 相似用例、概念检索、综合上下文 |
+| 更新触发 | git post-commit hook | git post-commit hook（增量）|
 
-class BaseAgent(ABC):
-    """Agent 抽象基类，所有具体 Agent 必须继承此类"""
-
-    # ══════════════════════════════════════════════════════
-    # 抽象属性：子类必须覆盖
-    # ══════════════════════════════════════════════════════
-
-    @property
-    @abstractmethod
-    def name(self) -> str:
-        """
-        Agent 的名称标识，用于日志输出。
-        例如 "ExplorerAgent"、"ElementAgent"
-        """
-        ...
-
-    @property
-    @abstractmethod
-    def phase(self) -> Phase:
-        """
-        Agent 负责的流水线阶段。
-        例如 Phase.EXPLORE、Phase.VERIFY
-        """
-        ...
-
-    # ══════════════════════════════════════════════════════
-    # 抽象方法：子类必须实现
-    # ══════════════════════════════════════════════════════
-
-    @abstractmethod
-    def execute(self, ctx: TeamContext) -> TeamContext:
-        """
-        执行 Agent 的核心逻辑。
-
-        执行契约（子类必须遵守）：
-        1. 从 ctx 读取本阶段需要的输入字段
-        2. 执行操作（探索 / 截图 / 编码 / 验证）
-        3. 将本阶段产出写入 ctx 的对应字段
-        4. 设置 ctx.current_phase 为下一个阶段
-        5. 返回修改后的 ctx
-
-        异常处理：
-        执行过程中的异常 SHALL 自然向上抛出，不在此方法内捕获。
-        由 Orchestrator 统一处理。
-
-        Args:
-            ctx: 团队上下文（包含前置阶段的产出）
-
-        Returns:
-            修改后的 TeamContext（本阶段产出已写入）
-        """
-        ...
-
-    @abstractmethod
-    def validate_input(self, ctx: TeamContext) -> None:
-        """
-        校验前置条件是否满足。
-
-        不同 Agent 的校验规则：
-        - ExplorerAgent: ctx.task_description 不能为空
-        - ElementAgent:  ctx.discovered_pages 不能为空
-        - CodegenAgent:  ctx.elements 和 ctx.knowledge_base 都不能为空
-        - VerifyAgent:   ctx.generated_files 必须包含 "test_file" 键
-
-        校验失败时抛出 ValueError，附带明确的错误信息。
-
-        例如: raise ValueError("任务描述不能为空，请先设置 ctx.task_description")
-
-        Args:
-            ctx: 待校验的团队上下文
-
-        Raises:
-            ValueError: 前置条件不满足
-        """
-        ...
-
-    # ══════════════════════════════════════════════════════
-    # 默认方法：子类可以覆盖
-    # ══════════════════════════════════════════════════════
-
-    def report(self, ctx: TeamContext) -> str:
-        """
-        生成本 Agent 的执行摘要。
-
-        默认实现返回基本信息（Agent 名 + 阶段）。
-        子类可以覆盖此方法，追加本阶段特有的统计信息。
-
-        Returns:
-            单行或简短多行的执行摘要文本
-        """
-        return f"[{self.name}] 阶段 {self.phase.value} 执行完成"
-```
-
-**为什么用抽象基类而不是普通类？**
-
-因为每个 Agent 的 `execute` 逻辑完全不同（探索 ≠ 截图 ≠ 编码 ≠ 验证），但接口契约相同。抽象基类强制子类实现所有方法，如果漏掉了某个方法，Python 在实例化时就会报 `TypeError`，而不是运行时才暴露问题。
-
----
-
-## 七、四个 Agent 详解
-
-### 7.1 ExplorerAgent —— 探索员
+### 7.2 知识更新流程
 
 ```
-┌─────────────── ExplorerAgent ───────────────┐
-│                                              │
-│  输入: ctx.task_description                  │
-│        ctx.knowledge_base（可能有已有数据）   │
-│                                              │
-│  执行:                                       │
-│   1. 通过 utils/devices 连接 MuMu 模拟器      │
-│   2. 启动 POPO 应用                          │
-│   3. 根据任务描述导航到目标功能区域           │
-│   4. 逐页面截图 + OCR 识别可交互元素          │
-│   5. 记录页面跳转关系和操作路径               │
-│                                              │
-│  输出: ctx.knowledge_base（兼容 app_map.json）│
-│        ctx.discovered_pages                  │
-│        ctx.current_phase = Phase.ELEMENT     │
-│                                              │
-│  校验: task_description 不能为空              │
-│                                              │
-└──────────────────────────────────────────────┘
+aw-explorer 探索新页面
+        │
+        ▼ 写入
+explorer_output/knowledge/draft/*.md （草稿区）
+        │
+        ▼ 执行
+python scripts/knowledge/promote_knowledge.py
+  ├── 验证：结构完整性（必须包含规定字段）
+  ├── 验证：[[双向链接]] 有效性（引用的 page_id 必须存在）
+  └── 验证通过 → 移入 pages/ + 更新 app_map.json
+        │
+        ▼ git commit
+post-commit hook 触发 auto_update.py
+        │
+        ├── backlinks_generator.py  → 重建反向链接索引
+        └── embedding_pipeline.py --incremental → 增量更新向量索引
 ```
 
-**关键设计点**：
-
-- **不绕过 AWBase**：探索过程中的截图、OCR、点击全部走 `AWBase` 方法，严禁直接 ADB shell。这跟当前 aw-explorer skill 的规则完全一致。
-- **知识库格式向后兼容**：产出的 `ctx.knowledge_base` 数据结构必须能直接序列化为现有的 `app_map.json` 格式，保证后续 ElementAgent 和 CodegenAgent 可以无感切换。
-- **完整性校验**：执行完成后自检 —— `discovered_pages` 至少包含 1 个页面，`knowledge_base` 必须包含 `pages` 和 `elements` 两个顶层键。不满足则抛出异常。
-- **设备连接失败时明确报错**：`adb_connect` 失败时抛出 `ConnectionError`，日志中输出设备端口和错误信息，不静默失败。
-
----
-
-### 7.2 ElementAgent —— 截图员
-
-```
-┌─────────────── ElementAgent ────────────────┐
-│                                              │
-│  输入: ctx.knowledge_base                    │
-│        ctx.discovered_pages                  │
-│                                              │
-│  执行:                                       │
-│   1. 遍历 knowledge_base 中每个页面的元素     │
-│   2. 从探索截图中裁切每个 UI 元素             │
-│   3. 质量检查（灰度/尺寸/角标检测）           │
-│   4. 保存到 image_ai/ 目录                   │
-│   5. 在 image_name_mapping.py 注册常量        │
-│                                              │
-│  输出: ctx.elements（List[ElementInfo]）      │
-│        ctx.current_phase = Phase.CODEGEN     │
-│                                              │
-│  校验: discovered_pages 不能为空              │
-│                                              │
-└──────────────────────────────────────────────┘
-```
-
-**关键设计点**：
-
-- **截取规范完全复用现有规则**：
-  - 分辨率 540×960
-  - 紧贴元素边缘（留 1~2px）
-  - 每张图只包含 1 个元素
-  - 避开红色角标（R>200, G<160, R-G>40）、头像、时间戳
-  - 避开窗口边缘阴影（底部 y>935、顶部 y<40）
-- **质量检查**：灰度标准差 > 5（不是空白）、均值 5~250（不是全黑/全白）、最小 10×10 像素。不合格的元素重试截取最多 2 次，还不行抛出异常。
-- **常量注册用 test_path**：新截图片全部进 `image_ai/` 暂存目录，映射中用 `test_path`。只有通过验证后才由 VerifyAgent 转正。
-- **ElementInfo 的 is_verified 初始全为 False**：表示所有元素都处于"待验证"状态。
-
----
-
-### 7.3 CodegenAgent —— 代码生成员
-
-```
-┌────────────── CodegenAgent ─────────────────┐
-│                                              │
-│  输入: ctx.knowledge_base（操作流程）         │
-│        ctx.elements（图片常量列表）           │
-│                                              │
-│  执行:                                       │
-│   1. 根据操作流程生成 AW 业务方法              │
-│   2. 追加到 utils/aw/business/mumu.py        │
-│   3. 在 utils/user.py PPUser 中加代理方法     │
-│   4. 生成 pytest 用例文件到 tests/       │
-│                                              │
-│  输出: ctx.generated_files                   │
-│        ctx.current_phase = Phase.VERIFY      │
-│                                              │
-│  校验: ctx.elements 和 knowledge_base 都非空  │
-│                                              │
-└──────────────────────────────────────────────┘
-```
-
-**关键设计点**：
-
-- **AW 方法编码铁律**：
-  - 禁止 `self.tap(x, y)` 硬编码坐标
-  - 优先 `self.click_image()`，次选 `self.click_text()`
-  - 断言优先 `self.image_exists()`
-  - 引用元素时用常量名而非字符串路径
-- **PPUser 代理方法**：简单委托 `self.aw.xxx()`，不写业务逻辑。
-- **测试用例模板**：继承 `BaseTest`，包含 `setup()` 和 `teardown()`，一个功能一个文件，同功能不同参数用 `@pytest.mark.parametrize` 合并。
-- **生成文件路径全部记录**：`ctx.generated_files` 包含三个键 —— `aw_file`、`user_file`、`test_file`，方便 VerifyAgent 找到要跑的测试文件。
-
----
-
-### 7.4 VerifyAgent —— 验证员
-
-```
-┌─────────────── VerifyAgent ─────────────────┐
-│                                              │
-│  输入: ctx.generated_files["test_file"]      │
-│        ctx.elements                          │
-│                                              │
-│  执行:                                       │
-│   1. subprocess.run 调用 pytest 运行用例      │
-│   2. 解析 pytest 输出，判断成功/失败          │
-│   3a. 成功 → 图片转正 image_ai/ → image/     │
-│             更新 is_verified = True          │
-│             current_phase = DONE             │
-│   3b. 失败 → 分析失败原因，给回退建议         │
-│             retry_count += 1                 │
-│             current_phase = 建议回退阶段      │
-│                                              │
-│  输出: ctx.verify_result                     │
-│        ctx.current_phase（DONE 或回退阶段）   │
-│                                              │
-│  校验: generated_files 含 "test_file" 键      │
-│                                              │
-└──────────────────────────────────────────────┘
-```
-
-**关键设计点**：
-
-- **运行方式**：通过 `subprocess.run` 调用 `pytest {test_file} -v`，不通过 pytest API 编程调用。这样能复用现有的 conftest.py 配置和所有 fixture。
-- **失败分类逻辑**（按优先级匹配）：
-  1. 输出含"未找到图片" / "image_exists 超时" → 推断为图片匹配问题 → 建议回退 ELEMENT
-  2. 输出含 `ImportError` / `NameError` / `AttributeError` → 推断为代码问题 → 建议回退 CODEGEN
-  3. 输出含 `AssertionError` → 推断为业务逻辑断言失败 → 建议回退 CODEGEN
-  4. 输出含 ADB 连接错误 → 推断为设备问题 → 建议回退 EXPLORE
-  5. 无法识别 → 默认建议回退 CODEGEN
-- **图片转正**：
-  - 测试全部通过后，遍历 `ctx.elements` 中 `is_verified=False` 的元素
-  - 将 `image_ai/{name}.png` 移动到 `image/{name}.png`
-  - 在 `image_name_mapping.py` 中将 `test_path` 替换为 `path`
-  - 标记 `is_verified = True`
-- **递增回退**：VerifyAgent 不直接实现递增逻辑（那是 Orchestrator 的职责），它只负责分析失败并给出本次建议。Orchestrator 根据 `retry_count` 决定是否要进一步回退。
-
----
-
-## 八、Orchestrator 状态机引擎
-
-这是整条流水线的"大脑"，负责驱动阶段流转、管理重试、输出日志和报告。
-
-```python
-class Orchestrator:
-    """
-    状态机调度器。
-
-    职责：
-    1. 维护 Phase → Agent 的映射表
-    2. 根据 ctx.current_phase 选择对应 Agent 执行
-    3. 管理重试逻辑和递增回退
-    4. 输出阶段日志和执行报告
-    """
-
-    def __init__(self):
-        self._agents = {
-            Phase.EXPLORE: ExplorerAgent(),
-            Phase.ELEMENT: ElementAgent(),
-            Phase.CODEGEN: CodegenAgent(),
-            Phase.VERIFY:  VerifyAgent(),
-        }
-
-    def run(self, task: str, max_retries: int = 3) -> TeamContext:
-        """
-        启动流水线并驱动完整状态机循环。
-
-        伪代码:
-        ┌─────────────────────────────────────────┐
-        │ ctx = TeamContext(task_description=task) │
-        │ ctx.max_retries = max_retries            │
-        │                                          │
-        │ while ctx.current_phase not in (DONE, FAILED): │
-        │     agent = self._agents[ctx.current_phase]    │
-        │     agent.validate_input(ctx)            │  ← 校验前置条件
-        │     log("🤖 [阶段名] Agent名 开始执行")   │
-        │     ctx = agent.execute(ctx)             │  ← 执行核心逻辑
-        │     log("✅ [阶段名] 完成 → 下一阶段")    │
-        │                                          │
-        │     if ctx.current_phase == DONE:        │
-        │         break  # 成功，退出循环           │
-        │                                          │
-        │     # 走到这里说明是回退                  │
-        │     ctx.retry_count += 1                 │
-        │     if ctx.retry_count > ctx.max_retries:│
-        │         ctx.current_phase = FAILED       │
-        │         log("❌ 超过最大重试次数")        │
-        │     else:                                │
-        │         log("⚠️ 重试 N/M")               │
-        │                                          │
-        │ return ctx                               │
-        └─────────────────────────────────────────┘
-        """
-
-    def _generate_report(self, ctx: TeamContext) -> str:
-        """生成最终执行报告，输出总耗时、各阶段状态、重试次数、最终结果"""
-```
-
-**关键设计点**：
-
-- **主循环是 while + phase 跳转**：不预设具体执行几次，由 `ctx.current_phase` 的值驱动下一轮循环选择哪个 Agent。这比硬编码"执行 4 次"灵活得多——回退多少次都能处理。
-- **重试不设内部计数器**：Orchestrator 不维护 `retry_count`（这个字段在 TeamContext 中），只负责判断是否超限。VerifyAgent 每次失败时自增 `retry_count`。
-- **FAILED 报告的含金量**：不止说"失败了"，还包含各阶段的执行状态、每次重试的原因、最终失败根因分析，能直接交给用户决策。
-- **日志风格**：沿用项目习惯的表情符号格式（🤖 ✅ ❌ ⚠️），和现有 AW 代码风格一致。
-
----
-
-## 九、CLI 命令行入口
-
-### 使用方式
+### 7.3 手动维护脚本
 
 ```bash
-# 基本启动
-python -m agent_team "消息设置功能测试"
+# 重建反向链接（pages/ 中链接关系变更后）
+python scripts/knowledge/backlinks_generator.py
 
-# 指定最大重试次数为 5 次
-python -m agent_team "消息设置功能测试" --max-retries 5
+# 全量重建向量索引（首次初始化或索引损坏时）
+python scripts/knowledge/embedding_pipeline.py
 
-# 使用 YAML 配置文件
-python -m agent_team --config task_config.yaml
+# 增量更新向量索引（日常 git commit 后自动触发，也可手动）
+python scripts/knowledge/embedding_pipeline.py --incremental
 
-# 无参数启动 → 显示帮助
-python -m agent_team
+# 验证并转正草稿
+python scripts/knowledge/promote_knowledge.py
+
+# 强制全量更新（反链 + embedding）
+python scripts/knowledge/auto_update.py --force
 ```
 
-### YAML 配置文件格式
+### 7.4 Agent 查询惯例
 
-```yaml
-# task_config.yaml
-task: "测试消息设置页面的通知开关功能"
-max_retries: 3
-start_phase: "explore"          # explore / element / codegen / verify
-device_instance_id: 0           # MuMu 模拟器实例 ID
-```
-
-配置文件中 `start_phase` 支持指定起始阶段，这样可以从中间阶段开始执行（比如探索已经完成，直接从截图开始）。这是蓝图中标记为"Phase 2"的功能。
-
-### 执行完成后的输出
-
-**终端摘要**（简洁，适合快速判断）：
-
-```
-═══════════════════════════════════════════
-✅ Agent Team 执行完成
-
-任务: 消息设置功能测试
-状态: 成功
-耗时: 5 分 32 秒
-重试: 1 次
-生成文件:
-  - AW 方法: utils/aw/business/mumu.py (新增 toggle_notification)
-  - PPUser:   utils/user.py (新增 toggle_notification)
-  - 测试用例: tests/checklist/test_msg_setting.py
-  - 元素图片: 3 张（已转正）
-═══════════════════════════════════════════
-```
-
-**详细报告**（保存到 `logs/agent_team/{timestamp}_report.md`）：包含每个阶段的开始时间、结束时间、执行状态、错误详情（如有）、重试历史等完整信息，用于事后排查。
+| 查询目的 | 调用方式 |
+|---|---|
+| 写新用例前获取完整上下文 | `find_related_context("功能描述")` |
+| 找从消息首页到目标页的操作路径 | `get_navigation_path("起点page_id", "目标page_id")` |
+| 查找哪些页面引用了当前页 | `get_backlinks("page_id")` |
+| 自然语言模糊搜索页面 | `semantic_search("描述")` |
+| 找相似已有测试用例 | `find_similar_tests("用例描述")` |
 
 ---
 
-## 十、完整执行流程示例
+## 八、Git 存档点协议
 
-以一个具体任务为例，展示 TeamContext 在流水线中如何一步步被填充：
+在 codegen/verify 流程中，orchestrator 维护严格的 Git 检查点，确保任何失败都可以安全回滚。
 
-```
-═══════════════════════════════════════════════════════════════
-初始状态
-═══════════════════════════════════════════════════════════════
-TeamContext(
-    task_description = "测试消息设置页面的连续播放语音消息开关",
-    current_phase    = Phase.EXPLORE,
-    retry_count      = 0,
-    max_retries      = 3,
-    knowledge_base   = {},       # 空，待填充
-    discovered_pages = [],       # 空，待填充
-    elements         = [],       # 空，待填充
-    generated_files  = {},       # 空，待填充
-    verify_result    = None,     # 空，待填充
-)
+### 8.1 存档点时机
 
-═══════════════════════════════════════════════════════════════
-第 1 轮：ExplorerAgent 执行
-═══════════════════════════════════════════════════════════════
-→ adb_connect → 启动 POPO → 导航到消息设置页
-→ 截图 + OCR 识别页面元素
-→ 记录跳转路径: message_page → sidebar → settings_page → message_settings_page
+| 时机 | Git 操作 | Commit 消息格式 |
+|---|---|---|
+| spawn aw-codegen 前 | `git commit` | `checkpoint: pre-codegen [任务描述]` |
+| aw-verify 全部通过后 | `git commit` | `feat: [功能描述]` |
+| aw-verify 失败，需重试 | `git reset --hard HEAD` | （无 commit）|
+| 连续 3 次验证失败 | `git reset --hard HEAD` | （无 commit，报告用户）|
 
-执行后 ctx 变化:
-  knowledge_base = {
-      "pages": {
-          "message_settings_page": {
-              "name": "消息设置页面",
-              "elements": ["连续播放语音消息", "通知开关", "消息预览"],
-              "screenshot": "screenshots/msg_settings.png"
-          }
-      },
-      "elements": { ... }
-  }
-  discovered_pages = ["message_page", "sidebar", "settings_page", "message_settings_page"]
-  current_phase = Phase.ELEMENT
-
-═══════════════════════════════════════════════════════════════
-第 2 轮：ElementAgent 执行
-═══════════════════════════════════════════════════════════════
-→ 遍历 knowledge_base 中的元素
-→ 从截图中裁切"连续播放语音消息"开关按钮
-→ 质量检查通过 → 保存到 image_ai/消息设置页-连续播放语音开关.png
-→ 注册常量 MSG_SETTING_AUTO_PLAY_SWITCH
-
-执行后 ctx 变化:
-  elements = [
-      ElementInfo(
-          name="消息设置页-连续播放语音开关",
-          image_path="image_ai/消息设置页-连续播放语音开关.png",
-          constant_name="MSG_SETTING_AUTO_PLAY_SWITCH",
-          is_verified=False
-      )
-  ]
-  current_phase = Phase.CODEGEN
-
-═══════════════════════════════════════════════════════════════
-第 3 轮：CodegenAgent 执行
-═══════════════════════════════════════════════════════════════
-→ 在 mumu.py 中追加 toggle_auto_play_voice() 方法
-→ 在 user.py PPUser 中追加代理方法
-→ 生成 tests/checklist/test_msg_setting.py
-
-执行后 ctx 变化:
-  generated_files = {
-      "aw_file":   "utils/aw/business/mumu.py",
-      "user_file": "utils/user.py",
-      "test_file": "tests/checklist/test_msg_setting.py"
-  }
-  current_phase = Phase.VERIFY
-
-═══════════════════════════════════════════════════════════════
-第 4 轮：VerifyAgent 执行（场景 A：成功）
-═══════════════════════════════════════════════════════════════
-→ pytest tests/checklist/test_msg_setting.py -v
-→ 输出: 1 passed in 12.34s
-→ 图片转正: image_ai/→image/，test_path→path，is_verified=True
-
-执行后 ctx 变化:
-  verify_result = VerifyResult(success=True, test_output="1 passed...", ...)
-  elements[0].is_verified = True
-  current_phase = Phase.DONE
-
-→ 循环结束，输出成功报告。
-
-═══════════════════════════════════════════════════════════════
-第 4 轮：VerifyAgent 执行（场景 B：失败 → 回退）
-═══════════════════════════════════════════════════════════════
-→ pytest tests/checklist/test_msg_setting.py -v
-→ 输出: FAILED - 未找到图片 MSG_SETTING_AUTO_PLAY_SWITCH
-
-执行后 ctx 变化:
-  verify_result = VerifyResult(
-      success=False,
-      test_output="...FAILED...",
-      failure_reasons=["图片匹配失败: MSG_SETTING_AUTO_PLAY_SWITCH 匹配阈值 0.65 < 0.8"],
-      suggested_phase=Phase.ELEMENT  # ← 建议回退到截图阶段
-  )
-  retry_count = 1
-  current_phase = Phase.ELEMENT
-
-→ Orchestrator 检查: retry_count(1) < max_retries(3)，继续循环
-→ 第 5 轮：ElementAgent 重新执行（重新截取该元素）
-→ 第 6 轮：CodegenAgent 重新执行（可能不需要改代码，但按流程走）
-→ 第 7 轮：VerifyAgent 重新执行 → 假设通过 → DONE
-```
-
----
-
-## 十一、设计决策背后的原因
-
-### 为什么用状态机而不是 Multi-Agent 框架？
-
-工作流本身是**确定的串行流程**——探索完才能截图，截完图才能写代码，写完代码才能跑验证。不存在"Agent A 和 Agent B 协商决定下一步做什么"这种需求。引入 LangChain/CrewAI 只会增加依赖和复杂度，而状态机的核心代码不到 500 行。
-
-### 为什么 Agent 不捕获异常？
-
-遵循项目 CLAUDE.md 中的规则："尽量不使用 try-catch，让错误自然暴露"。Agent 内部出了问题由 Orchestrator 统一捕获处理，这样错误现场不会被吞掉。
-
-### 为什么不用并行执行？
-
-探索 → 截图 → 编码 → 验证 每个阶段都**依赖**上一阶段的输出，无法并行。但蓝图留下了 Phase 2 的扩展空间：如果未来支持批量任务（如同时探索多个不相关的功能），可以在 Orchestrator 层面并行调度多组流水线。
-
-### 为什么 TeamContext 可以序列化？
-
-支持**断点续跑**。如果验证阶段失败，整个 TeamContext 可以序列化为 JSON 保存到磁盘，修改后重新加载从中间阶段继续。这个功能标记为 Phase 2 实现。
-
----
-
-## 十二、与现有体系的关系
+### 8.2 存档点流程图
 
 ```
-                    ┌──────────────────┐
-                    │  蓝图（agent-team） │
-                    │  代码驱动的状态机   │
-                    │                    │
-                    │  python -m         │
-                    │  agent_team "任务"  │
-                    └────────┬───────────┘
-                             │ 调用
-                             ▼
-              ┌──────────────────────────┐
-              │  现有模块（保持不变）      │
-              │                          │
-              │  utils/aw/aw_base.py     │
-              │  utils/aw/business/      │
-              │  utils/user.py (PPUser)  │
-              │  utils/devices.py        │
-              │  image/image_name_mapping│
-              │  conftest.py             │
-              │  tests/             │
-              └──────────────────────────┘
-                             │ 参考
-                             ▼
-              ┌──────────────────────────┐
-              │  现有 Skill（保持不变）    │
-              │                          │
-              │  .codemaker/skills/      │
-              │  aw-explorer/SKILL.md    │
-              │  aw-element/SKILL.md     │
-              │  aw-codegen/SKILL.md     │
-              │  aw-verify/SKILL.md      │
-              └──────────────────────────┘
+orchestrator 决定 spawn codegen
+        │
+        ▼
+git commit "checkpoint: pre-codegen [任务]"
+        │
+        ▼
+spawn aw-codegen → 产出代码文件
+        │
+        ▼
+spawn aw-verify
+        │
+        ├── 第1轮 PASS → git commit "feat: [功能]" → 结束
+        │
+        ├── 第1轮 FAIL → 按根因路由修复
+        │       ▼
+        │   spawn aw-codegen/element（修复）
+        │       ▼
+        │   spawn aw-verify（第2轮）
+        │       ├── PASS → git commit "feat: [功能]" → 结束
+        │       └── FAIL → 继续修复
+        │               ▼
+        │           spawn aw-codegen/element（再次修复）
+        │               ▼
+        │           spawn aw-verify（第3轮）
+        │               ├── PASS → git commit "feat: [功能]" → 结束
+        │               └── FAIL → git reset --hard HEAD
+        │                         → 报告用户，人工介入
+        └──────────────────────────────────────────────────
 ```
 
-- Agent **不替换** Skill，Skill 继续作为 AI 助手的参考文档
-- Agent **不替换** 现有 `utils/` 模块，而是作为新的调用层覆盖其上
-- Agent Team 是**新增能力**，不影响现有测试用例的执行
+**为什么在 codegen 前打 checkpoint 而不是 verify 前**：codegen 可能修改 mumu.py、user.py 等共用文件。如果 verify 失败需要 reset，只 reset 到 codegen 前的状态是安全的——既能撤销本次产出，又不会影响之前已验证通过的内容。
 
 ---
 
-## 十三、未包含在此蓝图中的内容（Non-Goals）
+## 九、经验沉淀机制
 
-蓝图的 scope 是有意收敛的，以下内容明确**不在**范围内：
+每次 aw-verify 通过后，orchestrator 将本次执行中发现的新经验追加到 `docs/runtime_experience.md`。
 
-| 不做的 | 原因 |
-|--------|------|
-| Agent 之间的自然语言对话/协商 | 流水线是确定性的，不需要多 Agent 谈判 |
-| 并行 Agent 执行 | 阶段有严格前后依赖，无法并行 |
-| Web UI 或可视化面板 | 保持 CLI 工具的轻量定位 |
-| 修改或替换 .codemaker/skills/ | Skill 文件继续保留，Agent 是新增层 |
-| 引入外部 Agent 框架（CrewAI 等） | 零外部依赖，纯 Python 标准库 + 已有模块 |
+### 9.1 哪些内容值得沉淀
+
+- 元素定位的特殊技巧（如某类开关不能用图片匹配，需要坐标范围）
+- 特定页面的导航陷阱（如某页面有两个同名按钮，需要区分上下文）
+- AW 方法的已知局限（如某操作在网络慢时需要增加等待）
+- 元素图片的截取注意事项
+
+### 9.2 经验如何被后续任务使用
+
+```
+runtime_experience.md
+        │
+        ▼（auto_update.py 增量更新）
+ChromaDB 向量索引
+        │
+        ▼（批次空间认知注入）
+semantic_search("用例描述", source_type="docs")
+        │
+        ▼
+注入子 Agent 的 prompt，作为"已知经验"片段
+```
+
+经验沉淀形成正反馈：处理过的场景越多，后续类似场景的一次通过率越高。
 
 ---
 
-## 十四、未来扩展方向
+## 十、与旧蓝图的对比说明
 
-蓝图标记了三个未来 Phase：
+| 维度 | 旧蓝图（Python 状态机）| 当前架构（Claude Code Agent Teams）|
+|---|---|---|
+| 运行方式 | `python -m agent_team "任务"` | 主会话对话驱动 |
+| Agent 通信 | 共享 TeamContext dataclass | SendMessage / Agent() spawn |
+| 状态管理 | 代码对象持有 | 主会话上下文 + 知识库 |
+| 重试控制 | Orchestrator while 循环 | orchestrator 手动判断后重新 spawn |
+| 知识存储 | 内存 TeamContext | 双层知识库（Graph + Embedding）|
+| 实现状态 | **未实现（蓝图）** | **已实现并实际运行** |
 
-- **Phase 2**：支持从中间阶段开始执行（断点续跑）、TeamContext 持久化到磁盘
-- **Phase 3**：接入 LLM 做智能决策（如自动分析失败原因并选择最优回退策略），但目前状态机 + 规则匹配已经够用
+旧蓝图的 Python 状态机思路是可行的工程化方向，但当前 Claude Code 的 Agent Teams 原生能力已经满足实际需求，无需额外的 Python 框架层。如未来需要更高程度的自动化（如 CI 触发无人值守运行），可参考旧蓝图思路补充代码层。
 
 ---
 
-## 附录：相关文件索引
+## 附录 A：Agent 文件索引
+
+| 文件 | 角色 | 生命周期 |
+|---|---|---|
+| `.claude/agents/aw-orchestrator.md` | 总编排、意图理解、门禁 | 主会话永久 |
+| `.claude/agents/aw-explorer.md` | App 页面探索、知识库写入 | 长驻 |
+| `.claude/agents/aw-element.md` | UI 元素截图、常量注册 | 子 Agent |
+| `.claude/agents/aw-codegen.md` | AW 方法 + 用例代码生成 | 子 Agent |
+| `.claude/agents/aw-verify.md` | pytest 执行、失败诊断、图片转正 | 子 Agent |
+| `.claude/agents/spec-keeper.md` | openspec 提案管理 | 长驻 |
+
+## 附录 B：相关文档索引
 
 | 文件 | 内容 |
-|------|------|
-| `openspec/changes/agent-team/proposal.md` | 提案总纲：Why / What / Impact |
-| `openspec/changes/agent-team/design.md` | 设计文档：决策理由、风险、架构图 |
-| `openspec/changes/agent-team/tasks.md` | 84 项实现任务清单（55 项详细 + 扩展） |
-| `openspec/changes/agent-team/specs/team-context/spec.md` | TeamContext / Phase / ElementInfo / VerifyResult 规格 |
-| `openspec/changes/agent-team/specs/agent-base/spec.md` | BaseAgent 抽象基类规格 |
-| `openspec/changes/agent-team/specs/explorer-agent/spec.md` | ExplorerAgent 规格 |
-| `openspec/changes/agent-team/specs/element-agent/spec.md` | ElementAgent 规格 |
-| `openspec/changes/agent-team/specs/codegen-agent/spec.md` | CodegenAgent 规格 |
-| `openspec/changes/agent-team/specs/verify-agent/spec.md` | VerifyAgent 规格 |
-| `openspec/changes/agent-team/specs/orchestrator/spec.md` | Orchestrator 调度器规格 |
-| `openspec/changes/agent-team/specs/team-cli/spec.md` | CLI 命令行入口规格 |
+|---|---|
+| `CLAUDE.md` | 项目约定总纲，所有 Agent 必读 |
+| `docs/AW方法总结与复用指南.md` | 已封装 AW 方法清单，写代码前必查 |
+| `docs/UI元素截取与裁剪规范.md` | 元素截图规范，aw-element 执行依据 |
+| `docs/并行测试执行指南.md` | 多实例并行跑测试的机器配置指南 |
+| `docs/runtime_experience.md` | 运行时踩坑经验积累（可能不存在则由首次沉淀创建）|
+| `explorer_output/knowledge/pages/` | App 页面知识文档 |
+| `explorer_output/knowledge/app_map.json` | 页面关系图谱索引 |
+| `openspec/changes/agent-team/` | 旧工程化蓝图提案（已暂停，保留供参考）|

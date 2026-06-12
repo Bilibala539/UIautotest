@@ -15,7 +15,6 @@ tools:
   - Glob
   - Grep
   - Bash
-  - SendMessage
   - TaskUpdate
 model: sonnet
 ---
@@ -27,6 +26,11 @@ model: sonnet
 ### 必读（每次开工）
 - `CLAUDE.md` —— 项目规约 + 运行时经验（含截图规范要点）
 - `image/image_name_mapping.py` —— 已有常量命名，避免撞名
+
+> ⛔ **阶段0确认令牌**：读完以上两个文件后，必须输出以下确认语（一字不改），之后才能截图或写文件：
+> ```
+> 阶段0完成：已读 CLAUDE.md / AW复用指南 / 元素常量
+> ```
 
 ### 按需（遇到以下情况才读）
 - `docs/UI元素截取与裁剪规范.md` —— 遇到截图质量疑问时
@@ -87,7 +91,9 @@ python E:\UIAutotest\_temp.py
 - 不要跑 pytest（verify 的活）
 - 不要绕过 AWBase 直接调 ADB 截图
 
-## 📡 中间进度汇报（关键节点必须主动发）
+## 📡 中间进度输出（关键节点必须输出到正文）
+
+> 作为子 Agent 运行时无法 SendMessage，进度通过正文输出体现。
 
 | 节点 | 发送内容 |
 |------|----------|

@@ -4013,53 +4013,12 @@ class MuMuBusiness(CommonBusiness):
         return True
 
     def check_group_message_reminder(self, group_name_keyword: str) -> bool:
-        """
-        检查群消息提醒开关并切换
-
-        步骤:
-        1. 进入群设置页面
-        2. 找到"消息提醒"开关
-        3. 点击切换
-        4. 返回消息列表页
-
-        Args:
-            group_name_keyword: 群名关键词
-
-        Returns:
-            bool: 操作是否成功
-        """
-        logger.info(f"🔔 [MuMu] 切换群消息提醒: {group_name_keyword}")
-
-        self._enter_group_settings(group_name_keyword)
-
-        # 在群设置页中查找"消息提醒"
-        for scroll in range(3):
-            pos = self.find_text_by_ocr("消息提醒", timeout=3)
-            if pos is not None:
-                break
-            self.swipe_up(300)
-            time.sleep(0.5)
-
-        assert pos is not None, "群设置页面中未找到'消息提醒'"
-        logger.info(f"✅ 找到消息提醒选项 at {pos}")
-
-        # 点击开关（开关在文字右侧）
-        self.click_text("消息提醒", dx=200, timeout=5)
-        time.sleep(1)
-
-        self.return_to_message_list()
-        logger.info("✅ [MuMu] 群消息提醒切换完成")
-        return True
+        """切换群消息提醒开关（委托给 toggle_group_setting_switch）"""
+        return self.toggle_group_setting_switch(group_name_keyword, "消息提醒")
 
     def verify_group_setting_default(self, group_name_keyword: str, setting_name: str) -> str:
         """
-        验证群设置页面中某个设置项是否存在
-
-        步骤:
-        1. 进入群设置页面
-        2. 逐屏查找指定设置项
-        3. 截图记录状态
-        4. 返回
+        验证群设置页面中某个设置项是否存在，截图记录状态。
 
         Args:
             group_name_keyword: 群名关键词
@@ -4069,77 +4028,16 @@ class MuMuBusiness(CommonBusiness):
             str: "found" 表示找到
         """
         logger.info(f"🔍 [MuMu] 验证群设置: {setting_name}")
-
-        # 确保从干净的状态开始（并行模式下前序用例可能残留状态）
         self._ensure_message_page()
-        time.sleep(0.5)
-
         self._enter_group_settings(group_name_keyword)
-
-        found = False
-        for screen in range(5):
-            pos = self.find_text_by_ocr(setting_name, timeout=3)
-            if pos is not None:
-                found = True
-                logger.info(f"✅ 在第{screen + 1}屏找到 '{setting_name}' at {pos}")
-                break
-            self.swipe_up(300)
-            time.sleep(0.5)
-
-        assert found, f"群设置页面中未找到 '{setting_name}'"
-
+        result = self._scroll_find_and_act(setting_name, 'verify')
+        assert result['found'], f"群设置页面中未找到 '{setting_name}'"
         self.take_screenshot(
             save_path=f'E:\\UIAutotest\\explorer_output\\screenshots\\group_setting_{setting_name}.png'
         )
-
         self.return_to_message_list()
         logger.info(f"✅ [MuMu] 群设置 '{setting_name}' 验证完成")
         return "found"
-
-    def check_group_settings_item(self, group_identifier: str, item_name: str) -> dict:
-        """
-        在群设置页查找指定设置项
-
-        步骤:
-        1. 进入群设置页面
-        2. OCR 查找指定项目名称
-        3. 若未找到，向上滑动继续查找
-        4. 返回消息列表页
-
-        Args:
-            group_identifier: 群组标识（群号或群名关键词）
-            item_name: 设置项名称（如"消息提醒"/"自动翻译"/"入群验证"/"群管理"）
-
-        Returns:
-            dict: 包含 found/position/screen_index/item_name
-        """
-        logger.info(f"🔍 [MuMu] 查找群设置项: {item_name}")
-
-        self._enter_group_settings(group_identifier)
-
-        found = False
-        position = None
-        screen_index = None
-        for screen in range(5):
-            position = self.find_text_by_ocr(item_name, timeout=2, region=Normal.HALF_UP)
-            if not position:
-                position = self.find_text_by_ocr(item_name, timeout=2, region=Normal.HALF_DOWN)
-            if position:
-                found = True
-                screen_index = screen
-                logger.info(f"✅ 找到设置项 '{item_name}' @ {position} (第{screen + 1}屏)")
-                break
-            self.swipe_up(300)
-            time.sleep(0.5)
-
-        self.return_to_message_list()
-
-        return {
-            "found": found,
-            "position": position,
-            "screen_index": screen_index,
-            "item_name": item_name,
-        }
 
     def open_group_qr_code(self, group_identifier: str, stay: bool = False) -> bool:
         """
@@ -4220,68 +4118,85 @@ class MuMuBusiness(CommonBusiness):
         self.return_to_message_list()
         return True
 
+    def _scroll_find_and_act(self, item_name: str, action: str = 'verify',
+                              verify_text: str = None, dx: int = 200,
+                              region=None, max_screens: int = 5) -> dict:
+        """
+        在当前页面滚动查找指定文字，然后执行指定操作。
+
+        调用前需先导航到目标页面（此方法不负责导航和返回）。
+
+        Args:
+            item_name: 要查找的文字标签
+            action: 'verify'=仅查找验证, 'click'=找到后点击, 'toggle'=找到后点击右侧开关
+            verify_text: action='click' 时，点击后在新页面验证此文字（可选）
+            dx: action='toggle' 时，开关相对文字的 x 偏移（默认 200）
+            region: 查找区域限制（可选）
+            max_screens: 最大滚动屏数
+
+        Returns:
+            dict: {found, position, screen_index, item_name}
+        """
+        found = False
+        position = None
+        screen_index = None
+
+        for screen in range(max_screens):
+            pos = self.find_text_by_ocr(item_name, timeout=2, region=region)
+            if not pos and region is not None:
+                pos = self.find_text_by_ocr(item_name, timeout=2)
+            if pos:
+                found = True
+                position = pos
+                screen_index = screen
+                if action == 'click':
+                    self.tap(pos[0], pos[1])
+                    time.sleep(1.5)
+                    if verify_text:
+                        assert self.find_text_by_ocr(verify_text, timeout=5), \
+                            f"点击 '{item_name}' 后未找到 '{verify_text}'"
+                elif action == 'toggle':
+                    self.tap(pos[0] + dx, pos[1])
+                    time.sleep(1)
+                break
+            self.swipe_up(300)
+            time.sleep(0.5)
+
+        return {
+            'found': found,
+            'position': position,
+            'screen_index': screen_index,
+            'item_name': item_name,
+        }
+
     # ==================== 群设置扩展方法 (用于28个单设备用例) ====================
 
     def click_in_group_settings(self, group_identifier: str, click_text: str,
                                 verify_text: str = None, region=None) -> bool:
         """
-        进入群设置后点击指定文字项，并可选验证新页面
-
-        步骤:
-        1. 进入群设置页面
-        2. 逐屏滑动查找 click_text
-        3. 点击该文字
-        4. 若提供 verify_text，验证新页面包含该文字
-        5. 返回消息列表页
+        进入群设置后点击指定文字项，并可选验证新页面。
 
         Args:
             group_identifier: 群关键词
             click_text: 要点击的文字
             verify_text: 点击后新页面应包含的文字（可选）
-            region: 点击区域限定
+            region: 查找区域限制（可选）
 
         Returns:
             bool: 操作是否成功
         """
         logger.info(f"👆 [MuMu] 群设置中点击 '{click_text}' (验证: {verify_text})")
-
         self._enter_group_settings(group_identifier)
-
-        # 逐屏查找并点击
-        clicked = False
-        for screen in range(5):
-            pos = self.find_text_by_ocr(click_text, timeout=2, region=region)
-            if pos:
-                self.tap(pos[0], pos[1])
-                clicked = True
-                logger.info(f"✅ 已点击 '{click_text}'")
-                time.sleep(1.5)
-                break
-            self.swipe_up(300)
-            time.sleep(0.5)
-
-        assert clicked, f"群设置页面未找到 '{click_text}'"
-
-        # 验证新页面
-        if verify_text:
-            found = self.find_text_by_ocr(verify_text, timeout=5)
-            assert found, f"点击 '{click_text}' 后未找到 '{verify_text}'"
-            logger.info(f"✅ 新页面包含 '{verify_text}'")
-
-        # 返回
+        result = self._scroll_find_and_act(click_text, 'click',
+                                           verify_text=verify_text, region=region)
+        assert result['found'], f"群设置页面未找到 '{click_text}'"
         self.return_to_message_list()
         return True
 
     def toggle_group_setting_switch(self, group_identifier: str, setting_name: str,
                                     dx: int = 200) -> bool:
         """
-        切换群设置页中某开关
-
-        步骤:
-        1. 进入群设置页
-        2. 查找 setting_name 文字位置
-        3. 点击文字右侧 +dx 像素处切换开关
-        4. 返回消息列表页
+        切换群设置页中某开关。
 
         Args:
             group_identifier: 群关键词
@@ -4292,25 +4207,9 @@ class MuMuBusiness(CommonBusiness):
             bool: 操作是否成功
         """
         logger.info(f"🔀 [MuMu] 切换群设置开关 '{setting_name}'")
-
         self._enter_group_settings(group_identifier)
-
-        # 查找开关对应的文字
-        found_pos = None
-        for screen in range(5):
-            pos = self.find_text_by_ocr(setting_name, timeout=2)
-            if pos:
-                found_pos = pos
-                break
-            self.swipe_up(300)
-            time.sleep(0.5)
-
-        assert found_pos, f"群设置页面未找到 '{setting_name}'"
-        # 点击开关（右侧）
-        self.tap(found_pos[0] + dx, found_pos[1])
-        time.sleep(1)
-        logger.info(f"✅ 开关已切换")
-
+        result = self._scroll_find_and_act(setting_name, 'toggle', dx=dx)
+        assert result['found'], f"群设置页面未找到 '{setting_name}'"
         self.return_to_message_list()
         return True
 
@@ -4659,13 +4558,7 @@ class MuMuBusiness(CommonBusiness):
 
     def verify_in_group_management(self, group_identifier: str, setting_name: str) -> str:
         """
-        进入群管理子页面，查找指定设置项
-
-        步骤:
-        1. 进入群设置
-        2. 点击群管理
-        3. 在群管理页逐屏查找 setting_name
-        4. 返回消息列表
+        进入群管理子页面，查找指定设置项。
 
         Args:
             group_identifier: 群关键词
@@ -4676,29 +4569,16 @@ class MuMuBusiness(CommonBusiness):
         """
         logger.info(f"🔍 [MuMu] 在群管理中查找 '{setting_name}'")
         self.enter_group_management(group_identifier)
-
-        found = False
-        for screen in range(5):
-            pos = self.find_text_by_ocr(setting_name, timeout=2)
-            if pos:
-                found = True
-                logger.info(f"✅ 找到 '{setting_name}' at {pos} (第{screen + 1}屏)")
-                break
-            self.swipe_up(300)
-            time.sleep(0.5)
-
-        assert found, f"群管理页面中未找到 '{setting_name}'"
-
-        # 返回消息列表
+        result = self._scroll_find_and_act(setting_name, 'verify')
+        assert result['found'], f"群管理页面中未找到 '{setting_name}'"
         self.return_to_message_list()
-
         logger.info(f"✅ 验证 '{setting_name}' 完成")
         return "found"
 
     def click_in_group_management(self, group_identifier: str, click_text: str,
                                   verify_text: str = None) -> bool:
         """
-        进入群管理页后点击指定项，验证新页面
+        进入群管理页后点击指定项，验证新页面。
 
         Args:
             group_identifier: 群关键词
@@ -4710,33 +4590,15 @@ class MuMuBusiness(CommonBusiness):
         """
         logger.info(f"👆 [MuMu] 群管理中点击 '{click_text}' (验证: {verify_text})")
         self.enter_group_management(group_identifier)
-
-        # 滑动查找并点击
-        clicked = False
-        for screen in range(5):
-            pos = self.find_text_by_ocr(click_text, timeout=2)
-            if pos:
-                self.tap(pos[0], pos[1])
-                clicked = True
-                time.sleep(1.5)
-                break
-            self.swipe_up(300)
-            time.sleep(0.5)
-        assert clicked, f"群管理页未找到 '{click_text}'"
-
-        # 验证新页面
-        if verify_text:
-            found = self.find_text_by_ocr(verify_text, timeout=5)
-            assert found, f"点击 '{click_text}' 后未找到 '{verify_text}'"
-
-        # 返回消息列表
+        result = self._scroll_find_and_act(click_text, 'click', verify_text=verify_text)
+        assert result['found'], f"群管理页未找到 '{click_text}'"
         self.return_to_message_list()
         return True
 
     def toggle_group_management_switch(self, group_identifier: str, setting_name: str,
                                        dx: int = 200) -> bool:
         """
-        在群管理页切换开关
+        在群管理页切换开关。
 
         Args:
             group_identifier: 群关键词
@@ -4748,21 +4610,8 @@ class MuMuBusiness(CommonBusiness):
         """
         logger.info(f"🔀 [MuMu] 群管理切换开关 '{setting_name}'")
         self.enter_group_management(group_identifier)
-
-        found_pos = None
-        for screen in range(5):
-            pos = self.find_text_by_ocr(setting_name, timeout=2)
-            if pos:
-                found_pos = pos
-                break
-            self.swipe_up(300)
-            time.sleep(0.5)
-
-        assert found_pos, f"群管理页未找到 '{setting_name}'"
-        self.tap(found_pos[0] + dx, found_pos[1])
-        time.sleep(1)
-
-        # 返回消息列表
+        result = self._scroll_find_and_act(setting_name, 'toggle', dx=dx)
+        assert result['found'], f"群管理页未找到 '{setting_name}'"
         self.return_to_message_list()
         logger.info(f"✅ 开关已切换")
         return True

@@ -4141,7 +4141,7 @@ class MuMuBusiness(CommonBusiness):
             "item_name": item_name,
         }
 
-    def open_group_qr_code(self, group_identifier: str) -> bool:
+    def open_group_qr_code(self, group_identifier: str, stay: bool = False) -> bool:
         """
         打开群二维码页面
 
@@ -4177,10 +4177,10 @@ class MuMuBusiness(CommonBusiness):
         self.find_text_by_ocr("有效", timeout=5, region=Normal.HALF_UP)
 
         logger.info("✅ [MuMu] 已打开群二维码页面")
-        # 返回群设置页面
-        self.press_back()
-        time.sleep(1)
-        self.text_exists("群公告", timeout=5)
+        if not stay:
+            self.press_back()
+            time.sleep(1)
+            self.text_exists("群公告", timeout=5)
         return True
 
     def open_group_announcement_page(self, group_name_keyword: str) -> bool:
@@ -4402,35 +4402,6 @@ class MuMuBusiness(CommonBusiness):
         logger.info("✅ 已打开群成员列表")
         return True
 
-    def click_group_qr_code(self, group_identifier: str) -> bool:
-        """
-        打开群二维码页面（不关闭，用于后续操作）
-
-        Args:
-            group_identifier: 群关键词
-
-        Returns:
-            bool: 是否成功打开
-        """
-        logger.info(f"📱 [MuMu] 打开群二维码页面: {group_identifier}")
-        self._enter_group_settings(group_identifier)
-
-        # 群二维码入口在群设置第一屏 - 群名称右侧icon
-        clicked = False
-        for title in [group_identifier, "群聊名称", "群名称"]:
-            try:
-                self.click_text(title, dx=200, timeout=3, region=Normal.HALF_UP)
-                clicked = True
-                break
-            except AssertionError:
-                continue
-        assert clicked, "未找到群二维码入口"
-        time.sleep(1.5)
-
-        # 验证进入二维码页
-        self.find_text_by_ocr("有效", timeout=5, region=Normal.HALF_UP)
-        logger.info("✅ 已打开群二维码页面")
-        return True
 
     # ==================== 群主测试群管理 ====================
 

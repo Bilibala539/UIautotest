@@ -741,7 +741,7 @@ class PPUser:
         return self.aw.open_group_member_list(group_identifier)
 
     def click_group_qr_code(self, group_identifier: str) -> bool:
-        return self.aw.click_group_qr_code(group_identifier)
+        return self.aw.open_group_qr_code(group_identifier, stay=True)
 
 
     # ==================== 群主测试群管理代理 ====================

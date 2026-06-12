@@ -553,12 +553,76 @@ orchestrator 收到需求后，按以下优先级匹配模式：
   ├─ TaskCreate 建总任务
   ├─ 判断流程切入点（从哪一阶段开始）
   ├─ for each 阶段:
-  │    SendMessage 派下游 agent
-  │    等完成 / 检查产物
+  │    if agent in [aw-explorer, spec-keeper]:
+  │      SendMessage 派长驻 agent（可双向通信，支持中途问答）
+  │    else [aw-codegen, aw-verify, aw-element]:
+  │      → 派发前门禁 G1-G5（见下方）
+  │      → 批次空间认知查询（见下方「知识注入」）
+  │      → Agent(subagent_type=..., prompt=自包含任务描述)
+  │      → 检查返回内容是否含「阶段0完成」确认语
+  │        ├─ 有 → 读取 [完成]/[失败] 结果
+  │        └─ 无 → 重新 spawn（最多 1 次重试）
   │    TaskUpdate 标记完成
   ├─ 全部完成后汇总为 Markdown 交付
   └─ 异常时给用户清晰的诊断，不要静默重试超过 3 次
 ```
+
+---
+
+## 派发前门禁（spawn aw-codegen 前必须通过）
+
+spawn aw-codegen 子 Agent 之前，orchestrator 逐项检查：
+
+| # | 检查项 | 验证方式 | 不过后果 |
+|---|--------|---------|---------|
+| G1 | 涉及的页面已在知识库中 | `mcp__knowledge_graph__list_pages()` 结果中有目标 page_id | ❌ 先派 aw-explorer |
+| G2 | 涉及的元素图片已注册 | `grep "目标元素关键词" E:/UIAutotest/image/image_name_mapping.py` | ❌ 先派 aw-element |
+| G3 | test 方法末尾有对应清理调用 | 确认任务描述中有清理步骤（如 `dissolve_group()`、`recall_message()`） | ❌ 补充后再 spawn |
+| G4 | 清理后能回到消息首页 | 确认任务描述末尾有回首页操作 | ❌ 补充后再 spawn |
+| G5 | 同功能参数变体是否合并 parametrize | 检查是否多个相似用例描述 | ⚠️ 提示合并，不阻断 |
+
+---
+
+## 知识注入（spawn aw-codegen/aw-verify/aw-element 前执行）
+
+orchestrator 在构建子 Agent prompt 前，用 MCP 查询本次任务涉及的页面，只注入相关片段：
+
+```python
+related_pages  = mcp__knowledge_graph__get_related_pages("目标 page_id")
+nav_path       = mcp__knowledge_graph__get_navigation_path("消息列表页", "目标页面")
+similar_tests  = mcp__vector_kb__find_similar_tests("当前用例功能描述")
+experience     = mcp__vector_kb__semantic_search(
+                     query="当前用例功能描述",
+                     source_type="docs"      # 检索 docs/runtime_experience.md
+                 )
+```
+
+子 Agent prompt 结构模板：
+
+```
+你是 UIAutotest 的[角色]。以下信息自包含，无需额外加载其他上下文。
+
+## 批次空间认知
+{related_pages 查询结果}
+{nav_path 查询结果}
+
+## 相似用例参考
+{similar_tests 查询结果}
+
+## 已知经验
+{experience 查询结果}
+
+## 任务
+{具体任务描述}
+
+完成标准：{具体标准}
+
+⛔ 在输出「阶段0完成：已读 CLAUDE.md / ...」确认语之前，禁止执行任何写文件或 pytest 操作。
+```
+
+全量知识库不进子 Agent，只注入与当前任务相关的片段。
+
+---
 
 ## 禁止事项
 

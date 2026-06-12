@@ -170,16 +170,30 @@ PPUser (用户入口，user.py)
 
 ---
 
+### 4.4（内部实现）`_longpress_and_select_menu_item(message_text, menu_item)`
+
+> **私有 helper，外部用例请勿直接调用。**
+
+所有简单长按菜单操作的公共 3 步样板：
+1. `long_press_text(message_text, duration=1.5)` — 长按消息气泡（1.5秒）
+2. `click_text(menu_item, region=HALF_DOWN)` — 点击弹出菜单中的指定项
+3. 各 sleep 保证 UI 响应（长按后 1s、点击后 1s）
+
+**使用此 helper 的方法：** `recall_message` / `copy_message` / `multi_select_message` / `translate_message` / `delete_message` / `pin_message`
+
+**未使用此 helper 的方法：** `reply_message`（需额外输入+发送步骤）、`favorite_message`（有重试循环+复杂检测逻辑）
+
+---
+
 ### 4.4 🔄 撤回消息 `recall_message(message_text)`
 
 **前置条件：** 当前在聊天页面，消息为自己发送且24小时内。
 
 **完整流程：**
-1. `long_press_text(message_text)` — OCR定位消息文字并长按(1.5秒)
-2. `find_text_by_ocr(message_text)` — 获取消息y坐标，用于后续验证区域计算
-3. `click_text("撤回", region=HALF_DOWN)` — 在底部弹出的操作菜单中点击"撤回"
-4. `image_exists(MSG_RECELL_POP)` → `click_text("确定")` — 如果有确认弹窗则点确定
-5. `find_text_by_ocr("你撤回了一条消息")` — **验证撤回成功：出现撤回提示**
+1. `find_text_by_ocr(message_text)` — 获取消息 y 坐标（用于后续验证范围）
+2. `_longpress_and_select_menu_item(message_text, "撤回")` — 长按并从菜单点击"撤回"
+3. `find_image(MSG_RECELL_POP)` → 若有确认弹窗则 `click_text("确定")`
+4. `text_exists("你撤回了一条消息", region=(msg_y±60px))` — **验证撤回成功**
 
 **验证的图片：** `MSG_RECELL_POP`(撤回确认弹窗)
 
@@ -210,9 +224,8 @@ PPUser (用户入口，user.py)
 **前置条件：** 当前在聊天页面。
 
 **完整流程：**
-1. `long_press_text(message_text, duration=1.5)` — 长按目标消息
-2. `click_text("复制", region=HALF_DOWN)` — 点击弹出菜单中的"复制"
-3. `image_exists(CHAT_COPY_SUCCESS_TOAST)` — **验证：复制成功toast**
+1. `_longpress_and_select_menu_item(message_text, "复制")` — 长按并从菜单点击"复制"
+2. `image_exists(CHAT_COPY_SUCCESS_TOAST)` — **验证：复制成功toast**
 
 **验证的图片：** `CHAT_COPY_SUCCESS_TOAST`(复制成功提示)
 
@@ -225,10 +238,9 @@ PPUser (用户入口，user.py)
 **前置条件：** 当前在聊天页面。
 
 **完整流程：**
-1. `long_press_text(message_text, duration=1.5)` — 长按目标消息
-2. `click_text("多选", region=HALF_DOWN)` — 点击弹出菜单中的"多选"
-3. `image_exists(CHAT_MULTI_SELECT_TITLE, region=HALF_UP)` — **验证：进入多选模式**
-4. `press_back()` — 退出多选模式
+1. `_longpress_and_select_menu_item(message_text, "多选")` — 长按并从菜单点击"多选"
+2. `image_exists(CHAT_MULTI_SELECT_TITLE, region=HALF_UP)` — **验证：进入多选模式**
+3. `press_back()` — 退出多选模式
 
 **验证的图片：** `CHAT_MULTI_SELECT_TITLE`(多选模式标题栏"已选中")
 
@@ -241,9 +253,9 @@ PPUser (用户入口，user.py)
 **前置条件：** 当前在聊天页面。
 
 **完整流程：**
-1. `long_press_text(message_text, duration=1.5)` — 长按目标消息
-2. `click_text("翻译", region=HALF_DOWN)` — 点击弹出菜单中的"翻译"
-3. `image_exists(CHAT_TRANSLATE_RESULT, region=HALF_DOWN)` — **验证：翻译结果出现**
+1. `find_text_by_ocr(message_text)` — 获取消息 y 坐标（用于后续验证范围）
+2. `_longpress_and_select_menu_item(message_text, "翻译")` — 长按并从菜单点击"翻译"
+3. `image_exists(CHAT_TRANSLATE_RESULT, region=(msg_y±100px))` — **验证：翻译结果出现（scoped）**
 
 **验证的图片：** `CHAT_TRANSLATE_RESULT`(翻译结果区域)
 

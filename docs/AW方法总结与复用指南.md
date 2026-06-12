@@ -354,6 +354,18 @@ PPUser (用户入口，user.py)
 
 ---
 
+### （内部实现）`_open_first_album_image()`
+
+> **私有 helper，外部用例请勿直接调用。**
+
+从聊天页面打开 + 面板 → 进入相册 → 点击第一张图片（坐标 `(70, 200)`，基于 540×960 分辨率）。退出时预览界面即将出现。
+
+**使用此 helper 的方法：**
+`send_image` / `select_edit_send_image_from_album` / `select_edit_with_tools_send_image` /
+`enter_image_editor_from_album` / `edit_image_done_check_popup`
+
+---
+
 ### 4.11b 🖼️ 图片编辑相关
 
 #### `send_image_from_album(recipient)` — 从相册选图并直接发送
@@ -436,14 +448,67 @@ self.userA.return_to_message_list(max_back=8, strict=True)
 
 ---
 
-### 4.12 应用控制
+### （内部实现）`_scroll_find_and_act(item_name, action, ...)`
+
+> **私有 helper，外部用例请勿直接调用。**
+
+所有"在当前页面逐屏滚动查找文字→执行操作"的公共骨架（不含导航和返回）。
+
+| `action` 值 | 行为 |
+|---|---|
+| `'verify'` | 仅查找，返回 `{found, position, screen_index, item_name}` |
+| `'click'` | 找到后 `tap(pos)`，可选 `verify_text` 验证新页面 |
+| `'toggle'` | 找到后 `tap(pos[0]+dx, pos[1])` 切换右侧开关 |
+
+**使用此 helper 的方法：**
+`verify_group_setting_default` / `click_in_group_settings` / `toggle_group_setting_switch` /
+`verify_in_group_management` / `click_in_group_management` / `toggle_group_management_switch`
+
+---
+
+### 4.12 群二维码 `open_group_qr_code(group_identifier, stay=False)`
+
+**完整流程：**
+1. `_enter_group_settings(group_identifier)` — 进入群设置页
+2. 点击群名称右侧二维码 icon → `find_text_by_ocr("有效")` — **验证：二维码页面出现**
+3. 若 `stay=False`（默认）：`press_back()` 返回群设置页；若 `stay=True`：停留在二维码页
+
+**参数：**
+
+| 参数 | 类型 | 默认 | 说明 |
+|------|------|------|------|
+| `group_identifier` | str | 必填 | 群号或群名关键词 |
+| `stay` | bool | False | 是否停留在二维码页（`False`=打开后返回群设置，`True`=停留） |
+
+> **说明：** `click_group_qr_code` 已合并，等效于 `open_group_qr_code(stay=True)`。
+
+**业务作用：** 群二维码展示功能验证。
+
+---
+
+### 4.13 群公告 `open_group_announcement_page(group_name_keyword)`
+
+**完整流程：**
+1. `_enter_group_settings(group_name_keyword)` — 进入群设置页
+2. `click_text("群公告")` — 进入群公告页面
+3. 空占位图检测 / OCR "编辑" 文字入口检测 — **验证：已进入公告页**
+4. 截图保存公告页面
+5. `return_to_message_list()` — 返回消息列表
+
+> **说明：** `# 已集成验证逻辑（空占位图/编辑文字入口检测），原 open_group_announcement 已合并入此方法`
+
+**业务作用：** 群公告展示功能验证，包含空公告和已编辑公告两种状态检测。
+
+---
+
+### 4.14 应用控制
 |------|------|
 | `start_app()` | 点击桌面POPO图标启动应用 |
 | `stop_app()` | ADB强制停止应用 |
 | `restart_app()` | 先stop再start |
 | `clear_app_data()` | ADB清除应用数据 |
 
-### 4.13 弹窗处理
+### 4.15 弹窗处理
 
 | 方法 | 作用 |
 |------|------|

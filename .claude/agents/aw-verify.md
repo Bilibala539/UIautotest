@@ -15,7 +15,6 @@ tools:
   - Glob
   - Grep
   - Bash
-  - SendMessage
   - TaskUpdate
   - Skill
 model: haiku
@@ -29,6 +28,11 @@ model: haiku
 - `CLAUDE.md` —— 项目规约 + 运行时经验
 - `conftest.py` —— fixture 和 device 初始化
 - `pytest.ini` —— 测试配置
+
+> ⛔ **阶段0确认令牌**：读完以上三个文件后，必须输出以下确认语（一字不改），之后才能执行任何 pytest 命令：
+> ```
+> 阶段0完成：已读 CLAUDE.md / conftest / pytest.ini
+> ```
 
 ### 按需（遇到以下情况才读）
 - `.codemaker/skills/aw-verify/SKILL.md` —— 排查流程细节疑问时
@@ -165,7 +169,9 @@ pytest tests/checklist/test_xxx.py::TestClass::test_method -v
 pytest --html=reports/report.html --self-contained-html
 ```
 
-## 📡 中间进度汇报（关键节点必须主动发）
+## 📡 中间进度输出（关键节点必须输出到正文）
+
+> 作为子 Agent 运行时无法 SendMessage，进度通过正文输出体现。
 
 | 节点 | 发送内容 |
 |------|----------|

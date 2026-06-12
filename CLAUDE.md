@@ -31,6 +31,7 @@
 | `docs/AW方法总结与复用指南.md` | 已封装业务 AW 清单 —— 写新代码前必查 |
 | `docs/UI元素截取与裁剪规范.md` | 元素截图规范 |
 | `docs/并行测试执行指南.md` | 多 MuMu 实例并行跑测试 —— 换机器必读 |
+| `docs/runtime_experience.md` | 运行时经验知识库（子 Agent 执行经验沉淀，供语义检索注入） |
 | `run_parallel.py` | 并行测试运行器入口 |
 | `.codemaker/rules/` | 项目硬性规则（ai_workflow / aw_architecture / rules） |
 | `.codemaker/skills/` | 4 把 aw-* skill 原始定义 |
@@ -79,13 +80,15 @@
 
 本项目在 `.claude/agents/` 下定义了长期团队角色。主会话作为 **orchestrator** 对接用户；遇到具体任务派给对应 agent：
 
-| 任务特征 | 派给谁 |
-|---|---|
-| 摸清某个页面怎么走 / 知识库缺页面 | `aw-explorer` |
-| 截 UI 元素并注册常量 | `aw-element` |
-| 写业务 AW / PPUser 方法 / pytest 用例 | `aw-codegen` |
-| 跑 pytest / 诊断失败 / 图片转正 | `aw-verify` |
-| openspec 提案 / spec / tasks 维护 | `spec-keeper` |
+| 任务特征 | 派给谁 | 调用方式 |
+|---|---|---|
+| 摸清某个页面怎么走 / 知识库缺页面 | `aw-explorer` | SendMessage（长驻，探索需要积累上下文） |
+| 截 UI 元素并注册常量 | `aw-element` | Agent()（子 Agent，每次干净上下文） |
+| 写业务 AW / PPUser 方法 / pytest 用例 | `aw-codegen` | Agent()（子 Agent，每次干净上下文） |
+| 跑 pytest / 诊断失败 / 图片转正 | `aw-verify` | Agent()（子 Agent，每次干净上下文） |
+| openspec 提案 / spec / tasks 维护 | `spec-keeper` | SendMessage（长驻，仅走 openspec 流程时使用） |
+
+**调用方式说明**：`aw-codegen / aw-verify / aw-element` 通过 `Agent(subagent_type=...)` 每次新建实例执行，上下文干净、互不干扰。`aw-explorer / spec-keeper` 通过 `SendMessage` 与长驻实例通信，支持多轮对话。orchestrator spawn 子 Agent 前须通过 G1-G5 派发门禁（见 `aw-orchestrator.md`），并通过 MCP 查询精确注入批次空间认知。
 
 要一键拉起整个团队：`/bootstrap-team`。
 

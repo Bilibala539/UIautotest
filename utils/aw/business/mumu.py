@@ -696,7 +696,7 @@ class MuMuBusiness(CommonBusiness):
         self._ensure_message_page()
         time.sleep(0.5)
 
-        self.click_text(tab_name, timeout=5, region=(0, 275, 540, 45))
+        self.click_text(tab_name, timeout=5)
         time.sleep(1)
         logger.info(f"✅ 已切换到 '{tab_name}' Tab")
         return True
@@ -4794,6 +4794,12 @@ class MuMuBusiness(CommonBusiness):
 
         # 4. 返回消息列表（用 _ensure_message_page 处理路径栈过深场景）
         self._ensure_message_page()
+        # 滚回顶部，确保"会话盒子"入口可见（入口在消息列表顶部）
+        time.sleep(0.5)
+        for _ in range(3):
+            self.swipe_down(400)
+            time.sleep(0.2)
+        time.sleep(0.5)
         logger.info(f"✅ 已将 '{conversation_name}' 添加到会话盒子")
         return True
 
@@ -4874,14 +4880,16 @@ class MuMuBusiness(CommonBusiness):
         # 向下滑动查找"会话分组"入口，用 region 排除顶部标题栏（防止匹配群名中的"会话分组"）
         _SETTINGS_REGION = (0, 120, 540, 840)
         pos = None
-        for _ in range(5):
+        for scroll in range(8):
             pos = self.find_text_by_ocr("会话分组", timeout=3, region=_SETTINGS_REGION)
+            if not pos:
+                pos = self.find_text_by_ocr("会话分组", timeout=2)
             if pos:
                 break
             self.swipe_up(300)
             time.sleep(0.5)
 
-        assert pos is not None, "聊天设置中未找到'会话分组'入口"
+        assert pos is not None, "聊天设置中未找到'会话分组'入口（已滚动8次）"
         self.tap(pos[0], pos[1])
         time.sleep(1.5)
 
@@ -4935,14 +4943,16 @@ class MuMuBusiness(CommonBusiness):
 
         _SETTINGS_REGION = (0, 120, 540, 840)
         pos = None
-        for _ in range(5):
+        for scroll in range(8):
             pos = self.find_text_by_ocr("会话分组", timeout=3, region=_SETTINGS_REGION)
+            if not pos:
+                pos = self.find_text_by_ocr("会话分组", timeout=2)
             if pos:
                 break
             self.swipe_up(300)
             time.sleep(0.5)
 
-        assert pos is not None, "聊天设置中未找到'会话分组'入口"
+        assert pos is not None, "聊天设置中未找到'会话分组'入口（已滚动8次）"
         self.tap(pos[0], pos[1])
         time.sleep(1.5)
 

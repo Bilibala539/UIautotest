@@ -758,7 +758,7 @@ def _generate_and_upload_allure_report() -> bool:
     # 并行模式下 worker 只保存本地，由 coordinator 统一上传
     session_uploaded = False
     if os.environ.get("SKIP_REPORT_UPLOAD") != "1":
-        session_uploaded = _upload_session_data(sessions_dir, session_data)
+        session_uploaded = _upload_session_data(sessions_dir, session_data, base_dir)
 
     if not os.path.isdir(allure_results):
         logger.warning("allure-results 目录不存在，跳过 Allure 报告生成")
@@ -851,7 +851,7 @@ def _generate_and_upload_allure_report() -> bool:
     return session_uploaded
 
 
-def _upload_session_data(sessions_dir: str, session_data: dict) -> bool:
+def _upload_session_data(sessions_dir: str, session_data: dict, base_dir: str) -> bool:
     """独立上传 session 数据（不依赖 allure-results 是否存在）。返回是否上传成功。"""
     ssh = None
     try:
@@ -882,6 +882,9 @@ def _upload_session_data(sessions_dir: str, session_data: dict) -> bool:
                 logger.info("🧹 已清理本地: sessions/")
             except Exception as e:
                 logger.warning(f"⚠️ 清理 sessions/ 失败: {e}")
+
+        # 上传成功后清理运行产物（截图、日志）
+        _cleanup_local_artifacts(base_dir)
         return True
     except Exception as e:
         logger.error(f"❌ Session 数据上传失败: {e}")
@@ -892,7 +895,8 @@ def _upload_session_data(sessions_dir: str, session_data: dict) -> bool:
 
 
 def _cleanup_local_artifacts(base_dir: str):
-    """删除本地 allure-results / allure-report 临时目录。"""
+    """删除本地运行产物：allure 中间文件 + output 截图/日志目录内容。"""
+    # allure 中间目录 — 整个目录删除
     for name in ("allure-results", "allure-report"):
         path = os.path.join(base_dir, name)
         if os.path.isdir(path):
@@ -901,6 +905,29 @@ def _cleanup_local_artifacts(base_dir: str):
                 logger.info(f"🧹 已清理本地: {name}/")
             except Exception as e:
                 logger.warning(f"⚠️ 清理 {name}/ 失败: {e}")
+
+    # output 子目录 + logs — 清空内容，保留目录本身（避免 conftest 初始化重建）
+    dirs_to_clear = [
+        os.path.join(base_dir, "output", "screenshots"),
+        os.path.join(base_dir, "output", "failure_screenshots"),
+        os.path.join(base_dir, "output", "logs"),
+        os.path.join(base_dir, "logs"),
+    ]
+    for dirpath in dirs_to_clear:
+        if not os.path.isdir(dirpath):
+            continue
+        try:
+            count = 0
+            for entry in os.scandir(dirpath):
+                if entry.is_dir(follow_symlinks=False):
+                    shutil.rmtree(entry.path)
+                else:
+                    os.remove(entry.path)
+                count += 1
+            if count:
+                logger.info(f"🧹 已清理本地: {os.path.relpath(dirpath, base_dir)}/ ({count} 个文件)")
+        except Exception as e:
+            logger.warning(f"⚠️ 清理 {os.path.relpath(dirpath, base_dir)}/ 失败: {e}")
 
 
 def _write_custom_css(path: str):

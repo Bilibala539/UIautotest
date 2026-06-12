@@ -15,14 +15,14 @@
       "args": [
         "mcp_servers/knowledge_graph/server.py"
       ],
-      "command": "python",
+      "command": "pythonw",
       "cwd": "E:\\UIAutotest"
     },
     "vector_kb": {
       "args": [
         "mcp_servers/vector_kb/server.py"
       ],
-      "command": "python",
+      "command": "pythonw",
       "cwd": "E:\\UIAutotest"
     }
   }

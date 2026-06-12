@@ -10,11 +10,12 @@ class Test群公告为空(BaseTest):
 
     def setup(self):
         self.userA = self.users("userA")
+        self.group_name = self.userA.setup_owner_group("吴彦祖")
 
     def test_empty_announcement(self):
         """打开无公告群公告页面，验证能进入"""
         # 简化版: 验证能打开群公告编辑面板
-        result = self.userA.open_group_announcement_page("吴彦祖")
+        result = self.userA.open_group_announcement_page(self.group_name)
         assert result, "应能进入群公告编辑面板"
 
     def teardown(self):

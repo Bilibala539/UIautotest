@@ -11,6 +11,7 @@ class TestSetGroupAnnouncement(BaseTest):
 
     def setup(self):
         self.userA = self.users("userA")
+        self.group_name = self.userA.setup_owner_group("自动化测试群主群")
 
     def test_set_group_announcement(self):
         """
@@ -26,7 +27,7 @@ class TestSetGroupAnnouncement(BaseTest):
         7. 返回消息列表页
         """
         self.userA.set_group_announcement(
-            group_identifier="grp.popoqa",
+            group_identifier=self.group_name,
             content="自动化测试群公告内容"
         )
 

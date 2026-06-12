@@ -10,11 +10,12 @@ class Test群二维码永久(BaseTest):
 
     def setup(self):
         self.userA = self.users("userA")
+        self.group_name = self.userA.setup_owner_group("吴彦祖")
 
     def test_群二维码永久(self):
         """修改二维码有效期为永久"""
         # 简化版: 验证能打开群二维码页面
-        result = self.userA.open_group_qr_code("吴彦祖")
+        result = self.userA.open_group_qr_code(self.group_name)
         assert result, "应能打开群二维码页面"
 
     def teardown(self):

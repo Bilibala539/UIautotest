@@ -2,7 +2,10 @@
 测试用例: P2P图片消息透出
 覆盖文字用例: P2P图片消息透出
 """
+import os
 import time
+
+import pytest
 from conftest import BaseTest
 
 
@@ -10,6 +13,8 @@ class TestP2PImageMessagePreview(BaseTest):
     """P2P图片消息透出: userB向userA发送图片，userA在消息列表验证显示[图片]"""
 
     def setup(self):
+        if os.environ.get("INSTANCE_ID"):
+            pytest.skip("需要双设备跨进程通讯，并行模式下跳过")
         self.userA = self.users("userA")
         self.userB = self.users("userB")
 
@@ -19,7 +24,7 @@ class TestP2PImageMessagePreview(BaseTest):
         userB向userA发送一张图片，userA在消息列表验证显示[图片]
         """
         # userB向userA发送图片
-        self.userB.send_image_from_album("popoqa50")
+        self.userB.send_image_from_album(self.userA.uid)
         time.sleep(2)
 
         # userB返回消息列表

@@ -8,6 +8,7 @@ from conftest import BaseTest
 class Test仅群主可编辑公告_关闭(BaseTest):
     def setup(self):
         self.userA = self.users("userA")
+        self.userA.setup_owner_group("测试1344")
 
     def test_仅群主可编辑公告_关闭(self):
         """切换公告编辑权限开关"""

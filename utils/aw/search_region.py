@@ -41,7 +41,8 @@ class Normal:
     HALF_LEFT = (0, 0, int(x / 2), y)
     HALF_RIGHT = (int(x / 2), 0, int(x / 2), y)
     CENTER_POP = (0, int(y / 4), x, int(y * 3 / 4))
-    BOTTOM_NAV = (0, 890, x, 70)  # 底部导航栏区域 (y=890~960)
+    BOTTOM_NAV = (0, 890, x, 70)       # 底部导航栏区域 (y=890~960)
+    DIALOG_TOP = (0, 0, x, 140)        # 全屏弹窗顶部按钮/标题区域（关闭×、title、确认✓）
 
 
 # ==================== Search: 大搜 ====================

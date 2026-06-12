@@ -32,8 +32,8 @@ DOWNLOAD_URL = r"http://10.220.28.153/client_android/popo_origin-release_4.23.0_
 APK_BRANCH = "release_4.23.0"  # 默认分支号，用于从构建平台查找最新包
 
 DEVICE_COUNT = 1  # 启动设备数量（1-3）
-LAUNCH_WAIT = 25  # 启动等待时间（秒）
-MAX_DEVICES = 3  # 最大设备数
+LAUNCH_WAIT = 90  # 启动等待时间（秒）
+MAX_DEVICES = 4  # 最大设备数
 CLOSE_WAIT = 3  # 关闭模拟器后等待时间（秒）
 
 # 窗口配置
@@ -94,9 +94,8 @@ def close_all_mumu() -> bool:
 
     # 关闭所有实例 (0到MAX_DEVICES-1)
     for i in range(MAX_DEVICES):
-        # 命令格式: MuMuManager.exe api -v <id> shutdown_player
-        cmd = [manager_path, "api", "-v", str(i), "shutdown_player"]
-        subprocess.run(cmd, capture_output=True, timeout=10)
+        cmd = [manager_path, "control", "-v", str(i), "shutdown"]
+        subprocess.run(cmd, capture_output=True, timeout=15)
     return True
 
 
@@ -485,12 +484,18 @@ def get_window_name(instance_id: int) -> str:
         return f"MuMu模拟器12-{instance_id}"
 
 
-def start_devices(count: int = DEVICE_COUNT) -> List[Device]:
+def start_devices(count: int = DEVICE_COUNT,
+                  reinstall: bool = False,
+                  branch: Optional[str] = None) -> List[Device]:
     """
     启动多台虚拟设备并排列窗口
 
     Args:
-        count: 启动数量（1-3）
+        count:     启动数量（1-4）
+        reinstall: 是否重装 POPO APK
+                   False（默认）→ 不装包，直接启动
+                   True + branch 有值 → 下载该分支最新包安装
+                   True + branch 为 None/空 → 下载正式服最新包安装
 
     Returns:
         List[Device]: Device对象列表
@@ -561,11 +566,21 @@ def start_devices(count: int = DEVICE_COUNT) -> List[Device]:
     ready_count = sum(1 for d in devices if d.is_ready)
     print(f"完成: {ready_count}/{count} 台设备就绪")
 
-    # 安装APK到所有设备（SKIP_APK_INSTALL=1 时跳过）
-    if os.environ.get("SKIP_APK_INSTALL") == "1":
-        print("[SKIP] 跳过APK安装 (SKIP_APK_INSTALL=1)")
+    # 安装 APK
+    if not reinstall or os.environ.get("SKIP_APK_INSTALL") == "1":
+        print("[SKIP] 跳过APK安装")
     else:
-        install_apk_to_all_devices(devices)
+        # reinstall=True：根据 branch 决定装哪个版本
+        keyword = branch if branch else ""   # branch 有值用关键词搜索，否则取最新
+        url, actual_branch, desc = find_latest_apk_by_branch(keyword)
+        if url:
+            apk_path = download_apk(url)
+            if apk_path:
+                install_apk_to_all_devices(devices, apk_path=apk_path)
+                if actual_branch:
+                    os.environ["APK_BRANCH"] = actual_branch
+        else:
+            print(f"[WARN] 未找到匹配的安装包，跳过安装")
 
     # 激活所有设备窗口至前台（获得焦点）
     print("[WIN] 激活设备窗口至前台...")

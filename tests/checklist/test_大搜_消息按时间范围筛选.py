@@ -20,7 +20,7 @@ class TestSearchFilterByTime(BaseTest):
         self.userA.click_image(SEARCH_FILTER_MSG_TIME, region=Normal.HALF_UP)
         self.userA.aw.sleep(0.2)
         self.userA.click_text("近7天", dy=10)
-        self.userA.click_image(ADDLINK_OK_BUTTON, region=Normal.HALF_UP)
+        self.userA.click_image(ADDLINK_OK_BUTTON, region=Normal.DIALOG_TOP)
         self.userA.aw.sleep(0.2)
         self.userA.image_exists(SEARCH_FILTER_MSG_TIME_7BLUE, region=Normal.HALF_UP, timeout=5)
         self.userA.click_image(SEARCH_CANCEL, region=Normal.HALF_UP)

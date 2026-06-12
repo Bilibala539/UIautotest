@@ -22,7 +22,7 @@ class TestSearchFilterMultiMsg(BaseTest):
         self.userA.click_image(SEARCH_FILTER_MSG_TIME, region=Normal.HALF_UP)
         self.userA.aw.sleep(0.2)
         self.userA.click_text("近7天")
-        self.userA.click_image(ADDLINK_OK_BUTTON, region=Normal.HALF_UP)
+        self.userA.click_image(ADDLINK_OK_BUTTON, region=Normal.DIALOG_TOP)
         self.userA.aw.sleep(0.2)
         # 筛选所在会话
         self.userA.click_image(SEARCH_FILTER_MSG_SESSION, region=Normal.HALF_UP)

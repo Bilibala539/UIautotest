@@ -4,7 +4,10 @@
 操作步骤: userB向群发送一条图片消息，userA在消息列表验证
 预期结果: 显示最新一条消息的透出提示（包含[图片]标识）
 """
+import os
 import time
+
+import pytest
 from conftest import BaseTest
 
 
@@ -12,6 +15,8 @@ class TestSessionPreviewImage(BaseTest):
     """会话列表消息透出-图片消息"""
 
     def setup(self):
+        if os.environ.get("INSTANCE_ID"):
+            pytest.skip("需要双设备跨进程通讯，并行模式下跳过")
         self.userA = self.users("userA")
         self.userB = self.users("userB")
 

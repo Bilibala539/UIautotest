@@ -32,7 +32,7 @@ sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='repla
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from pathlib import Path
-from threading import Lock
+from threading import Lock, Semaphore
 from typing import List, Optional
 
 # ==================== 配置 ====================
@@ -134,6 +134,28 @@ def parse_pytest_output(output: str) -> tuple:
 # ==================== Worker ====================
 
 print_lock = Lock()
+_ocr_init_sema: Optional[Semaphore] = None  # 由 main() 按实例数初始化
+_n_instances: int = 1  # 由 main() 赋值，用于计算 OMP 线程配额
+
+
+def _warmup_ocr(instance_id: int) -> None:
+    """在独立子进程中预热 PaddleOCR，完成后退出。
+    由 Semaphore 保证同一时刻只有一个实例在预热，
+    避免多进程并发初始化导致 CPU 满载。
+    """
+    env = os.environ.copy()
+    env["INSTANCE_ID"] = str(instance_id)
+    env["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
+    env["SKIP_SESSION_LOGIN"] = "1"
+    env["SKIP_REPORT_UPLOAD"] = "1"
+    subprocess.run(
+        [sys.executable, "-c",
+         "from utils.aw.aw_base import AWBase; AWBase._get_ocr_engine()"],
+        env=env,
+        capture_output=True,
+        timeout=120,
+        cwd=str(Path.cwd()),
+    )
 
 
 def run_one_file(instance_id: int, test_file: str) -> FileResult:
@@ -143,6 +165,11 @@ def run_one_file(instance_id: int, test_file: str) -> FileResult:
     env["SKIP_SESSION_LOGIN"] = "1"
     env["SKIP_REPORT_UPLOAD"] = "1"
     env["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
+    # 限制每个进程的 OpenMP/MKL 线程数，避免多进程并行时抢占所有 CPU 核
+    # 公式：总逻辑核数 / 实例数，确保 N 个进程加起来刚好用满 CPU
+    threads_per_proc = str(max(1, (os.cpu_count() or 8) // _n_instances))
+    env["OMP_NUM_THREADS"] = threads_per_proc
+    env["MKL_NUM_THREADS"] = threads_per_proc
     # 并行模式：每个实例映射到不同账号，需要授权该账号
     _ACCOUNT_KEYS = ["userA", "userB", "userC", "userD"]
     if instance_id < len(_ACCOUNT_KEYS):
@@ -190,7 +217,19 @@ def run_one_file(instance_id: int, test_file: str) -> FileResult:
 
 
 def worker(instance_id: int, file_queue: queue.Queue, progress_callback) -> WorkerStats:
-    """Worker 线程：持续从队列领取文件并执行"""
+    """Worker 线程：先串行预热 OCR，再持续从队列领取文件并执行"""
+    # OCR 预热：Semaphore 保证同一时刻最多 1 个实例在初始化 PaddleOCR
+    # 前一个预热完毕即释放，下一个立刻拿到并开始，无固定等待时间
+    if _ocr_init_sema is not None:
+        with print_lock:
+            print(f"  [实例#{instance_id}] 等待 OCR 预热槽位...")
+        with _ocr_init_sema:
+            with print_lock:
+                print(f"  [实例#{instance_id}] OCR 预热开始")
+            _warmup_ocr(instance_id)
+            with print_lock:
+                print(f"  [实例#{instance_id}] OCR 预热完成，开始执行测试")
+
     stats = WorkerStats(instance_id=instance_id)
 
     while True:
@@ -282,19 +321,8 @@ def setup_devices(count: int, branch: str = None, skip_install: bool = False):
         for device in devices:
             WindowManager.focus_window(device.instance_id)
     else:
-        # 正常模式：启动设备 + 安装 APK
-        devices = start_devices(count)
-
-        # 如果指定了分支，用分支查找最新包
-        if branch:
-            url, actual_branch, desc = find_latest_apk_by_branch(branch)
-            if url:
-                apk_path = download_apk(url)
-                if apk_path:
-                    install_apk_to_all_devices(devices, apk_path=apk_path)
-            # 把 API 返回的实际分支名写入 env，供通知使用
-            if actual_branch:
-                os.environ["APK_BRANCH"] = actual_branch
+        # 正常模式：启动设备，由 start_devices 统一控制是否安装 APK
+        devices = start_devices(count, reinstall=(branch is not None), branch=branch)
 
     ready = sum(1 for d in devices if d.is_ready)
     if ready == 0:
@@ -324,7 +352,15 @@ def main():
                         help="指定要运行的测试文件列表（替代自动收集）")
     parser.add_argument("--file-list", type=str, default=None,
                         help="从文本文件读取测试文件列表（每行一个路径）")
+    parser.add_argument("--test-dir", type=str, default=None,
+                        help="指定测试目录（默认 tests/checklist），如 tests/add")
     args = parser.parse_args()
+
+    # 支持自定义测试目录
+    if args.test_dir:
+        import sys as _sys
+        global TEST_DIR
+        TEST_DIR = Path(args.test_dir)
 
     n_instances = args.instances
 
@@ -342,13 +378,19 @@ def main():
     print("=" * 60)
 
     # 2. 启动设备
+    # latest_online = 正式服最新包，传空字符串给 find_latest_apk_by_branch 匹配全部取最新
+    if args.branch == "latest_online":
+        args.branch = ""
+        args.reinstall = True
+
     if args.no_setup:
         print("\n跳过设备启动 (--no-setup)")
-    elif args.reinstall or args.branch:
+    elif args.reinstall:
+        # reinstall=True：重启 MuMu + 装包（branch 有值则装指定版本，否则装最新正式服）
         print("\n启动 MuMu 实例 + 重装 APK...")
-        setup_devices(n_instances, branch=args.branch)
-        print("  下次如需跳过重装，去掉 --reinstall/--branch 即可")
+        setup_devices(n_instances, branch=args.branch if args.reinstall else None)
     else:
+        # 默认：只重启 MuMu，不装包
         print("\n启动 MuMu 实例 (不重装，与串行一致)...")
         setup_devices(n_instances, skip_install=True)
 
@@ -367,6 +409,12 @@ def main():
     file_queue = queue.Queue()
     for f in test_files:
         file_queue.put(f)
+
+    # OCR 串行预热：同一时刻只允许 1 个实例初始化 PaddleOCR
+    # 前一个完成立刻释放，下一个拿到后立即开始，无固定延迟
+    global _ocr_init_sema, _n_instances
+    _ocr_init_sema = Semaphore(1)
+    _n_instances = n_instances
 
     # 4. 进度回调
     completed_count = 0
@@ -463,7 +511,11 @@ def main():
     print(f"\n  结果已写入: {RESULTS_FILE}")
 
     # 8. 合并上传测试结果（一条记录）
-    upload_combined_session(results_data, n_instances, all_stats)
+    session_id = upload_combined_session(results_data, n_instances, all_stats)
+    if session_id:
+        results_data["session_id"] = session_id
+        with open(RESULTS_FILE, "w", encoding="utf-8") as f:
+            json.dump(results_data, f, ensure_ascii=False, indent=2)
 
     # 9. 退出码
     if total_failed > 0 or total_errors > 0:
@@ -536,21 +588,34 @@ def upload_combined_session(results_data: dict, n_instances: int,
     combined_dir = os.path.join(sessions_dir, session_id)
     os.makedirs(combined_dir, exist_ok=True)
 
-    # 收集各实例的日志文件到合并目录
-    # 用 inst{N}_ 前缀区分不同实例的同名日志；同时更新 tests 里的 log 字段以保持对应
+    # 只收集失败/错误用例的日志，通过的不上传（减少传输量）
     logs_dst = os.path.join(combined_dir, "logs")
     os.makedirs(logs_dst, exist_ok=True)
-    # 建立 (inst_id, 原始log名) → 新文件名 的映射，供后续修正 tests 列表使用
-    log_rename_map: dict = {}   # key=(inst_id, orig_name), value=new_name
+
+    # 建立失败用例的 (inst_id, 原始log名) 集合
+    failed_logs: set = set()
+    for inst_id, dir_name, sess in instance_sessions:
+        for t in sess.get("tests", []):
+            if t.get("status") in ("failed", "error") and t.get("log"):
+                failed_logs.add((inst_id, t["log"]))
+
+    log_rename_map: dict = {}
     for inst_id, dir_name, _ in instance_sessions:
         inst_logs = os.path.join(sessions_dir, dir_name, "logs")
         if os.path.isdir(inst_logs):
             for f in os.listdir(inst_logs):
+                if (inst_id, f) not in failed_logs:
+                    continue  # 跳过通过用例的日志
                 src = os.path.join(inst_logs, f)
                 new_name = f"inst{inst_id}_{f}"
                 dst = os.path.join(logs_dst, new_name)
                 shutil.copy2(src, dst)
                 log_rename_map[(inst_id, f)] = new_name
+
+    total_logs = sum(len(list(os.listdir(os.path.join(sessions_dir, d, "logs"))))
+                     for _, d, _ in instance_sessions
+                     if os.path.isdir(os.path.join(sessions_dir, d, "logs")))
+    print(f"  日志: 仅上传 {len(log_rename_map)} 个失败日志（共 {total_logs} 个，跳过通过用例）")
 
     # 修正 combined_session.tests 里的 log 字段，使其与实际文件名一致
     for t in combined_session["tests"]:
@@ -579,7 +644,7 @@ def upload_combined_session(results_data: dict, n_instances: int,
         # 确保远端目录存在
         ssh.exec_command(f"mkdir -p {_REPORT_REMOTE_DIR}/sessions")
 
-        # 上传合并的 session 目录
+        # 上传合并的 session 目录（仅含失败日志，体积小）
         with SCPClient(ssh.get_transport()) as scp:
             scp.put(combined_dir, f"{_REPORT_REMOTE_DIR}/sessions", recursive=True)
 
@@ -595,8 +660,11 @@ def upload_combined_session(results_data: dict, n_instances: int,
         if os.path.isdir(sessions_dir):
             shutil.rmtree(sessions_dir, ignore_errors=True)
 
+        return session_id
+
     except Exception as e:
         print(f"\n  ⚠️ 结果上传失败: {e}")
+        return None
 
 
 def _sync_parallel_to_remote(sftp, session_data: dict, remote_base: str):

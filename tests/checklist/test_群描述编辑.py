@@ -10,6 +10,7 @@ class Test群描述编辑(BaseTest):
 
     def setup(self):
         self.userA = self.users("userA")
+        self.group_name = self.userA.setup_owner_group("吴彦祖")
 
     def test_群描述编辑(self):
         """群主编辑群描述并保存"""
@@ -17,7 +18,7 @@ class Test群描述编辑(BaseTest):
         # 使用时间戳生成唯一描述内容
         desc = f"自动化测试描述_{int(time.time())}"
         result = self.userA.edit_group_description(
-            group_identifier="吴彦祖",
+            group_identifier=self.group_name,
             description=desc
         )
         assert result, "群描述应该编辑成功"

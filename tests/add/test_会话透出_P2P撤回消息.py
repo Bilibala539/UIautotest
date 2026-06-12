@@ -2,7 +2,10 @@
 测试用例: P2P撤回消息透出
 覆盖文字用例: P2P撤回消息透出
 """
+import os
 import time
+
+import pytest
 from conftest import BaseTest
 
 
@@ -10,6 +13,8 @@ class TestP2PRecallMessagePreview(BaseTest):
     """P2P撤回消息透出: userB向userA发送消息后撤回，userA验证显示撤回提示"""
 
     def setup(self):
+        if os.environ.get("INSTANCE_ID"):
+            pytest.skip("需要双设备跨进程通讯，并行模式下跳过")
         self.userA = self.users("userA")
         self.userB = self.users("userB")
 
@@ -19,7 +24,7 @@ class TestP2PRecallMessagePreview(BaseTest):
         userB向userA发送消息后撤回，userA在消息列表验证显示撤回提示
         """
         # userB先发送一条消息
-        self.userB.send_message("popoqa50", "待撤回消息", isback=False)
+        self.userB.send_message(self.userA.uid, "待撤回消息", isback=False)
         time.sleep(2)
 
         # userB撤回消息（长按最后一条消息，点击撤回）

@@ -2,8 +2,11 @@
 测试用例: P2P文本消息透出
 覆盖文字用例: P2P文本消息透出
 """
-import time
+import os
 import random
+import time
+
+import pytest
 from conftest import BaseTest
 
 
@@ -11,6 +14,8 @@ class TestP2PTextMessagePreview(BaseTest):
     """P2P文本消息透出: userB向userA发送文本，userA在消息列表验证显示消息内容"""
 
     def setup(self):
+        if os.environ.get("INSTANCE_ID"):
+            pytest.skip("需要双设备跨进程通讯，并行模式下跳过")
         self.userA = self.users("userA")
         self.userB = self.users("userB")
 
@@ -22,7 +27,7 @@ class TestP2PTextMessagePreview(BaseTest):
         msg_content = f"P2P测试{random.randint(1000, 9999)}"
 
         # userB向userA发文本
-        self.userB.send_message("popoqa50", msg_content, isback=True)
+        self.userB.send_message(self.userA.uid, msg_content, isback=True)
         time.sleep(2)
 
         # userA验证消息列表中显示该文本

@@ -1898,8 +1898,13 @@ class MuMuBusiness(CommonBusiness):
         self.input_text(str(message))
         time.sleep(0.5)
 
-        # 6. 点击发送按钮
-        self.click_image(EXTENDED_EDIT_SEND_BUTTON, region=Normal.HALF_DOWN)
+        # 6. 点击发送按钮（图片匹配失败时回退到 ADB 坐标）
+        send_pos = self.find_image(EXTENDED_EDIT_SEND_BUTTON, region=Normal.HALF_DOWN, timeout=3)
+        if send_pos:
+            self.click_image(EXTENDED_EDIT_SEND_BUTTON, region=Normal.HALF_DOWN)
+        else:
+            logger.warning("⚠️ 扩展编辑发送按钮图片未匹配，使用 ADB 坐标 (505, 922) 点击")
+            self._adb_tap(505, 922)
         time.sleep(1)
 
         # 7. 验证发送成功：消息文本出现在聊天区域
@@ -3391,12 +3396,29 @@ class MuMuBusiness(CommonBusiness):
         self.tap(input_x, input_y)
         time.sleep(1)
 
-        # 7. 长按输入框弹出粘贴选项
-        self.long_press(input_x, input_y, duration=1.5)
-        time.sleep(1)
+        # 7-8. 长按输入框弹出粘贴菜单并点击（含重试 + ADB keyevent 回退）
+        paste_done = False
+        for attempt in range(3):
+            # 长按时向上偏移 30px，确保落在输入框文本区域内
+            self.long_press(input_x, input_y - 30, duration=2.0)
+            time.sleep(1.5)
+            paste_pos = self.find_text_by_ocr("粘贴", timeout=3)
+            if paste_pos:
+                self.tap(paste_pos[0], paste_pos[1])
+                paste_done = True
+                logger.info("✅ 点击'粘贴'成功")
+                break
+            logger.warning(f"⚠️ 第{attempt + 1}次长按未出现'粘贴'菜单，重试")
+            # 关闭可能存在的其他弹窗，再重试
+            self.tap(270, 400)
+            time.sleep(0.5)
 
-        # 8. 点击"粘贴"
-        self.click_text("粘贴")
+        if not paste_done:
+            # fallback: ADB KEYCODE_PASTE 直接粘贴
+            logger.warning("⚠️ '粘贴'菜单始终未出现，使用 ADB KEYCODE_PASTE (279) 回退")
+            self.tap(input_x, input_y)
+            time.sleep(0.3)
+            self._run_adb_command("shell", "input", "keyevent", "279")
         time.sleep(2)
 
         # 9. 点击发送

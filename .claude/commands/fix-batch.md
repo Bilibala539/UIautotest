@@ -148,7 +148,7 @@ grep -rl "click_session_box" E:/UIAutotest/tests/
 |---------|---------|
 | 有 PASS 用例调用同方法且成功 | 方法本身没问题，对比成功 vs 失败用例的调用差异（参数/前置页面/传入值） |
 | 所有调用该方法的用例全部失败 | 方法本身有 bug，直接修方法 |
-| 没有 PASS 用例调用该方法 | 走通用诊断（Step 1） |
+| 没有 PASS 用例调用该方法 | 走 Phase 1 Step 1（aw-verify 诊断） |
 
 ### Step 5：输出修复优先级队列
 
@@ -164,7 +164,7 @@ grep -rl "click_session_box" E:/UIAutotest/tests/
 | P2-独立 | C4-操作逻辑 | test_send_image 各自不同 | 1 | 逐个分析 |
 ```
 
-**每轮 fix 后重新执行 Phase 0.5**——剩余失败的共性模式可能变了，不能沿用上轮分析结论。
+**每轮 fix 后重新执行 Phase 0 + Phase 0.5**——剩余失败用例变化后，聚类（C1-C6）和共性模式都可能变了，不能沿用上轮结论。
 
 ---
 

@@ -1,8 +1,4 @@
 {
-  "enableAllProjectMcpServers": true,
-  "enabledMcpjsonServers": [
-    "codemap"
-  ],
   "permissions": {
     "allow": [
       "Bash(*)",
@@ -48,7 +44,14 @@
       "mcp__codemap__get_dependencies",
       "mcp__codemap__get_graph_stats",
       "mcp__codemap__search_knowledge",
-      "mcp__codemap__query_cypher"
+      "mcp__codemap__query_cypher",
+      "Bash(rm -rf output/allure-results/* output/screenshots/* output/failure_screenshots/* output/logs/*)",
+      "Bash(rm -rf logs/*)",
+      "Bash(rm -rf sessions/*)"
     ]
-  }
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "codemap"
+  ]
 }

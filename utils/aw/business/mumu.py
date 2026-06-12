@@ -2433,36 +2433,33 @@ class MuMuBusiness(CommonBusiness):
             assert pos is not None, "进入聊天页失败: 底部未找到'发送给'或'Plain Text'"
         logger.info(f"[MuMu] 已进入聊天页: {recipient}")
 
-    def send_image(self):
+    def _open_first_album_image(self) -> None:
         """
-        从相册选择第一张图片并发送（不编辑）
+        打开 + 面板 → 点相册 → 点击第一张图片进入预览。
 
-        注: 相册网格中第一张缩略图的点击使用固定坐标 (70, 200)，
-        该坐标基于 540×960 分辨率下相册网格布局计算。
-        相册网格中的缩略图内容变化频繁，无法使用图片模板匹配；
-        相册页面无稳定的 OCR 文字锚点可用于偏移定位第一张缩略图。
-        若 App 更新导致布局变化，需重新确认坐标。
+        调用前提: 当前在聊天页面（有加号按钮可见）。
+        退出状态: 已点击相册网格第一张图片，预览界面即将出现。
+
+        注: 坐标 (70, 200) 基于 540×960 分辨率相册网格第一行第一张缩略图，
+        不可使用模板匹配（内容动态变化）。
         """
-        # 打开 + 面板
         self.click_image(CHAT_PLUS_BUTTON, region=Normal.HALF_DOWN)
         time.sleep(1)
-
-        # 点击相册
         self.click_image(CHAT_PLUS_ALBUM, region=Normal.HALF_DOWN)
         time.sleep(2)
-
-        # 点击第一张图片（相册网格第一行第一个，540×960分辨率下(70,200)）
-        # 注意：此坐标依赖固定布局，若相册页布局变动需同步更新
         self.tap(70, 200)
-        time.sleep(1)
+        time.sleep(1.5)
 
-        # 点击发送
+    def send_image(self) -> bool:
+        """
+        从相册选择第一张图片并发送（不编辑）。
+
+        前置条件: 当前在聊天页面。
+        """
+        self._open_first_album_image()
         self.click_text("发送", region=Normal.HALF_DOWN, timeout=10)
         time.sleep(2)
-
-        # 验证发送成功：回到聊天页，+ 按钮可见
         self.image_exists(CHAT_PLUS_BUTTON, region=Normal.HALF_DOWN)
-
         logger.info("[MuMu] 图片发送成功")
         return True
 
@@ -2494,20 +2491,7 @@ class MuMuBusiness(CommonBusiness):
 
     def select_edit_send_image_from_album(self, recipient: str) -> bool:
         """
-        从相册选图 → 进入预览 → 点击"编辑" → 在编辑器中完成 → 发送
-
-        步骤:
-        1. 进入联系人聊天页
-        2. 点击 + → 相册
-        3. 点击第一张图片，直接进入带"编辑"按钮的预览页
-        4. 点击"编辑"按钮进入图片编辑器
-        5. 验证编辑器底部工具栏出现
-        6. 点击"完成"退出编辑器
-        7. 点击"发送"按钮发送编辑后的图片
-
-        探索来源:
-        - edit_img_after_done.png（预览页含编辑/发送按钮）
-        - edit_img_editor_page.png（编辑器页面）
+        从相册选图 → 进入预览 → 点击"编辑" → 在编辑器中完成 → 发送。
 
         Args:
             recipient: 收件人账号
@@ -2516,43 +2500,18 @@ class MuMuBusiness(CommonBusiness):
             bool: 是否成功完成编辑并发送
         """
         logger.info(f"[MuMu] 从相册选图编辑后发送给: {recipient}")
-
         self._enter_chat_page(recipient)
-
-        # 打开 + 面板
-        self.click_image(CHAT_PLUS_BUTTON, region=Normal.HALF_DOWN)
-        time.sleep(1)
-
-        # 点击相册
-        self.click_image(CHAT_PLUS_ALBUM, region=Normal.HALF_DOWN)
-        time.sleep(2)
-
-        # 点击第一张图片（540分辨率下相册网格第一张缩略图坐标，详见 send_image() 注释）
-        self.tap(70, 200)
-        time.sleep(1.5)
-
-        # 点击"编辑"进入编辑器（点击图片后直接出现编辑按钮，无需额外点"预览"）
+        self._open_first_album_image()
         self.click_image(ALBUM_PREVIEW_EDIT_BUTTON, region=Normal.HALF_DOWN, timeout=10)
         time.sleep(1.5)
-
-        # 验证已进入编辑器（底部工具栏出现）
         self.image_exists(IMAGE_EDITOR_TOOLBAR, region=Normal.HALF_DOWN, timeout=8)
         logger.info("[MuMu] 已进入图片编辑器")
-
-        # 点击"完成"退出编辑器
         self.click_text("完成")
         time.sleep(1)
-
-        # 验证返回预览页（"编辑"按钮重新出现）
         self.image_exists(ALBUM_PREVIEW_EDIT_BUTTON, region=Normal.HALF_DOWN, timeout=5)
-
-        # 点击"发送"发送图片
         self.click_image(ALBUM_PREVIEW_SEND_BUTTON, region=Normal.HALF_DOWN, timeout=10)
         time.sleep(2)
-
-        # 验证发送成功：回到聊天页
         self.image_exists(CHAT_PLUS_BUTTON, region=Normal.HALF_DOWN)
-
         logger.info("[MuMu] 相册选图编辑后发送成功")
         return True
 
@@ -2647,19 +2606,7 @@ class MuMuBusiness(CommonBusiness):
 
     def select_edit_with_tools_send_image(self, recipient: str) -> bool:
         """
-        从相册选图 → 编辑器中使用画笔工具编辑 → 完成 → 发送
-
-        与 select_edit_send_image_from_album 的区别：
-        本方法会在编辑器中使用画笔工具实际绘制，验证工具操作正常。
-
-        步骤:
-        1. 进入联系人聊天页
-        2. 点击 + → 相册 → 选图 → 预览 → 编辑
-        3. 进入编辑器后，在图片中心画一笔（使用画笔工具）
-        4. 点击"完成"
-        5. 点击"发送"
-
-        探索来源: edit_img_editor_page.png（画笔工具坐标 x≈60, y≈870）
+        从相册选图 → 编辑器中使用画笔工具绘制 → 完成 → 发送。
 
         Args:
             recipient: 收件人账号
@@ -2668,46 +2615,19 @@ class MuMuBusiness(CommonBusiness):
             bool: 是否成功
         """
         logger.info(f"[MuMu] 从相册选图，使用工具编辑后发送给: {recipient}")
-
         self._enter_chat_page(recipient)
-
-        # 打开 + 面板
-        self.click_image(CHAT_PLUS_BUTTON, region=Normal.HALF_DOWN)
-        time.sleep(1)
-
-        # 点击相册
-        self.click_image(CHAT_PLUS_ALBUM, region=Normal.HALF_DOWN)
-        time.sleep(2)
-
-        # 点击第一张图片（540分辨率下相册网格第一张缩略图坐标，详见 send_image() 注释）
-        self.tap(70, 200)
-        time.sleep(1.5)
-
-        # 点击"编辑"进入编辑器（点击图片后直接出现编辑按钮，无需额外点"预览"）
+        self._open_first_album_image()
         self.click_image(ALBUM_PREVIEW_EDIT_BUTTON, region=Normal.HALF_DOWN, timeout=10)
         time.sleep(1.5)
-
-        # 验证已进入编辑器
         self.image_exists(IMAGE_EDITOR_TOOLBAR, region=Normal.HALF_DOWN, timeout=8)
-
-        # 在图片中心绘制一笔（画笔工具已默认激活，或可 click_text("T", region=HALF_DOWN) 激活）
-        # 直接在图片区域滑动，产生绘制效果
         self.swipe(150, 400, 380, 400, duration=0.5)
         time.sleep(0.5)
-        # 点击"完成"
         self.click_text("完成")
         time.sleep(1)
-
-        # 验证返回预览页
         self.image_exists(ALBUM_PREVIEW_EDIT_BUTTON, region=Normal.HALF_DOWN, timeout=5)
-
-        # 点击"发送"
         self.click_image(ALBUM_PREVIEW_SEND_BUTTON, region=Normal.HALF_DOWN, timeout=10)
         time.sleep(2)
-
-        # 验证发送成功
         self.image_exists(CHAT_PLUS_BUTTON, region=Normal.HALF_DOWN)
-
         logger.info("[MuMu] 使用工具编辑后发送成功")
         return True
 
@@ -5038,35 +4958,23 @@ class MuMuBusiness(CommonBusiness):
     def enter_image_editor_from_album(self, recipient: str) -> bool:
         """
         进入图片编辑器（从相册选图路径），不执行后续操作。
-        用于需要在编辑器中做自定义操作的用例。
 
         Returns:
             bool: 是否成功进入编辑器
         """
         logger.info(f"[MuMu] 进入图片编辑器（从相册）: {recipient}")
-        # 处理可能的"显示浮窗"弹窗（直接点击"取消"按钮位置）
         popup_text = self.find_text_by_ocr("显示浮窗", timeout=2)
         if popup_text:
             logger.info("⚠️ 检测到浮窗权限弹窗，点击取消")
             self.tap(171, 577)
             time.sleep(1)
-            # 二次确认弹窗已关闭
-            still_there = self.find_text_by_ocr("显示浮窗", timeout=2)
-            if still_there:
-                logger.info("⚠️ 弹窗仍在，再次点击取消")
+            if self.find_text_by_ocr("显示浮窗", timeout=2):
                 self.tap(171, 577)
                 time.sleep(1)
         self._enter_chat_page(recipient)
-        self.click_image(CHAT_PLUS_BUTTON, region=Normal.HALF_DOWN)
-        time.sleep(1)
-        self.click_image(CHAT_PLUS_ALBUM, region=Normal.HALF_DOWN)
-        time.sleep(2)
-        self.tap(70, 200)
-        time.sleep(1.5)
-        # 点击"编辑"按钮进入编辑器（限制在底部区域，避免点到顶部Tab）
+        self._open_first_album_image()
         self.click_text("编辑", timeout=10, region=Normal.HALF_DOWN)
-        time.sleep(2)
-        # 验证已进入编辑器（"完成"按钮可见）
+        time.sleep(0.5)
         done_pos = self.find_text_by_ocr("完成", timeout=8)
         assert done_pos is not None, "未进入图片编辑器（未找到'完成'按钮）"
         logger.info("[MuMu] 已进入图片编辑器")
@@ -5091,30 +4999,20 @@ class MuMuBusiness(CommonBusiness):
 
     def edit_image_done_check_popup(self, recipient: str) -> bool:
         """
-        从相册进入编辑器 → 点击完成 → 验证弹出操作弹窗
-
-        复用 select_edit_send_image_from_album 的稳定进入路径。
+        从相册进入编辑器 → 点击完成 → 验证弹出操作弹窗。
 
         Returns:
             bool: 是否弹出包含"发送给同事或群组"的操作弹窗
         """
         logger.info(f"[MuMu] 编辑图片完成后检查弹窗: {recipient}")
         self._enter_chat_page(recipient)
-        self.click_image(CHAT_PLUS_BUTTON, region=Normal.HALF_DOWN)
-        time.sleep(1)
-        self.click_image(CHAT_PLUS_ALBUM, region=Normal.HALF_DOWN)
-        time.sleep(2)
-        self.tap(70, 200)
-        time.sleep(1.5)
+        self._open_first_album_image()
         self.click_text("编辑", timeout=10, region=Normal.HALF_DOWN)
-        time.sleep(2)
-        # 验证进入编辑器
+        time.sleep(0.5)
         done_pos = self.find_text_by_ocr("完成", timeout=8)
         assert done_pos is not None, "未进入图片编辑器"
-        # 点击完成
         self.click_text("完成")
         time.sleep(1.5)
-        # 验证弹窗
         self.text_exists("发送给同事或群组")
         logger.info("[MuMu] 编辑完成弹窗验证通过")
         return True

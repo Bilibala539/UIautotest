@@ -483,7 +483,7 @@ class MuMuBusiness(CommonBusiness):
         """
         logger.info("📋 [MuMu] 打开会话分组弹窗")
 
-        # 使用 _ensure_message_page 确保回到消息列表（会自动处理桌面/深层页面等场景）
+        # 确保从干净的状态开始（并行模式下前序用例可能残留状态）
         self._ensure_message_page()
         time.sleep(0.5)
 
@@ -498,16 +498,24 @@ class MuMuBusiness(CommonBusiness):
         if matched:
             self.tap(matched[0], matched[1])
         else:
-            # 方案2：坐标直接点击 ≡ 按钮（tab 行最右侧，x≈505, y≈277）
-            logger.info("⚠️ SESSION_GROUP_MORE_BUTTON 图片未匹配，使用坐标 (505, 277)")
-            self.tap(505, 277)
+            # 方案2：OCR 找 ≡ / 更多 按钮（tab 行最右侧区域）
+            logger.info("⚠️ SESSION_GROUP_MORE_BUTTON 图片未匹配，尝试 OCR 找 ≡ 按钮")
+            pos_more = self.find_text_by_ocr("≡", timeout=3, region=(480, 260, 60, 40))
+            if pos_more is None:
+                pos_more = self.find_text_by_ocr("更多", timeout=2, region=(480, 260, 60, 40))
+            if pos_more is None:
+                # 方案3：fallback 坐标（tab 行最右侧，x≈505, y≈277；备选 x≈530）
+                logger.info("⚠️ OCR 也未找到，使用 fallback 坐标 (505, 277)")
+                self.tap(505, 277)
+            else:
+                self.tap(pos_more[0], pos_more[1])
         time.sleep(1.5)  # 等待面板动画
 
         # 验证面板已打开（超时6s，给 OCR 更多时间）
         pos = self.find_text_by_ocr("会话分组", timeout=6)
         if pos is None:
-            logger.warning("⚠️ 第一次点击后未发现'会话分组'，重试坐标 (505, 277)")
-            self.tap(505, 277)
+            logger.warning("⚠️ 第一次点击后未发现'会话分组'，重试坐标 (530, 277)")
+            self.tap(530, 277)
             time.sleep(2)
             pos = self.find_text_by_ocr("会话分组", timeout=6)
 
@@ -683,6 +691,11 @@ class MuMuBusiness(CommonBusiness):
             bool: 操作是否成功
         """
         logger.info(f"📋 [MuMu] 切换到分组Tab: {tab_name}")
+
+        # 确保从干净的状态开始（并行模式下前序用例可能残留状态）
+        self._ensure_message_page()
+        time.sleep(0.5)
+
         self.click_text(tab_name, timeout=5, region=(0, 275, 540, 45))
         time.sleep(1)
         logger.info(f"✅ 已切换到 '{tab_name}' Tab")
@@ -703,6 +716,8 @@ class MuMuBusiness(CommonBusiness):
             bool: 操作是否成功
         """
         logger.info("📋 [MuMu] 打开会话盒子")
+
+        # 确保从干净的状态开始（并行模式下前序用例可能残留状态）
         self._ensure_message_page()
         time.sleep(0.5)
 
@@ -757,6 +772,75 @@ class MuMuBusiness(CommonBusiness):
                 pos = self.find_text_by_ocr(text, timeout=2)
                 if pos:
                     return text
+        return None
+
+    def _scroll_find_in_page(self, candidates: list, max_screens: int = 5,
+                             swipe_distance: int = 300, timeout_per_screen: int = 2):
+        """
+        在可滚动页面中逐屏查找候选文字（任一匹配即返回坐标）
+
+        与 _find_menu_item 的区别：使用 swipe_up（页面滚动）而非 swipe（菜单内滚动），
+        且返回坐标 tuple 而非匹配的文字字符串。
+
+        Args:
+            candidates: 候选文字列表，找到任一即返回
+            max_screens: 最多滑动屏数
+            swipe_distance: 每次滑动距离
+            timeout_per_screen: 每屏 OCR 超时
+
+        Returns:
+            tuple (cx, cy): 找到的文字中心坐标，或 None
+        """
+        for screen in range(max_screens):
+            for text in candidates:
+                pos = self.find_text_by_ocr(text, timeout=timeout_per_screen)
+                if pos:
+                    logger.info(f"📌 第{screen + 1}屏找到 '{text}' at {pos}")
+                    return pos
+            if screen < max_screens - 1:
+                self.swipe_up(swipe_distance)
+                time.sleep(0.5)
+        return None
+
+    def _scroll_find_containing(self, candidates: list, max_screens: int = 5,
+                                swipe_distance: int = 300, timeout_per_screen: int = 2,
+                                require_both: bool = False):
+        """
+        在可滚动页面中使用 ocr_scan_page 宽搜索包含候选关键词的文字（模糊匹配）
+
+        比 _scroll_find_in_page 更宽松：不做精确 OCR 匹配，而是扫描所有文字后
+        用 Python `in` 做子串判断，适应 OCR 可能把"群管理"拆分成"群" + "管理"的情况。
+
+        Args:
+            candidates: 候选关键词列表
+            max_screens: 最多滑动屏数
+            swipe_distance: 每次滑动距离
+            timeout_per_screen: 每屏超时（ocr_scan_page 为同步调用，此处忽略）
+            require_both: True 时要求所有关键词都在同一词中出现（如必须同时含"群"+"管理"）
+
+        Returns:
+            tuple (cx, cy): 找到的文字中心坐标，或 None
+        """
+        for screen in range(max_screens):
+            results = self.ocr_scan_page()
+            for r in results:
+                text = r.get('text', '')
+                if not text.strip():
+                    continue
+                if require_both:
+                    if all(cand in text for cand in candidates):
+                        cx, cy = r.get('cx', 0), r.get('cy', 0)
+                        logger.info(f"📌 第{screen + 1}屏宽搜索找到 '{text}' (含全部 {candidates}) at ({cx}, {cy})")
+                        return (cx, cy)
+                else:
+                    for cand in candidates:
+                        if cand in text:
+                            cx, cy = r.get('cx', 0), r.get('cy', 0)
+                            logger.info(f"📌 第{screen + 1}屏宽搜索找到 '{text}' (含 '{cand}') at ({cx}, {cy})")
+                            return (cx, cy)
+            if screen < max_screens - 1:
+                self.swipe_up(swipe_distance)
+                time.sleep(0.5)
         return None
 
     def long_press_session_pin(self) -> bool:
@@ -935,6 +1019,11 @@ class MuMuBusiness(CommonBusiness):
             bool: 操作是否成功
         """
         logger.info(f"📋 [MuMu] 长按会话 '{conversation_name}' → 切换已读/未读")
+
+        # 确保从干净的状态开始（并行模式下前序用例可能残留状态）
+        self._ensure_message_page()
+        time.sleep(0.5)
+
         # 确保窗口获得焦点
         self.driver.focus_window()
         time.sleep(0.3)
@@ -977,6 +1066,8 @@ class MuMuBusiness(CommonBusiness):
             bool: 操作是否成功
         """
         logger.info(f"🗑️ [MuMu] 关闭会话盒子: {conversation_name}")
+
+        # 确保从干净的状态开始（并行模式下前序用例可能残留状态）
         self._ensure_message_page()
         time.sleep(0.5)
 
@@ -1076,27 +1167,26 @@ class MuMuBusiness(CommonBusiness):
 
     # ==================== 消息操作相关 ====================
 
+    def _longpress_and_select_menu_item(self, message_text: str, menu_item: str) -> None:
+        """长按消息文字，从弹出菜单中点击指定菜单项。
+
+        被 recall/copy/delete/pin/multi_select/translate 等方法复用。
+        前置条件: 当前在聊天页面。
+
+        Args:
+            message_text: 要长按的消息文字
+            menu_item: 菜单项文字（如"撤回"/"复制"/"Pin"/"删除"/"多选"/"翻译"）
+        """
+        self.long_press_text(message_text, duration=1.5)
+        time.sleep(1)
+        self.click_text(menu_item, region=Normal.HALF_DOWN)
+        time.sleep(1)
+
     def recall_message(self, message_text: str):
         """
         撤回消息
 
-        在当前聊天页面，长按指定消息体，从弹出的操作菜单中点击"撤回"，
-        在确认弹窗中点击"确定"完成撤回。
-
-        前置条件:
-        - 当前页面为聊天页面 (chat_page)
-        - 目标消息为自己发送的消息
-        - 消息发送时间在24小时内
-
-        步骤:
-        1. 通过OCR定位消息文字
-        2. 长按消息体(1.5秒)
-        3. 弹出操作菜单（底部浮动面板）
-        4. 点击"撤回"选项
-        5. 在确认弹窗中点击"确定"
-        6. 验证撤回成功（出现"你撤回了一条消息"提示）
-
-        探索来源: explorer_output/records/exploration_record_recall_message.md
+        前置条件: 当前在聊天页面，消息为自己发送且24小时内。
 
         Args:
             message_text: 要撤回的消息文字内容
@@ -1105,29 +1195,18 @@ class MuMuBusiness(CommonBusiness):
             bool: 撤回是否成功
         """
         logger.info(f"🔄 [MuMu] 撤回消息: '{message_text}'")
-
-        # 1. 先定位消息文字的 Y 坐标，用于后续限定验证区域
-        msg_y = self.find_text_by_ocr(message_text)[1]
+        msg_pos = self.find_text_by_ocr(message_text, timeout=5)
+        assert msg_pos is not None, f"未找到消息文字 '{message_text}'"
+        msg_y = msg_pos[1]
         time.sleep(0.5)
-
-        # 2. 长按消息体
-        self.long_press_text(message_text)
-        time.sleep(1)
-
-        # 3. 点击弹出菜单中的"撤回"
-        self.click_text("撤回")
-        time.sleep(1)
-
-        # 4. 判断是否存在撤回确认弹窗
+        self._longpress_and_select_menu_item(message_text, "撤回")
         if self.find_image(MSG_RECELL_POP, timeout=5):
             self.click_text("确定")
-
-        # 5. 验证撤回成功（限定在原消息 Y 坐标上下 60px 范围内搜索，避免匹配到其他历史撤回记录）
         time.sleep(1)
         verify_y_top = max(0, msg_y - 60)
         verify_y_bottom = min(960, msg_y + 60)
-        self.text_exists("你撤回了一条消息", timeout=5, region=(0, verify_y_top, 540, verify_y_bottom))
-
+        self.text_exists("你撤回了一条消息", timeout=5,
+                         region=(0, verify_y_top, 540, verify_y_bottom - verify_y_top))
         logger.info(f"✅ [MuMu] 消息撤回成功: '{message_text}'")
         return True
 
@@ -1183,18 +1262,7 @@ class MuMuBusiness(CommonBusiness):
         """
         复制消息
 
-        在当前聊天页面，长按指定消息体，从弹出的操作菜单中点击"复制"，
-        消息文字内容复制到剪贴板。
-
-        前置条件:
-        - 当前页面为聊天页面 (chat_page)
-
-        步骤:
-        1. 长按目标消息文字(1.5秒)
-        2. 点击弹出菜单中的"复制"
-        3. 验证"复制成功"toast出现
-
-        探索来源: explorer_output/screenshots/longpress_step6_copy_done.png
+        前置条件: 当前在聊天页面。
 
         Args:
             message_text: 要复制的消息文字
@@ -1203,15 +1271,8 @@ class MuMuBusiness(CommonBusiness):
             bool: 复制是否成功
         """
         logger.info(f"📋 [MuMu] 复制消息: '{message_text}'")
-
-        self.long_press_text(message_text, duration=1.5)
-        time.sleep(1)
-
-        self.click_text("复制", region=Normal.HALF_DOWN)
-        time.sleep(1)
-
+        self._longpress_and_select_menu_item(message_text, "复制")
         self.image_exists(CHAT_COPY_SUCCESS_TOAST)
-
         logger.info(f"✅ [MuMu] 消息复制成功")
         return True
 
@@ -1219,39 +1280,19 @@ class MuMuBusiness(CommonBusiness):
         """
         进入多选模式
 
-        在当前聊天页面，长按指定消息体，从弹出的操作菜单中点击"多选"，
-        进入多选模式，验证后按返回键退出多选模式。
-
-        前置条件:
-        - 当前页面为聊天页面 (chat_page)
-
-        步骤:
-        1. 长按目标消息文字(1.5秒)
-        2. 点击弹出菜单中的"多选"
-        3. 验证进入多选模式（标题栏出现"已选中"）
-        4. 按返回键退出多选模式
-
-        探索来源: explorer_output/screenshots/longpress_step8_multiselect.png
+        前置条件: 当前在聊天页面。
 
         Args:
-            message_text: 要多选的消息文字
+            message_text: 触发多选的消息文字
 
         Returns:
             bool: 多选模式进入和退出是否成功
         """
         logger.info(f"☑️ [MuMu] 多选消息: '{message_text}'")
-
-        self.long_press_text(message_text, duration=1.5)
-        time.sleep(1)
-
-        self.click_text("多选", region=Normal.HALF_DOWN)
-        time.sleep(1)
-
+        self._longpress_and_select_menu_item(message_text, "多选")
         self.image_exists(CHAT_MULTI_SELECT_TITLE, region=Normal.HALF_UP)
-
         self.press_back()
         time.sleep(0.5)
-
         logger.info(f"✅ [MuMu] 多选模式进入和退出成功")
         return True
 
@@ -1259,18 +1300,7 @@ class MuMuBusiness(CommonBusiness):
         """
         翻译消息
 
-        在当前聊天页面，长按指定消息体，从弹出的操作菜单中点击"翻译"，
-        消息气泡下方出现翻译结果。
-
-        前置条件:
-        - 当前页面为聊天页面 (chat_page)
-
-        步骤:
-        1. 长按目标消息文字(1.5秒)
-        2. 点击弹出菜单中的"翻译"
-        3. 验证翻译结果出现
-
-        探索来源: explorer_output/screenshots/longpress_step10_translate.png
+        前置条件: 当前在聊天页面。
 
         Args:
             message_text: 要翻译的消息文字
@@ -1279,25 +1309,15 @@ class MuMuBusiness(CommonBusiness):
             bool: 翻译是否成功
         """
         logger.info(f"🌐 [MuMu] 翻译消息: '{message_text}'")
-
-        # 先用OCR定位消息坐标，记录y值用于后续限定搜索区域
         msg_pos = self.find_text_by_ocr(message_text, timeout=10)
         assert msg_pos is not None, f"未找到消息文字 '{message_text}'"
         msg_y = msg_pos[1]
-
-        self.long_press(msg_pos[0], msg_pos[1], duration=1.5)
-        logger.info(f"长按文字 '{message_text}' 位置：({msg_pos[0]}, {msg_pos[1]})")
-        time.sleep(1)
-
-        self.click_text("翻译", region=Normal.HALF_DOWN)
-        time.sleep(3)
-
-        # 在消息y坐标上下100px范围内搜索翻译结果
+        self._longpress_and_select_menu_item(message_text, "翻译")
+        time.sleep(2)  # 翻译接口响应较慢，在 helper 1s 基础上再等 2s
         search_y1 = max(0, msg_y - 100)
         search_y2 = min(960, msg_y + 100)
-        search_region = (0, search_y1, 540, search_y2 - search_y1)
-        self.image_exists(CHAT_TRANSLATE_RESULT, timeout=15, region=search_region)
-
+        self.image_exists(CHAT_TRANSLATE_RESULT, timeout=15,
+                          region=(0, search_y1, 540, search_y2 - search_y1))
         logger.info(f"✅ [MuMu] 消息翻译成功")
         return True
 
@@ -1529,26 +1549,75 @@ class MuMuBusiness(CommonBusiness):
         "font_color": EXTENDED_EDIT_FONT_COLOR_A,
     }
 
-    # styleBar 格式工具栏中每个格式按钮的 ADB 坐标
-    # 通过 uiautomator dump + 实际验证确认：
-    # 进入扩展编辑模式后，底部直接显示 styleBar（无需额外切换模式）
-    # styleBarFl 按钮顺序：T(段落标题) / B(加粗) / I(斜体) / U(下划线) / S(删除线) / A(字色)
-    # 按钮间距固定 72px，Y 中心 = 918
-    _STYLE_BAR_ADB_COORDS = {
-        "paragraph": (108, 918),  # btn0 [84,894][132,942]  - T (段落标题，点击弹出H1-H6)
-        "bold": (180, 918),  # btn1 [156,894][204,942] - B (加粗)
-        "italic": (252, 918),  # btn2 [228,894][276,942] - I (斜体)
-        "underline": (324, 918),  # btn3 [300,894][348,942] - U (下划线)
-        "strikethrough": (396, 918),  # btn4 [372,894][420,942] - S (删除线)
-        "font_color": (459, 918),  # btn5 [444,894][474,942] - A (字色，可能需要滑动)
+    # styleBar 格式工具栏中每个按钮相对 EXTENDED_EDIT_STYLE_TOOLBAR 左上角的偏移
+    # 原 uiautomator dump 数据（540×960 分辨率）：
+    #   工具栏图片左上角 ≈ (18, 876)，覆盖 [18,876]~[508,923]，宽 490 高 47
+    #   按钮顺序：T(段落标题) / B(加粗) / I(斜体) / U(下划线) / S(删除线) / A(字色)
+    #   按钮间距固定 72px，各按钮中心相对工具栏左上角的偏移如下：
+    _STYLE_BAR_BUTTON_OFFSETS = {
+        "paragraph": (90, 42),      # 中心 (108,918) → 偏移 (90,42)
+        "bold": (162, 42),          # 中心 (180,918) → 偏移 (162,42)
+        "italic": (234, 42),        # 中心 (252,918) → 偏移 (234,42)
+        "underline": (306, 42),     # 中心 (324,918) → 偏移 (306,42)
+        "strikethrough": (378, 42), # 中心 (396,918) → 偏移 (378,42)
+        "font_color": (441, 42),    # 中心 (459,918) → 偏移 (441,42)
     }
 
-    # flMarkdown 按钮的 ADB 坐标 — 位于 styleBar 左侧
-    # 注意：新版 UI 中进入扩展编辑后直接就是 styleBar，不再需要模式切换
-    _FL_MARKDOWN_ADB_COORD = (42, 918)  # [18,876][66,960] 中心
+    # flMarkdown 按钮相对工具栏左上角的偏移 — 位于 styleBar 左侧第一个
+    _FL_MARKDOWN_OFFSET = (24, 42)  # 中心 (42,918) → 偏移 (24,42)
 
     # 需要向左滑动工具栏才能看到的格式（RecyclerView 可能需要滚动）
     _RICH_TEXT_SCROLL_FORMATS = {"font_color"}
+
+    def _get_style_bar_button_pos(self, format_type: str):
+        """
+        通过工具栏图片锚点 + 偏移计算按钮的 ADB 坐标
+
+        先尝试用 EXTENDED_EDIT_STYLE_TOOLBAR 图片定位工具栏，再根据按钮偏移量计算
+        实际点击位置。若图片匹配失败，回退到基于 540×960 分辨率的固定 ADB 坐标。
+
+        Args:
+            format_type: 格式类型（paragraph/bold/italic/underline/strikethrough/font_color）
+
+        Returns:
+            (x, y): ADB 绝对坐标
+        """
+        offset = self._STYLE_BAR_BUTTON_OFFSETS.get(format_type)
+        assert offset is not None, (
+            f"不支持的格式类型: {format_type}，"
+            f"支持的类型: {list(self._STYLE_BAR_BUTTON_OFFSETS.keys())}"
+        )
+        ox, oy = offset
+
+        toolbar_pos = self.find_image(EXTENDED_EDIT_STYLE_TOOLBAR,
+                                       region=Normal.HALF_DOWN, timeout=3)
+        if toolbar_pos:
+            # toolbar_pos 是图片在窗口内的位置，需转为 ADB 坐标
+            tx, ty = toolbar_pos
+            logger.info(f"📐 工具栏锚点: ({tx}, {ty})，偏移 ({ox}, {oy})")
+            return (tx + ox, ty + oy)
+        else:
+            # 回退：基于 540×960 分辨率的固定坐标
+            # 工具栏左上角 ≈ (18, 876)，按钮中心 = (18, 876) + offset
+            logger.warning("⚠️ 未能匹配 EXTENDED_EDIT_STYLE_TOOLBAR，使用默认坐标")
+            return (18 + ox, 876 + oy)
+
+    def _get_fl_markdown_button_pos(self):
+        """
+        通过工具栏图片锚点 + 偏移计算 flMarkdown 按钮的 ADB 坐标
+
+        Returns:
+            (x, y): ADB 绝对坐标
+        """
+        ox, oy = self._FL_MARKDOWN_OFFSET
+        toolbar_pos = self.find_image(EXTENDED_EDIT_STYLE_TOOLBAR,
+                                       region=Normal.HALF_DOWN, timeout=3)
+        if toolbar_pos:
+            tx, ty = toolbar_pos
+            return (tx + ox, ty + oy)
+        else:
+            logger.warning("⚠️ 未能匹配 EXTENDED_EDIT_STYLE_TOOLBAR，使用默认坐标")
+            return (18 + ox, 876 + oy)
 
     def _adb_tap(self, x: int, y: int) -> bool:
         """
@@ -1666,7 +1735,7 @@ class MuMuBusiness(CommonBusiness):
             bool: 是否成功切换到模式B
         """
         logger.info("📝 [MuMu] 激活格式工具栏（切换到模式B）")
-        ax, ay = self._FL_MARKDOWN_ADB_COORD
+        ax, ay = self._get_fl_markdown_button_pos()
         self._adb_tap(ax, ay)
         time.sleep(0.5)
 
@@ -1687,7 +1756,7 @@ class MuMuBusiness(CommonBusiness):
         Returns:
             bool: 是否成功切换回模式A
         """
-        ax, ay = self._FL_MARKDOWN_ADB_COORD
+        ax, ay = self._get_fl_markdown_button_pos()
         self._adb_tap(ax, ay)
         time.sleep(0.5)
         return True
@@ -1739,10 +1808,21 @@ class MuMuBusiness(CommonBusiness):
             return False
 
         logger.info(f"📝 向左滑动工具栏以显示 '{format_type}' 按钮")
-        # 在工具栏区域向左滑动（工具栏在底部，约 y=918）
+        # 通过工具栏图片锚点获取滑动基线Y（工具栏在底部）
+        toolbar_pos = self.find_image(EXTENDED_EDIT_STYLE_TOOLBAR,
+                                       region=Normal.HALF_DOWN, timeout=3)
+        if toolbar_pos:
+            # 工具栏中心Y + 工具栏宽度中点用于滑动
+            bar_y = toolbar_pos[1] + 23   # 工具栏图片高度 47，中心偏移 ≈ 23
+            bar_right = toolbar_pos[0] + 450
+            bar_left = toolbar_pos[0] + 50
+        else:
+            # 回退：基于 540×960 的默认值
+            logger.warning("⚠️ 未能匹配 EXTENDED_EDIT_STYLE_TOOLBAR，使用默认滑动参数")
+            bar_y, bar_right, bar_left = 918, 400, 100
         # Markdown 按钮在最右端，需要多次滑动才能显示
         for _ in range(3):
-            self.swipe(400, 918, 100, 918, duration=0.3)
+            self.swipe(bar_right, bar_y, bar_left, bar_y, duration=0.3)
             time.sleep(0.5)
         return True
 
@@ -1783,11 +1863,11 @@ class MuMuBusiness(CommonBusiness):
         logger.info(f"📝 [MuMu] 发送富文本消息: format={format_type}, text='{message}'")
 
         # 验证格式类型有效
-        adb_coord = self._STYLE_BAR_ADB_COORDS.get(format_type)
-        assert adb_coord is not None, (
-            f"不支持的格式类型: {format_type}，"
-            f"支持的类型: {list(self._STYLE_BAR_ADB_COORDS.keys())}"
-        )
+        if format_type not in self._STYLE_BAR_BUTTON_OFFSETS:
+            raise AssertionError(
+                f"不支持的格式类型: {format_type}，"
+                f"支持的类型: {list(self._STYLE_BAR_BUTTON_OFFSETS.keys())}"
+            )
 
         # 1. 进入聊天页面
         self._enter_chat_page(recipient)
@@ -1807,9 +1887,9 @@ class MuMuBusiness(CommonBusiness):
         # 3. 进入扩展编辑模式（直接显示 styleBar 格式工具栏）
         self._enter_extended_edit_mode()
 
-        # 4. 通过 ADB tap 点击格式按钮激活样式（滑动如需要）
+        # 4. 通过工具栏锚点 + 偏移计算按钮坐标并点击（滑动如需要）
         self._scroll_toolbar_to_format(format_type)
-        ax, ay = adb_coord
+        ax, ay = self._get_style_bar_button_pos(format_type)
         logger.info(f"📝 通过 ADB 点击格式按钮 '{format_type}' @ ({ax}, {ay})")
         self._adb_tap(ax, ay)
         time.sleep(0.5)
@@ -2354,6 +2434,15 @@ class MuMuBusiness(CommonBusiness):
         logger.info(f"[MuMu] 已进入聊天页: {recipient}")
 
     def send_image(self):
+        """
+        从相册选择第一张图片并发送（不编辑）
+
+        注: 相册网格中第一张缩略图的点击使用固定坐标 (70, 200)，
+        该坐标基于 540×960 分辨率下相册网格布局计算。
+        相册网格中的缩略图内容变化频繁，无法使用图片模板匹配；
+        相册页面无稳定的 OCR 文字锚点可用于偏移定位第一张缩略图。
+        若 App 更新导致布局变化，需重新确认坐标。
+        """
         # 打开 + 面板
         self.click_image(CHAT_PLUS_BUTTON, region=Normal.HALF_DOWN)
         time.sleep(1)
@@ -2362,7 +2451,8 @@ class MuMuBusiness(CommonBusiness):
         self.click_image(CHAT_PLUS_ALBUM, region=Normal.HALF_DOWN)
         time.sleep(2)
 
-        # 点击第一张图片（相册网格第一行第一个位置，y≈200, x≈70）
+        # 点击第一张图片（相册网格第一行第一个，540×960分辨率下(70,200)）
+        # 注意：此坐标依赖固定布局，若相册页布局变动需同步更新
         self.tap(70, 200)
         time.sleep(1)
 
@@ -2437,7 +2527,7 @@ class MuMuBusiness(CommonBusiness):
         self.click_image(CHAT_PLUS_ALBUM, region=Normal.HALF_DOWN)
         time.sleep(2)
 
-        # 点击第一张图片 → 直接进入预览页（有"编辑"按钮）
+        # 点击第一张图片（540分辨率下相册网格第一张缩略图坐标，详见 send_image() 注释）
         self.tap(70, 200)
         time.sleep(1.5)
 
@@ -2489,16 +2579,19 @@ class MuMuBusiness(CommonBusiness):
         """
         logger.info("[MuMu] 长按图片消息进行编辑")
 
-        # 以 CHAT_PLUS_BUTTON 为锚点定位已发送图片气泡（图片在+号上方约250px，右对齐）
-        plus_pos = self.find_image(CHAT_PLUS_BUTTON, region=Normal.HALF_DOWN, timeout=10)
-        if plus_pos:
-            img_x, img_y = 370, plus_pos[1] - 250
-        else:
-            # 如果找不到+号，直接用 CHAT_SENT_IMAGE_BUBBLE 图片匹配兜底
-            logger.warning("⚠️ 未找到+按钮，尝试图片匹配 CHAT_SENT_IMAGE_BUBBLE")
-            img_pos = self.find_image(CHAT_SENT_IMAGE_BUBBLE, timeout=10)
-            assert img_pos is not None, "未找到已发送图片气泡"
+        # 方案A：用 CHAT_SENT_IMAGE_BUBBLE 图片直接匹配已发送图片气泡
+        img_pos = self.find_image(CHAT_SENT_IMAGE_BUBBLE, timeout=10)
+        if img_pos:
             img_x, img_y = img_pos
+            logger.info(f"📸 通过图片匹配定位图片气泡: ({img_x}, {img_y})")
+        else:
+            # 方案B：以 CHAT_PLUS_BUTTON 为锚点推算图片气泡位置
+            # 图片消息在+号上方约250px，右对齐（气泡X≈370 基于540宽度屏幕）
+            plus_pos = self.find_image(CHAT_PLUS_BUTTON, region=Normal.HALF_DOWN, timeout=10)
+            assert plus_pos is not None, "未找到+按钮作为锚点，也未找到已发送图片气泡"
+            # 注: img_x=370 是540分辨率的近似值，若屏幕分辨率改变需同步调整
+            img_x, img_y = 370, plus_pos[1] - 250
+            logger.warning(f"⚠️ 图片匹配失败，回退锚点推算: ({img_x}, {img_y})")
 
         self.long_press(img_x, img_y, duration=1.5)
         time.sleep(1)
@@ -2513,14 +2606,13 @@ class MuMuBusiness(CommonBusiness):
 
         self.click_image(IMAGE_EDITOR_PEN_BUTTON, region=Normal.HALF_DOWN)
 
-        # 在图片中画一个 H 图案，范围在左上角(125,200)到右下角(400,750)内
-        # H 的左竖线：从 (125, 200) 向下到 (125, 750)
+        # 在图片编辑画布中画一个 H 图案
+        # 注: 画布坐标基于图片编辑器视口，与屏幕分辨率无关，相对固定
+        #   左竖线 (125,200)→(125,750)，右竖线 (400,200)→(400,750)，横线 (125,475)→(400,475)
         self.swipe(125, 200, 125, 750, duration=0.5)
         time.sleep(0.3)
-        # H 的右竖线：从 (400, 200) 向下到 (400, 750)
         self.swipe(400, 200, 400, 750, duration=0.5)
         time.sleep(0.3)
-        # H 的中间横线：从 (125, 475) 向右到 (400, 475)
         self.swipe(125, 475, 400, 475, duration=0.5)
         # IMAGE_EDITOR_H 图片模板已过时，改用短暂等待代替断言
         time.sleep(0.5)
@@ -2587,7 +2679,7 @@ class MuMuBusiness(CommonBusiness):
         self.click_image(CHAT_PLUS_ALBUM, region=Normal.HALF_DOWN)
         time.sleep(2)
 
-        # 点击第一张图片 → 直接进入预览页（有"编辑"按钮）
+        # 点击第一张图片（540分辨率下相册网格第一张缩略图坐标，详见 send_image() 注释）
         self.tap(70, 200)
         time.sleep(1.5)
 
@@ -2839,20 +2931,7 @@ class MuMuBusiness(CommonBusiness):
         """
         删除消息
 
-        在当前聊天页面，长按指定消息体，从弹出的操作菜单中点击"删除"，
-        在确认弹窗中点击"删除"完成删除。
-
-        前置条件:
-        - 当前页面为聊天页面 (chat_page)
-
-        步骤:
-        1. 长按目标消息文字(1.5秒)
-        2. 弹出操作菜单（底部浮动面板）
-        3. 点击"删除"选项 (坐标约386,712)
-        4. 在确认弹窗"确认删除消息"中点击"删除"
-        5. 验证消息已删除
-
-        探索来源: explorer_output/screenshots/explore2_longpress_menu.png
+        前置条件: 当前在聊天页面。
 
         Args:
             message_text: 要删除的消息文字内容
@@ -2861,55 +2940,28 @@ class MuMuBusiness(CommonBusiness):
             bool: 删除是否成功
         """
         logger.info(f"🗑️ [MuMu] 删除消息: '{message_text}'")
-
-        # 1. 长按消息文字
-        self.long_press_text(message_text, duration=1.5)
-        time.sleep(1)
-
-        # 2. 点击弹出菜单中的"删除"
-        self.click_text("删除", region=Normal.HALF_DOWN)
-        time.sleep(1)
-
-        # 3. 确认删除弹窗中点击"删除"
-        self.find_text_by_ocr("确认删除消息", timeout=3)
+        self._longpress_and_select_menu_item(message_text, "删除")
+        self.text_exists("确认删除消息", timeout=3)
         self.click_text("删除", timeout=3)
         time.sleep(1)
-
         logger.info(f"✅ [MuMu] 消息删除成功: '{message_text}'")
         return True
 
     def pin_message(self, message_text: str) -> bool:
         """
-        Pin消息（置顶消息）
+        Pin 消息（置顶消息）
 
-        在当前聊天页面，长按指定消息体，从弹出的操作菜单中点击"Pin"。
-
-        前置条件:
-        - 当前页面为聊天页面 (chat_page)
-
-        步骤:
-        1. 长按目标消息文字(1.5秒)
-        2. 弹出操作菜单
-        3. 点击"Pin"选项
-
-        探索来源: explorer_output/screenshots/explore2_longpress_menu.png
+        前置条件: 当前在聊天页面。
 
         Args:
-            message_text: 要Pin的消息文字内容
+            message_text: 要 Pin 的消息文字内容
 
         Returns:
-            bool: Pin是否成功
+            bool: Pin 是否成功
         """
         logger.info(f"📌 [MuMu] Pin消息: '{message_text}'")
-
-        # 1. 长按消息文字
-        self.long_press_text(message_text, duration=1.5)
-        time.sleep(1)
-
-        # 2. 点击菜单中的"Pin"
-        self.click_text("Pin", region=Normal.HALF_DOWN)
-        time.sleep(1)
-
+        self._longpress_and_select_menu_item(message_text, "Pin")
+        self.image_exists(CHAT_PLUS_BUTTON, region=Normal.HALF_DOWN)
         logger.info(f"✅ [MuMu] 消息Pin成功: '{message_text}'")
         return True
 
@@ -2921,7 +2973,7 @@ class MuMuBusiness(CommonBusiness):
 
         步骤:
         1. 搜索群组并进入聊天页
-        2. 点击群名称进入群设置
+        2. 点击群名称进入群设置（复用 _enter_group_settings_from_chat）
 
         Args:
             group_identifier: 群组标识（群号或群名关键词）
@@ -2930,6 +2982,10 @@ class MuMuBusiness(CommonBusiness):
             bool: 是否成功进入群设置页面
         """
         logger.info(f"⚙️ [MuMu] 进入群设置: {group_identifier}")
+
+        # 确保从干净的状态开始（并行模式下前序用例可能残留状态）
+        self._ensure_message_page()
+        time.sleep(0.5)
 
         # 1. 搜索群组并进入聊天页
         self.click_image(MESSAGE_TAB_SEARCH, region=Normal.HALF_UP)
@@ -2940,29 +2996,39 @@ class MuMuBusiness(CommonBusiness):
         self.click_text("群", region=Normal.HALF_UP)
         time.sleep(2)
 
-        # 2. 点击第一个群搜索结果（群名行，避开顶部筛选按钮区域）
-        # 群 tab 下布局: 筛选按钮 y≈178, 第一个群名 y≈240, 包含副文本 y≈278
+        # 2. 点击第一个群搜索结果（群名行，避开顶部筛选按钮区域 y<200）
+        # 群 tab 下布局: 搜索框 y=72, 筛选按钮 "默认排序"/"包含成员" y≈178-190,
+        # 第一个群名 y≈240, "包含：xxx" 副文本 y≈278
+        # ⚠️ 必须跳过筛选区域的"包含成员"文字,只取搜索结果中的"包含：群名"
         pos = self.find_text_by_ocr("包含", timeout=10)
         if pos:
-            # "包含" 副文本在群名下方约 35px，点击其上方进入群聊
-            self.tap(270, pos[1] - 35)
+            if pos[1] < 200:
+                # 这是筛选按钮 "包含成员" (y≈178-190), 不是搜索结果
+                # 重新在 y>200 区域找包含搜索结果的行
+                found = False
+                results = self.ocr_scan_page()
+                for r in results:
+                    text = r.get('text', '')
+                    cy = r.get('cy', 0)
+                    if '包含' in text and cy > 200:
+                        pos = (r.get('cx', 270), cy)
+                        found = True
+                        break
+                if not found:
+                    # 没找到更低的包含行，直接点第一个结果区域
+                    pos = None
+            if pos:
+                self.tap(270, pos[1] - 35)
+            else:
+                self.tap(270, 252)
         else:
-            # 没有"包含"文字时，直接点击第一个结果区域
             self.tap(270, 252)
         time.sleep(2)
 
-        # 3. 验证已进入群聊天页（检查"名群成员"文字）
-        members_pos = self.find_text_by_ocr("名群成员", timeout=5)
-        if not members_pos:
-            logger.warning("⚠️ 未检测到'名群成员'，尝试直接点击标题栏进入群设置")
-            self.tap(265, 70)
-            time.sleep(2)
-        else:
-            # 4. 点击群名称区域进入群设置
-            self.tap(265, 70)
-            time.sleep(2)
+        # 3. 从群聊天页进入群设置（复用已验证的方法）
+        self._enter_group_settings_from_chat()
 
-        # 5. 验证进入群设置页面
+        # 4. 验证进入群设置页面
         if self.find_text_by_ocr("设置", timeout=5):
             logger.info("✅ [MuMu] 已进入群设置页面")
             return True
@@ -3364,7 +3430,7 @@ class MuMuBusiness(CommonBusiness):
         time.sleep(1)
         self.click_image(CHAT_PLUS_ALBUM, region=Normal.HALF_DOWN)
         time.sleep(2)
-        self.tap(70, 200)  # 点击相册网格第一张图片（已有先例 send_image_from_album）
+        self.tap(70, 200)  # 540分辨率相册网格第一张缩略图，详见 send_image() 注释
         time.sleep(1)
         self.click_text("发送", region=Normal.HALF_DOWN, timeout=10)
         time.sleep(2)
@@ -3372,10 +3438,15 @@ class MuMuBusiness(CommonBusiness):
         logger.info("📸 图片发送成功，准备复制")
 
         # 3. 长按已发送的图片消息气泡
-        #    以 + 按钮位置为锚点，图片在其上方约 250px（右对齐 x≈370）
-        plus_pos = self.find_image(CHAT_PLUS_BUTTON, region=Normal.HALF_DOWN)
-        assert plus_pos is not None, "未找到+按钮作为锚点"
-        self.long_press(370, plus_pos[1] - 250, duration=1.5)
+        #    方案A: 优先用 CHAT_SENT_IMAGE_BUBBLE 图片匹配
+        img_pos = self.find_image(CHAT_SENT_IMAGE_BUBBLE, timeout=5)
+        if img_pos:
+            self.long_press(img_pos[0], img_pos[1], duration=1.5)
+        else:
+            # 方案B: 以 + 按钮位置为锚点推算（右对齐气泡，X≈370基于540宽度）
+            plus_pos = self.find_image(CHAT_PLUS_BUTTON, region=Normal.HALF_DOWN)
+            assert plus_pos is not None, "未找到+按钮作为锚点，也未找到已发送图片气泡"
+            self.long_press(370, plus_pos[1] - 250, duration=1.5)
         time.sleep(1)
 
         # 4. 点击弹出菜单中的"复制"
@@ -3550,7 +3621,7 @@ class MuMuBusiness(CommonBusiness):
         time.sleep(1)
         self.click_image(CHAT_PLUS_ALBUM, region=Normal.HALF_DOWN)
         time.sleep(2)
-        # 选择相册网格中3张图片（已有先例 send_image_from_album 用 (70,200)）
+        # 选择相册网格中3张图片（540分辨率下缩略图坐标，详见 send_image() 注释）
         self.tap(70, 200)
         time.sleep(0.5)
         self.tap(200, 200)
@@ -3561,10 +3632,16 @@ class MuMuBusiness(CommonBusiness):
         time.sleep(3)
         logger.info("📸 3张图片发送成功")
 
-        # 3. 以+按钮为锚点定位图片气泡（全屏搜索，超时10s）
-        plus_pos = self.find_image(CHAT_PLUS_BUTTON, timeout=10)
-        assert plus_pos is not None, "未找到+按钮作为锚点"
-        self.long_press(370, plus_pos[1] - 150, duration=1.5)
+        # 3. 定位图片气泡并长按
+        #    方案A: 优先用 CHAT_SENT_IMAGE_BUBBLE 图片匹配
+        img_pos = self.find_image(CHAT_SENT_IMAGE_BUBBLE, timeout=5)
+        if img_pos:
+            self.long_press(img_pos[0], img_pos[1], duration=1.5)
+        else:
+            # 方案B: 以+按钮为锚点推算（图片气泡在+号上方，X≈370基于540宽度）
+            plus_pos = self.find_image(CHAT_PLUS_BUTTON, timeout=10)
+            assert plus_pos is not None, "未找到+按钮作为锚点，也未找到已发送图片气泡"
+            self.long_press(370, plus_pos[1] - 150, duration=1.5)
         time.sleep(1)
 
         # 4. 点击"多选"进入多选模式
@@ -3835,8 +3912,12 @@ class MuMuBusiness(CommonBusiness):
         """
         logger.info(f"🔍 [MuMu] 从会话列表进入群聊: {group_name_keyword}")
 
-        # 先确保在消息列表页（防止残留在群设置/聊天等页面）
+        # 确保在消息列表页，并切换到"消息"tab
+        # _ensure_message_page 只确认在 POPO app 内，不保证在消息tab
         self._ensure_message_page()
+        time.sleep(1)
+        # 点底部导航栏"消息"位置 (45, 911)
+        self.tap(45, 911)
         time.sleep(1)
 
         # 先滚动回列表顶部（防止之前滑动导致目标群不可见）
@@ -3988,6 +4069,10 @@ class MuMuBusiness(CommonBusiness):
             str: "found" 表示找到
         """
         logger.info(f"🔍 [MuMu] 验证群设置: {setting_name}")
+
+        # 确保从干净的状态开始（并行模式下前序用例可能残留状态）
+        self._ensure_message_page()
+        time.sleep(0.5)
 
         self._enter_group_settings(group_name_keyword)
 
@@ -4592,16 +4677,34 @@ class MuMuBusiness(CommonBusiness):
         self._enter_group_settings(group_identifier)
         time.sleep(1)
 
-        # 滑动查找"群管理"
-        pos = None
-        for screen in range(5):
-            pos = self.find_text_by_ocr("群管理", timeout=2)
-            if pos:
-                break
-            self.swipe_up(300)
-            time.sleep(0.5)
+        # explorer 确认(2026-06-04): 群管理入口在群设置页第二屏
+        # 需要 swipe_up 一次才能看到 "群管理" 入口(文字"群管理", 坐标约(79,376))
+        # 策略: swipe_up 1屏 → OCR 找 → 多关键词宽搜索
+        self.swipe_up(400)
+        time.sleep(1)
 
-        assert pos, "未找到'群管理'入口（当前账号可能不是群主）"
+        pos = self.find_text_by_ocr("群管理", timeout=3)
+        if not pos:
+            pos = self._scroll_find_in_page(
+                candidates=["群组管理", "管理群", "群管"],
+                max_screens=3,
+                swipe_distance=300,
+                timeout_per_screen=2
+            )
+        if not pos:
+            # OCR 可能拆分了"群管理"，用 contains 宽搜索
+            pos = self._scroll_find_containing(
+                candidates=["群管理", "群", "管理"],
+                max_screens=3,
+                swipe_distance=300,
+                timeout_per_screen=2,
+                require_both=False
+            )
+
+        assert pos, (
+            f"未找到'群管理'入口（当前账号可能不是群主，或群设置页布局已变更）。"
+            f"群管理入口位于群设置页第二屏(swipe_up 400)，文字'群管理', 坐标约(79,376)。"
+        )
         self.tap(pos[0], pos[1])
         time.sleep(2)
 
@@ -4951,6 +5054,12 @@ class MuMuBusiness(CommonBusiness):
         """
         logger.info(f"📦 [MuMu] 添加到会话盒子: {conversation_name}")
 
+        # 确保从干净的状态开始（并行模式下前序用例可能残留状态）
+        self._ensure_message_page()
+        time.sleep(0.5)
+        self.tap(45, 911)
+        time.sleep(0.5)
+
         # 1. 进入会话设置页（内部会先搜索/定位会话再进设置）
         self._enter_conversation_settings(conversation_name)
 
@@ -4968,8 +5077,8 @@ class MuMuBusiness(CommonBusiness):
         self.tap(480, pos[1])
         time.sleep(1)
 
-        # 4. 返回消息列表
-        self.return_to_message_list()
+        # 4. 返回消息列表（用 _ensure_message_page 处理路径栈过深场景）
+        self._ensure_message_page()
         logger.info(f"✅ 已将 '{conversation_name}' 添加到会话盒子")
         return True
 
@@ -5102,6 +5211,11 @@ class MuMuBusiness(CommonBusiness):
             bool: 操作是否成功
         """
         logger.info(f"📁 [MuMu] 从分组移除会话: {conversation_name} <- {group_name}")
+
+        # 确保从干净的状态开始（并行模式下前序用例可能残留状态）
+        self._ensure_message_page()
+        time.sleep(0.5)
+
         self._enter_conversation_settings(conversation_name)
 
         _SETTINGS_REGION = (0, 120, 540, 840)

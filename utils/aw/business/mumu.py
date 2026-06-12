@@ -1371,9 +1371,9 @@ class MuMuBusiness(CommonBusiness):
 
         # 在菜单中查找"收藏"并点击
         # 菜单项布局：上方是图标，下方是文字，点击图标区域更可靠(向上偏移30px)
-        fav_pos = self.find_text_by_ocr("收藏", timeout=3)
+        fav_pos = self.find_text_by_ocr("收藏", timeout=3, region=Normal.HALF_DOWN)
         if fav_pos:
-            # 点击文字上方的图标区域
+            # 点击文字上方的图标区域（菜单在底部，y 必须 > 480）
             self.tap(fav_pos[0], fav_pos[1] - 30)
         else:
             # 如果 OCR 没找到"收藏"文字，尝试图片匹配
@@ -4816,8 +4816,13 @@ class MuMuBusiness(CommonBusiness):
 
         # 4. 返回消息列表（用 _ensure_message_page 处理路径栈过深场景）
         self._ensure_message_page()
-        # 滚回顶部，确保"会话盒子"入口可见（入口在消息列表顶部）
         time.sleep(0.5)
+        # 切换到"最近"Tab（会话盒子入口只在此 Tab 可见）
+        try:
+            self.switch_session_group_tab("最近")
+        except Exception:
+            pass
+        # 滚回顶部，确保"会话盒子"入口可见（入口在消息列表顶部）
         for _ in range(3):
             self.swipe_down(400)
             time.sleep(0.2)

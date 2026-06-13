@@ -193,9 +193,11 @@ TaskUpdate 标记失败，告知用户：
   │    ⚠️ 若页面已在知识库中，可跳过
   │
   ├─ Step 3: aw-element 定位/截取元素
-  │    输入：用例中涉及的 UI 元素清单
+  │    输入：用例中涉及的 UI 元素清单 + 当前页面截图
+  │    方式：ShowUI-2B 模型自动定位 → 精修 bbox → 裁剪 → 质量校验
   │    产出：image_ai/*.png + image_name_mapping.py 新常量
   │    ⚠️ 若元素已存在，可跳过
+  │    ⚠️ ShowUI 定位失败时 element 报 [阻塞]，orchestrator 决策人工指定坐标或排查环境
   │
   ├─ Step 4: aw-codegen 生成代码
   │    输入：结构化用例 + 页面知识 + 元素常量

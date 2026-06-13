@@ -103,8 +103,17 @@ def close_all_mumu() -> bool:
 
 
 def get_adb_port(instance_id: int) -> int:
-    """获取MuMu12实例的ADB端口: 16384 + (instance_id * 32)"""
-    return 16384 + (instance_id * 32)
+    """获取MuMu12实例的ADB端口：自动探测可用端口"""
+    # 候选端口：标准模拟器端口(5555) + MuMu12端口(16385/16384+offset)
+    candidates = [
+        5555 + instance_id * 2,          # 标准模拟器: 5555, 5557, ...
+        16384 + instance_id * 32 + 1,     # MuMu12 奇数端口: 16385, 16417, ...
+        16384 + instance_id * 32,         # MuMu12 偶数端口: 16384, 16416, ...
+    ]
+    for port in candidates:
+        if adb_connect(port):
+            return port
+    return candidates[0]  # 回退到默认
 
 # 别名函数，兼容aw_business.py的导入
 def get_device_port_by_instance(instance_id: int) -> int:

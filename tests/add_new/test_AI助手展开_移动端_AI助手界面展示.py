@@ -27,7 +27,7 @@ class TestCase38(BaseTest):
         self.userA.send_message(recipient="grp.popoqa50", message="AI测试", isback=False)
         time.sleep(1)
         # 打开AI助手
-        self.userA.aw.click_text("AI", timeout=5, region=Normal.HALF_UP)
+        self.userA.aw.click_text("AI", timeout=5, region=(0, 35, 540, 115))
         time.sleep(2)
         # 验证AI助手展示
         result = self.userA.aw.find_text_by_ocr("总结", timeout=5)

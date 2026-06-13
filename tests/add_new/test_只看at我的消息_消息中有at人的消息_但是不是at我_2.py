@@ -31,7 +31,7 @@ class TestCase33(BaseTest):
         # 点击匹配范围并选择
         self.userA.aw.click_text("匹配范围", timeout=5)
         time.sleep(1)
-        self.userA.aw.click_text("只看@我的消息", timeout=5)
+        self.userA.aw.click_text("@我", timeout=5)
         time.sleep(1)
         self.userA.aw.press_back()
         time.sleep(2)

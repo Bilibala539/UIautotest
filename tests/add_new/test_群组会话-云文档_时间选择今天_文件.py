@@ -35,7 +35,10 @@ class TestCase4(BaseTest):
         self.userA.aw.click_text("全部时间", timeout=5)
         time.sleep(1)
         self.userA.aw.click_text("今天", timeout=5)
-        time.sleep(2)
+        time.sleep(1)
+        # 确认选择以关闭日期选择器
+        self.userA.aw.click_text("确定", timeout=5)
+        time.sleep(1)
         # 验证时间筛选生效
         self.userA.aw.text_exists("今天", timeout=5, region=Normal.HALF_UP)
 

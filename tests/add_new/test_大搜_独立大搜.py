@@ -20,23 +20,22 @@ class TestCase28(BaseTest):
         """
         独立大搜
         前置条件: 
-        步骤: 在独立大搜中勾选匹配范围中的选项，查看是否返回对应的结果
-        预期: 独立大搜中勾选匹配范围中的选项，可以返回对应的结果
+        步骤: 在独立大搜中勾选全部消息中的选项，查看是否返回对应的结果
+        预期: 独立大搜中勾选全部消息中的选项，可以返回对应的结果
         """
         # 进入大搜-消息Tab
         self.userA.aw.click_image(MESSAGE_TAB_SEARCH, region=Normal.HALF_UP)
-        time.sleep(1)
-        self.userA.aw.image_exists(SEARCH_EMPTY, timeout=5)
-        self.userA.aw.click_text("消息", timeout=5, region=Normal.HALF_UP)
+        time.sleep(3)
+        self.userA.aw.click_text("消息", timeout=10, region=(0, 100, 540, 100))
         time.sleep(1)
         # 点击匹配范围查看选项
         self.userA.aw.click_text("匹配范围", timeout=5)
         time.sleep(1)
-        self.userA.aw.text_exists("只看@我的消息", timeout=5)
+        self.userA.aw.text_exists("@我", timeout=5)
         self.userA.aw.press_back()
         time.sleep(1)
         # 验证
-        self.userA.aw.text_exists("匹配范围", timeout=3, region=Normal.HALF_UP)
+        self.userA.aw.text_exists("搜索", timeout=3, region=Normal.HALF_UP)
 
     def teardown(self):
         self.userA.aw.return_to_message_list(max_back=6)

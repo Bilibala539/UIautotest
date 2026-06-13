@@ -229,7 +229,8 @@ class MuMuDriver(BasePlatformDriver):
         """执行 ADB 命令"""
         cmd = [self._adb_path, "-s", self._device_serial] + list(args)
         try:
-            return subprocess.run(cmd, capture_output=True, timeout=15)
+            return subprocess.run(cmd, capture_output=True, timeout=15,
+                                 creationflags=subprocess.CREATE_NO_WINDOW)
         except subprocess.TimeoutExpired:
             logger.error(f"❌ ADB命令超时: {' '.join(cmd)}")
             raise

@@ -70,7 +70,8 @@ def is_mumu_running() -> bool:
     try:
         result = subprocess.run(
             ["tasklist", "/FI", "IMAGENAME eq MuMuPlayer.exe"],
-            capture_output=True, text=True, timeout=10
+            capture_output=True, text=True, timeout=10,
+            creationflags=subprocess.CREATE_NO_WINDOW
         )
         if "MuMuPlayer.exe" in result.stdout:
             return True
@@ -78,7 +79,8 @@ def is_mumu_running() -> bool:
         # 也检查 MuMuVMMHeadless.exe（后台进程）
         result2 = subprocess.run(
             ["tasklist", "/FI", "IMAGENAME eq MuMuVMMHeadless.exe"],
-            capture_output=True, text=True, timeout=10
+            capture_output=True, text=True, timeout=10,
+            creationflags=subprocess.CREATE_NO_WINDOW
         )
         return "MuMuVMMHeadless.exe" in result2.stdout
     except:
@@ -95,7 +97,8 @@ def close_all_mumu() -> bool:
     # 关闭所有实例 (0到MAX_DEVICES-1)
     for i in range(MAX_DEVICES):
         cmd = [manager_path, "control", "-v", str(i), "shutdown"]
-        subprocess.run(cmd, capture_output=True, timeout=15)
+        subprocess.run(cmd, capture_output=True, timeout=15,
+                       creationflags=subprocess.CREATE_NO_WINDOW)
     return True
 
 
@@ -218,7 +221,8 @@ def check_app_installed(port: int, package_name: str) -> bool:
     try:
         result = subprocess.run(
             [get_adb(), "-s", device_serial, "shell", "pm", "list", "packages", package_name],
-            capture_output=True, text=True, timeout=10
+            capture_output=True, text=True, timeout=10,
+            creationflags=subprocess.CREATE_NO_WINDOW
         )
         return f"package:{package_name}" in result.stdout
     except Exception as e:
@@ -243,7 +247,8 @@ def uninstall_app(port: int, package_name: str, timeout: int = 30) -> bool:
         print(f"   [DEL] 正在卸载 {package_name}...")
         result = subprocess.run(
             [get_adb(), "-s", device_serial, "uninstall", package_name],
-            capture_output=True, text=True, timeout=timeout
+            capture_output=True, text=True, timeout=timeout,
+            creationflags=subprocess.CREATE_NO_WINDOW
         )
 
         if "Success" in result.stdout:
@@ -318,7 +323,8 @@ def install_apk_to_device(apk_path: str, port: int, timeout: int = 120) -> bool:
         print(f"   [INSTALL] 正在安装到 {device_serial}...")
         result = subprocess.run(
             [get_adb(), "-s", device_serial, "install", "-r", "-d", apk_path],
-            capture_output=True, text=True, timeout=timeout
+            capture_output=True, text=True, timeout=timeout,
+            creationflags=subprocess.CREATE_NO_WINDOW
         )
 
         if "Success" in result.stdout:
@@ -417,7 +423,8 @@ def start_emulator(instance_id: int) -> bool:
             [get_player_path(), "-v", str(instance_id)],
             cwd=MUMU_INSTALL_PATH,
             stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
+            stderr=subprocess.DEVNULL,
+            creationflags=subprocess.CREATE_NO_WINDOW
         )
         return True
     except:
@@ -429,7 +436,8 @@ def adb_connect(port: int) -> bool:
     try:
         result = subprocess.run(
             [get_adb(), "connect", f"127.0.0.1:{port}"],
-            capture_output=True, text=True, timeout=10
+            capture_output=True, text=True, timeout=10,
+            creationflags=subprocess.CREATE_NO_WINDOW
         )
         return "connected" in result.stdout.lower()
     except:
@@ -466,12 +474,14 @@ def set_window_size_and_arrange(count: int) -> bool:
         # 命令格式: MuMuManager.exe api -v <id> set_window_size -w <width> -h <height>
         manager_exe = os.path.join(MUMU_INSTALL_PATH, "MuMuManager.exe")
         cmd_pos = f'"{manager_exe}" control -v {str(i)} layout_window -sw {str(WINDOW_WIDTH)} -sh {str(WINDOW_HEIGHT)}'
-        subprocess.run(cmd_pos, capture_output=True, timeout=5, shell=True)
+        subprocess.run(cmd_pos, capture_output=True, timeout=5, shell=True,
+                       creationflags=subprocess.CREATE_NO_WINDOW)
 
         # 设置窗口位置
         # 命令格式: MuMuManager.exe api -v <id> set_window_pos -x <x> -y <y>
         cmd_pos = f'"{manager_exe}" control -v {str(i)} layout_window -px {str(x)} -py {str(y)}'
-        subprocess.run(cmd_pos, capture_output=True, timeout=5, shell=True)
+        subprocess.run(cmd_pos, capture_output=True, timeout=5, shell=True,
+                       creationflags=subprocess.CREATE_NO_WINDOW)
 
     return True
 

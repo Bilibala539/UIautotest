@@ -76,6 +76,20 @@
 
 同功能不同参数合并成一个 py 文件用 `@pytest.mark.parametrize`；不要一条文字用例对应一个 py 文件。
 
+### 9. 框架层改动须用户决策
+
+以下属于框架层：`utils/devices.py`、`utils/aw/driver/`、`conftest.py`、`run_parallel.py`
+
+修用例/写用例过程中发现框架层有问题时：
+- **不要自己改** — 报告给用户，说明问题现象和初步判断
+- **由用户决定**是否改、怎么改
+- "加 fallback"、"加自动探测"、"加环境适配"都算框架层改动
+
+### 10. 禁止"图片匹配失败→坐标回退"模式
+
+当 `click_image` / `image_exists` 失败时，**禁止**加 `tap(x, y)` 作为 fallback。
+正确做法：先查图片质量（规则7），重截图或调阈值。坐标回退是伪修复，换环境必坏。
+
 ## 团队分工
 
 本项目在 `.claude/agents/` 下定义了长期团队角色。主会话作为 **orchestrator** 对接用户；遇到具体任务派给对应 agent：
@@ -180,6 +194,8 @@ python scripts/knowledge/auto_update.py --force    # 强制全量更新
 - ❌ 只断言"没异常"
 - ❌ 一条用例一个 py 文件（应合并）
 - ❌ 不走 openspec 流程直接做大改动
+- ❌ 修用例时自行改框架层（`devices.py`/`conftest.py`/`run_parallel.py`/`driver/*`）— 须用户决策
+- ❌ `click_image` 失败后加 `tap(x,y)` 坐标回退（必须修图片）
 
 ## 运行时经验（踩坑积累，所有 agent 必知）
 

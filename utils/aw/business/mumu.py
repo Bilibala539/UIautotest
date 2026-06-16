@@ -249,12 +249,16 @@ class MuMuBusiness(CommonBusiness):
                               "-c", "android.intent.category.LAUNCHER", "1")
 
         # 快速检查：如果已在消息列表页（force-stop 后重启保留了登录态），跳过登录
-        # 用左上角"消息"文案图片判断，比底部 Tab 图片更稳定（不受未读消息状态影响）
-        # 同时保留底部 Tab region 检查作为备用
         _TAB_REGION = (0, 700, 540, 260)
         if (self.find_image(MESSAGE_TAB_MSG_TEXT, timeout=2)
                 or self.find_image(MESSAGE_TAB_BLUE, timeout=2, region=_TAB_REGION)):
             logger.info("✅ [MuMu] 已登录状态，跳过登录步骤")
+            self.pop_not_allowed()
+            return
+        # OCR 兜底：不同账号底部导航布局可能不同导致图片匹配失败
+        bottom_msg = self.find_text_by_ocr("消息", timeout=2, region=(0, 880, 120, 80))
+        if bottom_msg:
+            logger.info("✅ [MuMu] OCR检测到底部'消息'tab，已登录状态，跳过登录步骤")
             self.pop_not_allowed()
             return
 
@@ -267,8 +271,24 @@ class MuMuBusiness(CommonBusiness):
         # 清空输入框（通过 ADB keyevent 删除）
         self._clear_input_field()
         self.sleep(0.1)
-        self.input_text(str(uid))
+        # 只输入@前面的用户名部分，让下拉框补全后缀
+        uid_prefix = str(uid).split("@")[0] if "@" in str(uid) else str(uid)
+        self.input_text(uid_prefix)
+        self.sleep(0.8)
+        # 输入后会弹出邮箱后缀下拉框，点击 corp.netease.com 选项完成填入
+        suffix_pos = self.find_text_by_ocr("corp.netease.com", timeout=3)
+        if suffix_pos:
+            self.tap(suffix_pos[0], suffix_pos[1])
+            self.sleep(0.5)
+        else:
+            # 下拉框未出现，可能已自动补全或无需选择，按回车确认
+            self.press_back()
+            self.sleep(0.3)
         logger.info(f"📧 已输入邮箱: {uid}")
+
+        # 收起键盘，确保密码输入框可见（并行设备中键盘可能遮挡密码框）
+        self.press_back()
+        self.sleep(0.5)
 
         # 5. 输入密码：直接 OCR 找"输入密码"占位文字点击，避免偏移计算在并行时失效
         #    重试2次：首次点击可能因焦点问题无效
@@ -277,8 +297,8 @@ class MuMuBusiness(CommonBusiness):
             if pwd_pos:
                 self.tap(pwd_pos[0], pwd_pos[1])
             else:
-                # 占位符不可见（已有内容），用偏移兜底
-                self.click_text("邮箱", timeout=3, dx=50, dy=187)
+                # 占位符不可见（已有内容），直接点击密码框坐标（邮箱框y≈405，密码框y≈500）
+                self.tap(270, 500)
             self.sleep(0.3)
             self._clear_input_field()
             self.sleep(0.2)
@@ -299,10 +319,35 @@ class MuMuBusiness(CommonBusiness):
             self.sleep(0.1)
             logger.info("☑️ 已勾选协议")
         else:
-            logger.info("☑️ 协议已是勾选状态，无需再勾选")
+            # 图片匹配不到时，用 OCR 兜底：找"我已阅读"文字左侧的勾选框区域点击
+            agree_pos = self.find_text_by_ocr("我已阅读", timeout=2)
+            if agree_pos:
+                self.tap(agree_pos[0] - 30, agree_pos[1])
+                self.sleep(0.2)
+                logger.info("☑️ 通过OCR兜底勾选协议")
+            else:
+                logger.info("☑️ 协议已是勾选状态，无需再勾选")
 
         # 7. 点击登录按钮
-        self.click_image(LOGIN_ENTER)
+        if not self.find_image(LOGIN_ENTER, timeout=3):
+            self.click_text("登录", timeout=5)
+        else:
+            self.click_image(LOGIN_ENTER)
+        self.sleep(1)
+
+        # 7.1 处理"请先同意"弹窗（协议未勾选时点登录会弹出）
+        cancel_btn = self.find_text_by_ocr("取消", timeout=2)
+        if cancel_btn:
+            # 弹窗存在，找到"同意"按钮并点击（限制在弹窗按钮区域 y=cancel行附近）
+            agree_btn = self.find_text_by_ocr("同意", timeout=2)
+            if agree_btn and agree_btn[1] > 350:
+                self.tap(agree_btn[0], agree_btn[1])
+            else:
+                # 兜底：点击取消按钮右侧的同意按钮位置
+                self.tap(cancel_btn[0] + 140, cancel_btn[1])
+            self.sleep(2)
+            logger.info("☑️ 点击弹窗'同意'按钮完成协议确认")
+            # 同意后自动登录，不需要再手动点登录按钮
 
         # 8. 等待进入消息列表页，期间可能弹出权限授权弹窗
         for _ in range(5):
@@ -321,6 +366,15 @@ class MuMuBusiness(CommonBusiness):
         # 9. 处理可能出现的弹窗
         self.pop_not_allowed()
         logger.info(f"✅ [MuMu] 登录成功: {uid}")
+
+    def _is_on_message_page(self, timeout: int = 2) -> bool:
+        """检测当前是否在消息列表页（兼容不同账号的底部导航差异）"""
+        _TAB_REGION = (0, 700, 540, 260)
+        if self.find_image(MESSAGE_TAB_BLUE, timeout=timeout, region=_TAB_REGION):
+            return True
+        # OCR 兜底：不同账号底部导航图片可能不同
+        pos = self.find_text_by_ocr("消息", timeout=1, region=(0, 880, 120, 80))
+        return pos is not None
 
     def _ensure_message_page(self) -> bool:
         """
@@ -345,7 +399,7 @@ class MuMuBusiness(CommonBusiness):
                 logger.info("⚠️ 已关闭浮窗权限弹窗")
 
         # 场景1: 已在消息列表页
-        if self.find_image(MESSAGE_TAB_BLUE, timeout=2):
+        if self._is_on_message_page(timeout=2):
             logger.info("✅ 已在消息列表页")
             return True
 
@@ -360,7 +414,7 @@ class MuMuBusiness(CommonBusiness):
             self.press_back()
             time.sleep(0.5)
 
-            if self.find_image(MESSAGE_TAB_BLUE, timeout=1):
+            if self._is_on_message_page(timeout=1):
                 logger.info("✅ 成功回到消息列表页")
                 return True
 
@@ -428,7 +482,12 @@ class MuMuBusiness(CommonBusiness):
             return True
 
         # 2. 打开侧边栏并退登
-        self.click_image(MESSAGE_TAB_MSG_TEXT, dx=-70)
+        msg_pos = self.find_image(MESSAGE_TAB_MSG_TEXT, timeout=3)
+        if msg_pos:
+            self.tap(msg_pos[0] - 70, msg_pos[1])
+        else:
+            # 图片过时，直接点击左上角头像区域打开侧边栏
+            self.tap(25, 40)
         time.sleep(0.3)
         self.click_text("设置", region=Normal.HALF_DOWN)
         time.sleep(0.3)
@@ -2640,7 +2699,15 @@ class MuMuBusiness(CommonBusiness):
     def search(self, tab, text, isclose=True):
         """搜索"""
 
+        # 点击搜索按钮（可能被"有新版本可用"横幅遮挡，多试一次）
         self.click_image(MESSAGE_TAB_SEARCH, region=Normal.HALF_UP)
+        time.sleep(1)
+        # 验证大搜页是否打开（检查"取消"按钮或搜索框）
+        if not self.find_text_by_ocr("取消", timeout=2):
+            # 大搜没打开，可能横幅遮挡了点击。向下滑动关闭横幅后重试
+            self.swipe(270, 40, 270, 10, duration=0.2)
+            time.sleep(0.5)
+            self.click_image(MESSAGE_TAB_SEARCH, region=Normal.HALF_UP)
 
         # tab左滑翻页（云空间/应用 在 tab 行右侧，需先左滑露出）
         if tab in ["云空间", "应用"]:
@@ -2914,6 +2981,12 @@ class MuMuBusiness(CommonBusiness):
 
         # 1. 搜索群组并进入聊天页
         self.click_image(MESSAGE_TAB_SEARCH, region=Normal.HALF_UP)
+        time.sleep(1)
+        # 验证大搜页是否打开（可能被横幅遮挡）
+        if not self.find_text_by_ocr("取消", timeout=2):
+            self.swipe(270, 40, 270, 10, duration=0.2)
+            time.sleep(0.5)
+            self.click_image(MESSAGE_TAB_SEARCH, region=Normal.HALF_UP)
         time.sleep(0.5)
         self.click_image(SELECT_SEARCH, dx=10)
         self.input_text(str(group_identifier))
@@ -3917,11 +3990,11 @@ class MuMuBusiness(CommonBusiness):
         for i in range(max_back):
             self.press_back()
             time.sleep(0.5)
-            if self.find_image(MESSAGE_TAB_BLUE, timeout=1):
+            if self._is_on_message_page(timeout=1):
                 logger.info("✅ 已返回消息列表页")
                 return
         if strict:
-            assert False, f"❌ 返回消息列表页失败：连续 {max_back} 次未找到 MESSAGE_TAB_BLUE"
+            assert False, f"❌ 返回消息列表页失败：连续 {max_back} 次未找到消息列表页"
         logger.warning("⚠️ 可能未完全返回消息列表页")
 
     def open_group_settings_page(self, group_name_keyword: str) -> bool:

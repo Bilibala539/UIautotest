@@ -129,6 +129,40 @@ grep -n "tap(" E:/UIAutotest/tests/<本次写的文件>
 
 ---
 
+## 代码风格规范
+
+### 命名约定
+- 类名 PascalCase、函数名 snake_case、常量 UPPER_SNAKE_CASE、私有方法 `_` 前缀
+
+### 测试用例模板（必须遵循）
+```python
+"""测试用例: XXX功能测试"""
+from conftest import BaseTest
+
+
+class TestXXX(BaseTest):
+    """XXX功能测试类"""
+
+    def setup(self):
+        """测试前初始化（框架自动管理 login + open_app）"""
+        self.userA = self.users("userA")
+
+    def test_xxx_scenario(self):
+        """测试场景描述 — 此时 POPO 已打开且在消息列表页"""
+        # 通过用户对象调用业务方法
+        pass
+
+    def teardown(self):
+        """测试后清理（框架自动 close_app，无需 logout）"""
+        pass
+```
+
+### 关键约束
+- **固定方法名**：`setup()` 和 `teardown()`，不是 `setup_method`
+- **禁止 Page Object 模式**：通过 `self.userA.方法()` 完成业务流程
+- **登录/退登/POPO启停**：框架自动管理，用例中不要调 `login()`/`logout()`/`open_app()`/`close_app()`
+- **异常处理**：默认不用 try-catch，让错误自然暴露。仅在外部系统调用（ADB）和 teardown 清理中使用
+
 ## 产出规范
 
 - AW 方法：追加到 `utils/aw/business/mumu.py`

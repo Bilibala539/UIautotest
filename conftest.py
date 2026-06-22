@@ -731,7 +731,7 @@ def test_user_manager():
 _REPORT_HOST     = "10.220.28.125"
 _REPORT_USER     = "popoqa91"
 _REPORT_PASS     = "123456"
-_REPORT_REMOTE_DIR = "/var/www/html/reports"
+_REPORT_REMOTE_DIR = "/var/www/html/reports/test-history"
 _PLATFORM        = "Android"
 _PROJECT         = "POPO-Android"
 # 测试结果通知群号（空字符串表示不通知；可通过 .env 的 POPO_NOTIFY_TID 覆盖）
@@ -1123,9 +1123,9 @@ def _notify_popo_group(passed: int, failed: int, skipped: int, duration: float, 
     total  = passed + failed + skipped
     rate   = f"{round(passed / total * 100)}%" if total else "—"
     link   = (
-        f"http://{_REPORT_HOST}/reports/allure-report/history.html#s/{_session_id}"
+        f"http://{_REPORT_HOST}/reports/test-history/allure-report/history.html#s/{_session_id}"
         if session_uploaded else
-        f"http://{_REPORT_HOST}/reports/allure-report/history.html"
+        f"http://{_REPORT_HOST}/reports/test-history/allure-report/history.html"
     )
     msg = (
         f"[{_PROJECT}] 自动化测试报告\n"

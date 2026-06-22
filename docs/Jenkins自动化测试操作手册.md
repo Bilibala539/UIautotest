@@ -23,7 +23,7 @@
 | 参数 | 可选值 | 默认值 | 说明 |
 |---|---|---|---|
 | **EXECUTION_MODE** | 并行 / 串行 | 并行 | 并行 = 多台 MuMu 同时跑；串行 = 单台顺序跑 |
-| **N_INSTANCES** | 1 / 2 / 3 / 4 | 4 | 并行实例数（串行时忽略） |
+| **N_INSTANCES** | 1 / 2 / 3 / 4 | 4 | 并行实例数（串行时忽略）。⚠️ **建议设为 2~3，不要用 4**：4 实例会吃满 CPU 导致 ADB 截图超时大量 Error。想提升并行数需升级 CPU |
 | **REINSTALL** | 是 / 否 | 是 | 是否重启 MuMu 并重装 POPO 客户端 |
 | **BRANCH** | `latest_online` / 分支名 | `latest_online` | REINSTALL=是时生效；`latest_online` = 自动取正式服最新包 |
 | **RUN_TESTS** | 是 / 否 | 是 | 是否执行 checklist 用例 |

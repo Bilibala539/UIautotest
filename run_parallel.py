@@ -517,9 +517,28 @@ def main():
         with open(RESULTS_FILE, "w", encoding="utf-8") as f:
             json.dump(results_data, f, ensure_ascii=False, indent=2)
 
-    # 9. 退出码
+    # 9. 发群通知（无论 Jenkins 还是本地跑，统一在这里发，带测试历史平台链接）
+    #    放在 sys.exit 之前，保证有失败用例也发；失败不影响退出码
+    _notify_group()
+
+    # 10. 退出码
     if total_failed > 0 or total_errors > 0:
         sys.exit(1)
+
+
+def _notify_group():
+    """调用 send_nightly_report.py 向 POPO 群发送带链接的测试简报。
+    本地跑 / Jenkins 跑 / 服务器 cron 跑 都会触发，统一入口。"""
+    import subprocess
+    report_script = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "scripts", "send_nightly_report.py")
+    if not os.path.isfile(report_script):
+        print(f"\n  ⚠️ 发群脚本不存在，跳过: {report_script}")
+        return
+    try:
+        subprocess.call([sys.executable, report_script])
+    except Exception as e:
+        print(f"\n  ⚠️ 发群通知失败（不影响测试结果）: {e}")
 
 
 def upload_combined_session(results_data: dict, n_instances: int,

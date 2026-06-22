@@ -31,9 +31,7 @@ def main():
 
     os.chdir(PROJECT)
     ret = subprocess.call(cmd)
-
-    if run_tests:
-        subprocess.call([PYTHON, r"scripts\send_nightly_report.py"])
+    # 发群通知已下沉到 run_parallel.py 内部（无论 Jenkins 还是本地跑统一发），此处不再重复调用
 
     sys.exit(ret)
 

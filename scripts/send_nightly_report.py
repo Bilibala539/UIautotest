@@ -33,9 +33,9 @@ date_str  = datetime.now().strftime("%Y-%m-%d")
 session_id = data.get("session_id", "")
 
 if session_id:
-    report_url = f"http://10.220.28.125/reports/allure-report/history.html#s/{session_id}"
+    report_url = f"http://10.220.28.125/reports/test-history/allure-report/history.html#s/{session_id}"
 else:
-    report_url = "http://10.220.28.125/reports"
+    report_url = "http://10.220.28.125/reports/test-history/allure-report/history.html"
 
 msg = f"""UIAutotest 夜间测试报告（{date_str}）
 

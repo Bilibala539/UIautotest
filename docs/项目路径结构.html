@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>项目路径结构</title>
+<style>
+  body { font-family: -apple-system, "Microsoft YaHei", sans-serif; background: #1a1a2e; color: #e0e0e0; margin: 0; padding: 40px; }
+  h1 { color: #00d4ff; text-align: center; margin-bottom: 40px; }
+  .container { display: flex; gap: 40px; justify-content: center; flex-wrap: wrap; }
+  .project { background: #16213e; border-radius: 12px; padding: 30px; width: 560px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+  .project h2 { color: #4fc3f7; margin-top: 0; border-bottom: 2px solid #0f3460; padding-bottom: 12px; }
+  .project .server { color: #81c784; font-size: 13px; margin-bottom: 16px; font-family: monospace; }
+  .tree { font-family: "Cascadia Code", "Fira Code", Consolas, monospace; font-size: 13px; line-height: 1.8; }
+  .tree .dir { color: #64b5f6; font-weight: bold; }
+  .tree .file { color: #e0e0e0; }
+  .tree .comment { color: #78909c; font-style: italic; }
+  .tree .model { color: #ffab40; }
+  .tree .data { color: #aed581; }
+  .tree .config { color: #ce93d8; }
+  .tree .log { color: #616161; }
+  .meta { margin-top: 20px; padding-top: 16px; border-top: 1px solid #0f3460; font-size: 12px; color: #78909c; }
+  .meta a { color: #4fc3f7; text-decoration: none; }
+  .meta a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<h1>服务器项目路径结构</h1>
+<p style="text-align:center;color:#78909c;">服务器: 10.220.28.125 &nbsp;|&nbsp; 用户: popoqa91</p>
+
+<div class="container">
+
+<div class="project">
+  <h2>POPO 排障助手</h2>
+  <div class="server">/var/www/html/reports/popo-helper/</div>
+  <div class="tree">
+<span class="dir">popo-helper/</span>
+├── <span class="file">main.py</span>            <span class="comment"># FastAPI 入口 (port 8501)</span>
+├── <span class="file">matcher.py</span>         <span class="comment"># 语义匹配核心</span>
+├── <span class="file">debug.py</span>           <span class="comment"># 调试工具</span>
+├── <span class="config">requirements.txt</span>   <span class="comment"># Python 依赖</span>
+├── <span class="config">start.sh</span>           <span class="comment"># 启动脚本</span>
+├── <span class="log">app.pid</span>            <span class="comment"># 进程 PID</span>
+├── <span class="log">app.log</span>            <span class="comment"># 运行日志</span>
+│
+├── <span class="dir">static/</span>
+│   └── <span class="file">index.html</span>     <span class="comment"># 前端页面</span>
+│
+├── <span class="dir">data/</span>
+│   └── <span class="data">工单明细.xlsx</span>   <span class="comment"># 数据源 (4824条)</span>
+│
+├── <span class="dir">cache/</span>
+│   ├── <span class="data">embeddings.npy</span> <span class="comment"># 预计算向量缓存</span>
+│   ├── <span class="data">records.json</span>   <span class="comment"># 结构化记录</span>
+│   └── <span class="file">mtime.txt</span>      <span class="comment"># 数据修改时间戳</span>
+│
+└── <span class="dir">models/</span>
+    └── <span class="model">BAAI/bge-large-zh-v1.5/</span>  <span class="comment"># BGE 语义模型 (~1.3GB)</span>
+  </div>
+  <div class="meta">
+    访问地址: <a href="http://10.220.28.125:8501">http://10.220.28.125:8501</a><br>
+    技术栈: FastAPI + Uvicorn + BGE + NumPy 余弦相似度<br>
+    Python: 3.8 | 内存: ~31GB
+  </div>
+</div>
+
+<div class="project">
+  <h2>测试历史平台</h2>
+  <div class="server">/var/www/html/reports/</div>
+  <div class="tree">
+<span class="dir">reports/</span>
+├── <span class="file">report_uploader.py</span>      <span class="comment"># 报告上传处理</span>
+├── <span class="file">listen.py</span>               <span class="comment"># 监听服务</span>
+├── <span class="file">push_cmd.py</span>             <span class="comment"># POPO 群消息推送</span>
+├── <span class="config">run.sh</span>                  <span class="comment"># 启动脚本</span>
+├── <span class="config">run_nightly.sh</span>          <span class="comment"># 定时任务脚本</span>
+├── <span class="config">run.bat</span>                 <span class="comment"># Windows 兼容启动</span>
+│
+├── <span class="dir">allure-report/</span>
+│   ├── <span class="file">index.html</span>          <span class="comment"># Allure 主页</span>
+│   ├── <span class="file">history.html</span>        <span class="comment"># 历史视图 (#s/&lt;id&gt;)</span>
+│   ├── <span class="file">app.js</span>              <span class="comment"># 前端逻辑</span>
+│   └── <span class="config">styles.css</span>          <span class="comment"># 样式</span>
+│
+├── <span class="dir">sessions/</span>
+│   └── <span class="data">&lt;session_id&gt;/</span>       <span class="comment"># 每次测试完整报告包</span>
+│
+├── <span class="dir">nightly-logs/</span>
+│   └── <span class="log">2026-06-*.log</span>       <span class="comment"># 每日定时任务日志</span>
+│
+├── <span class="dir">coordinator/</span>
+│   ├── <span class="file">coordinator_server.py</span> <span class="comment"># 协调服务器</span>
+│   ├── <span class="log">coordinator.log</span>
+│   └── <span class="data">UIAutotest_minimal.zip</span> <span class="comment"># 最小化测试包</span>
+│
+├── <span class="data">index.json</span>              <span class="comment"># 全量会话索引</span>
+└── <span class="data">test_history.json</span>       <span class="comment"># 历史汇总数据</span>
+  </div>
+  <div class="meta">
+    访问地址: <a href="http://10.220.28.125/reports/allure-report/history.html">http://10.220.28.125/reports/allure-report/history.html</a><br>
+    数据来源: 本地 E:\UIAutotest\conftest.py 通过 SSH/SCP 上传<br>
+    定时任务: run_nightly.sh 每日自动执行
+  </div>
+</div>
+
+</div>
+
+</body>
+</html>

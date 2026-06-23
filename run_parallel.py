@@ -654,7 +654,8 @@ def upload_combined_session(results_data: dict, n_instances: int,
         _REPORT_HOST = "10.220.28.125"
         _REPORT_USER = "popoqa91"
         _REPORT_PASS = "123456"
-        _REPORT_REMOTE_DIR = "/var/www/html/reports"
+        # 与 conftest.py / history.html 读取路径一致，统一在 test-history/ 下
+        _REPORT_REMOTE_DIR = "/var/www/html/reports/test-history"
 
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())

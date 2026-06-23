@@ -827,6 +827,12 @@ def _generate_and_upload_allure_report() -> bool:
     _write_history_html(os.path.join(allure_report, "history.html"))
     logger.info("📊 测试历史页面已生成")
 
+    # 移除 Allure 默认首页（只保留 history.html 作为测试历史平台入口）
+    _index_html = os.path.join(allure_report, "index.html")
+    if os.path.isfile(_index_html):
+        os.remove(_index_html)
+        logger.info("🧹 已移除 Allure 默认 index.html（仅保留 history.html）")
+
     # 上传 Allure 报告到远程服务器
     ssh = None
     try:

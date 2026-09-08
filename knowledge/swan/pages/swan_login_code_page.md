@@ -31,3 +31,14 @@
 
 - [[swan_login_sms_page]]（上一步）
 - [[swan_home_page]]（成功后落地）
+
+## 反向引用
+<!-- backlinks:start -->
+
+| 引用来源 | 页面ID |
+|---------|--------|
+| pages/swan_home_page.md | [[swan_home_page]] |
+| pages/swan_login_sms_page.md | [[swan_login_sms_page]] |
+
+_自动生成于 2026-09-08 15:00_
+<!-- backlinks:end -->

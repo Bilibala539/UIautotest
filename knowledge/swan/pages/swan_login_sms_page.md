@@ -54,3 +54,14 @@ Swan（com.swan.network v5.3.0）启动后的默认落地页。手机号 + 验�
 - [[swan_login_password_page]]（密码登入切换后）
 - [[swan_login_code_page]]（输手机号点下一步后，待探索）
 - [[swan_home_page]]（登录成功后，待探索）
+
+## 反向引用
+<!-- backlinks:start -->
+
+| 引用来源 | 页面ID |
+|---------|--------|
+| pages/swan_login_code_page.md | [[swan_login_code_page]] |
+| pages/swan_person_info_page.md | [[swan_person_info_page]] |
+
+_自动生成于 2026-09-08 15:00_
+<!-- backlinks:end -->

@@ -46,3 +46,13 @@
 ## 关联
 
 - [[swan_me_page]]（列表项进入，press_back 返回）
+
+## 反向引用
+<!-- backlinks:start -->
+
+| 引用来源 | 页面ID |
+|---------|--------|
+| pages/swan_me_page.md | [[swan_me_page]] |
+
+_自动生成于 2026-09-08 15:00_
+<!-- backlinks:end -->

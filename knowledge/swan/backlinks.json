@@ -1,1 +1,202 @@
-{}
+{
+  "generated_at": "2026-09-08T15:00:37.820074",
+  "stats": {
+    "source_files": 11,
+    "total_links": 24,
+    "target_pages": 12
+  },
+  "forward_index": {
+    "pages/swan_device_page.md": [
+      "swan_home_page"
+    ],
+    "pages/swan_family_manage_page.md": [
+      "swan_me_page"
+    ],
+    "pages/swan_favorites_page.md": [
+      "swan_me_page",
+      "swan_home_page"
+    ],
+    "pages/swan_home_page.md": [
+      "swan_platform_page",
+      "swan_player_page",
+      "swan_device_page",
+      "swan_login_code_page",
+      "swan_me_page"
+    ],
+    "pages/swan_login_code_page.md": [
+      "swan_login_sms_page",
+      "swan_home_page"
+    ],
+    "pages/swan_login_sms_page.md": [
+      "swan_login_code_page",
+      "swan_login_password_page",
+      "swan_home_page"
+    ],
+    "pages/swan_me_page.md": [
+      "swan_sound_quality_page",
+      "swan_person_info_page",
+      "swan_home_page",
+      "swan_favorites_page",
+      "swan_family_manage_page"
+    ],
+    "pages/swan_person_info_page.md": [
+      "swan_login_sms_page",
+      "swan_me_page"
+    ],
+    "pages/swan_platform_page.md": [
+      "swan_home_page"
+    ],
+    "pages/swan_player_page.md": [
+      "swan_home_page"
+    ],
+    "pages/swan_sound_quality_page.md": [
+      "swan_me_page"
+    ]
+  },
+  "backlinks": {
+    "swan_home_page": [
+      {
+        "source": "pages/swan_device_page.md",
+        "source_id": "swan_device_page",
+        "raw_link": "swan_home_page"
+      },
+      {
+        "source": "pages/swan_favorites_page.md",
+        "source_id": "swan_favorites_page",
+        "raw_link": "swan_home_page"
+      },
+      {
+        "source": "pages/swan_login_code_page.md",
+        "source_id": "swan_login_code_page",
+        "raw_link": "swan_home_page"
+      },
+      {
+        "source": "pages/swan_login_sms_page.md",
+        "source_id": "swan_login_sms_page",
+        "raw_link": "swan_home_page"
+      },
+      {
+        "source": "pages/swan_me_page.md",
+        "source_id": "swan_me_page",
+        "raw_link": "swan_home_page"
+      },
+      {
+        "source": "pages/swan_platform_page.md",
+        "source_id": "swan_platform_page",
+        "raw_link": "swan_home_page"
+      },
+      {
+        "source": "pages/swan_player_page.md",
+        "source_id": "swan_player_page",
+        "raw_link": "swan_home_page"
+      }
+    ],
+    "swan_me_page": [
+      {
+        "source": "pages/swan_family_manage_page.md",
+        "source_id": "swan_family_manage_page",
+        "raw_link": "swan_me_page"
+      },
+      {
+        "source": "pages/swan_favorites_page.md",
+        "source_id": "swan_favorites_page",
+        "raw_link": "swan_me_page"
+      },
+      {
+        "source": "pages/swan_home_page.md",
+        "source_id": "swan_home_page",
+        "raw_link": "swan_me_page"
+      },
+      {
+        "source": "pages/swan_person_info_page.md",
+        "source_id": "swan_person_info_page",
+        "raw_link": "swan_me_page"
+      },
+      {
+        "source": "pages/swan_sound_quality_page.md",
+        "source_id": "swan_sound_quality_page",
+        "raw_link": "swan_me_page"
+      }
+    ],
+    "swan_platform_page": [
+      {
+        "source": "pages/swan_home_page.md",
+        "source_id": "swan_home_page",
+        "raw_link": "swan_platform_page"
+      }
+    ],
+    "swan_player_page": [
+      {
+        "source": "pages/swan_home_page.md",
+        "source_id": "swan_home_page",
+        "raw_link": "swan_player_page"
+      }
+    ],
+    "swan_device_page": [
+      {
+        "source": "pages/swan_home_page.md",
+        "source_id": "swan_home_page",
+        "raw_link": "swan_device_page"
+      }
+    ],
+    "swan_login_code_page": [
+      {
+        "source": "pages/swan_home_page.md",
+        "source_id": "swan_home_page",
+        "raw_link": "swan_login_code_page"
+      },
+      {
+        "source": "pages/swan_login_sms_page.md",
+        "source_id": "swan_login_sms_page",
+        "raw_link": "swan_login_code_page"
+      }
+    ],
+    "swan_login_sms_page": [
+      {
+        "source": "pages/swan_login_code_page.md",
+        "source_id": "swan_login_code_page",
+        "raw_link": "swan_login_sms_page"
+      },
+      {
+        "source": "pages/swan_person_info_page.md",
+        "source_id": "swan_person_info_page",
+        "raw_link": "swan_login_sms_page"
+      }
+    ],
+    "swan_login_password_page": [
+      {
+        "source": "pages/swan_login_sms_page.md",
+        "source_id": "swan_login_sms_page",
+        "raw_link": "swan_login_password_page"
+      }
+    ],
+    "swan_sound_quality_page": [
+      {
+        "source": "pages/swan_me_page.md",
+        "source_id": "swan_me_page",
+        "raw_link": "swan_sound_quality_page"
+      }
+    ],
+    "swan_person_info_page": [
+      {
+        "source": "pages/swan_me_page.md",
+        "source_id": "swan_me_page",
+        "raw_link": "swan_person_info_page"
+      }
+    ],
+    "swan_favorites_page": [
+      {
+        "source": "pages/swan_me_page.md",
+        "source_id": "swan_me_page",
+        "raw_link": "swan_favorites_page"
+      }
+    ],
+    "swan_family_manage_page": [
+      {
+        "source": "pages/swan_me_page.md",
+        "source_id": "swan_me_page",
+        "raw_link": "swan_family_manage_page"
+      }
+    ]
+  }
+}

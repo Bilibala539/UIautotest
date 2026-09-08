@@ -52,3 +52,19 @@
 - [[swan_platform_page]]（点 tab_platform，已探索）
 - [[swan_device_page]]（点 tab_device，已探索）
 - [[swan_me_page]]（点 tab_me，已探索）
+
+## 反向引用
+<!-- backlinks:start -->
+
+| 引用来源 | 页面ID |
+|---------|--------|
+| pages/swan_device_page.md | [[swan_device_page]] |
+| pages/swan_favorites_page.md | [[swan_favorites_page]] |
+| pages/swan_login_code_page.md | [[swan_login_code_page]] |
+| pages/swan_login_sms_page.md | [[swan_login_sms_page]] |
+| pages/swan_me_page.md | [[swan_me_page]] |
+| pages/swan_platform_page.md | [[swan_platform_page]] |
+| pages/swan_player_page.md | [[swan_player_page]] |
+
+_自动生成于 2026-09-08 15:00_
+<!-- backlinks:end -->

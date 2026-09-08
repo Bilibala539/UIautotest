@@ -58,3 +58,13 @@
 ## 关联
 
 - [[swan_home_page]]（bottom_player 进入，player_dismiss_button 返回）
+
+## 反向引用
+<!-- backlinks:start -->
+
+| 引用来源 | 页面ID |
+|---------|--------|
+| pages/swan_home_page.md | [[swan_home_page]] |
+
+_自动生成于 2026-09-08 15:00_
+<!-- backlinks:end -->

@@ -48,3 +48,13 @@ SWAN收藏页。收藏歌单分组列表（我的家庭 / 我的音乐），底�
 
 - [[swan_me_page]]（列表项进入，press_back 返回）
 - [[swan_home_page]]（"我喜欢"卡片疑与此功能相关，待验证）
+
+## 反向引用
+<!-- backlinks:start -->
+
+| 引用来源 | 页面ID |
+|---------|--------|
+| pages/swan_me_page.md | [[swan_me_page]] |
+
+_自动生成于 2026-09-08 15:00_
+<!-- backlinks:end -->

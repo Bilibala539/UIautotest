@@ -29,3 +29,17 @@
 - [[swan_family_manage_page]]（OCR"家庭管理"，已探索）
 - [[swan_favorites_page]]（OCR"SWAN收藏"，已探索）
 - [[swan_sound_quality_page]]（OCR"音质设置"，底部弹层，已探索）
+
+## 反向引用
+<!-- backlinks:start -->
+
+| 引用来源 | 页面ID |
+|---------|--------|
+| pages/swan_family_manage_page.md | [[swan_family_manage_page]] |
+| pages/swan_favorites_page.md | [[swan_favorites_page]] |
+| pages/swan_home_page.md | [[swan_home_page]] |
+| pages/swan_person_info_page.md | [[swan_person_info_page]] |
+| pages/swan_sound_quality_page.md | [[swan_sound_quality_page]] |
+
+_自动生成于 2026-09-08 15:00_
+<!-- backlinks:end -->

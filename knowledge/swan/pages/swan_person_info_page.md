@@ -31,3 +31,13 @@
 
 - [[swan_me_page]]（上一级）
 - [[swan_login_sms_page]]（登出后落地）
+
+## 反向引用
+<!-- backlinks:start -->
+
+| 引用来源 | 页面ID |
+|---------|--------|
+| pages/swan_me_page.md | [[swan_me_page]] |
+
+_自动生成于 2026-09-08 15:00_
+<!-- backlinks:end -->

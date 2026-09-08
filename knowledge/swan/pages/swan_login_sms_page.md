@@ -30,6 +30,14 @@ Swan（com.swan.network v5.3.0）启动后的默认落地页。手机号 + 验�
 ⚠️ 验证码输入框 / 获取验证码按钮不在此页——输入手机号点"下一步"后进入的页面待探索
 （`SwanBusiness.KEY_CODE_FIELD = "login_code_field"` 为推断值，未验证）。
 
+
+### 元素截图（image_ai/flutter 草稿，2026-09-08 aw-element 采集，待 verify 转正）
+
+| 元素 | 常量（image/image_name_mapping.py） | 图片文件 |
+|---|---|---|
+| 《隐私政策》链接 | `SWAN_LOGIN_PRIVACY_POLICY_LINK` | image_ai/flutter/swan_login_privacy_policy_link.png |
+| 《使用政策》链接 | `SWAN_LOGIN_USAGE_POLICY_LINK` | image_ai/flutter/swan_login_usage_policy_link.png |
+| 「下一步」按钮（⚠️ 截图为未输手机号的置灰态） | `SWAN_LOGIN_SUBMIT_BTN` | image_ai/flutter/swan_login_submit_btn.png |
 ## 页面布局
 
 ```

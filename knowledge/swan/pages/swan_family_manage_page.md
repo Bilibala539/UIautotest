@@ -23,8 +23,15 @@
 | 惠威2b11 / 创建人 | ❌ | 家庭卡片文本 |
 | 右上角图标按钮 [610,73][720,183] | ✅ | OCR"器/只+"，功能未知（疑添加成员/更多），未点 |
 | 左上返回按钮 [0,72][128,184] | ✅ | 无文案图标，press_back 等效 |
+| 成员行右侧「添加成员」图标（人形+，[621,314][656,353]） | ✅ | 已截图 | 
 | 家庭头像/图标 [32,306][130,404] | ❌ | |
 
+
+### 元素截图（image_ai/flutter 草稿，2026-09-08 aw-element 采集，待 verify 转正）
+
+| 元素 | 常量（image/image_name_mapping.py） | 图片文件 |
+|---|---|---|
+| 成员行右侧「添加成员」图标（人形+号，非右上角宫格图标） | `SWAN_FAMILY_ADD_MEMBER_ICON` | image_ai/flutter/swan_family_add_member_icon.png |
 ## 页面布局
 
 ```
@@ -40,7 +47,7 @@
 
 ## 缺口
 
-- 全页无 accessibility key，只能 click_text/截图定位；建议 element 截图补图标按钮
+- 全页无 accessibility key，只能 click_text/截图定位；图标按钮已补截图（见元素截图表）- 全页无 accessibility key，只能 click_text/截图定位；建议 element 截图补图标按钮
 - 添加成员/家庭设置流程未探索
 
 ## 关联

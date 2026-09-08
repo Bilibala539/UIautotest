@@ -20,6 +20,15 @@
 | 扫一扫 | OCR 文本（无 key） | ❓ | 顶部右侧 |
 | 其余列表项 | OCR 文本（无 key） | ✅（部分） | 充值与消费记录/家庭管理/SWAN收藏/设备管理/音质设置/帮助与反馈/关于与升级 |
 
+
+### 元素截图（image_ai/flutter 草稿，2026-09-08 aw-element 采集，待 verify 转正）
+
+| 元素 | 常量（image/image_name_mapping.py） | 图片文件 |
+|---|---|---|
+| 列表行「家庭管理」 | `SWAN_ME_FAMILY_MANAGE_ROW` | image_ai/flutter/swan_me_family_manage_row.png |
+| 列表行「SWAN收藏」 | `SWAN_ME_FAVORITES_ROW` | image_ai/flutter/swan_me_favorites_row.png |
+| 列表行「设备管理」（设备管理分组下的可点行） | `SWAN_ME_DEVICE_MANAGE_ROW` | image_ai/flutter/swan_me_device_manage_row.png |
+| 列表行「音质设置」 | `SWAN_ME_SOUND_QUALITY_ROW` | image_ai/flutter/swan_me_sound_quality_row.png |
 ⚠️ dump 中"我的权益""设备管理""更多"出现两次（标题行 + 可点击行），实际可点的是后者。
 
 ## 关联

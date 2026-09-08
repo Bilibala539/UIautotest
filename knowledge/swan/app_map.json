@@ -8,7 +8,7 @@
     "default_device": {
       "serial": "c0614b6a",
       "android_version": "11",
-      "screen_size": "720x1528"
+      "screen_size": "720x1600"
     },
     "last_updated": "2026-09-08",
     "locator_policy": "accessibility key > OCR 文本 > 图像模板（禁止坐标）",
@@ -108,9 +108,9 @@
       },
       {
         "to": "swan_login_sms_page",
-        "action": "press_back",
+        "action": "press_back 会退出 App，重启后回登录页（实测）",
         "type": "返回",
-        "status": "pending"
+        "status": "verified"
       }
     ],
     "swan_home_page": [

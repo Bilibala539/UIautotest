@@ -26,6 +26,12 @@
 无 key 的 OCR 文本元素：网易云练习/网易云音乐/酷狗音乐/Apple Music/Qobuz（音源入口）、
 我喜欢/歌单/AI 卡片、最近播放（已播歌曲/已播歌手/已播专辑）、立马授权。
 
+
+### 元素截图（image_ai/flutter 草稿，2026-09-08 aw-element 采集，待 verify 转正）
+
+| 元素 | 常量（image/image_name_mapping.py） | 图片文件 |
+|---|---|---|
+| bottom_player 播放条整体（⚠️ 含当前曲目名区，曲目变化时文字区会变） | `SWAN_BOTTOM_PLAYER_BAR` | image_ai/flutter/swan_bottom_player_bar.png |
 ## 页面布局（首屏）
 
 ```

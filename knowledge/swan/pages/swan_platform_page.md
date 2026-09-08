@@ -31,6 +31,12 @@
 | 音乐 / AI / 电台（左侧分类栏） | ✅ | 分类切换，未点 |
 | QQ音乐/Spotify/网易云音乐/酷狗音乐/Apple Music/Qobuz 行 | ✅ | 各行右侧有一个"+"图标按钮（OCR 识别为 +/?，无 key，推测为授权/添加入口，未点） |
 
+
+### 元素截图（image_ai/flutter 草稿，2026-09-08 aw-element 采集，待 verify 转正）
+
+| 元素 | 常量（image/image_name_mapping.py） | 图片文件 |
+|---|---|---|
+| 网易云音乐授权行（整行卡片，⚠️ 含「未授权」状态文字，授权后该行文案会变） | `SWAN_PLATFORM_NETEASE_ROW` | image_ai/flutter/swan_platform_netease_row.png |
 ## 页面布局
 
 ```

@@ -25,6 +25,12 @@
 | 流畅音质 / 标准音质 / HQ高品质 / SQ无损音质 | ✅ | 四个单选行，带 O 型单选圈，⛔ 未改 |
 | 蒙层 [0,0][720,996]（dump 文本"纱罩"） | ✅ | 点蒙层关闭（未实测，用"完成"验证） |
 
+
+### 元素截图（image_ai/flutter 草稿，2026-09-08 aw-element 采集，待 verify 转正）
+
+| 元素 | 常量（image/image_name_mapping.py） | 图片文件 |
+|---|---|---|
+| 右上角「完成」按钮（红色文字，不含背景） | `SWAN_SOUND_QUALITY_DONE_BUTTON` | image_ai/flutter/swan_sound_quality_done_button.png |
 ## 页面布局
 
 ```

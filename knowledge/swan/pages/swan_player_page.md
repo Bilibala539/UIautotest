@@ -35,6 +35,13 @@
 无 key 的 OCR 文本元素：`0%`（音量值）、进度 `00:00 / 00:00`、
 底部两个无 key 节点 [336,1479][384,1527] / [501,1479][549,1527]（疑音量滑轨端点）。
 
+
+### 元素截图（image_ai/flutter 草稿，2026-09-08 aw-element 采集，待 verify 转正）
+
+| 元素 | 常量（image/image_name_mapping.py） | 图片文件 |
+|---|---|---|
+| 播放/暂停圆钮（无播放任务时的 ▶ 态） | `SWAN_PLAYER_PLAY_PAUSE_BTN` | image_ai/flutter/swan_player_play_pause_btn.png |
+| 左上角收起按钮 | `SWAN_PLAYER_DISMISS_BTN` | image_ai/flutter/swan_player_dismiss_btn.png |
 ## 页面布局
 
 ```

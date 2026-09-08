@@ -24,6 +24,14 @@ SWAN收藏页。收藏歌单分组列表（我的家庭 / 我的音乐），底�
 | SWAN收藏（页标题） | ❌ | |
 | 左上返回按钮 [0,72][128,184] | ✅ | 无文案图标，press_back 等效 |
 
+
+### 元素截图（image_ai/flutter 草稿，2026-09-08 aw-element 采集，待 verify 转正）
+
+| 元素 | 常量（image/image_name_mapping.py） | 图片文件 |
+|---|---|---|
+| 「我的家庭」分组行 | `SWAN_FAV_FAMILY_GROUP_ROW` | image_ai/flutter/swan_fav_family_group_row.png |
+| 「我的音乐」分组行 | `SWAN_FAV_MUSIC_GROUP_ROW` | image_ai/flutter/swan_fav_music_group_row.png |
+| 「添加新的收藏歌单」按钮 | `SWAN_FAV_ADD_PLAYLIST_BUTTON` | image_ai/flutter/swan_fav_add_playlist_button.png |
 ## 页面布局
 
 ```

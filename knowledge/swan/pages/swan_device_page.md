@@ -40,6 +40,12 @@
 | 音量设置（每卡片） | ✅ | ⛔ 未点（控制真实音箱音量） |
 | 扬声器 卡片（"本机"分类下） | ✅ | 本机虚拟卡片 |
 
+
+### 元素截图（image_ai/flutter 草稿，2026-09-08 aw-element 采集，待 verify 转正）
+
+| 元素 | 常量（image/image_name_mapping.py） | 图片文件 |
+|---|---|---|
+| 右上角「添加设备」图标 | `SWAN_DEVICE_ADD_BTN` | image_ai/flutter/swan_device_add_btn.png |
 ## 页面布局
 
 ```

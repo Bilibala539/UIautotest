@@ -21,6 +21,12 @@
 | `login_code_field` | 验证码输入框 | ❌（内层节点可点） | 已固化 KEY_CODE_FIELD |
 | 重新发送(54s) | 重发倒计时（OCR 文本，无 key） | ✅ | 倒计时结束才可点 |
 
+
+### 元素截图（image_ai/flutter 草稿，2026-09-08 aw-element 采集，待 verify 转正）
+
+| 元素 | 常量（image/image_name_mapping.py） | 图片文件 |
+|---|---|---|
+| 验证码输入框（4 格整体，空态） | `SWAN_LOGIN_CODE_FIELD_BOX` | image_ai/flutter/swan_login_code_field_box.png |
 ## 行为要点
 
 - 验证码自动提交：`input_text(code)` 后无需点任何按钮，等 `tab_me` 出现即登录成功

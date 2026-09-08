@@ -234,7 +234,7 @@
     "swan_family_manage_page": [
       {
         "to": "swan_me_page",
-        "action": "press_key('escape')（press_back 有框架 bug）",
+        "action": "press_back（原 press_back bug 已修复，2026-09-08 实测可用）",
         "type": "返回",
         "status": "verified"
       }

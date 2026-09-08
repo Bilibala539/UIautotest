@@ -20,6 +20,7 @@ from utils.user import AndroidUser, SwanUser, TTUser
 pytest_plugins = ["dashboard.pytest_plugin"]
 
 load_dotenv()
+load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env.local"))
 _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 _OUTPUT_DIR = os.path.join(_BASE_DIR, "output")
 log_dir = os.path.join(_OUTPUT_DIR, "logs")

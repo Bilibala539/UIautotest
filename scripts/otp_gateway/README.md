@@ -10,7 +10,7 @@ $env:OTP_READ_TOKEN = "替换为自动化读取密钥"
 $env:OTP_ALLOWED_PHONES = "13777777777,13888888888"
 $env:OTP_READ_AUTH_REQUIRED = "false"
 $env:OTP_INGEST_AUTH_REQUIRED = "false"
-$env:CAPTCHA_SOURCE_URL = "http://<开发测试服地址>/user/captcha/mockCode"
+$env:CAPTCHA_SOURCE_URL = "http://<开发测试服地址>/api/user/captcha/mockCode"
 $env:CAPTCHA_SOURCE_TIMEOUT_SECONDS = "5"
 python -m scripts.otp_gateway.server --host 0.0.0.0 --port 18080
 ```
@@ -24,7 +24,7 @@ systemd 模板位于 `swan-otp-gateway.service`。建议部署到 Swan 专属路
 ## 主动获取验证码
 
 ```bash
-curl 'http://<开发测试服地址>/user/captcha/mockCode?tel=13777777777'
+curl 'http://<开发测试服地址>/api/user/captcha/mockCode?tel=13777777777'
 ```
 
 开发提供该接口后，不再需要向验证码平台推送验证码。平台由自动化读取动作触发调用开发接口。

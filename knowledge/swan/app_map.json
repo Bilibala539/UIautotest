@@ -12,7 +12,8 @@
     },
     "last_updated": "2026-09-08",
     "locator_policy": "accessibility key > OCR 文本 > 图像模板（禁止坐标）",
-    "notes": "本知识库从零开始，所有页面事实必须由真机探索或测试实际验证后写入，禁止猜测。2026-09-08 首版 11 页已由 explorer+verify 双重验证转正。"
+    "notes": "本知识库从零开始，所有页面事实必须由真机探索或测试实际验证后写入，禁止猜测。2026-09-08 首版 11 页已由 explorer+verify 双重验证转正。",
+    "reader_entry": "digest/中文索引.md"
   },
   "pages": {
     "swan_login_sms_page": {

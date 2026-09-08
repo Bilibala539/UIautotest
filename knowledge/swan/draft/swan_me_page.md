@@ -26,3 +26,6 @@
 
 - [[swan_home_page]]（tab 切换）
 - [[swan_person_info_page]]（点 me_user_profile_entry）
+- [[swan_family_manage_page]]（OCR"家庭管理"，已探索）
+- [[swan_favorites_page]]（OCR"SWAN收藏"，已探索）
+- [[swan_sound_quality_page]]（OCR"音质设置"，底部弹层，已探索）

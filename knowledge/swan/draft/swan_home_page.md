@@ -48,5 +48,7 @@
 ## 关联
 
 - [[swan_login_code_page]]（登录进入）
-- [[swan_player_page]]（点 bottom_player，待探索）
-- [[swan_me_page]]（点 tab_me，待探索）
+- [[swan_player_page]]（点 bottom_player，已探索）
+- [[swan_platform_page]]（点 tab_platform，已探索）
+- [[swan_device_page]]（点 tab_device，已探索）
+- [[swan_me_page]]（点 tab_me，已探索）

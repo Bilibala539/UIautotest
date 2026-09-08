@@ -4,7 +4,11 @@
 """
 from __future__ import annotations
 
+import logging
+
 from utils.aw.aw_base import AWBase, _screenshot_on_failure
+
+logger = logging.getLogger(__name__)
 
 
 class AndroidBaseAW(AWBase):

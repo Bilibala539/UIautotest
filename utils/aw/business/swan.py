@@ -42,6 +42,43 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
     KEY_LOGOUT_BUTTON = "person_info_logout_button"       # 退出登入
     KEY_CANCEL_ACCOUNT_BUTTON = "person_info_cancel_account_button"  # 注销账号（危险，勿点）
 
+    # 平台页（✅ 2026-09-08 真机 dump 验证）
+    KEY_PLATFORM_PAGE = "platform_page"                   # 平台页根节点（页面判据）
+    KEY_NETEASE_PLATFORM_ENTRY = "netease_platform_entry"  # 网易云音乐行（⛔ 授权类，勿点）
+
+    # 设备页（✅ 2026-09-08 真机 dump 验证）
+    KEY_DEVICE_PAGE = "device_page"                       # 设备页根节点（页面判据）
+    KEY_DEVICE_ADD_BUTTON = "device_add_button"            # 添加设备（⛔ 进配网流程，勿点）
+    KEY_DEVICE_WIFI_SECTION = "device_wifi_section"        # 左侧 WIFI 分类
+    # ⚠️ 设备卡 key 按设备 UUID 动态拼接，禁止写死后缀，一律用前缀匹配
+    PREFIX_WIFI_DEVICE_CARD = "wifi_device_card_"          # 设备卡片（⛔ 勿点）
+    PREFIX_WIFI_DEVICE_SETTINGS = "wifi_device_settings_"  # 设备设置（⛔ 含删除设备）
+    PREFIX_WIFI_DEVICE_SYNC = "wifi_device_sync_"          # 同步设备（⛔ 向真机下发）
+
+    # 全屏播放页（✅ 2026-09-08 真机 dump 验证）
+    KEY_FULL_PLAYER_PAGE = "full_player_page"              # 播放页根节点（页面判据）
+    KEY_PLAYER_DISMISS_BUTTON = "player_dismiss_button"    # 左上角收起
+    KEY_PLAYER_PLAY_PAUSE_BUTTON = "player_play_pause_button"  # 播放/暂停（⛔ 只断言不点）
+    KEY_PLAYER_VOLUME_BUTTON = "player_volume_button"      # 音量（⛔ 只断言不点）
+
+    def go_home(self, timeout: float = 15.0) -> None:
+        """回到首页（tab_recommend），用例收尾统一入口（G3/G4）。"""
+        self.click_accessibility(self.KEY_TAB_RECOMMEND)
+        assert self.wait_accessibility(self.KEY_TAB_ME, timeout=timeout), "未回到首页"
+
+    def list_accessibility_keys_by_prefix(self, prefix: str) -> list[str]:
+        """列出当前页面 resource_id 以 prefix 开头的语义 key（去重、有序）。
+
+        用于设备卡这类按 UUID 动态拼接 key 的元素计数/存在性判断，
+        避免把 UUID 写死在用例里。仅做判断，点击仍走 click_accessibility。
+        """
+        found: list[str] = []
+        for node in self.dump_semantics():
+            node_id = (node.get("resource_id") or "").split("/")[-1]
+            if node_id.startswith(prefix) and node_id not in found:
+                found.append(node_id)
+        return found
+
     def login_with_password(self, phone: str, password: str) -> None:
         """密码登录，从任意初始状态开始，最终停在首页。"""
         if not self.accessibility_exists(self.KEY_PASSWORD_FIELD):

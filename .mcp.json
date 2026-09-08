@@ -19,14 +19,63 @@
         "mcp_servers/knowledge_graph/server.py"
       ],
       "command": "pythonw",
-      "cwd": "E:\\UIAutotest"
+      "cwd": "E:\\UIAutotest",
+      "env": {
+        "UIAUTOTEST_KNOWLEDGE_DIR": "E:\\UIAutotest\\knowledge\\web"
+      }
     },
     "vector_kb": {
       "args": [
         "mcp_servers/vector_kb/server.py"
       ],
       "command": "pythonw",
-      "cwd": "E:\\UIAutotest"
+      "cwd": "E:\\UIAutotest",
+      "env": {
+        "UIAUTOTEST_KNOWLEDGE_DIR": "E:\\UIAutotest\\knowledge\\web",
+        "UIAUTOTEST_CHROMA_DIR": "E:\\UIAutotest\\knowledge\\web\\.chroma_db"
+      }
+    },
+    "knowledge_graph_swan": {
+      "args": [
+        "mcp_servers/knowledge_graph/server.py"
+      ],
+      "command": "pythonw",
+      "cwd": "E:\\UIAutotest",
+      "env": {
+        "UIAUTOTEST_KNOWLEDGE_DIR": "E:\\UIAutotest\\knowledge\\swan"
+      }
+    },
+    "vector_kb_swan": {
+      "args": [
+        "mcp_servers/vector_kb/server.py"
+      ],
+      "command": "pythonw",
+      "cwd": "E:\\UIAutotest",
+      "env": {
+        "UIAUTOTEST_KNOWLEDGE_DIR": "E:\\UIAutotest\\knowledge\\swan",
+        "UIAUTOTEST_CHROMA_DIR": "E:\\UIAutotest\\knowledge\\swan\\.chroma_db"
+      }
+    },
+    "knowledge_graph_android": {
+      "args": [
+        "mcp_servers/knowledge_graph/server.py"
+      ],
+      "command": "pythonw",
+      "cwd": "E:\\UIAutotest",
+      "env": {
+        "UIAUTOTEST_KNOWLEDGE_DIR": "E:\\UIAutotest\\knowledge\\android"
+      }
+    },
+    "vector_kb_android": {
+      "args": [
+        "mcp_servers/vector_kb/server.py"
+      ],
+      "command": "pythonw",
+      "cwd": "E:\\UIAutotest",
+      "env": {
+        "UIAUTOTEST_KNOWLEDGE_DIR": "E:\\UIAutotest\\knowledge\\android",
+        "UIAUTOTEST_CHROMA_DIR": "E:\\UIAutotest\\knowledge\\android\\.chroma_db"
+      }
     }
   }
 }

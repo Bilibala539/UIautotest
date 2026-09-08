@@ -1,0 +1,50 @@
+{
+  "meta": {
+    "app": "TidyTree",
+    "platform": "Android",
+    "client_type": "native_app",
+    "driver": "ADB via AndroidAdbDriver",
+    "package_name": null,
+    "launch_activity": null,
+    "root_page": null,
+    "default_device": {
+      "android_version": null,
+      "screen_size": null,
+      "density": null,
+      "orientation": null
+    },
+    "last_updated": null,
+    "knowledge_status": "initialized",
+    "locator_policy": [
+      "resource-id",
+      "accessibility/content-desc",
+      "visible text",
+      "stable class/resource combination",
+      "image/OCR evidence"
+    ],
+    "notes": "Android 与 Web 知识库独立维护；动态坐标、设备序列号和凭据不得入库。"
+  },
+  "test_matrix_template": {
+    "roles": [],
+    "android_versions": [],
+    "devices": [],
+    "orientations": [
+      "portrait",
+      "landscape"
+    ],
+    "ui_states": [
+      "default",
+      "loading",
+      "empty",
+      "filtered",
+      "dialog",
+      "permission",
+      "error"
+    ],
+    "note": "完成首次 Android 探索后，再补充适用角色、设备和数据状态。"
+  },
+  "pages": {},
+  "transitions": [],
+  "elements": {},
+  "features": {}
+}

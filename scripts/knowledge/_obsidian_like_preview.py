@@ -15,12 +15,16 @@ import json
 import sys
 import io
 import webbrowser
+import os
+import argparse
 from pathlib import Path
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
 PROJ = Path(__file__).resolve().parents[2]
-KM = PROJ / "explorer_output" / "knowledge"
+KM = Path(os.environ.get("UIAUTOTEST_KNOWLEDGE_DIR", PROJ / "knowledge/web"))
+if not KM.is_absolute():
+    KM = PROJ / KM
 PAGES = KM / "pages"
 DRAFT = KM / "draft"
 
@@ -216,7 +220,7 @@ def render_index(alias_map):
         rows += f"<tr><td><b>{st}</b></td><td>{len(names)}</td></tr>"
 
     return f"""
-<h1>POPO 知识库 — 本地 Obsidian-like 视图</h1>
+<h1>TidiTree 知识库 — 本地 Obsidian-like 视图</h1>
 <p>这是用 markdown 渲染器模拟 Obsidian 阅读视图，支持 wikilink 跳转、frontmatter 折叠、mermaid 图表。</p>
 
 <h2>📊 统计</h2>
@@ -272,7 +276,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
         if path in ("/", "/index"):
             body = render_index(self.alias_map)
-            title = "POPO 知识库"
+            title = "TidiTree 知识库"
         elif path == "/graph":
             f = KM / "graph_view.md"
             content = f.read_text(encoding="utf-8")
@@ -305,6 +309,18 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
 
 def main():
+    global KM, PAGES, DRAFT, PORT
+    parser = argparse.ArgumentParser(description="知识库本地预览")
+    parser.add_argument("--knowledge-dir", type=str, help="知识库目录（默认 Web 知识库）")
+    parser.add_argument("--port", type=int, default=PORT, help="本地预览端口")
+    args = parser.parse_args()
+    if args.knowledge_dir:
+        KM = Path(args.knowledge_dir)
+        if not KM.is_absolute():
+            KM = PROJ / KM
+        PAGES = KM / "pages"
+        DRAFT = KM / "draft"
+    PORT = args.port
     print(f"[obsidian-like] 启动 http://127.0.0.1:{PORT}")
     print(f"[obsidian-like] 知识库根: {KM}")
     try:

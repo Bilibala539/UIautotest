@@ -16,6 +16,7 @@
 """
 
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -24,7 +25,9 @@ from datetime import datetime
 sys.stdout.reconfigure(encoding='utf-8')
 
 PROJ_ROOT = Path(__file__).parent.parent.parent
-KNOWLEDGE_DIR = PROJ_ROOT / "explorer_output" / "knowledge"
+KNOWLEDGE_DIR = Path(os.environ.get("UIAUTOTEST_KNOWLEDGE_DIR", PROJ_ROOT / "knowledge/web"))
+if not KNOWLEDGE_DIR.is_absolute():
+    KNOWLEDGE_DIR = PROJ_ROOT / KNOWLEDGE_DIR
 PAGES_DIR = KNOWLEDGE_DIR / "pages"
 DRAFT_DIR = KNOWLEDGE_DIR / "draft"
 APP_MAP_PATH = KNOWLEDGE_DIR / "app_map.json"
@@ -436,7 +439,19 @@ def main():
     import argparse
     parser = argparse.ArgumentParser(description="知识库健康度检查")
     parser.add_argument("--json", action="store_true", help="JSON 格式输出")
+    parser.add_argument("--knowledge-dir", type=str, help="知识库目录（默认 Web 知识库）")
     args = parser.parse_args()
+
+    global KNOWLEDGE_DIR, PAGES_DIR, DRAFT_DIR, APP_MAP_PATH, BACKLINKS_PATH, AUDIT_STATE_PATH
+    if args.knowledge_dir:
+        KNOWLEDGE_DIR = Path(args.knowledge_dir)
+        if not KNOWLEDGE_DIR.is_absolute():
+            KNOWLEDGE_DIR = PROJ_ROOT / KNOWLEDGE_DIR
+        PAGES_DIR = KNOWLEDGE_DIR / "pages"
+        DRAFT_DIR = KNOWLEDGE_DIR / "draft"
+        APP_MAP_PATH = KNOWLEDGE_DIR / "app_map.json"
+        BACKLINKS_PATH = KNOWLEDGE_DIR / "backlinks.json"
+        AUDIT_STATE_PATH = KNOWLEDGE_DIR / "audit_state.json"
 
     # 运行所有检查
     all_issues = []

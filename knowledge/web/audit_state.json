@@ -1,0 +1,17 @@
+{
+  "last_full_audit": "2026-09-01T00:00:00",
+  "pages": {
+    "login_page": {
+      "last_audited": "2026-09-01T00:00:00",
+      "result": "passed",
+      "audit_method": "Selenium headless Edge DOM inspection",
+      "signature_match": true
+    },
+    "agents_page": {
+      "last_audited": "2026-09-01T00:00:00",
+      "result": "passed",
+      "audit_method": "Selenium headless Edge DOM inspection",
+      "signature_match": true
+    }
+  }
+}

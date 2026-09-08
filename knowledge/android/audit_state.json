@@ -1,0 +1,12 @@
+{
+  "last_full_audit": null,
+  "platform": "android",
+  "device": {
+    "serial": null,
+    "android_version": null,
+    "screen_size": null,
+    "density": null,
+    "orientation": null
+  },
+  "pages": {}
+}

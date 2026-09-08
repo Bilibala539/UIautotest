@@ -17,6 +17,7 @@ import json
 import re
 import sys
 import io
+import os
 from pathlib import Path
 from collections import deque
 
@@ -24,7 +25,10 @@ from collections import deque
 sys.stdin = io.TextIOWrapper(sys.stdin.buffer, encoding='utf-8')
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', newline='')
 
-KNOWLEDGE_DIR = Path(__file__).parent.parent.parent / "explorer_output" / "knowledge"
+PROJ_ROOT = Path(__file__).parent.parent.parent
+KNOWLEDGE_DIR = Path(os.environ.get("UIAUTOTEST_KNOWLEDGE_DIR", PROJ_ROOT / "knowledge/web"))
+if not KNOWLEDGE_DIR.is_absolute():
+    KNOWLEDGE_DIR = PROJ_ROOT / KNOWLEDGE_DIR
 PAGES_DIR = KNOWLEDGE_DIR / "pages"
 APP_MAP_PATH = KNOWLEDGE_DIR / "app_map.json"
 BACKLINKS_PATH = KNOWLEDGE_DIR / "backlinks.json"

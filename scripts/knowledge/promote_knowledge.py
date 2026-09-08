@@ -22,7 +22,10 @@ import argparse
 from pathlib import Path
 from datetime import datetime
 
-KNOWLEDGE_DIR = Path("explorer_output/knowledge")
+PROJ_ROOT = Path(__file__).parent.parent.parent
+KNOWLEDGE_DIR = Path(os.environ.get("UIAUTOTEST_KNOWLEDGE_DIR", PROJ_ROOT / "knowledge/web"))
+if not KNOWLEDGE_DIR.is_absolute():
+    KNOWLEDGE_DIR = PROJ_ROOT / KNOWLEDGE_DIR
 DRAFT_DIR = KNOWLEDGE_DIR / "draft"
 PAGES_DIR = KNOWLEDGE_DIR / "pages"
 APP_MAP_PATH = KNOWLEDGE_DIR / "app_map.json"
@@ -366,7 +369,17 @@ def main():
     parser = argparse.ArgumentParser(description="知识库草稿转正")
     parser.add_argument("--check-only", action="store_true", help="只验证不转正")
     parser.add_argument("--file", type=str, help="指定单个文件")
+    parser.add_argument("--knowledge-dir", type=str, help="知识库目录（默认 Web 知识库）")
     args = parser.parse_args()
+
+    global KNOWLEDGE_DIR, DRAFT_DIR, PAGES_DIR, APP_MAP_PATH
+    if args.knowledge_dir:
+        KNOWLEDGE_DIR = Path(args.knowledge_dir)
+        if not KNOWLEDGE_DIR.is_absolute():
+            KNOWLEDGE_DIR = PROJ_ROOT / KNOWLEDGE_DIR
+        DRAFT_DIR = KNOWLEDGE_DIR / "draft"
+        PAGES_DIR = KNOWLEDGE_DIR / "pages"
+        APP_MAP_PATH = KNOWLEDGE_DIR / "app_map.json"
 
     if args.file:
         filepath = Path(args.file)

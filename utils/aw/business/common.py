@@ -1,58 +1,47 @@
+"""跨项目公共业务 Mixin。
+
+只做 Mixin，不继承 AWBase——业务类通过
+``class XxxBusiness(CommonBusinessMixin, 某端BaseAW)`` 组合使用，
+Mixin 里的 ``self.xxx`` 在运行时命中端 base / 公共引擎的方法。
+
+验证码等纯 HTTP 依赖走 utils/ 独立客户端，不进基础 AW 层。
 """
-通用业务方法
+from __future__ import annotations
 
-通用的业务操作放这里，只维护一份。
-MuMuBusiness 继承此类。
-"""
-import logging
+import os
+from typing import Optional
 
-from utils.aw.aw_base import AWBase
-from utils.aw.driver.base_driver import BasePlatformDriver
-
-logger = logging.getLogger(__name__)
+from utils.otp_client import OtpClient
 
 
-class CommonBusiness(AWBase):
-    """
-    通用业务基类
+class CommonBusinessMixin:
+    """跨项目通用的业务方法（Mixin）。"""
 
-    包含通用的业务方法。
-    MuMuBusiness 继承此类。
-    """
+    _otp_client: Optional[OtpClient] = None
 
-    def __init__(self, driver: BasePlatformDriver):
-        super().__init__(driver)
+    @property
+    def otp(self) -> OtpClient:
+        """验证码客户端（懒加载，全局共享一个实例）。"""
+        if CommonBusinessMixin._otp_client is None:
+            CommonBusinessMixin._otp_client = OtpClient()
+        return CommonBusinessMixin._otp_client
 
-    # ==================== 窗口 ====================
+    # ==================== 通用等待 ====================
 
-    def activate(self) -> bool:
-        """激活窗口并置于前台"""
-        logger.info("📋 激活目标窗口...")
-        result = self.driver.focus_window()
-        self.sleep(0.5)
-        return result
+    def wait_text(self, *texts: str, timeout: int = 10) -> bool:
+        """等待任意一个文本出现，常用于断言页面到达。"""
+        return any(
+            self.find_text_by_ocr(text, timeout=timeout) is not None
+            for text in texts
+        )
 
-    # ==================== 页面导航 ====================
+    # ==================== 通用登录辅助 ====================
 
-    def go_to_home(self) -> bool:
-        """返回首页"""
-        logger.info("🏠 返回首页")
-        for _ in range(5):
-            self.press_back()
-            self.sleep(0.3)
-        return True
+    def _sms_phone(self) -> str:
+        """从环境变量读取当前账号手机号。"""
+        return os.environ.get("SWAN_PHONE", "").strip()
 
-    def go_to_contacts(self) -> bool:
-        """进入联系人页面"""
-        logger.info("📇 进入联系人页面")
-        return self.click_text("联系人", timeout=5)
-
-    def go_to_messages(self) -> bool:
-        """进入消息页面"""
-        logger.info("💬 进入消息页面")
-        return self.click_text("消息", timeout=5)
-
-    def go_to_settings(self) -> bool:
-        """进入设置页面"""
-        logger.info("⚙️ 进入设置页面")
-        return self.click_text("设置", timeout=5)
+    def _fetch_sms_code(self, phone: str, wait: float = 60.0) -> str:
+        """触发取码后轮询验证码平台，返回验证码字符串。"""
+        record = self.otp.get_code(phone, wait=wait)
+        return str(record.get("code", ""))

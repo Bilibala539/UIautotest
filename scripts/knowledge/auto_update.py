@@ -15,6 +15,7 @@
 import subprocess
 import sys
 import os
+import argparse
 from pathlib import Path
 
 sys.stdout.reconfigure(encoding='utf-8')
@@ -39,27 +40,31 @@ def get_changed_files() -> list:
     return []
 
 
-def needs_backlinks_update(changed_files: list) -> bool:
+def needs_backlinks_update(changed_files: list, knowledge_dir: str = "knowledge/web") -> bool:
     """判断是否需要更新 backlinks"""
-    patterns = ["explorer_output/knowledge/pages/", "explorer_output/knowledge/digest/"]
+    prefix = knowledge_dir.replace("\\", "/").rstrip("/") + "/"
+    patterns = [f"{prefix}pages/", f"{prefix}digest/"]
     return any(any(p in f for p in patterns) for f in changed_files)
 
 
-def needs_embedding_update(changed_files: list) -> bool:
+def needs_embedding_update(changed_files: list, knowledge_dir: str = "knowledge/web") -> bool:
     """判断是否需要更新 embedding"""
     patterns = [
-        "explorer_output/knowledge/",
+        knowledge_dir.replace("\\", "/").rstrip("/") + "/",
         "tests/",
         "docs/",
     ]
     return any(any(p in f for p in patterns) for f in changed_files)
 
 
-def run_backlinks():
+def run_backlinks(knowledge_dir: str = None):
     """运行 backlinks 生成器"""
     print("🔗 更新反向链接...")
+    command = [sys.executable, str(SCRIPTS_DIR / "backlinks_generator.py")]
+    if knowledge_dir:
+        command.extend(["--knowledge-dir", knowledge_dir])
     result = subprocess.run(
-        [sys.executable, str(SCRIPTS_DIR / "backlinks_generator.py")],
+        command,
         cwd=str(PROJ_ROOT),
         capture_output=True, text=True, encoding='utf-8',
     )
@@ -70,12 +75,16 @@ def run_backlinks():
     return result.returncode == 0
 
 
-def run_embedding(incremental: bool = True):
+def run_embedding(incremental: bool = True, knowledge_dir: str = None, chroma_dir: str = None):
     """运行 embedding pipeline"""
     print("🧠 更新向量索引...")
     args = [sys.executable, str(SCRIPTS_DIR / "embedding_pipeline.py")]
     if incremental:
         args.append("--incremental")
+    if knowledge_dir:
+        args.extend(["--knowledge-dir", knowledge_dir])
+    if chroma_dir:
+        args.extend(["--chroma-dir", chroma_dir])
 
     result = subprocess.run(
         args, cwd=str(PROJ_ROOT),
@@ -93,11 +102,12 @@ def run_embedding(incremental: bool = True):
 
 
 def main():
-    import argparse
     parser = argparse.ArgumentParser(description="知识库自动更新")
     parser.add_argument("--force", action="store_true", help="强制全量更新")
     parser.add_argument("--backlinks-only", action="store_true", help="只更新 backlinks")
     parser.add_argument("--embed-only", action="store_true", help="只更新 embedding")
+    parser.add_argument("--knowledge-dir", type=str, help="知识库目录（默认 Web 知识库）")
+    parser.add_argument("--chroma-dir", type=str, help="向量数据库目录（默认 .chroma_db）")
     args = parser.parse_args()
 
     print("=" * 60)
@@ -106,16 +116,16 @@ def main():
 
     if args.force:
         print("模式: 强制全量更新")
-        run_backlinks()
-        run_embedding(incremental=False)
+        run_backlinks(args.knowledge_dir)
+        run_embedding(incremental=False, knowledge_dir=args.knowledge_dir, chroma_dir=args.chroma_dir)
         return
 
     if args.backlinks_only:
-        run_backlinks()
+        run_backlinks(args.knowledge_dir)
         return
 
     if args.embed_only:
-        run_embedding(incremental=True)
+        run_embedding(incremental=True, knowledge_dir=args.knowledge_dir, chroma_dir=args.chroma_dir)
         return
 
     # 自动检测变更
@@ -126,13 +136,14 @@ def main():
 
     print(f"检测到 {len(changed_files)} 个变更文件")
 
-    if needs_backlinks_update(changed_files):
-        run_backlinks()
+    knowledge_dir = args.knowledge_dir or "knowledge/web"
+    if needs_backlinks_update(changed_files, knowledge_dir):
+        run_backlinks(args.knowledge_dir)
     else:
         print("⏭️  知识库页面无变更，跳过 backlinks")
 
-    if needs_embedding_update(changed_files):
-        run_embedding(incremental=True)
+    if needs_embedding_update(changed_files, knowledge_dir):
+        run_embedding(incremental=True, knowledge_dir=args.knowledge_dir, chroma_dir=args.chroma_dir)
     else:
         print("⏭️  相关文件无变更，跳过 embedding")
 

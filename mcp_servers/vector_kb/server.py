@@ -14,10 +14,16 @@ import json
 import sys
 import io
 import re
+import os
 from pathlib import Path
 
 PROJ_ROOT = Path(__file__).parent.parent.parent
-CHROMA_DIR = PROJ_ROOT / ".chroma_db"
+KNOWLEDGE_DIR = Path(os.environ.get("UIAUTOTEST_KNOWLEDGE_DIR", PROJ_ROOT / "knowledge/web"))
+if not KNOWLEDGE_DIR.is_absolute():
+    KNOWLEDGE_DIR = PROJ_ROOT / KNOWLEDGE_DIR
+CHROMA_DIR = Path(os.environ.get("UIAUTOTEST_CHROMA_DIR", PROJ_ROOT / ".chroma_db"))
+if not CHROMA_DIR.is_absolute():
+    CHROMA_DIR = PROJ_ROOT / CHROMA_DIR
 
 # Windows 上强制 stdin/stdout 为 UTF-8（MCP 协议用 JSON UTF-8 通信）
 sys.stdin = io.TextIOWrapper(sys.stdin.buffer, encoding='utf-8')
@@ -175,7 +181,7 @@ def _enrich_with_graph(page_id: str) -> dict:
     读取图谱层数据文件，为指定页面丰富关系信息。
     直接读文件（不走 MCP 跨进程调用），因为共享同一个数据目录。
     """
-    knowledge_dir = PROJ_ROOT / "explorer_output" / "knowledge"
+    knowledge_dir = KNOWLEDGE_DIR
     app_map_path = knowledge_dir / "app_map.json"
     backlinks_path = knowledge_dir / "backlinks.json"
     pages_dir = knowledge_dir / "pages"

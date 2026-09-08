@@ -16,10 +16,14 @@
 import re
 import json
 import argparse
+import os
 from pathlib import Path
 from datetime import datetime
 
-KNOWLEDGE_DIR = Path("explorer_output/knowledge")
+PROJ_ROOT = Path(__file__).parent.parent.parent
+KNOWLEDGE_DIR = Path(os.environ.get("UIAUTOTEST_KNOWLEDGE_DIR", PROJ_ROOT / "knowledge/web"))
+if not KNOWLEDGE_DIR.is_absolute():
+    KNOWLEDGE_DIR = PROJ_ROOT / KNOWLEDGE_DIR
 PAGES_DIR = KNOWLEDGE_DIR / "pages"
 DIGEST_DIR = KNOWLEDGE_DIR / "digest"
 BACKLINKS_PATH = KNOWLEDGE_DIR / "backlinks.json"
@@ -177,7 +181,17 @@ def inject_backlinks_section(filepath: Path, backlinks: list, dry_run: bool = Fa
 def main():
     parser = argparse.ArgumentParser(description="知识库反向链接生成器")
     parser.add_argument("--dry-run", action="store_true", help="只输出不写入")
+    parser.add_argument("--knowledge-dir", type=str, help="知识库目录（默认 Web 知识库）")
     args = parser.parse_args()
+
+    global KNOWLEDGE_DIR, PAGES_DIR, DIGEST_DIR, BACKLINKS_PATH
+    if args.knowledge_dir:
+        KNOWLEDGE_DIR = Path(args.knowledge_dir)
+        if not KNOWLEDGE_DIR.is_absolute():
+            KNOWLEDGE_DIR = PROJ_ROOT / KNOWLEDGE_DIR
+        PAGES_DIR = KNOWLEDGE_DIR / "pages"
+        DIGEST_DIR = KNOWLEDGE_DIR / "digest"
+        BACKLINKS_PATH = KNOWLEDGE_DIR / "backlinks.json"
 
     print("扫描知识库中的 [[链接]]...")
     forward_index = scan_all_links()

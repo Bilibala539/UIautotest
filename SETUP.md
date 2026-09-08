@@ -28,10 +28,10 @@
 
 ### 1. UIAutotest 工程代码已存在
 
-这套 agent teams 配置**依赖**项目业务代码（`utils/aw/`、`tests/`、`image/`、`conftest.py`、`explorer_output/knowledge/` 等）。如果新电脑上还没有 UIAutotest 工程：
+这套 agent teams 配置**依赖**项目代码（`utils/aw/`、`tests/`、`image/`、`conftest.py`、`explorer_output/knowledge/` 等）。如果新电脑上还没有 UIAutotest 工程：
 
 ```bash
-git clone <UIAutotest 仓库地址> E:\UIAutotest    # 或任意路径
+git clone <UIAutotest 仓库地址> E:\autotest    # 或任意路径
 ```
 
 agent 蓝图里所有"强制前置阅读"清单都引用了这些工程内文件，否则 agent 启动后会报"文件不存在"。
@@ -79,7 +79,7 @@ export ANTHROPIC_API_KEY=sk-ant-...
 
 #### Step 1：定位 UIAutotest 工程根目录
 
-询问用户工程根目录绝对路径（如 `E:\UIAutotest` 或 `/Users/xx/UIAutotest`）。如果没有，提示用户先 clone。
+询问用户工程根目录绝对路径（如 `E:\autotest` 或 `/Users/xx/autotest`）。如果没有，提示用户先 clone。
 
 #### Step 2：解压到工程根目录
 
@@ -87,7 +87,7 @@ export ANTHROPIC_API_KEY=sk-ant-...
 
 ```bash
 # Windows PowerShell
-Expand-Archive -Path "agent-teams-config.zip" -DestinationPath "E:\UIAutotest" -Force
+Expand-Archive -Path "agent-teams-config.zip" -DestinationPath "E:\autotest" -Force
 
 # Bash
 unzip -o agent-teams-config.zip -d /path/to/UIAutotest
@@ -107,7 +107,7 @@ unzip -o agent-teams-config.zip -d /path/to/UIAutotest
 读取 `.claude/agents/aw-explorer.md`（或任意一个 agent 蓝图）末尾的"强制前置阅读"清单，逐项检查工程内文件是否存在。常见的前置依赖：
 
 - `utils/aw/aw_base.py`
-- `utils/aw/business/mumu.py`
+- `utils/aw/driver/android_driver.py`
 - `utils/user.py`
 - `conftest.py`
 - `explorer_output/knowledge/app_map.json`（如果不存在，告诉用户：知识库可能在另一个分支或被 .gitignore 忽略，需要单独同步）
@@ -165,7 +165,7 @@ claude
 |---|---|---|
 | `/bootstrap-team` 报 "TeamCreate not available" | 没开 experimental | 加 `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` 后重启 |
 | agent 抱怨"找不到 docs/AW方法总结与复用指南.md" | 工程目录错了 / 没启动在工程根目录 | 必须 `cd` 到工程根目录后再启 `claude` |
-| agent 抱怨"找不到 utils/aw/business/mumu.py" | UIAutotest 业务代码缺失 | 单独 clone 业务代码到工程根 |
+| agent 抱怨"找不到 utils/aw/driver/android_driver.py" | UIAutotest 驱动代码缺失 | 检查工程文件是否完整 |
 | agent 抱怨"app_map.json 太大读不完" | 正常 | agent 会自己用 offset/limit 分段读，不阻塞 |
 | 团队里某个 teammate 报"没有 TaskList / SendMessage 工具" | `subagent_type` 选错了 | `subagent_type` 必须用本工程的角色名（`aw-explorer` / `aw-element` 等） |
 

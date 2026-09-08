@@ -24,27 +24,32 @@ sys.stdout.reconfigure(encoding='utf-8')
 sys.stderr.reconfigure(encoding='utf-8')
 
 PROJ_ROOT = Path(__file__).parent.parent.parent
-CHROMA_DIR = PROJ_ROOT / ".chroma_db"
+KNOWLEDGE_DIR = Path(os.environ.get("UIAUTOTEST_KNOWLEDGE_DIR", PROJ_ROOT / "knowledge/web"))
+if not KNOWLEDGE_DIR.is_absolute():
+    KNOWLEDGE_DIR = PROJ_ROOT / KNOWLEDGE_DIR
+CHROMA_DIR = Path(os.environ.get("UIAUTOTEST_CHROMA_DIR", PROJ_ROOT / ".chroma_db"))
+if not CHROMA_DIR.is_absolute():
+    CHROMA_DIR = PROJ_ROOT / CHROMA_DIR
 STATE_FILE = CHROMA_DIR / "index_state.json"
 
 SCAN_CONFIGS = [
     {
         "name": "knowledge_pages",
-        "path": PROJ_ROOT / "explorer_output" / "knowledge" / "pages",
+        "path": KNOWLEDGE_DIR / "pages",
         "glob": "*.md",
         "chunk_size": 500,
         "overlap": 50,
     },
     {
         "name": "knowledge_digest",
-        "path": PROJ_ROOT / "explorer_output" / "knowledge" / "digest",
+        "path": KNOWLEDGE_DIR / "digest",
         "glob": "**/*.md",
         "chunk_size": 500,
         "overlap": 50,
     },
     {
         "name": "test_cases",
-        "path": PROJ_ROOT / "tests" / "mumu",
+        "path": PROJ_ROOT / "tests",
         "glob": "**/*.py",
         "chunk_size": 800,
         "overlap": 100,
@@ -242,7 +247,22 @@ def main():
     parser = argparse.ArgumentParser(description="知识库 Embedding Pipeline")
     parser.add_argument("--incremental", action="store_true", help="增量更新")
     parser.add_argument("--query", type=str, help="测试查询")
+    parser.add_argument("--knowledge-dir", type=str, help="知识库目录（默认 Web 知识库）")
+    parser.add_argument("--chroma-dir", type=str, help="向量数据库目录（默认 .chroma_db）")
     args = parser.parse_args()
+
+    global KNOWLEDGE_DIR, CHROMA_DIR, STATE_FILE, SCAN_CONFIGS
+    if args.knowledge_dir:
+        KNOWLEDGE_DIR = Path(args.knowledge_dir)
+        if not KNOWLEDGE_DIR.is_absolute():
+            KNOWLEDGE_DIR = PROJ_ROOT / KNOWLEDGE_DIR
+    if args.chroma_dir:
+        CHROMA_DIR = Path(args.chroma_dir)
+        if not CHROMA_DIR.is_absolute():
+            CHROMA_DIR = PROJ_ROOT / CHROMA_DIR
+        STATE_FILE = CHROMA_DIR / "index_state.json"
+    SCAN_CONFIGS[0]["path"] = KNOWLEDGE_DIR / "pages"
+    SCAN_CONFIGS[1]["path"] = KNOWLEDGE_DIR / "digest"
 
     if args.query:
         query_index(args.query)

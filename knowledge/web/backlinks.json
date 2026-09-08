@@ -1,0 +1,60 @@
+{
+  "generated_at": "2026-09-01T10:16:44.970743",
+  "stats": {
+    "source_files": 4,
+    "total_links": 6,
+    "target_pages": 2
+  },
+  "forward_index": {
+    "pages/agents_page.md": [
+      "login_page"
+    ],
+    "pages/login_page.md": [
+      "agents_page"
+    ],
+    "digest/platform_profile.md": [
+      "login_page",
+      "agents_page"
+    ],
+    "digest/flows/agent_list_read_only.md": [
+      "login_page",
+      "agents_page"
+    ]
+  },
+  "backlinks": {
+    "login_page": [
+      {
+        "source": "pages/agents_page.md",
+        "source_id": "agents_page",
+        "raw_link": "login_page"
+      },
+      {
+        "source": "digest/platform_profile.md",
+        "source_id": "platform_profile",
+        "raw_link": "login_page"
+      },
+      {
+        "source": "digest/flows/agent_list_read_only.md",
+        "source_id": "agent_list_read_only",
+        "raw_link": "login_page"
+      }
+    ],
+    "agents_page": [
+      {
+        "source": "pages/login_page.md",
+        "source_id": "login_page",
+        "raw_link": "agents_page"
+      },
+      {
+        "source": "digest/platform_profile.md",
+        "source_id": "platform_profile",
+        "raw_link": "agents_page"
+      },
+      {
+        "source": "digest/flows/agent_list_read_only.md",
+        "source_id": "agent_list_read_only",
+        "raw_link": "agents_page"
+      }
+    ]
+  }
+}

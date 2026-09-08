@@ -1,0 +1,199 @@
+{
+  "meta": {
+    "app": "TidyTree",
+    "platform": "Web (Microsoft Edge + Selenium)",
+    "base_url": "https://mtidytree.hivi.com",
+    "root_page": "agents_page",
+    "default_viewport": [
+      1440,
+      1200
+    ],
+    "last_updated": "2026-09-01",
+    "locator_policy": "data-testid > aria role/name > label > CSS",
+    "notes": "知识库只保存可复用的路由、UI 状态和定位器；动态 ID 与账号凭据不得入库。"
+  },
+  "test_matrix_template": {
+    "roles": [
+      "superadmin",
+      "admin",
+      "standard_user"
+    ],
+    "browsers": [
+      "edge"
+    ],
+    "ui_states": [
+      "default",
+      "loading",
+      "empty",
+      "filtered",
+      "paginated",
+      "error"
+    ],
+    "note": "按功能的适用角色、数据状态和副作用等级生成测试矩阵。"
+  },
+  "feature_categories": {
+    "认证": [
+      "sign_in"
+    ],
+    "M8 Agents（只读）": [
+      "browse_agents",
+      "filter_agents"
+    ]
+  },
+  "pages": {
+    "login_page": {
+      "name": "登录页",
+      "type": "route_state",
+      "route": "/agents?view=agents",
+      "auth_state": "anonymous",
+      "signature": [
+        "TidyTree",
+        "Sign in to your workspace",
+        "Password sign-in"
+      ],
+      "detail": "pages/login_page.md",
+      "verification_status": "verified"
+    },
+    "agents_page": {
+      "name": "Agents 列表（M8）",
+      "type": "route_state",
+      "route": "/agents?view=agents",
+      "auth_state": "authenticated",
+      "required_roles": [
+        "superadmin"
+      ],
+      "signature": [
+        "Agents",
+        "Delegated agents available to this workspace",
+        "m8-agents-page"
+      ],
+      "detail": "pages/agents_page.md",
+      "verification_status": "verified"
+    }
+  },
+  "transitions": [
+    {
+      "from": "login_page",
+      "to": "agents_page",
+      "via": "输入环境变量中的测试账号并提交 Sign in",
+      "action": {
+        "method": "submit_form",
+        "locators": [
+          {
+            "strategy": "css",
+            "value": "input[placeholder='Name']"
+          },
+          {
+            "strategy": "css",
+            "value": "input[placeholder='Password']"
+          },
+          {
+            "strategy": "role",
+            "value": "button[name='Sign in']"
+          }
+        ]
+      },
+      "verify": {
+        "strategy": "data-testid",
+        "value": "m8-agents-page"
+      },
+      "type": "navigates_to",
+      "side_effect": "session_only"
+    }
+  ],
+  "elements": {
+    "login_page": {
+      "username_input": {
+        "locator": {
+          "strategy": "css",
+          "value": "input[placeholder='Name']"
+        },
+        "action": "fill",
+        "data_classification": "credential"
+      },
+      "password_input": {
+        "locator": {
+          "strategy": "css",
+          "value": "input[placeholder='Password']"
+        },
+        "action": "fill",
+        "data_classification": "credential"
+      },
+      "sign_in_button": {
+        "locator": {
+          "strategy": "role",
+          "value": "button[name='Sign in']"
+        },
+        "action": "submit"
+      }
+    },
+    "agents_page": {
+      "page_root": {
+        "locator": {
+          "strategy": "data-testid",
+          "value": "m8-agents-page"
+        },
+        "action": "assert_visible"
+      },
+      "filter_search": {
+        "locator": {
+          "strategy": "data-testid",
+          "value": "m8-agents-filter-search"
+        },
+        "action": "fill",
+        "target_state": "filtered"
+      },
+      "agents_table": {
+        "locator": {
+          "strategy": "data-testid",
+          "value": "m8-agents-table-wrapper"
+        },
+        "action": "assert_visible"
+      }
+    }
+  },
+  "features": {
+    "sign_in": {
+      "name": "密码登录",
+      "tags": [
+        "authentication",
+        "session"
+      ],
+      "description": "通过环境变量提供的测试账号登录并建立会话。",
+      "start_page": "login_page",
+      "end_page": "agents_page",
+      "web_method": null,
+      "implementation_status": "未实现",
+      "side_effect": "session_only"
+    },
+    "browse_agents": {
+      "name": "查看 Agents 列表",
+      "tags": [
+        "M8",
+        "agents",
+        "read_only"
+      ],
+      "description": "查看 Agent 汇总、状态、列表和分页，不执行新建、导入、同步或删除。",
+      "start_page": "agents_page",
+      "end_page": "agents_page",
+      "web_method": null,
+      "implementation_status": "未实现",
+      "side_effect": "read_only"
+    },
+    "filter_agents": {
+      "name": "筛选 Agents 列表",
+      "tags": [
+        "M8",
+        "agents",
+        "filter",
+        "read_only"
+      ],
+      "description": "按名称、生命周期、运行状态、健康度、同步状态和连接器筛选 Agent。",
+      "start_page": "agents_page",
+      "end_page": "agents_page",
+      "web_method": null,
+      "implementation_status": "未实现",
+      "side_effect": "read_only"
+    }
+  }
+}

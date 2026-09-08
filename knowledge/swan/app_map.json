@@ -1,0 +1,33 @@
+{
+  "meta": {
+    "app": "Swan",
+    "platform": "Android (Flutter)",
+    "package_name": "com.swan.network",
+    "driver": "ADB via FlutterAndroidDriver",
+    "root_page": null,
+    "default_device": {
+      "serial": "c0614b6a",
+      "android_version": "11",
+      "screen_size": "720x1528"
+    },
+    "last_updated": "2026-09-08",
+    "locator_policy": "accessibility key > OCR 文本 > 图像模板（禁止坐标）",
+    "notes": "本知识库从零开始，所有页面事实必须由真机探索或测试实际验证后写入，禁止猜测。"
+  },
+  "pages": {
+    "swan_login_sms_page": {
+      "title": "验证码登录页",
+      "status": "draft",
+      "doc": "draft/swan_login_sms_page.md",
+      "summary": "App 启动默认落地页，手机号+验证码登录，右上角切换密码登入"
+    }
+  },
+  "elements": {},
+  "transitions": {
+    "swan_login_sms_page": [
+      {"to": "swan_login_password_page", "action": "click login_use_password_button", "type": "切换", "status": "pending"},
+      {"to": "swan_login_code_page", "action": "输入手机号后 click login_submit_button（下一步）", "type": "推进", "status": "pending"}
+    ]
+  },
+  "feature_categories": {}
+}

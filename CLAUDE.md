@@ -1,36 +1,47 @@
-# UIAutotest 项目约定
+# UIAutotest 多项目自动化测试项目约定
 
 > 这份文件是所有 AI 助手（我本人 + `.claude/agents/` 下所有子 agent）每次开工前的第一份必读。
 > 变更请慎重，因为它影响整个团队的行为。
 
 ## 项目一句话
 
-基于 **pytest + MuMu 模拟器 + ADB** 的安卓 UI 自动化测试框架，针对网易 **POPO** App。图像识别（OpenCV 模板匹配）+ OCR（PaddleOCR）定位。
+基于 **pytest** 的多项目 UI 自动化测试框架（双维度架构：基础 AW 按端分，业务 AW 按项目分）。
+
+**当前项目**：
+| 项目 | 端 | 用户类 | 业务类 | 知识库 |
+|---|---|---|---|---|
+| TidiTree | Web | `TTUser` | `TidiTreeBusiness` | `knowledge/web/` |
+| Swan（音乐 App） | Flutter (Android) | `SwanUser` | `SwanBusiness` | `knowledge/swan/` |
+| 智能音箱显示屏系统（名称待定） | Android | `AndroidUser` | `AndroidBusiness` | `knowledge/android/` |
+
+架构细则见 `docs/aw-architecture.html`、`.codemaker/rules/aw_architecture.mdc`；各项目 agent 编排见 `docs/agents/<project>/`。
 
 ## 关键路径速查
 
 | 路径 | 用途 |
 |---|---|
 | `conftest.py` | pytest 全局 fixture |
-| `utils/aw/aw_base.py` | AWBase —— 设备交互唯一入口 |
-| `utils/aw/business/mumu.py` | 业务 AW 方法层 |
-| `utils/user.py` | PPUser —— 暴露给测试用例的便捷方法 |
+| `utils/aw/aw_base.py` | AWBase —— 公共引擎（OCR/截图/图像匹配），设备交互唯一入口 |
+| `utils/aw/base/` | 基础 AW 按端分：`web_base.py` / `android_base.py` / `flutter_base.py` |
+| `utils/aw/business/` | 业务 AW 按项目分：`tiditree.py` / `swan.py` / `android.py` + `common.py`（跨项目 Mixin） |
+| `utils/user.py` | `User` 基类 + `TTUser` / `SwanUser` / `AndroidUser`（`__getattr__` 代理业务方法） |
 | `tests/` | pytest 用例 |
-| `image/` | **正式**元素图片（跑通后才进） |
-| `image_ai/` | **暂存**元素图片（新截的） |
-| `image/image_name_mapping.py` | 所有图片常量 |
-| `explorer_output/knowledge/` | App 知识库（app_map.json + pages/*.md + digest/） |
-| `explorer_output/knowledge/digest/` | 功能摘要 + 跨页面流程 + 关联索引 |
-| `explorer_output/knowledge/draft/` | 知识草稿区（explorer 写入，验证后转正到 pages/） |
-| `explorer_output/knowledge/backlinks.json` | 反向链接索引（自动生成） |
-| `.mcp.json` | MCP Server 注册（knowledge_graph + vector_kb） |
+| `image/web/`、`image/android/` | **正式**元素图片（跑通后才进） |
+| `image_ai/web/`、`image_ai/android/` | **暂存**元素图片（新截的） |
+| `image/image_name_mapping.py` | 平台图片路径与转正工具 |
+| `knowledge/web/` | TidiTree Web 知识库（app_map.json + pages/*.md + digest/） |
+| `knowledge/swan/` | Swan（Flutter）独立知识库（与 Web/Android 页面、索引和向量库隔离） |
+| `knowledge/android/` | 智能音箱显示屏系统（Android）独立知识库 |
+| `knowledge/web/digest/` 等 | 功能摘要 + 跨页面流程 + 关联索引 |
+| `knowledge/*/draft/` | 知识草稿区（explorer 写入，验证后转正到 pages/） |
+| `knowledge/*/backlinks.json` | 反向链接索引（自动生成） |
+| `.mcp.json` | MCP Server 注册（web/swan/android 各自的 knowledge_graph* + vector_kb*） |
 | `mcp_servers/knowledge_graph/` | 图谱查询 MCP（导航路径/反向链接/页面搜索） |
 | `mcp_servers/vector_kb/` | 语义检索 MCP（embedding 相似度搜索） |
-| `.chroma_db/` | 向量数据库持久化存储 |
+| `.chroma_db/` 等 | 向量数据库持久化存储（web/swan/android 各自独立目录） |
 | `scripts/knowledge/` | 知识库维护脚本（backlinks/embedding/promote/auto_update） |
-| `docs/AW方法总结与复用指南.md` | 已封装业务 AW 清单 —— 写新代码前必查 |
 | `docs/UI元素截取与裁剪规范.md` | 元素截图规范 |
-| `docs/并行测试执行指南.md` | 多 MuMu 实例并行跑测试 —— 换机器必读 |
+| `docs/待办与缺口清单.md` | **当前权威 plan**：已拍板决定 + 文档/环境缺口，开工前必读 |
 | `docs/runtime_experience.md` | 运行时经验知识库（子 Agent 执行经验沉淀，供语义检索注入） |
 | `run_parallel.py` | 并行测试运行器入口 |
 | `.codemaker/rules/` | 项目硬性规则（ai_workflow / aw_architecture / rules） |
@@ -42,27 +53,24 @@
 
 ### 1. 设备交互必须走 AWBase
 
-**严禁**直接 ADB shell、Playwright、浏览器实例、或任何非 AWBase 的工具操作设备。如果 AWBase 没封装某个操作，先在 AWBase 加方法，再调用。
+**严禁**绕过 AWBase 直接操作浏览器。如果 AWBase 没封装某个操作，先在 AWBase 或平台驱动中加方法，再调用。
 
 ### 2. 禁止 tap 坐标
 
 元素定位一律用 `click_image` 或 `click_text`。坐标会因分辨率、窗口位置变化而失效。
 
-### 3. 分辨率统一 540×960
+### 3. 浏览器截图坐标
 
-截图、元素库、测试运行三者的窗口大小必须一致。
+截图、元素库、测试运行三者的 viewport 尺寸必须一致；默认 1440×900，可通过环境变量调整。
 
 ### 4. 图片流转：暂存 → 正式
 
-- 新截元素先进 `image_ai/`，`image_name_mapping.py` 里用 `test_path` 常量
-- 测试通过后由 aw-verify 转正：文件 `image_ai/ → image/`，mapping 里 `test_path → path`
+- 新截元素先进对应平台的 `image_ai/<platform>/`，用 `image_path(..., draft=True)` 登记
+- 测试通过后由 aw-verify 调用 `promote_image(...)` 转正到 `image/<platform>/`
 
-### 5. 复用优先
+### 5. 基础操作优先
 
-写新 AW / 用例前必须先读 `docs/AW方法总结与复用指南.md`。常用便捷方法：
-- `user.send_message(recipient, message, isback=False)` —— 进会话发消息
-- `user.search(tab, text, isclose=False)` —— 搜索
-- `user.open_sidebar()` / `user.open_settings()` —— 打开侧边栏/设置
+业务方法按 TidiTree 页面单独设计；基础操作统一使用 `user.aw.click_text`、`user.aw.click_image`、`user.aw.text_exists`、`user.aw.input_text`。
 
 ### 6. 断言优先级
 
@@ -98,7 +106,7 @@
 |---|---|---|
 | 摸清某个页面怎么走 / 知识库缺页面 | `aw-explorer` | SendMessage（长驻，探索需要积累上下文） |
 | 截 UI 元素并注册常量 | `aw-element` | Agent()（子 Agent，每次干净上下文） |
-| 写业务 AW / PPUser 方法 / pytest 用例 | `aw-codegen` | Agent()（子 Agent，每次干净上下文） |
+| 编写业务层 / 用户方法 / pytest 用例 | `aw-codegen` | Agent()（子 Agent，每次干净上下文） |
 | 跑 pytest / 诊断失败 / 图片转正 | `aw-verify` | Agent()（子 Agent，每次干净上下文） |
 | openspec 提案 / spec / tasks 维护 | `spec-keeper` | SendMessage（长驻，仅走 openspec 流程时使用） |
 
@@ -119,14 +127,11 @@
 
 checklist 下 138 个用例可用 `run_parallel.py` 并行跑，缩短到约 1/3 耗时。
 
-**机制**：预启动 N 个 MuMu 实例 → 测试文件均匀分片 → N 个独立 pytest 进程各管一个实例（`INSTANCE_ID` 绑定端口 + 账号）。
+浏览器测试可通过 pytest-xdist 并行运行，每个 worker 使用独立浏览器会话。
 
-**账号自动映射**（避免同一账号多设备登录互踢）：
+账号配置通过环境变量注入：
 ```
-INSTANCE_ID=0 → userA (grp.popoqa67)   端口 16384
-INSTANCE_ID=1 → userB (grp.popoqa73)   端口 16416
-INSTANCE_ID=2 → userC (grp.popoqa74)   端口 16448
-INSTANCE_ID=3 → userD (grp.popoqa75)   端口 16480
+TT_USERA_USERNAME / TT_USERA_PASSWORD
 ```
 用例无需改动，仍写 `self.users("userA")`，框架按 INSTANCE_ID 自动映射。
 
@@ -145,7 +150,7 @@ python run_parallel.py -n 2 -t 5          # 2 实例跑 5 个文件（验证用�
 知识库采用 **Graph + Embedding** 双层架构，通过 MCP Server 暴露给所有 agent：
 
 ### Graph 层（knowledge_graph MCP）
-- **数据源**：`explorer_output/knowledge/`（Obsidian vault 格式）
+- **数据源**：`knowledge/<project>/`（web/swan/android，Obsidian vault 格式，互相隔离）
 - **能力**：页面搜索、读取页面文档、反向链接查询、BFS 导航路径、关联页面
 - **[[双向链接]]**：pages/*.md 中用 `[[page_id]]` 声明关联，`backlinks_generator.py` 自动生成反向引用
 
@@ -184,11 +189,11 @@ python scripts/knowledge/auto_update.py --force    # 强制全量更新
 
 ## 禁止事项速查
 
-- ❌ 直接 ADB shell / 绕过 AWBase
+- ❌ 绕过 AWBase 直接操作浏览器
 - ❌ `tap(x, y)` 坐标点击
-- ❌ 截图时窗口不是 540×960
+- ❌ 截图与浏览器 viewport 尺寸不一致
 - ❌ 截入动态元素（角标/时间/头像/在线状态）
-- ❌ 新元素直接进 `image/`（必须先 `image_ai/`）
+- ❌ 新元素直接进 `image/<platform>/`（必须先进入对应的 `image_ai/<platform>/`）
 - ❌ 不读 AW 复用指南就开始写代码
 - ❌ `try/except` 吞掉测试失败
 - ❌ 只断言"没异常"
@@ -201,8 +206,7 @@ python scripts/knowledge/auto_update.py --force    # 强制全量更新
 
 | 场景 | 正确做法 |
 |------|----------|
-| MuMu 开关控件点击 | 点 x=450-480, y=555；不要用模板匹配图片 |
-| 管理标签页：删除自定义标签页 | 点右侧三点按钮（x≈510）→ 底部弹窗 → 选删除；左侧 icon 只是切换展示/隐藏，不是删除 |
+| 浏览器文本定位 | 优先使用 `click_text`（OCR），需要稳定定位时再补充 Web 元素选择器 |
 | Python 多行命令 | 走 PowerShell 执行；避免 CodeMaker Hub 路径校验报错 |
 
 <!-- codemap:start -->

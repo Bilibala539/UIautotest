@@ -1,6 +1,6 @@
 # UI 元素截取与裁剪规范
 
-> 本文档描述了 UIAutotest 框架中，如何从模拟器页面截图中精准定位、截取和裁剪 UI 元素图片的完整规范。
+> 本文档描述了 UIAutotest 框架中，如何从 Web 或 Android 页面截图中精准定位、截取和裁剪 UI 元素图片的完整规范。
 > 截取的图片用于 `image_exists` / `click_image` 等模板匹配操作，图片质量直接影响测试稳定性。
 
 ---
@@ -23,13 +23,15 @@
 
 | 目录/文件 | 用途 | 路径变量 |
 |-----------|------|---------|
-| `image/` | **正式目录** — 已验证通过的元素图片 | `path` |
-| `image_ai/` | **暂存目录** — 新截取的草稿图片，待验证 | `test_path` |
-| `image/image_name_mapping.py` | 所有元素图片的常量定义 | — |
+| `image/web/`、`image/android/`、`image/flutter/` | **正式目录** — 已验证通过的元素图片 | `get_image_dir(platform)` |
+| `image_ai/web/`、`image_ai/android/`、`image_ai/flutter/` | **暂存目录** — 新截取的草稿图片，待验证 | `get_image_dir(platform, draft=True)` |
+| `image/image_name_mapping.py` | 平台图片路径与转正工具 | `image_path` / `promote_image` |
 
 ```python
-path = r"E:\UIAutotest\image"          # 正式目录
-test_path = r"E:\UIAutotest\image_ai"  # 暂存目录
+from image.image_name_mapping import image_path, promote_image
+
+web_draft = image_path("login/button.png", platform="web", draft=True)
+android_draft = image_path("login/button.png", platform="android", draft=True)
 ```
 
 ---
@@ -54,12 +56,16 @@ test_path = r"E:\UIAutotest\image_ai"  # 暂存目录
 
 ### 3.1 分辨率一致
 
-截图来源的模拟器窗口**必须是 540×960**，与测试用例执行环境一致。
+截图来源的页面或设备分辨率应与测试用例执行环境一致。
 
 ```bash
-# 设置模拟器窗口分辨率
-D:\MuMuPlayer\nx_main\MuMuManager.exe control -v {instance_id} layout_window -sw 540 -sh 960
+# Android 实机可用 adb shell wm size 查看设备分辨率
+adb shell wm size
 ```
+
+> **平台差异**：本文中的 540×960 分辨率、安全区域坐标（第 5 节）和质量检查边界均以 Android 实机为基准。
+> Web 平台使用浏览器 viewport 截图（默认 1440×900，见 `WEB_VIEWPORT_WIDTH/HEIGHT`），
+> 截图、元素库、测试运行三者的 viewport 尺寸必须一致。
 
 ### 3.2 紧贴边缘
 
@@ -107,7 +113,7 @@ D:\MuMuPlayer\nx_main\MuMuManager.exe control -v {instance_id} layout_window -sw
 红色角标像素满足以下条件：
 
 ```python
-# 红色角��像素判断
+# 红色角标像素判断
 def is_red_badge_pixel(r, g, b):
     return int(r) > 200 and int(g) < 160 and int(b) < 170 and int(r) - int(g) > 40
 ```
@@ -140,7 +146,7 @@ assert red_mask.sum() == 0, f"截取结果中仍有 {red_mask.sum()} 个红色�
 
 ## 5. 窗口边缘阴影规避
 
-MuMu 模拟器截图在窗口**四角和边缘**存在灰色渐变阴影，必须排除。
+部分设备或浏览器截图在窗口**四角和边缘**可能存在灰色渐变阴影，应排除。
 
 ### 阴影分布（540×960 分辨率）
 
@@ -220,10 +226,10 @@ y=960 └───────────────────────�
 ```python
 # === 新功能区域 ===
 # 草稿（暂存目录，待验证）
-NEW_ELEMENT = os.path.join(test_path, "页面名称-元素名称.png")
+NEW_ELEMENT = image_path("页面名称-元素名称.png", platform="web", draft=True)
 
-# 转正后改为：
-NEW_ELEMENT = os.path.join(path, "页面名称-元素名称.png")
+# 验证通过后转正：
+NEW_ELEMENT = promote_image("页面名称-元素名称.png", platform="web")
 ```
 
 ---
@@ -233,7 +239,7 @@ NEW_ELEMENT = os.path.join(path, "页面名称-元素名称.png")
 ```
 ┌──────────────────────────────────────────────────────────┐
 │  步骤 1：获取截图                                         │
-│  通过 ADB 截图获取当前页面（确保模拟器分辨率 540×960）       │
+│  通过平台驱动获取当前页面截图（确保分辨率与执行环境一致）       │
 └──────────────────────┬───────────────────────────────────┘
                        ▼
 ┌──────────────────────────────────────────────────────────┐
@@ -249,11 +255,11 @@ NEW_ELEMENT = os.path.join(path, "页面名称-元素名称.png")
 │  ① 紧贴原则（收紧留白到 1~2px）                            │
 │  ② 角标规避（检测红色像素，下移上边界）                      │
 │  ③ 阴影排除（排除边缘灰色渐变区域）                         │
-│  裁剪并保存到 image_ai/页面名称-元素名称.png                │
+│  裁剪并保存到 image_ai/<platform>/页面名称-元素名称.png      │
 └──────────────────────┬───────────────────────────────────┘
                        ▼
 ┌──────────────────────────────────────────────────────────┐
-│  步骤 4：在 image_name_mapping.py 中用 test_path 注册常量  │
+│  步骤 4：用 image_path(..., draft=True) 注册平台图片路径    │
 └──────────────────────┬───────────────────────────────────┘
                        ▼
 ┌──────────────────────────────────────────────────────────┐
@@ -262,8 +268,8 @@ NEW_ELEMENT = os.path.join(path, "页面名称-元素名称.png")
            ▼                               ▼
 ┌──────────────────────┐    ┌──────────────────────────────┐
 │ ✅ 测试通过            │    │ ❌ 测试失败                    │
-│ 移动图片到 image/     │    │ 留在 image_ai/ 重新截取       │
-│ 映射改为 path（转正）  │    │ 不污染正式目录                │
+│ 调用 promote_image()   │    │ 留在 image_ai/<platform>/    │
+│ 移动到 image/<platform>/│    │ 重新截取，不污染正式目录     │
 └──────────────────────┘    └──────────────────────────────┘
 ```
 
@@ -301,8 +307,9 @@ x1, y1, x2, y2 = showui_result["bbox"]  # e.g. [240, 55, 300, 115]
 # 裁剪元素
 element_img = img.crop((x1, y1, x2, y2))
 
-# 保存到暂存目录
-element_img.save(r"E:\UIAutotest\image_ai\页面名称-元素名称.png")
+# 保存到指定平台的暂存目录
+from image.image_name_mapping import image_path
+element_img.save(image_path("页面名称-元素名称.png", platform="web", draft=True))
 ```
 
 ---
@@ -373,17 +380,17 @@ def validate_cropped_image(img_path):
 ## 9. 暂存→验证→转正流程
 
 ```
-1. 截取图片 → 保存到 image_ai/（暂存目录）
-2. 在 image_name_mapping.py 中用 test_path 注册常量
+1. 截取图片 → 保存到 image_ai/<platform>/（暂存目录）
+2. 在 image_name_mapping.py 中用 image_path(..., draft=True) 注册路径
 3. AW 代码引用常量 → 运行 pytest 验证匹配效果
-4a. ✅ 测试通过 → 移动图片到 image/，映射改为 path（转正）
-4b. ❌ 测试失败 → 留在 image_ai/ 重新截取，不污染正式目录
+4a. ✅ 测试通过 → 调用 promote_image() 移动到 image/<platform>/
+4b. ❌ 测试失败 → 留在 image_ai/<platform>/ 重新截取，不污染正式目录
 ```
 
 **为什么要分两个目录？**
 
-- `image/` 是生产目录，只存放经过验证的可靠图片
-- `image_ai/` 是草稿目录，新截取的图片在此验证
+- `image/<platform>/` 是生产目录，只存放经过验证的可靠图片
+- `image_ai/<platform>/` 是草稿目录，新截取的图片在此验证
 - 这样确保失败的截取不会影响已有测试用例的稳定性
 
 ---
@@ -400,7 +407,7 @@ def validate_cropped_image(img_path):
 │ 规避：角标、时间戳、头像、在线状态、阴影             │
 │ 安全区：y=40~840（主体）, y=860~932（底部导航）    │
 │ 命名：{页面}-{元素}.png → UPPER_SNAKE_CASE 常量   │
-│ 流程：截取 → image_ai/ → 验证 → image/（转正）    │
+│ 流程：截取 → image_ai/<platform>/ → 验证 → image/<platform>/ │
 └─────────────────────────────────────────────────┘
 ```
 

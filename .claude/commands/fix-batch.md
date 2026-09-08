@@ -1,13 +1,13 @@
 ---
 name: fix-batch
 description: |
-  批量修复失败用例编排。基于 session.json 分析失败聚类，按根因优先级排序，
+  批量修复失败用例编排。基于 pytest 失败输出与本地 HTML 日志分析失败聚类，按根因优先级排序，
   逐个用例走 fix-failed 流程修复。先修高 ROI 的（一修多过），再修独立的。
 ---
 
 # fix-batch：批量失败用例修复编排
 
-> 输入：session.json 路径（或最近一次执行的 sessions/ 目录）
+> 输入：pytest 失败输出或本地 HTML 日志路径
 > 产出：修复后的代码 + 重跑验证报告
 
 ## 触发方式
@@ -15,8 +15,8 @@ description: |
 以下任何表述都触发此编排：
 
 ```
-/fix-batch <session.json路径>
-/fix-batch latest                  # 自动取 sessions/ 下最新的
+/fix-batch <pytest失败输出或日志路径>
+/fix-batch latest                  # 自动取 output/logs/ 下最新日志
 "启动修复失败用例流程"
 "修复失败用例"
 "修一下这批失败的"
@@ -26,9 +26,9 @@ description: |
 ```
 
 **输入兼容**：
-- `session.json` 路径 → 批量模式（读取所有 failed 用例）
+- pytest 失败输出或 HTML 日志路径 → 批量模式（读取所有失败用例）
 - 单个用例路径/名字 → 单用例模式（Phase 0 退化为单组单用例）
-- "latest" → 自动取 `E:\UIAutotest\sessions\` 下最新 session
+- "latest" → 自动取 `E:\UIAutotest\output\logs\` 下最新日志
 
 ---
 
@@ -39,7 +39,7 @@ Session 失败报告
   │
   ▼
 Phase 0: 失败聚类分析（orchestrator 自行完成）
-  │  读 session.json → 按根因分组 → 按影响面排优先级
+  │  读 pytest 失败输出与本地日志 → 按根因分组 → 按影响面排优先级
   │  产出：修复计划（优先级队列）
   │
   ▼
@@ -62,7 +62,7 @@ Phase 2: 汇总报告
 
 ## Phase 0: 失败聚类分析
 
-orchestrator 读取 session.json，按以下维度对 `status=failed` 的用例进行聚类：
+orchestrator 读取 pytest 失败输出与本地 HTML 日志，按以下维度对失败用例进行聚类：
 
 ### 聚类规则
 
@@ -217,7 +217,7 @@ orchestrator 取队列中下一个待修复用例
 
 1. 用例文件顶部的 docstring / 注释中引用的原始需求
 2. `tests/checklist/` 对应的文字用例 Excel / Markdown（由 orchestrator 持有路径）
-3. session.json 中的 `name` + `node_id` 推断用例意图
+3. pytest 输出中的用例标识和对应日志文件名推断用例意图
 4. 若找不到原始文字用例 → 标记为"无文字用例基准"，跳过此步，直接进入 Step 1
 
 #### 校验维度

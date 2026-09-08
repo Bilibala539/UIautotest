@@ -1,835 +1,110 @@
+"""测试用户入口：按项目区分 TTUser（TidiTree）、AndroidUser（智能音箱屏）与 SwanUser（Swan）。
+
+用户类 = 项目 × 端 的组合入口：
+- TTUser    → TidiTreeBusiness（web 端）
+- AndroidUser → AndroidBusiness（android 端，项目名待定）
+- SwanUser  → SwanBusiness（flutter 端）
+
+业务方法经 ``__getattr__`` 自动代理到 ``self.business``，因此
+``userA.login_by_sms()``、``userA.playmusic()`` 无需在用户类中逐一定义；
+基础操作同理（业务类继承了端 base），``user.aw`` 直接就是业务实例。
 """
-用户和设备定义模块
-提供PPUser和PPDevice类用于测试用户和设备管理
+from __future__ import annotations
 
-用户通过 user.aw.xxx() 方式调用AW方法。
-"""
-import logging
-import time
-from typing import Optional
+from typing import Optional, Type
 
-from image.image_name_mapping import *
-from utils.aw import create_aw, AWHelper
-from utils.aw.search_region import *
-from utils.aw.popo_cli import PopoCLI
-
-logger = logging.getLogger(__name__)
+from utils.aw.business import AndroidBusiness, SwanBusiness, TidiTreeBusiness
+from utils.aw.driver.base_driver import BasePlatformDriver
+from utils.aw.driver.web_driver import SeleniumWebDriver
 
 
-class PPDevice:
-    """MuMu模拟器设备类"""
+class User:
+    """通用测试用户：关联一个平台会话 + 业务层（内含端 base 全部操作）。
 
-    def __init__(self, device_port: int = 7555, instance_id: int = 0):
-        """
-        初始化MuMu模拟器设备
+    传入 ``browser`` 时使用 Selenium WebDriver；传入 ``driver`` 时直接
+    使用给定的平台驱动。业务层实例即 ``user.aw``，同时具备
+    端基础操作（click_text/input_text/…）与项目业务方法（login_by_sms/…）。
 
-        Args:
-            device_port: ADB连接端口，默认7555
-            instance_id: 模拟器实例编号，默认0
-        """
-        self.device_port = device_port
-        self.instance_id = instance_id
-        self.device_serial = f"127.0.0.1:{device_port}"
-
-        # 设备窗口信息（由devices.py设置）
-        self.pos = (0, 0)
-        self.size = (540, 960)
-        self.window_name = ""
-        self.is_ready = False
-
-    @property
-    def adb_address(self) -> str:
-        """获取设备的ADB地址"""
-        return self.device_serial
-
-    def __repr__(self):
-        return f"PPDevice(port={self.device_port}, instance={self.instance_id})"
-
-
-class PPUser:
-    """
-    测试用户类
-
-    通过 user.aw 属性访问所有AW方法。
-
-    使用示例:
-        user = PPUser(uid="test@example.com", password="123456",
-                      device=device)
-        user.aw.click_text("登录")
-        user.aw.login(user.uid, user.password)
+    子类通过 ``business_cls`` 固定业务层类型。
     """
 
-    def __init__(self, uid: str, password: str,
-                 device: Optional[PPDevice] = None,
-                 env: str = "test3",
-                 name: str = "", name_en: str = "", name_jp: str = "",
-                 phone: str = "", role: str = "", department: str = "",
-                 need_login: bool = True):
-        """
-        初始化测试用户
+    business_cls: Optional[Type] = None
 
-        Args:
-            uid: 用户ID/邮箱
-            password: 密码
-            device: 关联的MuMu模拟器设备
-            env: 测试环境
-            name: 中文名
-            name_en: 英文名
-            name_jp: 日文名
-            phone: 手机号
-            role: 账号类型
-            department: 部门
-            need_login: 是否需要登录
-        """
-        self.uid = uid
+    def __init__(
+        self,
+        browser=None,
+        username: str = "",
+        password: str = "",
+        name: str = "",
+        driver: Optional[BasePlatformDriver] = None,
+    ):
+        if browser is not None and driver is not None:
+            raise ValueError("browser 与 driver 只能传入一个")
+        if browser is None and driver is None:
+            raise ValueError("必须传入 browser 或 driver")
+
+        self.browser = browser
+        self.username = username
         self.password = password
         self.name = name
-        self.name_en = name_en
-        self.name_jp = name_jp
-        self.phone = phone
-        self.role = role
-        self.department = department
-        self.device = device
-        self.env = env
-        self.need_login = need_login
-        self._logged_in = False
+        self.driver = driver or SeleniumWebDriver(browser)
+        if self.business_cls is None:
+            raise RuntimeError(f"{type(self).__name__} 未绑定业务类 business_cls")
+        self.business = self.business_cls(self.driver)
 
-        # AW 实例延迟初始化
-        self._aw: Optional[AWHelper] = None
-        # CLI 造数客户端延迟初始化（uid 在首次访问时自动注入）
-        self._cli: Optional[PopoCLI] = None
+    def __getattr__(self, name: str):
+        # 仅在常规属性查找失败时触发；business 尚未赋值时直接报错避免递归
+        if name == "business":
+            raise AttributeError(name)
+        return getattr(self.business, name)
 
     @property
-    def aw(self) -> AWHelper:
-        """
-        获取AW实例
-
-        Returns:
-            MuMuBusiness 实例
-        """
-        if self._aw is None:
-            assert self.device is not None, "必须指定 device"
-            self._aw = create_aw(instance_id=self.device.instance_id)
-        return self._aw
+    def platform(self) -> str:
+        return self.driver.platform_name
 
     @property
-    def cli(self) -> PopoCLI:
-        """获取 CLI 造数客户端，uid 自动绑定为当前用户"""
-        if self._cli is None:
-            self._cli = PopoCLI(uid=self.uid)
-        return self._cli
-
-    def login(self) -> bool:
-        """
-        执行用户登录
-
-        完成登录流程后 POPO 已在消息列表页，无需再调用 open_app()。
-        完成登录后标记 _logged_in = True。
-        """
-        self.aw.login(self.uid, self.password)
-        self._logged_in = True
-        logger.info(f"✅ {self.uid} 登录成功")
-
-    def logout(self) -> bool:
-        """
-        执行用户退出登录
-
-        内部会自动确保回到消息列表页（处理深层页面/桌面等场景），
-        无需提前调用 open_app()。
-        """
-        logger.info(f"🚪 {self.uid} 正在退出登录")
-
-        result = self.aw.logout()
-
-        if result:
-            self._logged_in = False
-            logger.info(f"✅ {self.uid} 已退出登录")
-
-        return result
-
-    def open_app(self):
-        """
-        启动 POPO 并等待进入消息列表首页（已登录状态下）
-
-        每个用例的 setup 阶段调用。
-        前置条件: 用户已完成 Session 级登录，force-stop 不清除登录态。
-        """
-        logger.info(f"📱 {self.uid} 启动 POPO")
-        self.aw.open_app()
-
-    def close_app(self):
-        """
-        关闭 POPO 应用（force-stop，保持登录态）
-
-        每个用例的 teardown 阶段调用。
-        """
-        logger.info(f"📱 {self.uid} 关闭 POPO")
-        self.aw.close_app()
-
-    def return_to_message_list(self, max_back: int = 6, strict: bool = False) -> None:
-        """
-        从任意页面返回到消息列表页
-
-        连续按返回键直到检测到消息列表页（MESSAGE_TAB_BLUE）。
-
-        Args:
-            max_back: 最大返回次数，默认 6
-            strict:   True 时若未能回到消息列表页则 assert 失败
-        """
-        return self.aw.return_to_message_list(max_back=max_back, strict=strict)
+    def aw(self):
+        """基础操作入口 = 业务层实例（继承了端 base 与公共引擎）。"""
+        return self.business
 
     @property
-    def is_logged_in(self) -> bool:
-        """检查用户是否已登录"""
-        return self._logged_in
+    def biz(self):
+        """业务层的短别名，等价于 ``self.business``。"""
+        return self.business
 
-    # ==================== 便捷业务方法 ====================
+    def open(self, url: str) -> None:
+        if self.browser is None:
+            raise RuntimeError("Android 实机不支持 open(url)；请通过 adb 启动或操作应用")
+        self.browser.get(url)
 
-    def open_session_group_panel(self) -> bool:
-        """打开会话分组弹窗"""
-        return self.aw.open_session_group_panel()
+    def close(self) -> None:
+        if self.browser is not None:
+            self.browser.quit()
 
-    def close_session_group_panel(self) -> bool:
-        """关闭会话分组弹窗（点击蒙层区域）"""
-        return self.aw.close_session_group_panel()
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}(username={self.username!r}, name={self.name!r})"
 
-    def open_session_group_manage(self) -> bool:
-        """进入分组管理页面"""
-        return self.aw.open_session_group_manage()
 
-    def enable_hidden_session_group(self, group_name: str = "群组") -> bool:
-        """启用一个隐藏的会话分组"""
-        return self.aw.enable_hidden_session_group(group_name)
+class TTUser(User):
+    """TidiTree 项目测试用户（web 端）。"""
 
-    def disable_session_group(self, group_name: str = "群组") -> bool:
-        """将一个展示的会话分组移到隐藏区域"""
-        return self.aw.disable_session_group(group_name)
+    business_cls = TidiTreeBusiness
 
-    def switch_session_group_tab(self, tab_name: str) -> bool:
-        """切换会话分组Tab标签"""
-        return self.aw.switch_session_group_tab(tab_name)
 
-    def open_session_box(self) -> bool:
-        """打开会话盒子页面"""
-        return self.aw.open_session_box()
+class AndroidUser(User):
+    """安卓项目测试用户（android 端；智能音箱屏系统，项目名待定）。"""
 
-    def open_closed_sessions(self) -> bool:
-        """打开关闭的会话页面"""
-        return self.aw.open_closed_sessions()
+    business_cls = AndroidBusiness
 
-    def long_press_session_pin(self) -> bool:
-        """长按第一个会话项置顶"""
-        return self.aw.long_press_session_pin()
 
-    def long_press_session_add_to_pending(self) -> str:
-        """长按第一个会话项添加到待处理/处理完成"""
-        return self.aw.long_press_session_add_to_pending()
+class SwanUser(User):
+    """Swan 项目测试用户（flutter 端）。"""
 
-    def long_press_session_toggle_read_status(self) -> str:
-        """长按第一个会话项切换已读/未读状态"""
-        return self.aw.long_press_session_toggle_read_status()
+    business_cls = SwanBusiness
 
-    def long_press_session_add_to_group(self, group_name: str = "") -> bool:
-        """长按第一个会话项添加至分组"""
-        return self.aw.long_press_session_add_to_group(group_name)
+    @property
+    def phone(self) -> str:
+        """当前账号手机号（环境变量 SWAN_PHONE）。"""
+        import os
 
-    def mark_conversation_as_read(self, conversation_name: str) -> bool:
-        """在消息列表中长按指定会话 → 设为已读"""
-        return self.aw.mark_conversation_as_read(conversation_name)
-
-    def close_conversation_box(self, conversation_name: str) -> bool:
-        """在消息列表中长按指定会话盒子 → 关闭"""
-        return self.aw.close_conversation_box(conversation_name)
-
-    def create_team(self) -> bool:
-        """创建群组"""
-        return self.aw.create_team()
-
-    def setup_owner_group(self, group_name: str = "自动化测试群主群") -> str:
-        """确保当前账号有一个群主群（不存在则创建并改名）"""
-        return self.aw.setup_owner_group(group_name)
-
-    def delete_team(self, group_identifier: str) -> bool:
-        """解散群组"""
-        return self.aw.delete_team(group_identifier)
-
-    def send_message(self, recipient: str, message=None, isback=True):
-        """
-        发送P2P消息
-
-        通过搜索联系人进入聊天页面，输入消息并发送。
-
-        Args:
-            recipient: 收件人账号关键词（如 'grp.popoqa50'）
-            message: 要发送的消息内容，默认 '自动化测试消息'
-
-        """
-
-        return self.aw.send_message(recipient=recipient, message=message, isback=isback)
-
-    def send_file(self, recipient="grp.popoqa50", file_name="text"):
-        """
-        发送文件
-        Args:
-            recipient: 接收方
-            file_name: text\video
-
-        """
-        self.aw.send_file(recipient=recipient, file_name=file_name)
-        # 用 OCR 验证文件发送，比图片匹配更稳定
-        if file_name == "text":
-            sent = self.aw.find_text_by_ocr("text", timeout=5)
-            if not sent:
-                self.aw.image_exists(MSG_FILE_JSON)
-        elif file_name == "video":
-            sent = self.aw.find_text_by_ocr(".mp", timeout=5)
-            if not sent:
-                self.aw.image_exists(MSG_FILE_VIDEO)
-        return
-
-    def recall_message(self, message_text=None, is_good=False):
-        """
-        撤回消息
-
-        在当前聊天页面，长按指定消息体并撤回。
-        前置条件: 当前在聊天页面，消息为自己发送且在24小时内。
-
-        Args:
-            message_text: 要撤回的消息文字内容
-
-        Returns:
-            bool: 撤回是否成功
-        """
-        if message_text:
-            return self.aw.recall_message(message_text)
-        if is_good:
-            return self.aw.recall_good()
-
-    def reply_message(self, message_text: str, reply_content: str) -> bool:
-        """回复消息"""
-        return self.aw.reply_message(message_text, reply_content)
-
-    def copy_message(self, message_text: str) -> bool:
-        """复制消息"""
-        return self.aw.copy_message(message_text)
-
-    def multi_select_message(self, message_text: str) -> bool:
-        """进入多选模式"""
-        return self.aw.multi_select_message(message_text)
-
-    def translate_message(self, message_text: str) -> bool:
-        """翻译消息"""
-        return self.aw.translate_message(message_text)
-
-    def favorite_message(self, message_text: str) -> bool:
-        """收藏消息"""
-        return self.aw.favorite_message(message_text)
-
-    def open_sidebar(self):
-        """打开侧边栏"""
-        return self.aw.open_sidebar()
-
-    def close_sidebar(self):
-        """关闭侧边栏（press_back 回到消息列表页）"""
-        return self.aw.close_sidebar()
-
-    def view_my_profile(self) -> dict:
-        """
-        查看我的个人资料，返回OCR采集到的个人信息字典
-
-        Returns:
-            dict: 包含 nickname_cn, nickname_en, nickname_jp,
-                  signature, account, phone, position,
-                  organization, office_location 等字段
-        """
-        return self.aw.view_my_profile()
-
-    def open_my_collection(self):
-        """打开我的收藏"""
-        return self.aw.open_my_collection()
-
-    def open_settings(self):
-        """打开设置页面"""
-        return self.aw.open_settings()
-
-    def open_message_settings(self):
-        """打开消息设置页面"""
-        return self.aw.open_message_settings()
-
-    def close_message_settings(self):
-        """从消息设置页面返回消息列表页"""
-        return self.aw.close_message_settings()
-
-    def set_message_switch(self, switch_name: str, target_state: bool) -> bool:
-        """
-        设置消息设置页面中指定开关的状态
-
-        前置条件: 当前已在消息设置页面
-
-        Args:
-            switch_name: 开关名称（如 "连续播放语音消息"）
-            target_state: 目标状态 True=开启, False=关闭
-
-        Returns:
-            bool: 操作是否成功
-        """
-        return self.aw.set_message_switch(switch_name, target_state)
-
-    def get_message_switch_state(self, switch_name: str) -> bool:
-        """
-        获取消息设置页面中指定开关的当前状态
-
-        前置条件: 当前已在消息设置页面
-
-        Args:
-            switch_name: 开关名称
-
-        Returns:
-            bool: True=开启, False=关闭
-        """
-        return self.aw.get_message_switch_state(switch_name)
-
-    def toggle_message_switch(self, switch_name: str) -> bool:
-        """
-        切换消息设置中的开关（完整流程: 进入→切换→返回）
-
-        Args:
-            switch_name: 开关名称
-
-        Returns:
-            bool: 切换后的新状态
-        """
-        return self.aw.toggle_message_switch(switch_name)
-
-    # ==================== 图片编辑相关 ====================
-
-    def send_image_from_album(self, recipient: str) -> bool:
-        """从相册选图并直接发送"""
-        return self.aw.send_image_from_album(recipient)
-
-    def send_image(self) -> bool:
-        """发送图片"""
-        return self.aw.send_image()
-
-    def select_edit_send_image_from_album(self, recipient: str) -> bool:
-        """从相册选图 → 进入预览 → 编辑 → 完成 → 发送"""
-        return self.aw.select_edit_send_image_from_album(recipient)
-
-    def edit_image_from_chat_message(self, RECIPIENT) -> bool:
-        """长按聊天中的图片消息 → 点击编辑图片 → 完成"""
-        return self.aw.edit_image_from_chat_message(RECIPIENT=RECIPIENT)
-
-    def select_edit_with_tools_send_image(self, recipient: str) -> bool:
-        """从相册选图 → 使用画笔工具编辑 → 完成 → 发送"""
-        return self.aw.select_edit_with_tools_send_image(recipient)
-
-    def search(self, tab="全部", text="", isclose=True):
-        """大搜"""
-        return self.aw.search(tab=tab, text=text, isclose=isclose)
-
-    def search_all(self, tab="全部", text=""):
-        """搜全部"""
-        self.aw.search(tab, text)
-
-    def search_people(self, text="王英", isgoin=False):
-        """搜人"""
-        self.aw.search(tab="联系人", text=text, isclose=False)
-        # 具体例子-搜索 王英
-        if text in ["王英", "wangying43", "wy"]:
-            self.aw.image_exists(SEARCH_WANGYING_BLUE)
-            self.aw.image_exists(SEARCH_WANGYING_HEAD)
-            self.text_exists("效率工程部", region=Normal.HALF_UP)
-            self.text_exists("技术质量中心", region=Normal.HALF_UP)
-            self.click_image(SEARCH_CANCEL, region=Normal.HALF_UP)
-        if isgoin:
-            time.sleep(5)
-            self.click_text(text, timeout=10, region=Search.RESULT_LIST)
-            # self.image_exists(MSG_P2P_UNDER_BOTTON)
-
-    def search_group(self, text="测试测试", isgoin=False):
-        """搜群"""
-        self.aw.search(tab="群", text=text, isclose=False)
-        # 验证搜索结果
-        if text == "测试测试":
-            self.aw.image_exists(SEARCH_CESHI_BLUE)
-            # SEARCH_TAB3_BOTTON 在新版UI可能不存在，非强制校验
-            if not self.aw.find_image(SEARCH_TAB3_BOTTON, timeout=3):
-                pass
-        self.click_image(SEARCH_CANCEL, region=Normal.HALF_UP)
-        if isgoin:
-            self.click_text(text, region=Search.RESULT_LIST)
-            self.image_exists(CHAT_PLUS_BUTTON, region=Normal.HALF_DOWN)
-
-    def search_msg(self, tab="消息", text=""):
-        """搜消息"""
-        self.aw.search(tab, text, isclose=False)
-        # 具体例子-搜索 测试
-        if text == "123":
-            self.aw.image_exists(SEARCH_123_BLUE)
-            self.aw.image_exists(SEARCH_TAB4_BOTTON)
-        self.click_image(SEARCH_CANCEL, region=Normal.HALF_UP)
-
-    def search_fuwuhao(self, tab="消息", text=""):
-        """搜服务号"""
-        self.aw.search(tab, text)
-
-    def search_xiaochengxu(self, tab="云空间", text=""):
-        """搜小程序"""
-        self.aw.search(tab, text)
-
-    def search_cloude(self, tab="云空间", text=""):
-        """搜云空间"""
-        self.aw.search(tab, text)
-
-    def search_mession(self, tab="任务", text=""):
-        """搜任务"""
-        self.aw.search(tab, text)
-
-    def search_app(self, tab="应用", text=""):
-        """搜应用"""
-        self.aw.search(tab, text)
-
-    # ==================== 富文本（扩展编辑）相关 ====================
-
-    def send_rich_text_message(self, recipient: str, message: str,
-                                format_type: str) -> bool:
-        """
-        发送富文本格式消息（加粗/斜体/下划线/删除线/字体颜色）
-
-        Args:
-            recipient: 收件人账号
-            message: 消息文本内容
-            format_type: 格式类型 ('bold'/'underline'/'strikethrough'/'font_color')
-        """
-        return self.aw.send_rich_text_message(recipient, message, format_type)
-
-    def send_markdown_message(self, recipient: str, text: str,
-                               markdown_type: str, **kwargs) -> bool:
-        """
-        发送 Markdown 格式消息（统一入口）
-
-        Args:
-            recipient: 收件人账号
-            text: 消息文本内容
-            markdown_type: Markdown 语法类型
-                - 'hyperlink': 超链接，额外参数 url
-                - 'quote': 引用块
-                - 'inline_code': 行内代码
-                - 'code_block': 代码块，额外参数 language
-                - 'background_color': 背景色高亮
-            **kwargs: 额外参数（如 url, language）
-        """
-        return self.aw.send_markdown_message(recipient, text, markdown_type, **kwargs)
-
-    # 向下兼容的快捷方法
-    def send_hyperlink_message(self, recipient: str, text: str,
-                                url: str = "https://www.163.com") -> bool:
-        """发送超链接消息"""
-        return self.aw.send_hyperlink_message(recipient, text, url)
-
-    def send_quote_message(self, recipient: str, text: str) -> bool:
-        """发送引用块消息"""
-        return self.aw.send_quote_message(recipient, text)
-
-    def send_inline_code_message(self, recipient: str, text: str) -> bool:
-        """发送行内代码消息"""
-        return self.aw.send_inline_code_message(recipient, text)
-
-    def send_code_block_message(self, recipient: str, text: str,
-                                 language: str = "") -> bool:
-        """发送代码块消息"""
-        return self.aw.send_code_block_message(recipient, text, language)
-
-    def send_background_color_message(self, recipient: str, text: str) -> bool:
-        """发送带背景色的消息"""
-        return self.aw.send_background_color_message(recipient, text)
-
-    # ==================== 群组管理相关 ====================
-
-    def search_chat_content(self, group_identifier: str, keyword: str) -> bool:
-        """搜索群聊天内容"""
-        return self.aw.search_chat_content(group_identifier, keyword)
-
-    def set_group_announcement(self, group_identifier: str, content: str) -> bool:
-        """设置群公告"""
-        return self.aw.set_group_announcement(group_identifier, content)
-
-    def exit_group(self, group_identifier: str) -> bool:
-        """退出群组"""
-        return self.aw.exit_group(group_identifier)
-
-    def delete_message(self, message_text: str) -> bool:
-        """删除消息"""
-        return self.aw.delete_message(message_text)
-
-    def pin_message(self, message_text: str) -> bool:
-        """Pin消息（置顶消息）"""
-        return self.aw.pin_message(message_text)
-
-    def view_message_history_cloud_docs(self, group_identifier: str) -> bool:
-        """查看消息历史-云文档"""
-        return self.aw.view_message_history_cloud_docs(group_identifier)
-
-    def search_message_history(self, group_identifier: str, keyword: str = "UI") -> bool:
-        """搜索消息历史-云文档"""
-        return self.aw.search_message_history(group_identifier, keyword)
-
-    def add_custom_tab_page(self, recipient: str, tab_name: str = "测试标签页", link_url: str = "https://www.163.com") -> bool:
-        """P2P会话添加自定义标签页"""
-        return self.aw.add_custom_tab_page(recipient, tab_name, link_url)
-
-    def remove_custom_tab_page(self, recipient: str, tab_name: str) -> bool:
-        """P2P会话删除自定义标签页"""
-        return self.aw.remove_custom_tab_page(recipient, tab_name)
-
-    def enter_image_editor_from_album(self, recipient: str) -> bool:
-        """进入图片编辑器（从相册选图路径）"""
-        return self.aw.enter_image_editor_from_album(recipient)
-
-    def cancel_image_edit(self) -> bool:
-        """在图片编辑器中取消编辑，返回预览页"""
-        return self.aw.cancel_image_edit()
-
-    def edit_image_done_check_popup(self, recipient: str) -> bool:
-        """编辑图片完成后验证操作弹窗"""
-        return self.aw.edit_image_done_check_popup(recipient)
-
-    def add_text_in_image_editor(self, recipient: str, text: str = "测试文本") -> bool:
-        """在图片编辑器中使用文本工具添加文字"""
-        return self.aw.add_text_in_image_editor(recipient, text)
-
-    def merge_forward_message(self, message_text: str, forward_to: str = "grp.popoqa50") -> bool:
-        """
-        合并转发消息
-
-        在当前聊天页面长按消息 → 多选 → 合并转发 → 选择联系人，
-        验证合并消息卡片出现。
-
-        Args:
-            message_text: 要合并转发的消息文字
-            forward_to: 转发接收人账号
-        """
-        return self.aw.merge_forward_message(message_text, forward_to)
-
-    def copy_image_to_input_and_send(self, recipient: str) -> bool:
-        """
-        长按聊天中的图片→复制→粘贴到输入框→发送
-
-        Args:
-            recipient: 收件人账号
-        """
-        return self.aw.copy_image_to_input_and_send(recipient)
-
-    def add_elife_to_floating_window(self) -> bool:
-        """
-        将易生活页面加入浮窗
-
-        从消息列表页导航到易生活→右上角更多→浮窗。
-        """
-        return self.aw.add_elife_to_floating_window()
-
-    def merge_forward_images_and_swipe(self, recipient: str = "grp.popoqa50") -> bool:
-        """
-        发送多张图片→合并转发→进入合并消息详情→图片查看器中左右滑动
-
-        Args:
-            recipient: 收件人账号
-        """
-        return self.aw.merge_forward_images_and_swipe(recipient)
-
-    def screenshot_and_share(self, recipient: str = "grp.popoqa50") -> bool:
-        """
-        在聊天页面触发系统截图并通过POPO分享给指定联系人
-
-        Args:
-            recipient: 收件人账号
-        """
-        return self.aw.screenshot_and_share(recipient)
-
-    def share_image_from_external(self, recipient: str = "grp.popoqa50") -> bool:
-        """
-        从系统相册分享图片到POPO并发送给指定联系人
-
-        Args:
-            recipient: 收件人账号
-        """
-        return self.aw.share_image_from_external(recipient)
-
-    # ==================== 断言方法 ====================
-    def click_image(self, image_name: str, threshold: float = 0.8,
-                    timeout: int = 10, dx: int = 0, dy: int = 0, region=Normal.ALL) -> bool:
-        """点击图片"""
-        return self.aw.click_image(image_name, threshold, timeout, dx, dy, region)
-
-    def image_exists(self, template_name: str, threshold: float = 0.8,
-                     timeout: int = 5,
-                     region=Normal.ALL):
-        """断言图片存在"""
-        return self.aw.image_exists(template_name, threshold, timeout, region)
-
-    def click_text(self, text: str, timeout: int = 10,
-                   dx: int = 0, dy: int = 0, region=Normal.ALL) -> bool:
-        """点击文字"""
-        return self.aw.click_text(text, timeout, dx, dy, region=region)
-
-    def text_exists(self, text: str, timeout: int = 5,
-                    region=Normal.ALL):
-        """断言文字存在"""
-        return self.aw.text_exists(text, timeout, region)
-
-    def text_not_exists(self, text: str, timeout: int = 3,
-                        region=Normal.ALL) -> bool:
-        """断言文字不存在（存在则 assert 失败）"""
-        return self.aw.text_not_exists(text, timeout, region)
-
-    def input_text(self, text: str) -> bool:
-        """输入文本"""
-        return self.aw.input_text(text)
-
-    def tap(self, x: int, y: int, dx: int = 0, dy: int = 0) -> bool:
-        """点击坐标"""
-        return self.aw.tap(x, y, dx, dy)
-
-    def wait_and_click_text(self, text: str, timeout: int = 10) -> bool:
-        """等待文字出现并点击"""
-        if self.aw.text_exists(text, timeout):
-            return self.aw.click_text(text)
-        return False
-
-    def wait_and_click_image(self, image_name: str, timeout: int = 10) -> bool:
-        """等待图片出现并点击"""
-        if self.aw.find_image(image_name, timeout=timeout):
-            return self.aw.click_image(image_name)
-        return False
-
-    # ==================== 群设置功能 ====================
-
-    def open_group_settings_page(self, group_identifier: str) -> bool:
-        """进入群设置页面"""
-        return self.aw.open_group_settings_page(group_identifier)
-
-    def check_group_message_reminder(self, group_identifier: str) -> bool:
-        """检查群消息提醒状态并切换"""
-        return self.aw.check_group_message_reminder(group_identifier)
-
-    def verify_group_setting_default(self, group_identifier: str, setting_name: str) -> str:
-        """验证群设置页面中某个设置项的默认状态"""
-        return self.aw.verify_group_setting_default(group_identifier, setting_name)
-
-    def open_group_qr_code(self, group_identifier: str) -> bool:
-        """打开群二维码页面"""
-        return self.aw.open_group_qr_code(group_identifier)
-
-    def open_group_announcement_page(self, group_identifier: str) -> bool:
-        """打开群公告页面"""
-        return self.aw.open_group_announcement_page(group_identifier)
-
-    # ==================== 群设置扩展代理 ====================
-
-    def click_in_group_settings(self, group_identifier: str, click_text: str,
-                                  verify_text=None, region=None) -> bool:
-        return self.aw.click_in_group_settings(group_identifier, click_text, verify_text, region)
-
-    def toggle_group_setting_switch(self, group_identifier: str, setting_name: str,
-                                      dx: int = 200) -> bool:
-        return self.aw.toggle_group_setting_switch(group_identifier, setting_name, dx)
-
-    def edit_group_description(self, group_identifier: str, description: str) -> bool:
-        return self.aw.edit_group_description(group_identifier, description)
-
-    def open_group_member_list(self, group_identifier: str) -> bool:
-        return self.aw.open_group_member_list(group_identifier)
-
-    def click_group_qr_code(self, group_identifier: str) -> bool:
-        return self.aw.open_group_qr_code(group_identifier, stay=True)
-
-
-    # ==================== 群主测试群管理代理 ====================
-    def setup_owner_group(self, desired_name: str = "自动化测试群主群") -> str:
-        """确保有固定名的群主测试群"""
-        return self.aw.setup_owner_group(desired_name)
-
-    def rename_group_name(self, current_group_keyword: str, new_name: str) -> bool:
-        """修改群名"""
-        return self.aw.rename_group_name(current_group_keyword, new_name)
-
-
-    # ==================== 群管理子页面代理 ====================
-    def enter_group_management(self, group_identifier: str) -> bool:
-        return self.aw.enter_group_management(group_identifier)
-
-    def verify_in_group_management(self, group_identifier: str, setting_name: str) -> str:
-        return self.aw.verify_in_group_management(group_identifier, setting_name)
-
-    def click_in_group_management(self, group_identifier: str, click_text: str,
-                                    verify_text=None) -> bool:
-        return self.aw.click_in_group_management(group_identifier, click_text, verify_text)
-
-    def toggle_group_management_switch(self, group_identifier: str, setting_name: str,
-                                         dx: int = 200) -> bool:
-        return self.aw.toggle_group_management_switch(group_identifier, setting_name, dx)
-
-    # ==================== 通讯录群组批量管理代理 ====================
-
-    def open_contacts_groups(self) -> bool:
-        """导航到通讯录群组列表"""
-        return self.aw.open_contacts_groups()
-
-    def enter_group_batch_manage(self) -> bool:
-        """进入批量管理模式"""
-        return self.aw.enter_group_batch_manage()
-
-    def select_group_in_batch(self, group_index: int = 1) -> bool:
-        """在批量管理模式中选择第N个群组"""
-        return self.aw.select_group_in_batch(group_index)
-
-    def get_batch_selected_count(self) -> int:
-        """获取批量管理已选中的群组数量"""
-        return self.aw.get_batch_selected_count()
-
-    def verify_batch_bottom_buttons(self) -> dict:
-        """验证批量管理底部按钮是否存在"""
-        return self.aw.verify_batch_bottom_buttons()
-
-    def exit_group_batch_manage(self) -> bool:
-        """退出批量管理模式"""
-        return self.aw.exit_group_batch_manage()
-
-    def batch_select_all_groups(self) -> bool:
-        """在批量管理模式中点击全选"""
-        return self.aw.batch_select_all_groups()
-
-    # ==================== 会话设置代理（会话盒子 / 会话分组）====================
-
-    def add_to_session_box(self, conversation_name: str) -> bool:
-        """将指定会话添加到会话盒子"""
-        return self.aw.add_to_session_box(conversation_name)
-
-    def remove_from_session_box(self, conversation_name: str) -> bool:
-        """将指定会话从会话盒子中移出"""
-        return self.aw.remove_from_session_box(conversation_name)
-
-    def add_conversation_to_group(self, conversation_name: str, group_name: str) -> bool:
-        """将指定会话添加到某会话分组"""
-        return self.aw.add_conversation_to_group(conversation_name, group_name)
-
-    def remove_conversation_from_group(self, conversation_name: str, group_name: str) -> bool:
-        """将指定会话从某会话分组中移除"""
-        return self.aw.remove_conversation_from_group(conversation_name, group_name)
-
-    def __repr__(self):
-        return f"PPUser(uid='{self.uid}', device={self.device})"
-
-
-if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG)
-
-    device = PPDevice(device_port=16384, instance_id=0)
-    user = PPUser(
-        uid="test@example.com",
-        password="password123",
-        device=device,
-        env="test03"
-    )
-    print(user)
-    print(f"AW Helper: {user.aw}")
+        return os.environ.get("SWAN_PHONE", "").strip()

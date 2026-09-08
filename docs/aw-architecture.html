@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>AW 双维度架构：基础按端 / 业务按项目</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({ startOnLoad: true, theme: "default" });</script>
+<style>
+  body { font-family: "Microsoft YaHei", sans-serif; margin: 24px; background: #fafafa; }
+  h2 { border-bottom: 2px solid #4a90d9; padding-bottom: 6px; }
+  .diagram { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin-bottom: 24px; }
+  table { border-collapse: collapse; background: #fff; }
+  th, td { border: 1px solid #ccc; padding: 8px 14px; text-align: left; }
+  th { background: #eef3fa; }
+  code { background: #f0f0f0; padding: 1px 5px; border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<h1>AW 双维度架构：基础操作按「端」，业务流程按「项目」</h1>
+
+<h2>核心模型：两个正交维度</h2>
+<div class="diagram">
+<pre class="mermaid">
+flowchart LR
+    subgraph projects["业务 AW —— 按项目分（每项目一套）"]
+        TIDI["TidiTreeBusiness<br/>(TidiTree 项目)"]
+        XXX["??Business<br/>(安卓项目，名字待定)"]
+        SWAN["SwanBusiness<br/>(Swan 项目)"]
+    end
+    subgraph bases["基础 AW —— 按端分（每端一套）"]
+        WEB["WebBaseAW<br/>(web 端操作)"]
+        AND["AndroidBaseAW<br/>(android 端操作)"]
+        FLT["FlutterBaseAW<br/>(flutter 端操作)"]
+    end
+    subgraph engine["公共引擎（跨端共享）"]
+        AWB["AWBase<br/>OCR / 截图 / 图像匹配"]
+    end
+    subgraph users["用户类 —— 项目 × 端 的组合入口"]
+        TT["TTUser<br/>(TidiTree × web)"]
+        AX["??User<br/>(安卓项目 × android)"]
+        SU["SwanUser<br/>(Swan × flutter)"]
+    end
+    subgraph drivers["平台驱动层"]
+        SELE["SeleniumWebDriver"]
+        ADB["AndroidAdbDriver"]
+        FADR["FlutterAndroidDriver"]
+    end
+    TIDI --> WEB
+    XXX --> AND
+    SWAN --> FLT
+    FLT --> AND
+    WEB --> AWB
+    AND --> AWB
+    TT --> TIDI
+    AX --> XXX
+    SU --> SWAN
+    WEB --> SELE
+    AND --> ADB
+    FLT --> FADR
+</pre>
+</div>
+
+<h2>完整分层图（含公共业务 Mixin 与验证码客户端）</h2>
+<div class="diagram">
+<pre class="mermaid">
+flowchart TB
+    subgraph U["用户类层（项目 × 端）"]
+        TT["TTUser<br/>─────────────<br/>TidiTree · web 端<br/>aw → TidiTreeBusiness 实例"]
+        SU["SwanUser<br/>─────────────<br/>Swan · flutter 端<br/>aw → SwanBusiness 实例<br/>phone 属性 (SWAN_PHONE)"]
+        AX["??User<br/>─────────────<br/>安卓项目 · android 端<br/>aw → ??Business 实例"]
+    end
+
+    subgraph B["业务 AW 层（按项目，每项目一套）"]
+        TB["TidiTreeBusiness<br/>web.py → 更名 tiditree.py<br/>TidiTree Web 业务流程"]
+        XB["??Business<br/>android.py → 更名待定<br/>安卓项目业务流程"]
+        SB["SwanBusiness<br/>swan.py<br/>· login_with_password()<br/>· login_by_sms()"]
+    end
+
+    MIXIN["CommonBusinessMixin（跨项目公共业务）<br/>· otp → OtpClient（验证码平台）<br/>· wait_text()<br/>· _fetch_sms_code()<br/>· login() 骨架（各项目可覆写）"]
+
+    subgraph BA["基础 AW 层（按端，每端一套）"]
+        WB["WebBaseAW<br/>web 端操作：选择器点击等"]
+        AB["AndroidBaseAW<br/>android 端操作：press_back / swipe…"]
+        FB["FlutterBaseAW<br/>flutter 端操作：accessibility 系列<br/>（继承 AndroidBaseAW）"]
+    end
+
+    AWBASE["AWBase 公共引擎（只维护一份）<br/>OCR / 截图 / 图像匹配 / swipe 基础"]
+
+    subgraph D["驱动层（吸收设备差异）"]
+        WD["SeleniumWebDriver"]
+        AD["AndroidAdbDriver"]
+        FD["FlutterAndroidDriver"]
+    end
+
+    OTP["OtpClient (utils/otp_client.py)<br/>纯 HTTP → 验证码网关 192.168.12.5:18080<br/>pull 开发接口 mockCode"]
+
+    TT -->|"绑定"| TB
+    AX -->|"绑定"| XB
+    SU -->|"绑定"| SB
+    TB -.->|"混入"| MIXIN
+    XB -.->|"混入"| MIXIN
+    SB -.->|"混入"| MIXIN
+    TB -->|"继承"| WB
+    XB -->|"继承"| AB
+    SB -->|"继承"| FB
+    WB --> AWBASE
+    AB --> AWBASE
+    FB --> AB
+    MIXIN -->|"使用"| OTP
+    WB --> WD
+    AB --> AD
+    FB --> FD
+</pre>
+</div>
+
+<h2>「一个端挂多个项目」的扩展方式</h2>
+<div class="diagram">
+<pre class="mermaid">
+flowchart TB
+    WEB2["web 端（WebBaseAW 一套基础操作）"]
+    TT2["TidiTreeBusiness<br/>（现在）"]
+    FUT["FutureProjectBusiness<br/>（以后新项目）"]
+    TTU2["TTUser"]
+    FU2["FutureUser"]
+    WEB2 --> TT2
+    WEB2 --> FUT
+    TTU2 --> TT2
+    FU2 --> FUT
+    style FUT stroke-dasharray: 5 5
+</pre>
+<p>新项目上 web 端时：复用 <code>WebBaseAW</code> 全部基础操作，只需新增
+<code>business/&lt;新项目&gt;.py</code> 和对应 <code>&lt;新项目&gt;User</code>，基础层零改动。</p>
+</div>
+
+<h2>目录规划（目标态）</h2>
+<div class="diagram">
+<pre>
+utils/
+├── otp_client.py                 # 验证码客户端（纯 HTTP）
+├── user.py                       # User 基类 + TTUser / SwanUser / ??User
+└── aw/
+    ├── aw_base.py                # 公共引擎：OCR/截图/图像匹配（一份）
+    ├── base/                     # ★ 基础 AW 按端分
+    │   ├── __init__.py
+    │   ├── web_base.py           # WebBaseAW(AWBase)
+    │   ├── android_base.py       # AndroidBaseAW(AWBase)
+    │   └── flutter_base.py       # FlutterBaseAW(AndroidBaseAW)
+    └── business/                 # ★ 业务 AW 按项目分
+        ├── __init__.py           # 工厂
+        ├── common.py             # CommonBusinessMixin（跨项目公共：otp/wait_text/login骨架）
+        ├── tiditree.py           # TidiTreeBusiness（原 web.py）
+        ├── swan.py               # SwanBusiness
+        └── android_project.py    # ??Business（安卓项目，名字待定）
+</pre>
+</div>
+
+<h2>调用链示例：SwanUser 验证码登录</h2>
+<div class="diagram">
+<pre class="mermaid">
+sequenceDiagram
+    participant T as 用例 (tests/flutter/)
+    participant U as SwanUser
+    participant SB as SwanBusiness
+    participant FB as FlutterBaseAW
+    participant AW as AWBase 引擎
+    participant OTP as OtpClient
+    participant GW as 验证码网关
+
+    T->>U: userA.login_by_sms(userA.phone)
+    Note over U: __getattr__ 代理
+    U->>SB: login_by_sms(phone)
+    SB->>FB: click_text("验证码登入")
+    FB->>AW: find_text_by_ocr / tap
+    SB->>OTP: otp.get_code(phone)
+    OTP->>GW: GET /api/test/otp/latest?phone=…
+    GW-->>OTP: pull 开发接口 mockCode → 返回验证码
+    OTP-->>SB: {code: "123456"}
+    SB->>FB: input_text(code) / click_accessibility(...)
+    FB->>AW: 底层操作
+</pre>
+</div>
+
+</body>
+</html>

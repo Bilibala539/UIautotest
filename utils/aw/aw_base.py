@@ -12,8 +12,6 @@
 import os
 import base64
 
-from image.image_name_mapping import MSG_UNREAD_ICON
-
 # 禁用 mkldnn/oneDNN 以解决 PaddlePaddle 3.x PIR 兼容性问题
 os.environ['FLAGS_use_mkldnn'] = '0'
 os.environ['FLAGS_enable_pir_api'] = '0'
@@ -33,8 +31,8 @@ import numpy as np
 
 from paddleocr import PaddleOCR
 
+from image.image_name_mapping import get_image_dir
 from utils.aw.driver.base_driver import BasePlatformDriver
-from utils.aw.search_region import Normal
 
 logger = logging.getLogger(__name__)
 
@@ -145,6 +143,7 @@ class AWBase:
             driver: 平台驱动实例
         """
         self.driver = driver
+        self.TEMPLATE_DIR = str(get_image_dir(driver.platform_name))
         os.makedirs(self.TEMPLATE_DIR, exist_ok=True)
         os.makedirs(self.SCREENSHOT_DIR, exist_ok=True)
         os.makedirs(self.EXPLORER_SCREENSHOT_DIR, exist_ok=True)
@@ -321,7 +320,7 @@ class AWBase:
 
     def long_press_text(self, text: str, timeout: int = 10,
                         duration: float = 1.5,
-                        region=Normal.ALL) -> bool:
+                        region=None) -> bool:
         """
         OCR 找到文字后长按
 
@@ -344,7 +343,7 @@ class AWBase:
 
     def long_press_image(self, image: str, threshold: float = 0.8,
                          timeout: int = 10, duration: float = 1.0,
-                         region=Normal.ALL) -> bool:
+                         region=None) -> bool:
         """
         模板匹配找到图片后长按
 
@@ -382,39 +381,9 @@ class AWBase:
         """清空当前输入框"""
         return self.driver.clear_input()
 
-    # ==================== 按键 ====================
-
-    def press_key(self, key: str) -> bool:
-        """按下指定按键"""
-        result = self.driver.press_key(key)
-        self.sleep(0.2)
-        return result
-
-    def press_back(self) -> bool:
-        """按下返回键 (Escape)"""
-        logger.info("🔙 按返回键")
-        return self.press_key('escape')
-
-    def press_home(self) -> bool:
-        """按下Home键"""
-        logger.info("🏠 按Home键")
-        self.sleep(0.3)
-        return True
-
-    def select_all(self) -> bool:
-        """
-        全选当前输入框内容 (Ctrl+A)
-
-        通过 pyautogui.hotkey 发送 Ctrl+A 热键，在 MuMu 模拟器中触发全选操作。
-
-        Returns:
-            bool: 操作是否成功
-        """
-        import pyautogui
-        pyautogui.hotkey('ctrl', 'a')
-        logger.info("📋 全选文本 (Ctrl+A)")
-        self.sleep(0.3)
-        return True
+    # 按键操作（press_key/press_back/press_home）→ utils/aw/base/android_base.py
+    # accessibility 语义节点操作 → utils/aw/base/flutter_base.py
+    # 基础操作按端划分，各端 base 继承本引擎类；新增端专属操作放对应端 base。
 
     # ==================== OCR 文字识别 ====================
 
@@ -479,7 +448,7 @@ class AWBase:
 
         return items
 
-    def ocr_scan_page(self, region=Normal.ALL) -> list:
+    def ocr_scan_page(self, region=None) -> list:
         """
         一次性 OCR 全量扫描当前页面，返回所有文字及完整边界框信息
 
@@ -524,7 +493,7 @@ class AWBase:
         return items
 
     def find_text_by_ocr(self, text: str, timeout: int = 10,
-                         region=Normal.ALL,
+                         region=None,
                          case_sensitive: bool = False) -> Optional[Tuple[int, int]]:
         """
         OCR 找文字，返回文字中心的窗口内坐标
@@ -569,7 +538,6 @@ class AWBase:
                         return center_x, center_y
 
             self.sleep(0.5)
-            break
 
         # 失败时仅记录日志，不保存截图文件（用例失败时由 conftest 统一截图）
         logger.warning(f"⚠️ 未找到文字 '{text}'")
@@ -578,7 +546,7 @@ class AWBase:
 
     @_screenshot_on_failure
     def text_exists(self, text: str, timeout: int = 5,
-                    region=Normal.ALL):
+                    region=None):
         """检查文字是否存在"""
         pos = self.find_text_by_ocr(text, timeout=timeout, region=region)
         if pos is not None:
@@ -588,7 +556,7 @@ class AWBase:
 
     @_screenshot_on_failure
     def text_not_exists(self, text: str, timeout: int = 3,
-                        region=Normal.ALL) -> bool:
+                        region=None) -> bool:
         """断言文字不存在（存在则 assert 失败）"""
         pos = self.find_text_by_ocr(text, timeout=timeout, region=region)
         assert pos is None, f"断言失败: 文字 '{text}' 仍然存在"
@@ -598,7 +566,7 @@ class AWBase:
 
     def find_image(self, template_name: str, threshold: float = 0.8,
                    timeout: int = 10,
-                   region=Normal.ALL) -> Optional[Tuple[int, int]]:
+                   region=None) -> Optional[Tuple[int, int]]:
         """
         模板匹配找图，返回图片中心的窗口内坐标
 
@@ -664,7 +632,7 @@ class AWBase:
     @_screenshot_on_failure
     def image_exists(self, template_name: str, threshold: float = 0.8,
                      timeout: int = 5,
-                     region=Normal.ALL) -> bool:
+                     region=None) -> bool:
         """断言图片必须存在（找不到则 assert 失败）"""
         pos = self.find_image(template_name, threshold=threshold, timeout=timeout,
                               region=region)
@@ -675,7 +643,7 @@ class AWBase:
 
     def click_text(self, text: str, timeout: int = 10,
                    dx: int = 0, dy: int = 0,
-                   region=Normal.ALL):
+                   region=None):
         """OCR 找到文字后点击"""
         pos = self.text_exists(text, timeout=timeout, region=region)
         if pos:
@@ -685,29 +653,16 @@ class AWBase:
     @_screenshot_on_failure
     def click_image(self, image: str, threshold: float = 0.8,
                     timeout: int = 10, dx: int = 0, dy: int = 0,
-                    region=Normal.ALL, x=0, y=0):
+                    region=None, x: Optional[int] = None,
+                    y: Optional[int] = None):
         """模板匹配找到图片后点击"""
         pos = self.find_image(image, threshold=threshold, timeout=timeout, region=region)
-        if pos:
-
-            if x is not 0:
-                logger.info(f"坐标调整：{pos}--->({x},{pos[1]})")
-                pos_change = (x, pos[1])
-                assert pos is not None, f"点击图片失败: 未找到 '{image}'"
-                return self.tap(pos_change[0], pos_change[1], dx, dy)
-            elif y is not 0:
-                logger.info(f"坐标调整：{pos}--->({pos[0]},{y})")
-                pos_change = (pos[0], y)
-                assert pos is not None, f"点击图片失败: 未找到 '{image}'"
-                return self.tap(pos_change[0], pos_change[1], dx, dy)
-            elif x is not 0 and y is not 0:
-                logger.info(f"坐标调整：{pos}--->({pos[0]},{pos[1]})")
-                pos_change = (pos[0], pos[1])
-                assert pos is not None, f"点击图片失败: 未找到 '{image}'"
-                return self.tap(pos_change[0], pos_change[1], dx, dy)
-
         assert pos is not None, f"点击图片失败: 未找到 '{image}'"
-        return self.tap(pos[0], pos[1], dx, dy)
+        target = (x if x is not None else pos[0],
+                  y if y is not None else pos[1])
+        if target != pos:
+            logger.info(f"坐标调整：{pos}---> {target}")
+        return self.tap(target[0], target[1], dx, dy)
 
     # ==================== 滑动 ====================
 
@@ -752,119 +707,6 @@ class AWBase:
     def scroll_down(self, clicks: int = 5) -> bool:
         """向下滚动（鼠标滚轮）"""
         return self.scroll_up(-clicks)
-
-    # ==================== 开关操作 ====================
-
-    @_screenshot_on_failure
-    def is_switch_on(self, switch_text: str, region=Normal.ALL) -> bool:
-        """
-        检测页面中指定开关的当前状态（通用方法）
-
-        通过OCR定位开关文字的y坐标，然后扫描该行右侧区域
-        是否存在蓝色像素来判断开关是否开启。
-
-        开关UI特征:
-        - 开启状态: 蓝色 BGR≈(255,143,47)
-        - 关闭状态: 浅灰色（与白色背景几乎一致）
-        - 开关x位置: 约 x=460~520（532宽度）或 x=470~530（540宽度）
-        - 检测方式: 扫描开关文字y坐标±25px范围内x=420~530区域的蓝色像素
-
-        Args:
-            switch_text: 开关标题文字（如 "连续播放语音消息"）
-            region: 搜索区域
-
-        Returns:
-            bool: True=开启(蓝色), False=关闭
-        """
-        # 1. OCR定位开关文字，获取y坐标
-        pos = self.find_text_by_ocr(switch_text, timeout=3, region=region)
-        assert pos is not None, f"未找到开关文字 '{switch_text}'"
-        text_y = pos[1]
-
-        # 2. 截图并扫描开关区域的蓝色像素
-        img = self.take_screenshot()
-        assert img is not None, "截图失败"
-
-        # 开关区域: x=420~530, y=text_y-25 ~ text_y+25
-        # 适配 532/540 两种分辨率宽度
-        img_w = img.shape[1]
-        scan_x1 = 420
-        scan_x2 = min(img_w, 530)
-        scan_y1 = max(0, text_y - 25)
-        scan_y2 = min(img.shape[0], text_y + 25)
-
-        switch_region = img[scan_y1:scan_y2, scan_x1:scan_x2]
-
-        # 3. 检测蓝色像素 (BGR格式: B>200, G在100~180, R<100)
-        b, g, r = switch_region[:, :, 0], switch_region[:, :, 1], switch_region[:, :, 2]
-        blue_mask = (b > 200) & (g > 100) & (g < 180) & (r < 100)
-        blue_pixel_count = int(np.sum(blue_mask))
-
-        # 蓝色像素超过阈值认为开关开启
-        is_on = blue_pixel_count > 50
-        state_text = "开启" if is_on else "关闭"
-        logger.info(f"🔍 开关 '{switch_text}' 状态: {state_text} (蓝色像素: {blue_pixel_count})")
-        return is_on
-
-    def toggle_switch(self, switch_text: str, target_state: bool,
-                      region=Normal.ALL) -> bool:
-        """
-        切换页面中指定开关到目标状态（通用方法）
-
-        先检测当前状态，如果与目标不一致则点击开关文字右侧的开关区域进行切换，
-        然后再次检测确认切换成功。
-
-        Args:
-            switch_text: 开关标题文字
-            target_state: 目标状态 True=开启, False=关闭
-            region: 搜索区域
-
-        Returns:
-            bool: 是否成功切换到目标状态
-        """
-        current_state = self.is_switch_on(switch_text, region=region)
-
-        if current_state == target_state:
-            state_text = "开启" if target_state else "关闭"
-            logger.info(f"✅ 开关 '{switch_text}' 已是{state_text}状态，无需切换")
-            return True
-
-        # 点击开关区域（页面右侧的 toggle 控件）
-        pos = self.find_text_by_ocr(switch_text, timeout=3, region=region)
-        assert pos is not None, f"未找到开关文字 '{switch_text}'"
-        # 通过扫描文字行右侧找到开关控件的精确 x 位置
-        img = self.take_screenshot()
-        img_w = img.shape[1] if img is not None else 540
-        text_y = pos[1]
-        # 扫描文字行 (y±8) 右侧 (x从img_w-120到img_w) 的非白色像素
-        scan_y1 = max(0, text_y - 8)
-        scan_y2 = min(img.shape[0], text_y + 8)
-        scan_x1 = img_w - 120
-        row_strip = img[scan_y1:scan_y2, scan_x1:img_w]
-        # 找非白色像素 (开关控件的灰色或蓝色)
-        non_white = (row_strip[:, :, 0].astype(int) < 245) | \
-                    (row_strip[:, :, 1].astype(int) < 245) | \
-                    (row_strip[:, :, 2].astype(int) < 245)
-        nw_x = np.where(non_white.any(axis=0))[0]
-        if len(nw_x) > 3:
-            # 取非白色像素的中心 x
-            tap_x = scan_x1 + int(nw_x.mean())
-        else:
-            # 兜底：使用经验值
-            tap_x = img_w - 40
-        logger.info(f"🔘 点击开关: img_w={img_w}, tap=({tap_x}, {text_y})")
-        self.tap(tap_x, text_y)
-        self.sleep(1.0)
-
-        # 验证切换结果
-        new_state = self.is_switch_on(switch_text, region=region)
-        state_text = "开启" if target_state else "关闭"
-        if new_state == target_state:
-            logger.info(f"✅ 开关 '{switch_text}' 已成功切换为{state_text}")
-            return True
-        else:
-            logger.warning(f"⚠️ 开关 '{switch_text}' 切换到{state_text}失败")
-            return False
 
     # ==================== 工具方法 ====================
 
@@ -937,7 +779,11 @@ class AWBase:
             elif action == "swipe_down":
                 self.swipe_down()
             elif action == "back":
-                self.press_back()
+                back = getattr(self, "press_back", None)
+                if back is not None:
+                    back()
+                else:
+                    logger.warning(f"当前端基础 AW 不支持 back，跳过步骤 {i}")
             elif action == "screenshot":
                 path = self.screenshot_for_explore(step.get("name"))
                 result["screenshot"] = path

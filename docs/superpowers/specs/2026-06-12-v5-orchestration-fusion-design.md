@@ -1,8 +1,16 @@
 # 编排融合设计：吸纳 ui-ai-v5 优势
 
 **日期**：2026-06-12  
-**状态**：待实现  
+**状态**：大部分已落地（2026-09-07 核对）  
 **范围**：编排层 + 支撑脚本（不改测试框架本身）
+
+> **落地情况**：
+> - ✅ Phase 1（fix-batch 增强）：`fix-batch.md` 已含 Phase 0.5 共性根因分析和基线回归验证
+> - ✅ Phase 2（子 Agent 架构改造）：element/codegen/verify 已改为 `Agent()` 一次性子 Agent，explorer/spec-keeper 保持长驻
+> - ✅ Phase 3 部分：G1–G5 派发门禁、批次空间认知注入、阶段0确认令牌均已进 orchestrator/agent 蓝图
+> - ❌ Phase 3 缺口：`docs/runtime_experience.md` 未创建，经验沉淀尚无落盘文件
+>
+> 原始设计保留如下，供追溯决策依据。
 
 ---
 
@@ -84,10 +92,10 @@ fix-batch 当前把每个失败用例当独立任务处理。当 5 个用例共�
 在分派修复任务之前插入分析步骤：
 
 ```
-Phase 0：读 session.json / 失败日志
+Phase 0：读 pytest 失败输出 / 本地 HTML 日志
 Phase 0.5：共性根因分析（新增）
   ├─ 从每个失败 traceback 提取最后调用的 AW 方法
-  │   示例：utils/aw/business/mumu.py:142 in click_session_box
+  │   示例：utils/aw/aw_base.py 中的基础操作方法
   ├─ 按方法分组：
   │   click_session_box → test_A, test_B, test_C（3个）← 疑似共性
   │   tap_group_settings → test_D（1个）← 独立
@@ -104,7 +112,7 @@ Phase 2：（共性修复后重跑 pytest）剩余失败重新分析，不沿用
 
 ### AW 方法基线回归验证
 
-当 aw-verify 修改了 `utils/aw/business/mumu.py` 中的方法时，额外触发：
+当 aw-verify 修改了 `utils/aw/aw_base.py` 中的方法时，额外触发：
 
 ```bash
 # 1. 暂存修改
@@ -160,7 +168,7 @@ similar = mcp__vector_kb__find_similar_tests("群设置功能用例")
 ## 已知限制
 | 场景 | 描述 |
 |------|------|
-| MuMu 开关控件 | 点 x=450-480,y=555，不用图片匹配 |
+| 平台开关控件 | 优先使用图片或 OCR 定位，不写死坐标 |
 ```
 
 spawn 子 Agent 前，orchestrator 通过语义检索找相关经验，注入 prompt：
@@ -226,8 +234,8 @@ orchestrator 生成用例描述后、spawn codegen 子 Agent 前，过以下自�
 ## 不改动的内容
 
 - `utils/aw/aw_base.py` — AWBase 设备交互层不变
-- `utils/aw/business/mumu.py` — AW 方法本身不变（只有 fix-batch 在修复时可能改动）
-- `utils/user.py` — PPUser 便捷方法不变
+- `utils/aw/aw_base.py` — 基础 AW 方法保持兼容
+- `utils/user.py` — TTUser 基础 AW 入口
 - `tests/` — 所有现有测试用例不变
 - `image/` / `image_ai/` — 元素图片流转机制不变
 - `explorer_output/knowledge/` — 双层知识库结构完整保留

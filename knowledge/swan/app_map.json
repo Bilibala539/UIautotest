@@ -20,13 +20,53 @@
       "status": "draft",
       "doc": "draft/swan_login_sms_page.md",
       "summary": "App 启动默认落地页，手机号+验证码登录，右上角切换密码登入"
+    },
+    "swan_login_code_page": {
+      "title": "验证码输入页",
+      "status": "draft",
+      "doc": "draft/swan_login_code_page.md",
+      "summary": "下一步后自动发送验证码，4 位填满自动提交"
+    },
+    "swan_home_page": {
+      "title": "首页",
+      "status": "draft",
+      "doc": "draft/swan_home_page.md",
+      "summary": "登录落地页，音源入口/我喜欢/歌单/AI/最近播放 + 底部播放条 + 4 个 tab"
+    },
+    "swan_me_page": {
+      "title": "我的",
+      "status": "draft",
+      "doc": "draft/swan_me_page.md",
+      "summary": "个人中心，账号入口 + 功能列表（权益/家庭管理/收藏/设备管理/音质设置等）"
+    },
+    "swan_person_info_page": {
+      "title": "个人信息修改",
+      "status": "draft",
+      "doc": "draft/swan_person_info_page.md",
+      "summary": "头像/昵称/密码/手机号 + 注销账号（危险）+ 退出登入"
     }
   },
   "elements": {},
   "transitions": {
     "swan_login_sms_page": [
       {"to": "swan_login_password_page", "action": "click login_use_password_button", "type": "切换", "status": "pending"},
-      {"to": "swan_login_code_page", "action": "输入手机号后 click login_submit_button（下一步）", "type": "推进", "status": "pending"}
+      {"to": "swan_login_code_page", "action": "输入手机号+勾选协议后 click login_submit_button（下一步）", "type": "推进", "status": "verified"}
+    ],
+    "swan_login_code_page": [
+      {"to": "swan_home_page", "action": "input_text(4位验证码) 自动提交", "type": "推进", "status": "verified"},
+      {"to": "swan_login_sms_page", "action": "press_back", "type": "返回", "status": "pending"}
+    ],
+    "swan_home_page": [
+      {"to": "swan_player_page", "action": "click bottom_player", "type": "推进", "status": "pending"},
+      {"to": "swan_me_page", "action": "click tab_me", "type": "tab 切换", "status": "verified"}
+    ],
+    "swan_me_page": [
+      {"to": "swan_person_info_page", "action": "click me_user_profile_entry", "type": "推进", "status": "verified"},
+      {"to": "swan_home_page", "action": "click tab_recommend", "type": "tab 切换", "status": "verified"}
+    ],
+    "swan_person_info_page": [
+      {"to": "swan_login_sms_page", "action": "click person_info_logout_button（退出登入）", "type": "登出", "status": "verified"},
+      {"to": "swan_me_page", "action": "press_back", "type": "返回", "status": "pending"}
     ]
   },
   "feature_categories": {}

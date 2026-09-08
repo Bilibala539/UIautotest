@@ -83,7 +83,39 @@
       "summary": "我的页底部弹层，流畅/标准/HQ/SQ 四档单选 + 完成；无 key，未改档位"
     }
   },
-  "elements": {},
+  "elements": {
+    "image_verified": {
+      "verified_at": "2026-09-08",
+      "verifier": "aw-verify 真机验证（serial c0614b6a，OpenCV threshold 0.8，全部 score=1.00）",
+      "note": "18 张元素图全部通过并转正到 image/flutter/；常量见 image/image_name_mapping.py（正式路径）",
+      "swan_home_page": ["swan_bottom_player_bar.png"],
+      "swan_me_page": [
+        "swan_me_family_manage_row.png",
+        "swan_me_favorites_row.png",
+        "swan_me_device_manage_row.png",
+        "swan_me_sound_quality_row.png"
+      ],
+      "swan_family_manage_page": ["swan_family_add_member_icon.png"],
+      "swan_favorites_page": [
+        "swan_fav_family_group_row.png",
+        "swan_fav_music_group_row.png",
+        "swan_fav_add_playlist_button.png"
+      ],
+      "swan_sound_quality_page": ["swan_sound_quality_done_button.png"],
+      "swan_login_sms_page": [
+        "swan_login_privacy_policy_link.png",
+        "swan_login_usage_policy_link.png",
+        "swan_login_submit_btn.png"
+      ],
+      "swan_login_code_page": ["swan_login_code_field_box.png"],
+      "swan_player_page": [
+        "swan_player_play_pause_btn.png",
+        "swan_player_dismiss_btn.png"
+      ],
+      "swan_device_page": ["swan_device_add_btn.png"],
+      "swan_platform_page": ["swan_platform_netease_row.png"]
+    }
+  },
   "transitions": {
     "swan_login_sms_page": [
       {

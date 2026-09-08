@@ -97,48 +97,47 @@ test_path = str(get_image_dir(CURRENT_PLATFORM, draft=True))
 
 # =====================================================================
 # Swan (Flutter) 元素图片
-# 均为草稿（image_ai/flutter/），由 aw-verify 验证通过后 promote 转正
-# 真机 serial c0614b6a，分辨率 720x1600；截取于 2026-09-08
+# 2026-09-08 真机验证（aw-verify，serial c0614b6a，720x1600）全部通过，
+# 已由 promote_image 转正到 image/flutter/，常量登记为正式路径。
 # =====================================================================
 
 # --- 首页 (swan_home_page) ---
-# 草稿（暂存目录，待验证）
-SWAN_BOTTOM_PLAYER_BAR = image_path("swan_bottom_player_bar.png", platform="flutter", draft=True)
+SWAN_BOTTOM_PLAYER_BAR = image_path("swan_bottom_player_bar.png", platform="flutter")
 
 # --- 我的 (swan_me_page) ---
-SWAN_ME_FAMILY_MANAGE_ROW = image_path("swan_me_family_manage_row.png", platform="flutter", draft=True)
-SWAN_ME_FAVORITES_ROW = image_path("swan_me_favorites_row.png", platform="flutter", draft=True)
-SWAN_ME_DEVICE_MANAGE_ROW = image_path("swan_me_device_manage_row.png", platform="flutter", draft=True)
-SWAN_ME_SOUND_QUALITY_ROW = image_path("swan_me_sound_quality_row.png", platform="flutter", draft=True)
+SWAN_ME_FAMILY_MANAGE_ROW = image_path("swan_me_family_manage_row.png", platform="flutter")
+SWAN_ME_FAVORITES_ROW = image_path("swan_me_favorites_row.png", platform="flutter")
+SWAN_ME_DEVICE_MANAGE_ROW = image_path("swan_me_device_manage_row.png", platform="flutter")
+SWAN_ME_SOUND_QUALITY_ROW = image_path("swan_me_sound_quality_row.png", platform="flutter")
 
 # --- 家庭管理 (swan_family_manage_page) ---
-SWAN_FAMILY_ADD_MEMBER_ICON = image_path("swan_family_add_member_icon.png", platform="flutter", draft=True)
+SWAN_FAMILY_ADD_MEMBER_ICON = image_path("swan_family_add_member_icon.png", platform="flutter")
 
 # --- SWAN收藏 (swan_favorites_page) ---
-SWAN_FAV_FAMILY_GROUP_ROW = image_path("swan_fav_family_group_row.png", platform="flutter", draft=True)
-SWAN_FAV_MUSIC_GROUP_ROW = image_path("swan_fav_music_group_row.png", platform="flutter", draft=True)
-SWAN_FAV_ADD_PLAYLIST_BUTTON = image_path("swan_fav_add_playlist_button.png", platform="flutter", draft=True)
+SWAN_FAV_FAMILY_GROUP_ROW = image_path("swan_fav_family_group_row.png", platform="flutter")
+SWAN_FAV_MUSIC_GROUP_ROW = image_path("swan_fav_music_group_row.png", platform="flutter")
+SWAN_FAV_ADD_PLAYLIST_BUTTON = image_path("swan_fav_add_playlist_button.png", platform="flutter")
 
 # --- 音质设置弹层 (swan_sound_quality_page) ---
-SWAN_SOUND_QUALITY_DONE_BUTTON = image_path("swan_sound_quality_done_button.png", platform="flutter", draft=True)
+SWAN_SOUND_QUALITY_DONE_BUTTON = image_path("swan_sound_quality_done_button.png", platform="flutter")
 
 # --- 验证码登录页 (swan_login_sms_page) ---
-SWAN_LOGIN_PRIVACY_POLICY_LINK = image_path("swan_login_privacy_policy_link.png", platform="flutter", draft=True)
-SWAN_LOGIN_USAGE_POLICY_LINK = image_path("swan_login_usage_policy_link.png", platform="flutter", draft=True)
-SWAN_LOGIN_SUBMIT_BTN = image_path("swan_login_submit_btn.png", platform="flutter", draft=True)
+SWAN_LOGIN_PRIVACY_POLICY_LINK = image_path("swan_login_privacy_policy_link.png", platform="flutter")
+SWAN_LOGIN_USAGE_POLICY_LINK = image_path("swan_login_usage_policy_link.png", platform="flutter")
+SWAN_LOGIN_SUBMIT_BTN = image_path("swan_login_submit_btn.png", platform="flutter")
 
 # --- 验证码输入页 (swan_login_code_page) ---
-SWAN_LOGIN_CODE_FIELD_BOX = image_path("swan_login_code_field_box.png", platform="flutter", draft=True)
+SWAN_LOGIN_CODE_FIELD_BOX = image_path("swan_login_code_field_box.png", platform="flutter")
 
 # --- 播放页 (swan_player_page) ---
-SWAN_PLAYER_PLAY_PAUSE_BTN = image_path("swan_player_play_pause_btn.png", platform="flutter", draft=True)
-SWAN_PLAYER_DISMISS_BTN = image_path("swan_player_dismiss_btn.png", platform="flutter", draft=True)
+SWAN_PLAYER_PLAY_PAUSE_BTN = image_path("swan_player_play_pause_btn.png", platform="flutter")
+SWAN_PLAYER_DISMISS_BTN = image_path("swan_player_dismiss_btn.png", platform="flutter")
 
 # --- 设备页 (swan_device_page) ---
-SWAN_DEVICE_ADD_BTN = image_path("swan_device_add_btn.png", platform="flutter", draft=True)
+SWAN_DEVICE_ADD_BTN = image_path("swan_device_add_btn.png", platform="flutter")
 
 # --- 平台页 (swan_platform_page) ---
-SWAN_PLATFORM_NETEASE_ROW = image_path("swan_platform_netease_row.png", platform="flutter", draft=True)
+SWAN_PLATFORM_NETEASE_ROW = image_path("swan_platform_netease_row.png", platform="flutter")
 
 
 __all__ = [

@@ -38,7 +38,7 @@ def get_collection():
 
     client = chromadb.PersistentClient(path=str(CHROMA_DIR))
     embed_fn = SentenceTransformerEmbeddingFunction(
-        model_name="paraphrase-multilingual-MiniLM-L12-v2"
+        model_name=os.environ.get("UIAUTOTEST_EMBEDDING_MODEL", "paraphrase-multilingual-MiniLM-L12-v2")
     )
     return client.get_collection(
         name="knowledge_base",

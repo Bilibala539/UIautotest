@@ -32,7 +32,8 @@
       "cwd": "E:\\UIAutotest",
       "env": {
         "UIAUTOTEST_KNOWLEDGE_DIR": "E:\\UIAutotest\\knowledge\\web",
-        "UIAUTOTEST_CHROMA_DIR": "E:\\UIAutotest\\knowledge\\web\\.chroma_db"
+        "UIAUTOTEST_CHROMA_DIR": "E:\\UIAutotest\\knowledge\\web\\.chroma_db",
+        "UIAUTOTEST_EMBEDDING_MODEL": "E:\\UIAutotest\\models\\paraphrase-multilingual-MiniLM-L12-v2"
       }
     },
     "knowledge_graph_swan": {
@@ -53,7 +54,8 @@
       "cwd": "E:\\UIAutotest",
       "env": {
         "UIAUTOTEST_KNOWLEDGE_DIR": "E:\\UIAutotest\\knowledge\\swan",
-        "UIAUTOTEST_CHROMA_DIR": "E:\\UIAutotest\\knowledge\\swan\\.chroma_db"
+        "UIAUTOTEST_CHROMA_DIR": "E:\\UIAutotest\\knowledge\\swan\\.chroma_db",
+        "UIAUTOTEST_EMBEDDING_MODEL": "E:\\UIAutotest\\models\\paraphrase-multilingual-MiniLM-L12-v2"
       }
     },
     "knowledge_graph_android": {
@@ -74,7 +76,8 @@
       "cwd": "E:\\UIAutotest",
       "env": {
         "UIAUTOTEST_KNOWLEDGE_DIR": "E:\\UIAutotest\\knowledge\\android",
-        "UIAUTOTEST_CHROMA_DIR": "E:\\UIAutotest\\knowledge\\android\\.chroma_db"
+        "UIAUTOTEST_CHROMA_DIR": "E:\\UIAutotest\\knowledge\\android\\.chroma_db",
+        "UIAUTOTEST_EMBEDDING_MODEL": "E:\\UIAutotest\\models\\paraphrase-multilingual-MiniLM-L12-v2"
       }
     }
   }

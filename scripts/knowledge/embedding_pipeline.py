@@ -112,7 +112,7 @@ def build_index(incremental: bool = False):
 
     # 使用多语言模型（支持中文）
     embed_fn = SentenceTransformerEmbeddingFunction(
-        model_name="paraphrase-multilingual-MiniLM-L12-v2"
+        model_name=os.environ.get("UIAUTOTEST_EMBEDDING_MODEL", "paraphrase-multilingual-MiniLM-L12-v2")
     )
 
     collection = client.get_or_create_collection(
@@ -217,7 +217,7 @@ def query_index(query: str, n_results: int = 5):
 
     client = chromadb.PersistentClient(path=str(CHROMA_DIR))
     embed_fn = SentenceTransformerEmbeddingFunction(
-        model_name="paraphrase-multilingual-MiniLM-L12-v2"
+        model_name=os.environ.get("UIAUTOTEST_EMBEDDING_MODEL", "paraphrase-multilingual-MiniLM-L12-v2")
     )
 
     collection = client.get_collection(

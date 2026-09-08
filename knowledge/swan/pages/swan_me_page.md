@@ -38,6 +38,8 @@
 - [[swan_family_manage_page]]（OCR"家庭管理"，已探索）
 - [[swan_favorites_page]]（OCR"SWAN收藏"，已探索）
 - [[swan_sound_quality_page]]（OCR"音质设置"，底部弹层，已探索）
+- [[swan_帮助与反馈页]]（OCR"帮助与反馈"，需先 swipe_up 滚动，2026-09-08 已探索）
+- [[swan_关于与升级页]]（OCR"关于与升级"，需先 swipe_up 滚动，2026-09-08 已探索）
 
 ## 反向引用
 <!-- backlinks:start -->
@@ -49,6 +51,9 @@
 | pages/swan_home_page.md | [[swan_home_page]] |
 | pages/swan_person_info_page.md | [[swan_person_info_page]] |
 | pages/swan_sound_quality_page.md | [[swan_sound_quality_page]] |
+| pages/swan_关于与升级页.md | [[swan_关于与升级页]] |
+| pages/swan_帮助与反馈页.md | [[swan_帮助与反馈页]] |
+| pages/swan_收藏分组详情页.md | [[swan_收藏分组详情页]] |
 
-_自动生成于 2026-09-08 15:00_
+_自动生成于 2026-09-08 19:51_
 <!-- backlinks:end -->

@@ -71,6 +71,7 @@
 | pages/swan_me_page.md | [[swan_me_page]] |
 | pages/swan_platform_page.md | [[swan_platform_page]] |
 | pages/swan_player_page.md | [[swan_player_page]] |
+| pages/swan_收藏分组详情页.md | [[swan_收藏分组详情页]] |
 
-_自动生成于 2026-09-08 15:00_
+_自动生成于 2026-09-08 19:51_
 <!-- backlinks:end -->

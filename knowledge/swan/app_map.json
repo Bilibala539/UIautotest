@@ -12,7 +12,7 @@
     },
     "last_updated": "2026-09-08",
     "locator_policy": "accessibility key > OCR 文本 > 图像模板（禁止坐标）",
-    "notes": "本知识库从零开始，所有页面事实必须由真机探索或测试实际验证后写入，禁止猜测。2026-09-08 首版 11 页已由 explorer+verify 双重验证转正。",
+    "notes": "本知识库从零开始，所有页面事实必须由真机探索或测试实际验证后写入，禁止猜测。2026-09-08 首版 11 页已由 explorer+verify 双重验证转正；同日 enrich-kb 批次新增 4 个 draft（收藏分组详情/密码登入/帮助与反馈/关于与升级）。",
     "reader_entry": "digest/中文索引.md"
   },
   "pages": {
@@ -81,6 +81,30 @@
       "status": "page",
       "doc": "pages/swan_sound_quality_page.md",
       "summary": "我的页底部弹层，流畅/标准/HQ/SQ 四档单选 + 完成；无 key，未改档位"
+    },
+    "swan_收藏分组详情页": {
+      "title": "收藏分组详情页",
+      "status": "page",
+      "doc": "pages/swan_收藏分组详情页.md",
+      "summary": "收藏页点分组行进入：分组头/播放全部(⛔)/来源筛选tab/空态；无 key，press_back 返回"
+    },
+    "swan_密码登入页": {
+      "title": "密码登入页",
+      "status": "page",
+      "doc": "pages/swan_密码登入页.md",
+      "summary": "登录页右上角切换进入；login_password_field 实测存在，反向入口 login_use_sms_button；⛔ 不输入不提交"
+    },
+    "swan_帮助与反馈页": {
+      "title": "帮助与反馈页",
+      "status": "page",
+      "doc": "pages/swan_帮助与反馈页.md",
+      "summary": "我的页滚动后进入：可适配音箱型号/使用说明/用户反馈/常见问题 4 行；无 key"
+    },
+    "swan_关于与升级页": {
+      "title": "关于与升级页",
+      "status": "page",
+      "doc": "pages/swan_关于与升级页.md",
+      "summary": "我的页滚动后进入：关于我们/使用政策/隐私政策协议/软件升级(版本5.3.0 build 32)；无 key"
     }
   },
   "elements": {
@@ -88,46 +112,66 @@
       "verified_at": "2026-09-08",
       "verifier": "aw-verify 真机验证（serial c0614b6a，OpenCV threshold 0.8，全部 score=1.00）",
       "note": "18 张元素图全部通过并转正到 image/flutter/；常量见 image/image_name_mapping.py（正式路径）",
-      "swan_home_page": ["swan_bottom_player_bar.png"],
+      "swan_home_page": [
+        "swan_bottom_player_bar.png"
+      ],
       "swan_me_page": [
         "swan_me_family_manage_row.png",
         "swan_me_favorites_row.png",
         "swan_me_device_manage_row.png",
         "swan_me_sound_quality_row.png"
       ],
-      "swan_family_manage_page": ["swan_family_add_member_icon.png"],
+      "swan_family_manage_page": [
+        "swan_family_add_member_icon.png"
+      ],
       "swan_favorites_page": [
         "swan_fav_family_group_row.png",
         "swan_fav_music_group_row.png",
         "swan_fav_add_playlist_button.png"
       ],
-      "swan_sound_quality_page": ["swan_sound_quality_done_button.png"],
+      "swan_sound_quality_page": [
+        "swan_sound_quality_done_button.png"
+      ],
       "swan_login_sms_page": [
         "swan_login_privacy_policy_link.png",
         "swan_login_usage_policy_link.png",
         "swan_login_submit_btn.png"
       ],
-      "swan_login_code_page": ["swan_login_code_field_box.png"],
+      "swan_login_code_page": [
+        "swan_login_code_field_box.png"
+      ],
       "swan_player_page": [
         "swan_player_play_pause_btn.png",
         "swan_player_dismiss_btn.png"
       ],
-      "swan_device_page": ["swan_device_add_btn.png"],
-      "swan_platform_page": ["swan_platform_netease_row.png"]
+      "swan_device_page": [
+        "swan_device_add_btn.png"
+      ],
+      "swan_platform_page": [
+        "swan_platform_netease_row.png"
+      ]
     }
   },
   "transitions": {
     "swan_login_sms_page": [
       {
-        "to": "swan_login_password_page",
-        "action": "click login_use_password_button",
+        "to": "swan_密码登入页",
+        "action": "click login_use_password_button（右上角密码登入）",
         "type": "切换",
-        "status": "pending"
+        "status": "verified"
       },
       {
         "to": "swan_login_code_page",
         "action": "输入手机号+勾选协议后 click login_submit_button（下一步）",
         "type": "推进",
+        "status": "verified"
+      }
+    ],
+    "swan_密码登入页": [
+      {
+        "to": "swan_login_sms_page",
+        "action": "click login_use_sms_button（右上角验证码登入，实测切回）",
+        "type": "切换",
         "status": "verified"
       }
     ],
@@ -261,6 +305,34 @@
         "action": "click_text 音质设置（底部弹层）",
         "type": "弹层",
         "status": "verified"
+      },
+      {
+        "to": "swan_帮助与反馈页",
+        "action": "swipe_up x2 后 click_text 帮助与反馈（不滚动则被 bottom_player 遮挡）",
+        "type": "推进",
+        "status": "verified"
+      },
+      {
+        "to": "swan_关于与升级页",
+        "action": "swipe_up x2 后 click_text 关于与升级（不滚动则被 bottom_player 遮挡）",
+        "type": "推进",
+        "status": "verified"
+      }
+    ],
+    "swan_帮助与反馈页": [
+      {
+        "to": "swan_me_page",
+        "action": "press_back（实测可用）",
+        "type": "返回",
+        "status": "verified"
+      }
+    ],
+    "swan_关于与升级页": [
+      {
+        "to": "swan_me_page",
+        "action": "press_back（实测可用）",
+        "type": "返回",
+        "status": "verified"
       }
     ],
     "swan_family_manage_page": [
@@ -273,8 +345,22 @@
     ],
     "swan_favorites_page": [
       {
+        "to": "swan_收藏分组详情页",
+        "action": "click_text 我的家庭（分组行）",
+        "type": "推进",
+        "status": "verified"
+      },
+      {
         "to": "swan_me_page",
         "action": "press_key('escape')",
+        "type": "返回",
+        "status": "verified"
+      }
+    ],
+    "swan_收藏分组详情页": [
+      {
+        "to": "swan_favorites_page",
+        "action": "press_back（实测一次即回收藏页）",
         "type": "返回",
         "status": "verified"
       }

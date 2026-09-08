@@ -59,7 +59,7 @@ Swan（com.swan.network v5.3.0）启动后的默认落地页。手机号 + 验�
 
 ## 关联
 
-- [[swan_login_password_page]]（密码登入切换后）
+- [[swan_密码登入页]]（click login_use_password_button 切换，2026-09-08 已探索；反向 login_use_sms_button 切回）
 - [[swan_login_code_page]]（输手机号点下一步后，待探索）
 - [[swan_home_page]]（登录成功后，待探索）
 
@@ -70,6 +70,7 @@ Swan（com.swan.network v5.3.0）启动后的默认落地页。手机号 + 验�
 |---------|--------|
 | pages/swan_login_code_page.md | [[swan_login_code_page]] |
 | pages/swan_person_info_page.md | [[swan_person_info_page]] |
+| pages/swan_密码登入页.md | [[swan_密码登入页]] |
 
-_自动生成于 2026-09-08 15:00_
+_自动生成于 2026-09-08 19:51_
 <!-- backlinks:end -->

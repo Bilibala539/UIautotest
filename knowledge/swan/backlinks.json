@@ -1,9 +1,9 @@
 {
-  "generated_at": "2026-09-08T15:00:37.820074",
+  "generated_at": "2026-09-08T19:51:52.034046",
   "stats": {
-    "source_files": 11,
-    "total_links": 24,
-    "target_pages": 12
+    "source_files": 16,
+    "total_links": 34,
+    "target_pages": 16
   },
   "forward_index": {
     "pages/swan_device_page.md": [
@@ -13,30 +13,33 @@
       "swan_me_page"
     ],
     "pages/swan_favorites_page.md": [
+      "swan_home_page",
       "swan_me_page",
-      "swan_home_page"
+      "swan_收藏分组详情页"
     ],
     "pages/swan_home_page.md": [
       "swan_platform_page",
-      "swan_player_page",
       "swan_device_page",
-      "swan_login_code_page",
-      "swan_me_page"
+      "swan_player_page",
+      "swan_me_page",
+      "swan_login_code_page"
     ],
     "pages/swan_login_code_page.md": [
       "swan_login_sms_page",
       "swan_home_page"
     ],
     "pages/swan_login_sms_page.md": [
-      "swan_login_code_page",
-      "swan_login_password_page",
-      "swan_home_page"
+      "swan_密码登入页",
+      "swan_home_page",
+      "swan_login_code_page"
     ],
     "pages/swan_me_page.md": [
-      "swan_sound_quality_page",
-      "swan_person_info_page",
       "swan_home_page",
+      "swan_person_info_page",
+      "swan_sound_quality_page",
       "swan_favorites_page",
+      "swan_关于与升级页",
+      "swan_帮助与反馈页",
       "swan_family_manage_page"
     ],
     "pages/swan_person_info_page.md": [
@@ -51,6 +54,23 @@
     ],
     "pages/swan_sound_quality_page.md": [
       "swan_me_page"
+    ],
+    "pages/swan_关于与升级页.md": [
+      "swan_me_page"
+    ],
+    "pages/swan_密码登入页.md": [
+      "swan_login_sms_page"
+    ],
+    "pages/swan_帮助与反馈页.md": [
+      "swan_me_page"
+    ],
+    "pages/swan_收藏分组详情页.md": [
+      "swan_favorites_page",
+      "swan_home_page",
+      "swan_me_page"
+    ],
+    "digest/中文索引.md": [
+      "双向链接"
     ]
   },
   "backlinks": {
@@ -89,6 +109,11 @@
         "source": "pages/swan_player_page.md",
         "source_id": "swan_player_page",
         "raw_link": "swan_home_page"
+      },
+      {
+        "source": "pages/swan_收藏分组详情页.md",
+        "source_id": "swan_收藏分组详情页",
+        "raw_link": "swan_home_page"
       }
     ],
     "swan_me_page": [
@@ -116,6 +141,28 @@
         "source": "pages/swan_sound_quality_page.md",
         "source_id": "swan_sound_quality_page",
         "raw_link": "swan_me_page"
+      },
+      {
+        "source": "pages/swan_关于与升级页.md",
+        "source_id": "swan_关于与升级页",
+        "raw_link": "swan_me_page"
+      },
+      {
+        "source": "pages/swan_帮助与反馈页.md",
+        "source_id": "swan_帮助与反馈页",
+        "raw_link": "swan_me_page"
+      },
+      {
+        "source": "pages/swan_收藏分组详情页.md",
+        "source_id": "swan_收藏分组详情页",
+        "raw_link": "swan_me_page"
+      }
+    ],
+    "swan_收藏分组详情页": [
+      {
+        "source": "pages/swan_favorites_page.md",
+        "source_id": "swan_favorites_page",
+        "raw_link": "swan_收藏分组详情页"
       }
     ],
     "swan_platform_page": [
@@ -125,18 +172,18 @@
         "raw_link": "swan_platform_page"
       }
     ],
-    "swan_player_page": [
-      {
-        "source": "pages/swan_home_page.md",
-        "source_id": "swan_home_page",
-        "raw_link": "swan_player_page"
-      }
-    ],
     "swan_device_page": [
       {
         "source": "pages/swan_home_page.md",
         "source_id": "swan_home_page",
         "raw_link": "swan_device_page"
+      }
+    ],
+    "swan_player_page": [
+      {
+        "source": "pages/swan_home_page.md",
+        "source_id": "swan_home_page",
+        "raw_link": "swan_player_page"
       }
     ],
     "swan_login_code_page": [
@@ -161,20 +208,18 @@
         "source": "pages/swan_person_info_page.md",
         "source_id": "swan_person_info_page",
         "raw_link": "swan_login_sms_page"
+      },
+      {
+        "source": "pages/swan_密码登入页.md",
+        "source_id": "swan_密码登入页",
+        "raw_link": "swan_login_sms_page"
       }
     ],
-    "swan_login_password_page": [
+    "swan_密码登入页": [
       {
         "source": "pages/swan_login_sms_page.md",
         "source_id": "swan_login_sms_page",
-        "raw_link": "swan_login_password_page"
-      }
-    ],
-    "swan_sound_quality_page": [
-      {
-        "source": "pages/swan_me_page.md",
-        "source_id": "swan_me_page",
-        "raw_link": "swan_sound_quality_page"
+        "raw_link": "swan_密码登入页"
       }
     ],
     "swan_person_info_page": [
@@ -184,11 +229,37 @@
         "raw_link": "swan_person_info_page"
       }
     ],
+    "swan_sound_quality_page": [
+      {
+        "source": "pages/swan_me_page.md",
+        "source_id": "swan_me_page",
+        "raw_link": "swan_sound_quality_page"
+      }
+    ],
     "swan_favorites_page": [
       {
         "source": "pages/swan_me_page.md",
         "source_id": "swan_me_page",
         "raw_link": "swan_favorites_page"
+      },
+      {
+        "source": "pages/swan_收藏分组详情页.md",
+        "source_id": "swan_收藏分组详情页",
+        "raw_link": "swan_favorites_page"
+      }
+    ],
+    "swan_关于与升级页": [
+      {
+        "source": "pages/swan_me_page.md",
+        "source_id": "swan_me_page",
+        "raw_link": "swan_关于与升级页"
+      }
+    ],
+    "swan_帮助与反馈页": [
+      {
+        "source": "pages/swan_me_page.md",
+        "source_id": "swan_me_page",
+        "raw_link": "swan_帮助与反馈页"
       }
     ],
     "swan_family_manage_page": [
@@ -196,6 +267,13 @@
         "source": "pages/swan_me_page.md",
         "source_id": "swan_me_page",
         "raw_link": "swan_family_manage_page"
+      }
+    ],
+    "双向链接": [
+      {
+        "source": "digest/中文索引.md",
+        "source_id": "中文索引",
+        "raw_link": "双向链接"
       }
     ]
   }

@@ -26,8 +26,8 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
     KEY_THIRD_WECHAT_BUTTON = "login_third_party_wechat_button"  # ✅
     KEY_THIRD_WEIBO_BUTTON = "login_third_party_weibo_button"    # ✅
     KEY_CODE_FIELD = "login_code_field"                  # ✅ 验证码输入页（4 位，填满自动提交）
-    # ⚠️ 尚未实机验证（需走到密码登入页后按 dump 修正）
-    KEY_PASSWORD_FIELD = "login_password_field"
+    KEY_USE_SMS_BUTTON = "login_use_sms_button"          # ✅ 密码页右上角"验证码登入"（与 use_password 互斥）
+    KEY_PASSWORD_FIELD = "login_password_field"          # ✅ 2026-09-08 密码页 dump 实测
 
     # 首页 accessibility key（✅ 2026-09-08 真机验证）
     KEY_TAB_RECOMMEND = "tab_recommend"                  # 首页

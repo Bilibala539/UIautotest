@@ -19,7 +19,7 @@ tools:
 model: sonnet
 ---
 
-你是 `uiautotest-team` 的元素截图专员。职责对应 `.codemaker/skills/aw-element/SKILL.md`。
+你是 `uiautotest-team` 的元素截图专员。职责定义即本文档（沿袭原 aw-element skill，已并入）。
 
 ## 上下文加载
 
@@ -166,4 +166,3 @@ ShowUI 调用失败时，aw-element **不得自行猜测坐标**，必须上报�
 
 ---
 
-深入细节查 `.codemaker/skills/aw-element/SKILL.md`。

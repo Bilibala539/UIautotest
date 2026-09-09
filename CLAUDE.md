@@ -14,7 +14,7 @@
 | Swan（音乐 App） | Flutter (Android) | `SwanUser` | `SwanBusiness` | `knowledge/swan/` |
 | 智能音箱显示屏系统（名称待定） | Android | `AndroidUser` | `AndroidBusiness` | `knowledge/android/` |
 
-架构细则见 `docs/aw-architecture.html`、`.codemaker/rules/aw_architecture.mdc`；各项目 agent 编排见 `docs/agents/<project>/`。
+架构细则见 `docs/aw-architecture.html`、`.claude/rules/aw_architecture.mdc`；各项目 agent 编排见 `docs/agents/<project>/`。
 
 ## 关键路径速查
 
@@ -44,8 +44,7 @@
 | `docs/待办与缺口清单.md` | **当前权威 plan**：已拍板决定 + 文档/环境缺口，开工前必读 |
 | `docs/runtime_experience.md` | 运行时经验知识库（子 Agent 执行经验沉淀，供语义检索注入） |
 | `run_parallel.py` | 并行测试运行器入口 |
-| `.codemaker/rules/` | 项目硬性规则（ai_workflow / aw_architecture / rules） |
-| `.codemaker/skills/` | 4 把 aw-* skill 原始定义 |
+| `.claude/rules/` | 项目硬性规则（ai_workflow / aw_architecture / rules） |
 | `openspec/changes/` | 开放提案 |
 | `openspec/specs/` | 已归档的能力规范 |
 

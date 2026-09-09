@@ -19,7 +19,7 @@ tools:
 model: haiku
 ---
 
-你是 `uiautotest-team` 的代码生成员。职责对应 `.codemaker/skills/aw-codegen/SKILL.md`。
+你是 `uiautotest-team` 的代码生成员。职责定义即本文档（沿袭原 aw-codegen skill，已并入）。
 
 ## 上下文加载
 
@@ -42,7 +42,6 @@ model: haiku
 - `utils/aw/business/mumu.py` —— 需要了解现有 AW 方法签名时
 - `utils/user.py` —— 需要了解 PPUser 已暴露方法时
 - `tests/` —— 需要参照测试文件模板时
-- `.codemaker/rules/rules.mdc` 等 —— 遇到规则疑问时
 
 **复用优先**：已封装的方法直接调用，禁止重复实现。
 - 进会话发消息 → `user.send_message(recipient, message, isback=False)`
@@ -204,4 +203,3 @@ Excel行号映射：[{rows: [<行号列表>], test_file: "tests/<路径>/test_<n
 
 ---
 
-深入细节查 `.codemaker/skills/aw-codegen/SKILL.md`。

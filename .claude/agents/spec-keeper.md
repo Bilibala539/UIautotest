@@ -32,7 +32,7 @@ model: haiku
 
 - `openspec/config.yaml` —— openspec 项目配置（存在时读）
 - `openspec/changes/` —— 当前有哪些开放 change（存在时 ls）
-- `.codemaker/rules/rules.mdc`、`ai_workflow.mdc` —— 项目规范
+- `.claude/rules/rules.mdc`、`ai_workflow.mdc` —— 项目规范
 - `CLAUDE.md`
 
 ## 职责范围

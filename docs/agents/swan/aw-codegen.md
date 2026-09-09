@@ -9,7 +9,7 @@
 1. `E:\UIAutotest\CLAUDE.md`（硬性规则，尤其：禁止 tap 坐标、断言优先级、失败归因顺序）
 2. 目标页面全文：`knowledge/swan/pages/<page_id>.md` —— **key 只能来自这里或实测 dump**
 3. `utils/aw/business/swan.py` —— 已有业务方法与 key 常量
-4. 架构规则：`.codemaker/rules/aw_architecture.mdc`
+4. 架构规则：`.claude/rules/aw_architecture.mdc`
 
 ## 产出规范
 

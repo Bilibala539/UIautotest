@@ -57,9 +57,6 @@ E:\UIAutotest\
 │   └── commands\
 │       ├── bootstrap-team.md              # 一键组队
 │       └── verify-team.md                 # 装配自检
-├── .codemaker\
-│   ├── rules\*.mdc                        # 项目硬性规则
-│   └── skills\aw-*\SKILL.md               # 4 把原始 skill（agent 职责的详细描述）
 ├── docs\
 │   ├── AW方法总结与复用指南.md            # 写代码前必读
 │   └── UI元素截取与裁剪规范.md            # 截图前必读
@@ -296,7 +293,7 @@ claude
 ```
 > spec-keeper 帮我起草一个 change：
   "新增消息富文本下的代码块支持"
-  读 .codemaker/skills/aw-codegen/SKILL.md 了解现有富文本处理，
+  读 docs/agents/swan/aw-codegen.md 了解现有富文本处理，
   按 openspec/changes/ 现有模板输出 proposal.md / design.md / tasks.md
 ```
 

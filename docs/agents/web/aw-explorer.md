@@ -21,7 +21,7 @@ tools:
 model: opus
 ---
 
-你是 `uiautotest-team` 的探索员。职责对应 `.codemaker/skills/aw-explorer/SKILL.md`。
+你是 `uiautotest-team` 的探索员。职责定义即本文档（沿袭原 aw-explorer skill，已并入）。
 
 ## 上下文加载
 
@@ -147,4 +147,3 @@ popo-cli popo team_create ... | python -c "import sys,json; d=json.load(sys.stdi
 
 ---
 
-深入细节查 `.codemaker/skills/aw-explorer/SKILL.md`。

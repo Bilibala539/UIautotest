@@ -20,7 +20,7 @@ tools:
 model: haiku
 ---
 
-你是 `uiautotest-team` 的验证员。职责对应 `.codemaker/skills/aw-verify/SKILL.md`。
+你是 `uiautotest-team` 的验证员。职责定义即本文档（沿袭原 aw-verify skill，已并入）。
 
 ## 上下文加载
 
@@ -35,7 +35,6 @@ model: haiku
 > ```
 
 ### 按需（遇到以下情况才读）
-- `.codemaker/skills/aw-verify/SKILL.md` —— 排查流程细节疑问时
 
 ### 知识库工具（验证后转正草稿时使用）
 - `python scripts/knowledge/promote_knowledge.py` —— 验证 draft/*.md 并转正到 pages/
@@ -361,4 +360,3 @@ https://docs.popo.netease.com/lingxi/687269dff0f3471a8a471f172385adaf
 
 ---
 
-深入细节查 `.codemaker/skills/aw-verify/SKILL.md`。

@@ -12,9 +12,7 @@
 | `.claude/agents/*.md` | 6 | 6 个 agent 角色蓝图（aw-orchestrator / aw-explorer / aw-element / aw-codegen / aw-verify / spec-keeper） |
 | `.claude/commands/*.md` | 2 | 自定义命令 `/bootstrap-team` 和 `/verify-team` |
 | `.claude/README.md` | 1 | 团队接入指南（人 + AI 都看） |
-| `.codemaker/rules/*.mdc` | 3 | 项目硬性规则集（rules / ai_workflow / aw_architecture） |
-| `.codemaker/skills/**/SKILL.md` | 4 | 4 个 skill 的详细操作手册 |
-| `.codemaker/readme.md` | 1 | `.codemaker/` 目录说明 |
+| `.claude/rules/*.mdc` | 3 | 项目硬性规则集（rules / ai_workflow / aw_architecture） |
 | `docs/AW方法总结与复用指南.md` | 1 | AW 复用清单（agent 强制前置阅读） |
 | `docs/UI元素截取与裁剪规范.md` | 1 | 截图规范（agent 强制前置阅读） |
 | `openspec/config.yaml` | 1 | openspec 配置 |
@@ -100,7 +98,7 @@ unzip -o agent-teams-config.zip -d /path/to/UIAutotest
 - **覆盖**（推荐）：用包内版本覆盖。这套配置是协同维护的，应该保持各机器一致
 - **保留**：跳过冲突文件，但要警告用户可能导致 agent 行为不一致
 
-如果工程里 `.claude/agents/`、`.codemaker/rules/`、`.codemaker/skills/` 不存在，直接创建并写入。
+如果工程里 `.claude/agents/`、`.claude/rules/` 不存在，直接创建并写入。
 
 #### Step 4：核对前置依赖
 
@@ -176,7 +174,7 @@ claude
 - 配置版本：与压缩包生成时的 git 工作树一致
 - 适配 Claude Code：2.0+
 - 团队结构：6-agent（orchestrator + 4 aw + 1 spec-keeper）
-- 维护方式：源仓库内的 `.claude/`、`.codemaker/`、`CLAUDE.md` 是 source of truth，修改后请重新打包分发
+- 维护方式：源仓库内的 `.claude/`、`CLAUDE.md` 是 source of truth，修改后请重新打包分发
 
 ---
 
@@ -195,14 +193,9 @@ CLAUDE.md
 .claude/agents/spec-keeper.md
 .claude/commands/bootstrap-team.md
 .claude/commands/verify-team.md
-.codemaker/readme.md
-.codemaker/rules/ai_workflow.mdc
-.codemaker/rules/aw_architecture.mdc
-.codemaker/rules/rules.mdc
-.codemaker/skills/aw-codegen/SKILL.md
-.codemaker/skills/aw-element/SKILL.md
-.codemaker/skills/aw-explorer/SKILL.md
-.codemaker/skills/aw-verify/SKILL.md
+.claude/rules/ai_workflow.mdc
+.claude/rules/aw_architecture.mdc
+.claude/rules/rules.mdc
 docs/AW方法总结与复用指南.md
 docs/UI元素截取与裁剪规范.md
 openspec/config.yaml

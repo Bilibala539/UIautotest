@@ -28,6 +28,7 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
     KEY_CODE_FIELD = "login_code_field"                  # ✅ 验证码输入页（4 位，填满自动提交）
     KEY_USE_SMS_BUTTON = "login_use_sms_button"          # ✅ 密码页右上角"验证码登入"（与 use_password 互斥）
     KEY_PASSWORD_FIELD = "login_password_field"          # ✅ 2026-09-08 密码页 dump 实测
+    KEY_ERROR_TEXT = "login_error_text"                  # ✅ 2026-09-08 密码登录失败提示（content-desc"密码错误，请重新输入！"）
 
     # 首页 accessibility key（✅ 2026-09-08 真机验证）
     KEY_TAB_RECOMMEND = "tab_recommend"                  # 首页
@@ -80,12 +81,34 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         return found
 
     def login_with_password(self, phone: str, password: str) -> None:
-        """密码登录，从任意初始状态开始，最终停在首页。"""
+        """密码登录（2026-09-08 真机实测流程），最终停在首页。
+
+        实测流程（真机 c0614b6a 验证通过）：
+        1. 若当前不在密码形态（无 login_password_field），点 login_use_password_button
+           从验证码形态切入（密码页与验证码页同根 login_page，右上角互切）
+        2. 点 login_phone_field → input_text 手机号（ASCII，adb input 直输可用）
+        3. 点 login_password_field → input_text 密码
+        4. press_back 收软键盘（实测只收键盘，不会像验证码输入页那样退出 App），
+           否则键盘遮挡提交按钮
+        5. 勾选 login_agreement_checkbox → 点 login_submit_button（文案"登录"，
+           与验证码页"下一步"同 key 不同形态；未填满/未勾协议时置灰不可点）
+        6. 等 tab_me 判进首页
+
+        前提：协议勾选框处于未勾选态（登出后的全新登录页即如此）。登录页表单
+        状态（已填文本/勾选态）在登出后会残留，若从"提交失败后的表单"直接重试，
+        应先重启 App 重置表单（见 test_swan_password_login.py 收尾处理）。
+        登录成功会顶掉本机旧会话（单点登录），属正常现象。
+        """
         if not self.accessibility_exists(self.KEY_PASSWORD_FIELD):
             self.click_accessibility(self.KEY_USE_PASSWORD_BUTTON)
+            assert self.wait_accessibility(
+                self.KEY_PASSWORD_FIELD, timeout=10
+            ), "切到密码登录形态失败（login_password_field 未出现）"
         self.click_accessibility(self.KEY_PHONE_FIELD)
+        self.clear_input()  # 防表单残留：先清空再输入
         self.input_text(phone)
         self.click_accessibility(self.KEY_PASSWORD_FIELD)
+        self.clear_input()
         self.input_text(password)
         self.press_back()
         self.click_accessibility(self.KEY_AGREEMENT)
@@ -97,12 +120,15 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
 
         实测（2026-09-08）：点"下一步"后 App 自动发送验证码并跳到验证码输入页，
         没有"获取验证码"按钮；验证码 4 位，填满第 4 位自动提交进首页。
+        前提：协议勾选框未勾选（全新登录页默认态，方法内会点一次勾上）；
+        若从勾选过的残留表单进入，调用方须先重启 App 重置表单。
         """
         # 已在首页视为已登录
         if self.accessibility_exists(self.KEY_TAB_ME):
             logger.info("已在首页，跳过登录")
             return
         self.click_accessibility(self.KEY_PHONE_FIELD)
+        self.clear_input()  # 防表单残留：先清空再输入
         self.input_text(phone)
         self.click_accessibility(self.KEY_AGREEMENT)
         # 下一步触发验证码发送，之后网关才能从开发接口取到本次验证码

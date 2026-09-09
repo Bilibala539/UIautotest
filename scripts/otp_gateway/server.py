@@ -536,6 +536,14 @@ class OtpGateway(ThreadingHTTPServer):
 <script>
 const items = document.getElementById('items');
 function cell(value) { const element = document.createElement('td'); element.textContent = value || ''; return element; }
+function formatTime(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (isNaN(date.getTime())) return value;
+  const pad = (n) => String(n).padStart(2, '0');
+  return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate()) + ' ' + pad(date.getHours()) + ':' + pad(date.getMinutes()) + ':' + pad(date.getSeconds());
+}
+function timeCell(value) { const element = cell(formatTime(value)); element.title = value || ''; return element; }
 async function refresh() {
   try {
     const response = await fetch('/api/test/otp/recent?limit=100', { cache: 'no-store' });
@@ -554,7 +562,7 @@ async function refresh() {
       const codeElement = document.createElement('code');
       codeElement.textContent = item.code;
       codeCell.appendChild(codeElement);
-      row.append(cell(item.phone), codeCell, cell(item.createdAt), cell(item.expireAt), cell(item.requestId), cell(item.status));
+      row.append(cell(item.phone), codeCell, timeCell(item.createdAt), timeCell(item.expireAt), cell(item.requestId), cell(item.status));
       items.appendChild(row);
     }
   } catch (error) {

@@ -1,6 +1,6 @@
-# swan_person_info_page（个人信息修改）
+# swan_个人信息页（个人信息修改）
 
-> 状态：draft（2026-09-08 真机 dump 验证，待 verify 走通后转正）
+> 状态：page（2026-09-08 真机 dump + verify 复验转正）
 
 ## 页面概述
 
@@ -29,15 +29,15 @@
 
 ## 关联
 
-- [[swan_me_page]]（上一级）
-- [[swan_login_sms_page]]（登出后落地）
+- [[swan_我的页]]（上一级）
+- [[swan_验证码登录页]]（登出后落地）
 
 ## 反向引用
 <!-- backlinks:start -->
 
 | 引用来源 | 页面ID |
 |---------|--------|
-| pages/swan_me_page.md | [[swan_me_page]] |
+| pages/swan_我的页.md | [[swan_我的页]] |
 
-_自动生成于 2026-09-08 19:51_
+_自动生成于 2026-09-09 08:29_
 <!-- backlinks:end -->

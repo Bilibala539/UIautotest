@@ -1,7 +1,7 @@
-# swan_device_page（设备）
+# swan_设备页
 
-> 状态：draft（2026-09-08 真机 dump + OCR 验证）
-> 数据来源：登录态下首页点 tab_device 实机 dump；截图 explorer_output/screenshots/swan/swan_device_page
+> 状态：page（2026-09-08 真机 dump + OCR + verify 复验转正）
+> 数据来源：登录态下首页点 tab_device 实机 dump；截图 explorer_output/screenshots/swan/swan_设备页
 
 ## 页面概述
 
@@ -41,11 +41,11 @@
 | 扬声器 卡片（"本机"分类下） | ✅ | 本机虚拟卡片 |
 
 
-### 元素截图（image_ai/flutter 草稿，2026-09-08 aw-element 采集，待 verify 转正）
+### 元素截图（image/flutter，2026-09-08 aw-element 采集 + verify 复验转正）
 
 | 元素 | 常量（image/image_name_mapping.py） | 图片文件 |
 |---|---|---|
-| 右上角「添加设备」图标 | `SWAN_DEVICE_ADD_BTN` | image_ai/flutter/swan_device_add_btn.png |
+| 右上角「添加设备」图标 | `SWAN_DEVICE_ADD_BTN` | image/flutter/swan_添加设备按钮.png |
 ## 页面布局
 
 ```
@@ -73,14 +73,14 @@
 
 ## 关联
 
-- [[swan_home_page]]（tab 切换）
+- [[swan_首页]]（tab 切换）
 
 ## 反向引用
 <!-- backlinks:start -->
 
 | 引用来源 | 页面ID |
 |---------|--------|
-| pages/swan_home_page.md | [[swan_home_page]] |
+| pages/swan_首页.md | [[swan_首页]] |
 
-_自动生成于 2026-09-08 19:51_
+_自动生成于 2026-09-09 08:29_
 <!-- backlinks:end -->

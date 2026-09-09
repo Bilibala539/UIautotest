@@ -1,7 +1,7 @@
-# swan_family_manage_page（家庭管理）
+# swan_家庭管理页
 
-> 状态：draft（2026-09-08 真机 dump + OCR 验证）
-> 数据来源：我的页点"家庭管理"列表项实机 dump + OCR；截图 explorer_output/screenshots/swan/swan_family_manage_page
+> 状态：page（2026-09-08 真机 dump + OCR + verify 复验转正）
+> 数据来源：我的页点"家庭管理"列表项实机 dump + OCR；截图 explorer_output/screenshots/swan/swan_家庭管理页
 
 ## 页面概述
 
@@ -27,11 +27,11 @@
 | 家庭头像/图标 [32,306][130,404] | ❌ | |
 
 
-### 元素截图（image_ai/flutter 草稿，2026-09-08 aw-element 采集，待 verify 转正）
+### 元素截图（image/flutter，2026-09-08 aw-element 采集 + verify 复验转正）
 
 | 元素 | 常量（image/image_name_mapping.py） | 图片文件 |
 |---|---|---|
-| 成员行右侧「添加成员」图标（人形+号，非右上角宫格图标） | `SWAN_FAMILY_ADD_MEMBER_ICON` | image_ai/flutter/swan_family_add_member_icon.png |
+| 成员行右侧「添加成员」图标（人形+号，非右上角宫格图标） | `SWAN_FAMILY_ADD_MEMBER_ICON` | image/flutter/swan_添加成员图标.png |
 ## 页面布局
 
 ```
@@ -52,14 +52,14 @@
 
 ## 关联
 
-- [[swan_me_page]]（列表项进入，press_back 返回）
+- [[swan_我的页]]（列表项进入，press_back 返回）
 
 ## 反向引用
 <!-- backlinks:start -->
 
 | 引用来源 | 页面ID |
 |---------|--------|
-| pages/swan_me_page.md | [[swan_me_page]] |
+| pages/swan_我的页.md | [[swan_我的页]] |
 
-_自动生成于 2026-09-08 19:51_
+_自动生成于 2026-09-09 08:29_
 <!-- backlinks:end -->

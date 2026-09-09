@@ -1,6 +1,6 @@
-# swan_home_page（首页）
+# swan_首页
 
-> 状态：draft（2026-09-08 登录成功后真机 dump，只覆盖首屏，待 explorer 补全滚动区/各 tab）
+> 状态：page（2026-09-08 登录成功后真机 dump，verify 复验转正；只覆盖首屏，滚动区/各 tab 待补）
 > 数据来源：验证码登录成功后实机 dump
 
 ## 页面概述
@@ -27,11 +27,11 @@
 我喜欢/歌单/AI 卡片、最近播放（已播歌曲/已播歌手/已播专辑）、立马授权。
 
 
-### 元素截图（image_ai/flutter 草稿，2026-09-08 aw-element 采集，待 verify 转正）
+### 元素截图（image/flutter，2026-09-08 aw-element 采集 + verify 复验转正）
 
 | 元素 | 常量（image/image_name_mapping.py） | 图片文件 |
 |---|---|---|
-| bottom_player 播放条整体（⚠️ 含当前曲目名区，曲目变化时文字区会变） | `SWAN_BOTTOM_PLAYER_BAR` | image_ai/flutter/swan_bottom_player_bar.png |
+| bottom_player 播放条整体（⚠️ 含当前曲目名区，曲目变化时文字区会变） | `SWAN_BOTTOM_PLAYER_BAR` | image/flutter/swan_底部播放条.png |
 ## 页面布局（首屏）
 
 ```
@@ -53,25 +53,25 @@
 
 ## 关联
 
-- [[swan_login_code_page]]（登录进入）
-- [[swan_player_page]]（点 bottom_player，已探索）
-- [[swan_platform_page]]（点 tab_platform，已探索）
-- [[swan_device_page]]（点 tab_device，已探索）
-- [[swan_me_page]]（点 tab_me，已探索）
+- [[swan_验证码输入页]]（登录进入）
+- [[swan_播放页]]（点 bottom_player，已探索）
+- [[swan_平台页]]（点 tab_platform，已探索）
+- [[swan_设备页]]（点 tab_device，已探索）
+- [[swan_我的页]]（点 tab_me，已探索）
 
 ## 反向引用
 <!-- backlinks:start -->
 
 | 引用来源 | 页面ID |
 |---------|--------|
-| pages/swan_device_page.md | [[swan_device_page]] |
-| pages/swan_favorites_page.md | [[swan_favorites_page]] |
-| pages/swan_login_code_page.md | [[swan_login_code_page]] |
-| pages/swan_login_sms_page.md | [[swan_login_sms_page]] |
-| pages/swan_me_page.md | [[swan_me_page]] |
-| pages/swan_platform_page.md | [[swan_platform_page]] |
-| pages/swan_player_page.md | [[swan_player_page]] |
+| pages/swan_平台页.md | [[swan_平台页]] |
+| pages/swan_我的页.md | [[swan_我的页]] |
+| pages/swan_播放页.md | [[swan_播放页]] |
 | pages/swan_收藏分组详情页.md | [[swan_收藏分组详情页]] |
+| pages/swan_收藏页.md | [[swan_收藏页]] |
+| pages/swan_设备页.md | [[swan_设备页]] |
+| pages/swan_验证码登录页.md | [[swan_验证码登录页]] |
+| pages/swan_验证码输入页.md | [[swan_验证码输入页]] |
 
-_自动生成于 2026-09-08 19:51_
+_自动生成于 2026-09-09 08:29_
 <!-- backlinks:end -->

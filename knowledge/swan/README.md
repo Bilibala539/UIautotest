@@ -10,7 +10,7 @@
 
 ## 当前状态
 
-- 状态：从零开始，尚未录入已验证页面
+- 状态：15 页已录入并转正（2026-09-08，explorer + verify 双重验证）
 - 设备：Android 真机，`ANDROID_DEVICE_SERIAL` 指定
 - 定位策略：accessibility key 优先（Flutter Semantics 暴露的 resource-id），OCR 文本次之，图像模板兜底，禁止坐标
 

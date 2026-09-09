@@ -1,8 +1,8 @@
 # swan_密码登入页
 
-> 状态：draft（2026-09-08 真机 dump + OCR 验证，explorer enrich-kb 批次）
+> 状态：page（2026-09-08 explorer 采集 + verify 复验 + codegen 密码流程实测）
 > 数据来源：验证码登录页点右上角"密码登入"实机 dump + OCR；截图 explorer_output/screenshots/swan_explore2/swan_login_password_page.png
-> ⛔ 探索时**未输入、未提交**（密码流程未批准自动化），仅页面结构与 key 采集
+> 密码输入/提交流程已于 2026-09-08 由 codegen 实测打通（正确密码登录成功、错误密码拒绝均有用例）
 
 ## 页面概述
 
@@ -11,7 +11,7 @@
 
 ## 进入方式
 
-- [[swan_login_sms_page]] 点 `login_use_password_button`（右上角"密码登入"，key 已实测）
+- [[swan_验证码登录页]] 点 `login_use_password_button`（右上角"密码登入"，key 已实测）
 
 ## 关键元素（来源：uiautomator dump）
 
@@ -24,6 +24,7 @@
 | `login_password_field` | 占位"请输入密码" | ❌（外层可点） | [70,748][542,840] |
 | `login_submit_button` | "登录" | ✅ | 置灰态；⛔ 禁止点击提交 |
 | `login_agreement_checkbox` | 协议勾选框 | ✅ | [100,996][160,1056] |
+| `login_error_text` | "密码错误，请重新输入！" | ❌ | **codegen 实测新发现**：错误提示是常驻语义节点而非 toast，可 key 断言 |
 
 无 key 元素（OCR）：密码可见性切换（眼睛图标，密码框右侧 ≈(595,794)，dump 无独立节点）；
 《隐私政策》《使用政策》链接（⛔ 授权/外部页类，勿点）。
@@ -59,22 +60,28 @@ accessibility_exists 返回 True）。`SwanBusiness.KEY_PASSWORD_FIELD` 无需�
 - 反向切换实测：click `login_use_sms_button` → 回验证码登录页（password_field 消失、use_password_button 重现）
 - 之后经 `login_by_sms('13555555555')` 重登成功，登录态已恢复
 
+## 行为要点（codegen 实测）
+
+- 密码页 `press_back` 只收键盘（不像验证码输入页会退出 App）
+- 提交失败后**表单状态残留**（已填文本 + 协议已勾选），重跑需重启 App 重置（登录页无持久化，重启回全新验证码形态）
+- 互斥形态判据：验证码页有 `login_use_password_button` 无 `login_password_field`；密码页反之
+
 ## 缺口
 
-- 密码输入/提交流程未验证（⛔ 未批准自动化）
 - `login_area_code_button` 点开后的区号列表未探索
-- 密码错误/忘记密码分支未见入口（本页无"忘记密码"）
+- 本页无"忘记密码"入口；连续多次错误密码的锁定策略未验证（自动化只试 1 次）
+- 无专属图片模板，形态断言靠 key 三重校验
 
 ## 关联
 
-- [[swan_login_sms_page]]（双向互切）
+- [[swan_验证码登录页]]（双向互切）
 
 ## 反向引用
 <!-- backlinks:start -->
 
 | 引用来源 | 页面ID |
 |---------|--------|
-| pages/swan_login_sms_page.md | [[swan_login_sms_page]] |
+| pages/swan_验证码登录页.md | [[swan_验证码登录页]] |
 
-_自动生成于 2026-09-08 19:51_
+_自动生成于 2026-09-09 08:29_
 <!-- backlinks:end -->

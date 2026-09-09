@@ -1,6 +1,6 @@
-# swan_login_code_page（验证码输入页）
+# swan_验证码输入页
 
-> 状态：draft（2026-09-08 真机 dump 验证，待 verify 走通后转正）
+> 状态：page（2026-09-08 真机 dump + verify 复验转正）
 > 数据来源：实机操作 dump（输入手机号点"下一步"后的页面）
 
 ## 页面概述
@@ -22,11 +22,11 @@
 | 重新发送(54s) | 重发倒计时（OCR 文本，无 key） | ✅ | 倒计时结束才可点 |
 
 
-### 元素截图（image_ai/flutter 草稿，2026-09-08 aw-element 采集，待 verify 转正）
+### 元素截图（image/flutter，2026-09-08 aw-element 采集 + verify 复验转正）
 
 | 元素 | 常量（image/image_name_mapping.py） | 图片文件 |
 |---|---|---|
-| 验证码输入框（4 格整体，空态） | `SWAN_LOGIN_CODE_FIELD_BOX` | image_ai/flutter/swan_login_code_field_box.png |
+| 验证码输入框（4 格整体，空态） | `SWAN_LOGIN_CODE_FIELD_BOX` | image/flutter/swan_验证码输入框.png |
 ## 行为要点
 
 - 验证码自动提交：`input_text(code)` 后无需点任何按钮，等 `tab_me` 出现即登录成功
@@ -35,16 +35,16 @@
 
 ## 关联
 
-- [[swan_login_sms_page]]（上一步）
-- [[swan_home_page]]（成功后落地）
+- [[swan_验证码登录页]]（上一步）
+- [[swan_首页]]（成功后落地）
 
 ## 反向引用
 <!-- backlinks:start -->
 
 | 引用来源 | 页面ID |
 |---------|--------|
-| pages/swan_home_page.md | [[swan_home_page]] |
-| pages/swan_login_sms_page.md | [[swan_login_sms_page]] |
+| pages/swan_首页.md | [[swan_首页]] |
+| pages/swan_验证码登录页.md | [[swan_验证码登录页]] |
 
-_自动生成于 2026-09-08 19:51_
+_自动生成于 2026-09-09 08:29_
 <!-- backlinks:end -->

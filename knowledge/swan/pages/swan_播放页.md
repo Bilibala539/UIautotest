@@ -1,7 +1,7 @@
-# swan_player_page（播放页）
+# swan_播放页
 
 > 状态：draft（2026-09-08 真机 dump + OCR 验证，仅进入观察，未操作播放控制）
-> 数据来源：首页点 bottom_player 实机 dump；截图 explorer_output/screenshots/swan/swan_player_page
+> 数据来源：首页点 bottom_player 实机 dump；截图 explorer_output/screenshots/swan/swan_播放页
 
 ## 页面概述
 
@@ -36,12 +36,12 @@
 底部两个无 key 节点 [336,1479][384,1527] / [501,1479][549,1527]（疑音量滑轨端点）。
 
 
-### 元素截图（image_ai/flutter 草稿，2026-09-08 aw-element 采集，待 verify 转正）
+### 元素截图（image/flutter，2026-09-08 aw-element 采集 + verify 复验转正）
 
 | 元素 | 常量（image/image_name_mapping.py） | 图片文件 |
 |---|---|---|
-| 播放/暂停圆钮（无播放任务时的 ▶ 态） | `SWAN_PLAYER_PLAY_PAUSE_BTN` | image_ai/flutter/swan_player_play_pause_btn.png |
-| 左上角收起按钮 | `SWAN_PLAYER_DISMISS_BTN` | image_ai/flutter/swan_player_dismiss_btn.png |
+| 播放/暂停圆钮（无播放任务时的 ▶ 态） | `SWAN_PLAYER_PLAY_PAUSE_BTN` | image/flutter/swan_播放页_播放暂停按钮.png |
+| 左上角收起按钮 | `SWAN_PLAYER_DISMISS_BTN` | image/flutter/swan_播放页_收起按钮.png |
 ## 页面布局
 
 ```
@@ -64,14 +64,14 @@
 
 ## 关联
 
-- [[swan_home_page]]（bottom_player 进入，player_dismiss_button 返回）
+- [[swan_首页]]（bottom_player 进入，player_dismiss_button 返回）
 
 ## 反向引用
 <!-- backlinks:start -->
 
 | 引用来源 | 页面ID |
 |---------|--------|
-| pages/swan_home_page.md | [[swan_home_page]] |
+| pages/swan_首页.md | [[swan_首页]] |
 
-_自动生成于 2026-09-08 19:51_
+_自动生成于 2026-09-09 08:29_
 <!-- backlinks:end -->

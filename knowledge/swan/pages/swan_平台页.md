@@ -1,7 +1,7 @@
-# swan_platform_page（平台）
+# swan_平台页
 
-> 状态：draft（2026-09-08 真机 dump + OCR 验证）
-> 数据来源：登录态下首页点 tab_platform 实机 dump；截图 explorer_output/screenshots/swan/swan_platform_page
+> 状态：page（2026-09-08 真机 dump + OCR + verify 复验转正）
+> 数据来源：登录态下首页点 tab_platform 实机 dump；截图 explorer_output/screenshots/swan/swan_平台页
 
 ## 页面概述
 
@@ -32,11 +32,11 @@
 | QQ音乐/Spotify/网易云音乐/酷狗音乐/Apple Music/Qobuz 行 | ✅ | 各行右侧有一个"+"图标按钮（OCR 识别为 +/?，无 key，推测为授权/添加入口，未点） |
 
 
-### 元素截图（image_ai/flutter 草稿，2026-09-08 aw-element 采集，待 verify 转正）
+### 元素截图（image/flutter，2026-09-08 aw-element 采集 + verify 复验转正）
 
 | 元素 | 常量（image/image_name_mapping.py） | 图片文件 |
 |---|---|---|
-| 网易云音乐授权行（整行卡片，⚠️ 含「未授权」状态文字，授权后该行文案会变） | `SWAN_PLATFORM_NETEASE_ROW` | image_ai/flutter/swan_platform_netease_row.png |
+| 网易云音乐授权行（整行卡片，⚠️ 含「未授权」状态文字，授权后该行文案会变） | `SWAN_PLATFORM_NETEASE_ROW` | image/flutter/swan_平台_网易云音乐行.png |
 ## 页面布局
 
 ```
@@ -65,14 +65,14 @@
 
 ## 关联
 
-- [[swan_home_page]]（tab 切换）
+- [[swan_首页]]（tab 切换）
 
 ## 反向引用
 <!-- backlinks:start -->
 
 | 引用来源 | 页面ID |
 |---------|--------|
-| pages/swan_home_page.md | [[swan_home_page]] |
+| pages/swan_首页.md | [[swan_首页]] |
 
-_自动生成于 2026-09-08 19:51_
+_自动生成于 2026-09-09 08:29_
 <!-- backlinks:end -->

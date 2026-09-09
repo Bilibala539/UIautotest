@@ -1,7 +1,7 @@
-# swan_favorites_page（SWAN收藏）
+# swan_收藏页（SWAN收藏）
 
-> 状态：draft（2026-09-08 真机 dump + OCR 验证）
-> 数据来源：我的页点"SWAN收藏"列表项实机 dump + OCR；截图 explorer_output/screenshots/swan/swan_favorites_page
+> 状态：page（2026-09-08 真机 dump + OCR + verify 复验转正）
+> 数据来源：我的页点"SWAN收藏"列表项实机 dump + OCR；截图 explorer_output/screenshots/swan/swan_收藏页
 
 ## 页面概述
 
@@ -25,13 +25,13 @@ SWAN收藏页。收藏歌单分组列表（我的家庭 / 我的音乐），底�
 | 左上返回按钮 [0,72][128,184] | ✅ | 无文案图标，press_back 等效 |
 
 
-### 元素截图（image_ai/flutter 草稿，2026-09-08 aw-element 采集，待 verify 转正）
+### 元素截图（image/flutter，2026-09-08 aw-element 采集 + verify 复验转正）
 
 | 元素 | 常量（image/image_name_mapping.py） | 图片文件 |
 |---|---|---|
-| 「我的家庭」分组行 | `SWAN_FAV_FAMILY_GROUP_ROW` | image_ai/flutter/swan_fav_family_group_row.png |
-| 「我的音乐」分组行 | `SWAN_FAV_MUSIC_GROUP_ROW` | image_ai/flutter/swan_fav_music_group_row.png |
-| 「添加新的收藏歌单」按钮 | `SWAN_FAV_ADD_PLAYLIST_BUTTON` | image_ai/flutter/swan_fav_add_playlist_button.png |
+| 「我的家庭」分组行 | `SWAN_FAV_FAMILY_GROUP_ROW` | image/flutter/swan_收藏_我的家庭分组行.png |
+| 「我的音乐」分组行 | `SWAN_FAV_MUSIC_GROUP_ROW` | image/flutter/swan_收藏_我的音乐分组行.png |
+| 「添加新的收藏歌单」按钮 | `SWAN_FAV_ADD_PLAYLIST_BUTTON` | image/flutter/swan_添加收藏歌单按钮.png |
 ## 页面布局
 
 ```
@@ -54,17 +54,17 @@ SWAN收藏页。收藏歌单分组列表（我的家庭 / 我的音乐），底�
 
 ## 关联
 
-- [[swan_me_page]]（列表项进入，press_back 返回）
+- [[swan_我的页]]（列表项进入，press_back 返回）
 - [[swan_收藏分组详情页]]（click_text 分组行进入，press_back 返回，2026-09-08 已探索）
-- [[swan_home_page]]（"我喜欢"卡片疑与此功能相关，待验证）
+- [[swan_首页]]（"我喜欢"卡片疑与此功能相关，待验证）
 
 ## 反向引用
 <!-- backlinks:start -->
 
 | 引用来源 | 页面ID |
 |---------|--------|
-| pages/swan_me_page.md | [[swan_me_page]] |
+| pages/swan_我的页.md | [[swan_我的页]] |
 | pages/swan_收藏分组详情页.md | [[swan_收藏分组详情页]] |
 
-_自动生成于 2026-09-08 19:51_
+_自动生成于 2026-09-09 08:29_
 <!-- backlinks:end -->

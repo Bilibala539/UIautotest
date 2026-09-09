@@ -4,7 +4,7 @@
     "platform": "Android (Flutter)",
     "package_name": "com.swan.network",
     "driver": "ADB via FlutterAndroidDriver",
-    "root_page": "swan_home_page",
+    "root_page": "swan_首页",
     "default_device": {
       "serial": "c0614b6a",
       "android_version": "11",
@@ -12,74 +12,74 @@
     },
     "last_updated": "2026-09-08",
     "locator_policy": "accessibility key > OCR 文本 > 图像模板（禁止坐标）",
-    "notes": "本知识库从零开始，所有页面事实必须由真机探索或测试实际验证后写入，禁止猜测。2026-09-08 首版 11 页已由 explorer+verify 双重验证转正；同日 enrich-kb 批次新增 4 个 draft（收藏分组详情/密码登入/帮助与反馈/关于与升级）。",
+    "notes": "本知识库从零开始，所有页面事实必须由真机探索或测试实际验证后写入，禁止猜测。2026-09-08 首版 11 页已由 explorer+verify 双重验证转正；同日 enrich-kb 批次新增 4 页（收藏分组详情/密码登入/帮助与反馈/关于与升级，均已 verify 转正）。",
     "reader_entry": "digest/中文索引.md"
   },
   "pages": {
-    "swan_login_sms_page": {
+    "swan_验证码登录页": {
       "title": "验证码登录页",
       "status": "page",
-      "doc": "pages/swan_login_sms_page.md",
+      "doc": "pages/swan_验证码登录页.md",
       "summary": "App 启动默认落地页，手机号+验证码登录，右上角切换密码登入"
     },
-    "swan_login_code_page": {
+    "swan_验证码输入页": {
       "title": "验证码输入页",
       "status": "page",
-      "doc": "pages/swan_login_code_page.md",
+      "doc": "pages/swan_验证码输入页.md",
       "summary": "下一步后自动发送验证码，4 位填满自动提交"
     },
-    "swan_home_page": {
+    "swan_首页": {
       "title": "首页",
       "status": "page",
-      "doc": "pages/swan_home_page.md",
+      "doc": "pages/swan_首页.md",
       "summary": "登录落地页，音源入口/我喜欢/歌单/AI/最近播放 + 底部播放条 + 4 个 tab"
     },
-    "swan_me_page": {
+    "swan_我的页": {
       "title": "我的",
       "status": "page",
-      "doc": "pages/swan_me_page.md",
+      "doc": "pages/swan_我的页.md",
       "summary": "个人中心，账号入口 + 功能列表（权益/家庭管理/收藏/设备管理/音质设置等）"
     },
-    "swan_person_info_page": {
+    "swan_个人信息页": {
       "title": "个人信息修改",
       "status": "page",
-      "doc": "pages/swan_person_info_page.md",
+      "doc": "pages/swan_个人信息页.md",
       "summary": "头像/昵称/密码/手机号 + 注销账号（危险）+ 退出登入"
     },
-    "swan_platform_page": {
+    "swan_平台页": {
       "title": "平台",
       "status": "page",
-      "doc": "pages/swan_platform_page.md",
+      "doc": "pages/swan_平台页.md",
       "summary": "惠币总资产/充值/消费明细 + 音乐-AI-电台分类的第三方平台授权列表（全部未授权）"
     },
-    "swan_device_page": {
+    "swan_设备页": {
       "title": "设备",
       "status": "page",
-      "doc": "pages/swan_device_page.md",
+      "doc": "pages/swan_设备页.md",
       "summary": "WIFI/本机/Apple/低音炮/DSP 分类设备列表，卡片带设置/同步/音量设置，右上添加设备"
     },
-    "swan_player_page": {
+    "swan_播放页": {
       "title": "播放页",
       "status": "page",
-      "doc": "pages/swan_player_page.md",
+      "doc": "pages/swan_播放页.md",
       "summary": "全屏播放页，播放控制条 + 音量 + 设备切换；控制类按钮只记录不实测"
     },
-    "swan_family_manage_page": {
+    "swan_家庭管理页": {
       "title": "家庭管理",
       "status": "page",
-      "doc": "pages/swan_family_manage_page.md",
+      "doc": "pages/swan_家庭管理页.md",
       "summary": "我的页子页，家庭卡片（惠威2b11/创建人）；全页无 accessibility key"
     },
-    "swan_favorites_page": {
+    "swan_收藏页": {
       "title": "SWAN收藏",
       "status": "page",
-      "doc": "pages/swan_favorites_page.md",
+      "doc": "pages/swan_收藏页.md",
       "summary": "我的页子页，收藏歌单分组（我的家庭/我的音乐）+ 添加新的收藏歌单；无 key"
     },
-    "swan_sound_quality_page": {
+    "swan_音质设置页": {
       "title": "音质设置",
       "status": "page",
-      "doc": "pages/swan_sound_quality_page.md",
+      "doc": "pages/swan_音质设置页.md",
       "summary": "我的页底部弹层，流畅/标准/HQ/SQ 四档单选 + 完成；无 key，未改档位"
     },
     "swan_收藏分组详情页": {
@@ -112,48 +112,48 @@
       "verified_at": "2026-09-08",
       "verifier": "aw-verify 真机验证（serial c0614b6a，OpenCV threshold 0.8，全部 score=1.00）",
       "note": "18 张元素图全部通过并转正到 image/flutter/；常量见 image/image_name_mapping.py（正式路径）",
-      "swan_home_page": [
-        "swan_bottom_player_bar.png"
+      "swan_首页": [
+        "swan_底部播放条.png"
       ],
-      "swan_me_page": [
-        "swan_me_family_manage_row.png",
-        "swan_me_favorites_row.png",
-        "swan_me_device_manage_row.png",
-        "swan_me_sound_quality_row.png"
+      "swan_我的页": [
+        "swan_我的_家庭管理行.png",
+        "swan_我的_收藏行.png",
+        "swan_我的_设备管理行.png",
+        "swan_我的_音质设置行.png"
       ],
-      "swan_family_manage_page": [
-        "swan_family_add_member_icon.png"
+      "swan_家庭管理页": [
+        "swan_添加成员图标.png"
       ],
-      "swan_favorites_page": [
-        "swan_fav_family_group_row.png",
-        "swan_fav_music_group_row.png",
-        "swan_fav_add_playlist_button.png"
+      "swan_收藏页": [
+        "swan_收藏_我的家庭分组行.png",
+        "swan_收藏_我的音乐分组行.png",
+        "swan_添加收藏歌单按钮.png"
       ],
-      "swan_sound_quality_page": [
-        "swan_sound_quality_done_button.png"
+      "swan_音质设置页": [
+        "swan_音质设置_完成按钮.png"
       ],
-      "swan_login_sms_page": [
-        "swan_login_privacy_policy_link.png",
-        "swan_login_usage_policy_link.png",
-        "swan_login_submit_btn.png"
+      "swan_验证码登录页": [
+        "swan_隐私政策链接.png",
+        "swan_使用政策链接.png",
+        "swan_下一步按钮.png"
       ],
-      "swan_login_code_page": [
-        "swan_login_code_field_box.png"
+      "swan_验证码输入页": [
+        "swan_验证码输入框.png"
       ],
-      "swan_player_page": [
-        "swan_player_play_pause_btn.png",
-        "swan_player_dismiss_btn.png"
+      "swan_播放页": [
+        "swan_播放页_播放暂停按钮.png",
+        "swan_播放页_收起按钮.png"
       ],
-      "swan_device_page": [
-        "swan_device_add_btn.png"
+      "swan_设备页": [
+        "swan_添加设备按钮.png"
       ],
-      "swan_platform_page": [
-        "swan_platform_netease_row.png"
+      "swan_平台页": [
+        "swan_平台_网易云音乐行.png"
       ]
     }
   },
   "transitions": {
-    "swan_login_sms_page": [
+    "swan_验证码登录页": [
       {
         "to": "swan_密码登入页",
         "action": "click login_use_password_button（右上角密码登入）",
@@ -161,7 +161,7 @@
         "status": "verified"
       },
       {
-        "to": "swan_login_code_page",
+        "to": "swan_验证码输入页",
         "action": "输入手机号+勾选协议后 click login_submit_button（下一步）",
         "type": "推进",
         "status": "verified"
@@ -169,139 +169,139 @@
     ],
     "swan_密码登入页": [
       {
-        "to": "swan_login_sms_page",
+        "to": "swan_验证码登录页",
         "action": "click login_use_sms_button（右上角验证码登入，实测切回）",
         "type": "切换",
         "status": "verified"
       }
     ],
-    "swan_login_code_page": [
+    "swan_验证码输入页": [
       {
-        "to": "swan_home_page",
+        "to": "swan_首页",
         "action": "input_text(4位验证码) 自动提交",
         "type": "推进",
         "status": "verified"
       },
       {
-        "to": "swan_login_sms_page",
+        "to": "swan_验证码登录页",
         "action": "press_back 会退出 App，重启后回登录页（实测）",
         "type": "返回",
         "status": "verified"
       }
     ],
-    "swan_home_page": [
+    "swan_首页": [
       {
-        "to": "swan_player_page",
+        "to": "swan_播放页",
         "action": "click bottom_player",
         "type": "推进",
         "status": "verified"
       },
       {
-        "to": "swan_me_page",
+        "to": "swan_我的页",
         "action": "click tab_me",
         "type": "tab 切换",
         "status": "verified"
       },
       {
-        "to": "swan_platform_page",
+        "to": "swan_平台页",
         "action": "click tab_platform",
         "type": "tab 切换",
         "status": "verified"
       },
       {
-        "to": "swan_device_page",
+        "to": "swan_设备页",
         "action": "click tab_device",
         "type": "tab 切换",
         "status": "verified"
       }
     ],
-    "swan_platform_page": [
+    "swan_平台页": [
       {
-        "to": "swan_home_page",
+        "to": "swan_首页",
         "action": "click tab_recommend",
         "type": "tab 切换",
         "status": "verified"
       },
       {
-        "to": "swan_device_page",
+        "to": "swan_设备页",
         "action": "click tab_device",
         "type": "tab 切换",
         "status": "verified"
       },
       {
-        "to": "swan_me_page",
+        "to": "swan_我的页",
         "action": "click tab_me",
         "type": "tab 切换",
         "status": "pending"
       },
       {
-        "to": "swan_player_page",
+        "to": "swan_播放页",
         "action": "click bottom_player",
         "type": "推进",
         "status": "pending"
       }
     ],
-    "swan_device_page": [
+    "swan_设备页": [
       {
-        "to": "swan_home_page",
+        "to": "swan_首页",
         "action": "click tab_recommend",
         "type": "tab 切换",
         "status": "verified"
       },
       {
-        "to": "swan_platform_page",
+        "to": "swan_平台页",
         "action": "click tab_platform",
         "type": "tab 切换",
         "status": "pending"
       },
       {
-        "to": "swan_me_page",
+        "to": "swan_我的页",
         "action": "click tab_me",
         "type": "tab 切换",
         "status": "pending"
       },
       {
-        "to": "swan_player_page",
+        "to": "swan_播放页",
         "action": "click bottom_player",
         "type": "推进",
         "status": "pending"
       }
     ],
-    "swan_player_page": [
+    "swan_播放页": [
       {
-        "to": "swan_home_page",
+        "to": "swan_首页",
         "action": "click player_dismiss_button",
         "type": "返回",
         "status": "verified"
       }
     ],
-    "swan_me_page": [
+    "swan_我的页": [
       {
-        "to": "swan_person_info_page",
+        "to": "swan_个人信息页",
         "action": "click me_user_profile_entry",
         "type": "推进",
         "status": "verified"
       },
       {
-        "to": "swan_home_page",
+        "to": "swan_首页",
         "action": "click tab_recommend",
         "type": "tab 切换",
         "status": "verified"
       },
       {
-        "to": "swan_family_manage_page",
+        "to": "swan_家庭管理页",
         "action": "click_text 家庭管理",
         "type": "推进",
         "status": "verified"
       },
       {
-        "to": "swan_favorites_page",
+        "to": "swan_收藏页",
         "action": "click_text SWAN收藏",
         "type": "推进",
         "status": "verified"
       },
       {
-        "to": "swan_sound_quality_page",
+        "to": "swan_音质设置页",
         "action": "click_text 音质设置（底部弹层）",
         "type": "弹层",
         "status": "verified"
@@ -321,7 +321,7 @@
     ],
     "swan_帮助与反馈页": [
       {
-        "to": "swan_me_page",
+        "to": "swan_我的页",
         "action": "press_back（实测可用）",
         "type": "返回",
         "status": "verified"
@@ -329,21 +329,21 @@
     ],
     "swan_关于与升级页": [
       {
-        "to": "swan_me_page",
+        "to": "swan_我的页",
         "action": "press_back（实测可用）",
         "type": "返回",
         "status": "verified"
       }
     ],
-    "swan_family_manage_page": [
+    "swan_家庭管理页": [
       {
-        "to": "swan_me_page",
+        "to": "swan_我的页",
         "action": "press_back（原 press_back bug 已修复，2026-09-08 实测可用）",
         "type": "返回",
         "status": "verified"
       }
     ],
-    "swan_favorites_page": [
+    "swan_收藏页": [
       {
         "to": "swan_收藏分组详情页",
         "action": "click_text 我的家庭（分组行）",
@@ -351,7 +351,7 @@
         "status": "verified"
       },
       {
-        "to": "swan_me_page",
+        "to": "swan_我的页",
         "action": "press_key('escape')",
         "type": "返回",
         "status": "verified"
@@ -359,29 +359,29 @@
     ],
     "swan_收藏分组详情页": [
       {
-        "to": "swan_favorites_page",
+        "to": "swan_收藏页",
         "action": "press_back（实测一次即回收藏页）",
         "type": "返回",
         "status": "verified"
       }
     ],
-    "swan_sound_quality_page": [
+    "swan_音质设置页": [
       {
-        "to": "swan_me_page",
+        "to": "swan_我的页",
         "action": "click_text 完成",
         "type": "关闭弹层",
         "status": "verified"
       }
     ],
-    "swan_person_info_page": [
+    "swan_个人信息页": [
       {
-        "to": "swan_login_sms_page",
+        "to": "swan_验证码登录页",
         "action": "click person_info_logout_button（退出登入）",
         "type": "登出",
         "status": "verified"
       },
       {
-        "to": "swan_me_page",
+        "to": "swan_我的页",
         "action": "press_back",
         "type": "返回",
         "status": "pending"

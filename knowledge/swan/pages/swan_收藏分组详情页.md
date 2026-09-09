@@ -13,7 +13,7 @@
 
 ## 进入方式
 
-- [[swan_favorites_page]] 点 OCR 文本"我的家庭"分组行（无 key，click_text 定位）
+- [[swan_收藏页]] 点 OCR 文本"我的家庭"分组行（无 key，click_text 定位）
 
 ## 关键元素（来源：uiautomator dump / OCR）
 
@@ -62,16 +62,16 @@
 
 ## 关联
 
-- [[swan_favorites_page]]（分组行进入，press_back 返回）
-- [[swan_me_page]]（二级入口）
-- [[swan_home_page]]（bottom_player 与首页共用）
+- [[swan_收藏页]]（分组行进入，press_back 返回）
+- [[swan_我的页]]（二级入口）
+- [[swan_首页]]（bottom_player 与首页共用）
 
 ## 反向引用
 <!-- backlinks:start -->
 
 | 引用来源 | 页面ID |
 |---------|--------|
-| pages/swan_favorites_page.md | [[swan_favorites_page]] |
+| pages/swan_收藏页.md | [[swan_收藏页]] |
 
-_自动生成于 2026-09-08 19:51_
+_自动生成于 2026-09-09 08:29_
 <!-- backlinks:end -->

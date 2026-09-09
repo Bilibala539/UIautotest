@@ -10,7 +10,7 @@
 
 ## 进入方式
 
-- [[swan_me_page]] **先 swipe_up 滚动 2 次**（AW 层 `swipe_up(400)`），再点 OCR 文本"关于与升级"
+- [[swan_我的页]] **先 swipe_up 滚动 2 次**（AW 层 `swipe_up(400)`），再点 OCR 文本"关于与升级"
 - 不滚动时该项被 bottom_player 遮挡不可见；滚动后在 y≈1068，无遮挡
 
 ## 关键元素（来源：uiautomator dump / OCR）
@@ -51,14 +51,14 @@
 
 ## 关联
 
-- [[swan_me_page]]（列表项进入，press_back 返回）
+- [[swan_我的页]]（列表项进入，press_back 返回）
 
 ## 反向引用
 <!-- backlinks:start -->
 
 | 引用来源 | 页面ID |
 |---------|--------|
-| pages/swan_me_page.md | [[swan_me_page]] |
+| pages/swan_我的页.md | [[swan_我的页]] |
 
-_自动生成于 2026-09-08 19:51_
+_自动生成于 2026-09-09 08:29_
 <!-- backlinks:end -->

@@ -1,7 +1,7 @@
-# swan_sound_quality_page（音质设置）
+# swan_音质设置页
 
 > 状态：draft（2026-09-08 真机 dump + OCR 验证，仅观察未改设置）
-> 数据来源：我的页点"音质设置"列表项实机 dump + OCR；截图 explorer_output/screenshots/swan/swan_sound_quality_page
+> 数据来源：我的页点"音质设置"列表项实机 dump + OCR；截图 explorer_output/screenshots/swan/swan_音质设置页
 
 ## 页面概述
 
@@ -26,11 +26,11 @@
 | 蒙层 [0,0][720,996]（dump 文本"纱罩"） | ✅ | 点蒙层关闭（未实测，用"完成"验证） |
 
 
-### 元素截图（image_ai/flutter 草稿，2026-09-08 aw-element 采集，待 verify 转正）
+### 元素截图（image/flutter，2026-09-08 aw-element 采集 + verify 复验转正）
 
 | 元素 | 常量（image/image_name_mapping.py） | 图片文件 |
 |---|---|---|
-| 右上角「完成」按钮（红色文字，不含背景） | `SWAN_SOUND_QUALITY_DONE_BUTTON` | image_ai/flutter/swan_sound_quality_done_button.png |
+| 右上角「完成」按钮（红色文字，不含背景） | `SWAN_SOUND_QUALITY_DONE_BUTTON` | image/flutter/swan_音质设置_完成按钮.png |
 ## 页面布局
 
 ```
@@ -52,14 +52,14 @@
 
 ## 关联
 
-- [[swan_me_page]]（列表项进入，"完成"返回）
+- [[swan_我的页]]（列表项进入，"完成"返回）
 
 ## 反向引用
 <!-- backlinks:start -->
 
 | 引用来源 | 页面ID |
 |---------|--------|
-| pages/swan_me_page.md | [[swan_me_page]] |
+| pages/swan_我的页.md | [[swan_我的页]] |
 
-_自动生成于 2026-09-08 19:51_
+_自动生成于 2026-09-09 08:29_
 <!-- backlinks:end -->

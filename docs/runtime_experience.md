@@ -11,10 +11,15 @@
 | 验证码输入 | 4 位填满自动提交，无需点确认；等 `tab_me` 出现判成功 | explorer 2026-09-08 |
 | 取码链路 | App 触发后 `GET <SWAN_OTP_GATEWAY>/api/test/otp/latest?phone=` 取码；开发接口为 `https://testnetwork.hivi.com/api/user/captcha/mockCode`（必须带 api 前缀） | orchestrator 2026-09-08 |
 | 拿未登录态 | 杀进程无效（登录态持久）、OPPO 禁 pm clear；唯一途径：我的→个人信息→退出登入 | element 2026-09-08 |
-| 登录页"下一步"图 | `swan_login_submit_btn` 模板是置灰态，仅作存在性断言；点击一律走 key `login_submit_button` | element 2026-09-08 |
+| 登录页"下一步"图 | `swan_下一步按钮` 模板是置灰态，仅作存在性断言；点击一律走 key `login_submit_button` | element 2026-09-08 |
 | 新建歌单弹窗 | 第一次 press_back 只收键盘，需两次返回才关弹窗 | verify 2026-09-08 |
 | 音质弹层关闭判定 | 不能用"音质设置"文案判（列表项同名），判 OCR"流畅音质"/"完成"消失 | verify 2026-09-08 |
 | 设备卡定位 | key 按设备 UUID 动态拼接：`wifi_device_card_<UUID>`，用前缀匹配 | explorer 2026-09-08 |
+| 密码页 press_back | 只收键盘，不退出 App（验证码输入页的 press_back 才会退出） | codegen 2026-09-08 |
+| 密码错误提示 | 是常驻语义节点 `login_error_text`（content-desc"密码错误，请重新输入！"），不是 toast，可直接 key 断言 | codegen 2026-09-08 |
+| 登录页脏表单 | 提交失败后已填文本+协议勾选态残留；盲点勾选框会把已勾选态反选导致提交按钮置灰。重跑前重启 App 重置（登录页无状态持久化） | codegen 2026-09-08 |
+| 输入框复用 | 登录类输入前先 `clear_input()`，避免上一轮残留 | codegen 2026-09-08 |
+| 我的页滚动位 | 从帮助/关于页返回后页面停在滚动位，`me_user_profile_entry` 离屏不在语义树中；判该 key 前先 swipe_down 复位 | verify 2026-09-08 |
 | 危险入口 | `person_info_cancel_account_button`（注销账号）紧邻退出登入，⛔ 任何自动化禁止点击 | explorer 2026-09-08 |
 | 真实音箱安全 | 播放/音量/同步/授权/充值类按钮只做 image_exists，不下发点击 | 编排约定 2026-09-08 |
 

@@ -1,0 +1,668 @@
+[
+  {
+    "resource_id": "",
+    "text": "",
+    "content_desc": "",
+    "class_name": "android.widget.FrameLayout",
+    "bounds": [
+      0,
+      0,
+      720,
+      1528
+    ],
+    "center": [
+      360,
+      764
+    ],
+    "clickable": false,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "",
+    "content_desc": "",
+    "class_name": "android.widget.LinearLayout",
+    "bounds": [
+      0,
+      0,
+      720,
+      1528
+    ],
+    "center": [
+      360,
+      764
+    ],
+    "clickable": false,
+    "scrollable": false
+  },
+  {
+    "resource_id": "android:id/content",
+    "text": "",
+    "content_desc": "",
+    "class_name": "android.widget.FrameLayout",
+    "bounds": [
+      0,
+      0,
+      720,
+      1528
+    ],
+    "center": [
+      360,
+      764
+    ],
+    "clickable": false,
+    "scrollable": false
+  },
+  {
+    "resource_id": "com.oppo.launcher:id/launcher",
+    "text": "",
+    "content_desc": "",
+    "class_name": "android.widget.FrameLayout",
+    "bounds": [
+      0,
+      0,
+      720,
+      1528
+    ],
+    "center": [
+      360,
+      764
+    ],
+    "clickable": false,
+    "scrollable": false
+  },
+  {
+    "resource_id": "com.oppo.launcher:id/drag_layer",
+    "text": "",
+    "content_desc": "",
+    "class_name": "android.widget.FrameLayout",
+    "bounds": [
+      0,
+      0,
+      720,
+      1528
+    ],
+    "center": [
+      360,
+      764
+    ],
+    "clickable": false,
+    "scrollable": false
+  },
+  {
+    "resource_id": "com.oppo.launcher:id/workspace",
+    "text": "",
+    "content_desc": "",
+    "class_name": "android.widget.ScrollView",
+    "bounds": [
+      0,
+      0,
+      720,
+      1528
+    ],
+    "center": [
+      360,
+      764
+    ],
+    "clickable": false,
+    "scrollable": true
+  },
+  {
+    "resource_id": "",
+    "text": "",
+    "content_desc": "",
+    "class_name": "android.view.ViewGroup",
+    "bounds": [
+      32,
+      92,
+      688,
+      1332
+    ],
+    "center": [
+      360,
+      712
+    ],
+    "clickable": false,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "",
+    "content_desc": "",
+    "class_name": "android.view.ViewGroup",
+    "bounds": [
+      32,
+      92,
+      688,
+      1332
+    ],
+    "center": [
+      360,
+      712
+    ],
+    "clickable": false,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "文件管理",
+    "content_desc": "文件管理",
+    "class_name": "android.widget.TextView",
+    "bounds": [
+      32,
+      92,
+      196,
+      298
+    ],
+    "center": [
+      114,
+      195
+    ],
+    "clickable": true,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "钱包",
+    "content_desc": "钱包",
+    "class_name": "android.widget.TextView",
+    "bounds": [
+      196,
+      92,
+      360,
+      298
+    ],
+    "center": [
+      278,
+      195
+    ],
+    "clickable": true,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "我的 OPPO",
+    "content_desc": "我的 OPPO",
+    "class_name": "android.widget.TextView",
+    "bounds": [
+      360,
+      92,
+      524,
+      298
+    ],
+    "center": [
+      442,
+      195
+    ],
+    "clickable": true,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "@使用技巧",
+    "content_desc": "使用技巧",
+    "class_name": "android.widget.TextView",
+    "bounds": [
+      524,
+      92,
+      688,
+      298
+    ],
+    "center": [
+      606,
+      195
+    ],
+    "clickable": true,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "@即录剪辑",
+    "content_desc": "即录剪辑",
+    "class_name": "android.widget.TextView",
+    "bounds": [
+      32,
+      298,
+      196,
+      504
+    ],
+    "center": [
+      114,
+      401
+    ],
+    "clickable": true,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "OPPO 视频",
+    "content_desc": "OPPO 视频",
+    "class_name": "android.widget.TextView",
+    "bounds": [
+      196,
+      298,
+      360,
+      504
+    ],
+    "center": [
+      278,
+      401
+    ],
+    "clickable": true,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "@小游戏",
+    "content_desc": "小游戏",
+    "class_name": "android.widget.TextView",
+    "bounds": [
+      360,
+      298,
+      524,
+      504
+    ],
+    "center": [
+      442,
+      401
+    ],
+    "clickable": true,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "音乐",
+    "content_desc": "音乐",
+    "class_name": "android.widget.TextView",
+    "bounds": [
+      524,
+      298,
+      688,
+      504
+    ],
+    "center": [
+      606,
+      401
+    ],
+    "clickable": true,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "@书城",
+    "content_desc": "书城",
+    "class_name": "android.widget.TextView",
+    "bounds": [
+      32,
+      504,
+      196,
+      710
+    ],
+    "center": [
+      114,
+      607
+    ],
+    "clickable": true,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "@OPPO 商城",
+    "content_desc": "OPPO 商城",
+    "class_name": "android.widget.TextView",
+    "bounds": [
+      196,
+      504,
+      360,
+      710
+    ],
+    "center": [
+      278,
+      607
+    ],
+    "clickable": true,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "@智能家居",
+    "content_desc": "智能家居",
+    "class_name": "android.widget.TextView",
+    "bounds": [
+      360,
+      504,
+      524,
+      710
+    ],
+    "center": [
+      442,
+      607
+    ],
+    "clickable": true,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "@OPPO 健康",
+    "content_desc": "OPPO 健康",
+    "class_name": "android.widget.TextView",
+    "bounds": [
+      524,
+      504,
+      688,
+      710
+    ],
+    "center": [
+      606,
+      607
+    ],
+    "clickable": true,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "@游戏空间",
+    "content_desc": "游戏空间",
+    "class_name": "android.widget.TextView",
+    "bounds": [
+      32,
+      710,
+      196,
+      916
+    ],
+    "center": [
+      114,
+      813
+    ],
+    "clickable": true,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "@OPPO 社区",
+    "content_desc": "OPPO 社区",
+    "class_name": "android.widget.TextView",
+    "bounds": [
+      196,
+      710,
+      360,
+      916
+    ],
+    "center": [
+      278,
+      813
+    ],
+    "clickable": true,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "@OPPO LAB",
+    "content_desc": "OPPO LAB",
+    "class_name": "android.widget.TextView",
+    "bounds": [
+      360,
+      710,
+      524,
+      916
+    ],
+    "center": [
+      442,
+      813
+    ],
+    "clickable": true,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "网易云音乐",
+    "content_desc": "网易云音乐",
+    "class_name": "android.widget.TextView",
+    "bounds": [
+      524,
+      710,
+      688,
+      916
+    ],
+    "center": [
+      606,
+      813
+    ],
+    "clickable": true,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "酷狗音乐",
+    "content_desc": "酷狗音乐",
+    "class_name": "android.widget.TextView",
+    "bounds": [
+      32,
+      916,
+      196,
+      1122
+    ],
+    "center": [
+      114,
+      1019
+    ],
+    "clickable": true,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "Reqable",
+    "content_desc": "Reqable",
+    "class_name": "android.widget.TextView",
+    "bounds": [
+      196,
+      916,
+      360,
+      1122
+    ],
+    "center": [
+      278,
+      1019
+    ],
+    "clickable": true,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "Apple Music",
+    "content_desc": "Apple Music",
+    "class_name": "android.widget.TextView",
+    "bounds": [
+      360,
+      916,
+      524,
+      1122
+    ],
+    "center": [
+      442,
+      1019
+    ],
+    "clickable": true,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "Swan Audio",
+    "content_desc": "Swan Audio",
+    "class_name": "android.widget.TextView",
+    "bounds": [
+      524,
+      916,
+      688,
+      1122
+    ],
+    "center": [
+      606,
+      1019
+    ],
+    "clickable": true,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "浏览器",
+    "content_desc": "浏览器",
+    "class_name": "android.widget.TextView",
+    "bounds": [
+      32,
+      1122,
+      196,
+      1328
+    ],
+    "center": [
+      114,
+      1225
+    ],
+    "clickable": true,
+    "scrollable": false
+  },
+  {
+    "resource_id": "com.oppo.launcher:id/toggle_bar_root_top",
+    "text": "",
+    "content_desc": "",
+    "class_name": "android.widget.FrameLayout",
+    "bounds": [
+      0,
+      939,
+      720,
+      1528
+    ],
+    "center": [
+      360,
+      1233
+    ],
+    "clickable": false,
+    "scrollable": false
+  },
+  {
+    "resource_id": "com.oppo.launcher:id/hotseat",
+    "text": "",
+    "content_desc": "",
+    "class_name": "android.view.ViewGroup",
+    "bounds": [
+      0,
+      1388,
+      720,
+      1528
+    ],
+    "center": [
+      360,
+      1458
+    ],
+    "clickable": false,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "",
+    "content_desc": "",
+    "class_name": "android.view.ViewGroup",
+    "bounds": [
+      114,
+      1388,
+      606,
+      1528
+    ],
+    "center": [
+      360,
+      1458
+    ],
+    "clickable": false,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "",
+    "content_desc": "信息",
+    "class_name": "android.widget.TextView",
+    "bounds": [
+      114,
+      1388,
+      278,
+      1528
+    ],
+    "center": [
+      196,
+      1458
+    ],
+    "clickable": true,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "",
+    "content_desc": "拨号",
+    "class_name": "android.widget.TextView",
+    "bounds": [
+      278,
+      1388,
+      442,
+      1528
+    ],
+    "center": [
+      360,
+      1458
+    ],
+    "clickable": true,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "",
+    "content_desc": "相机",
+    "class_name": "android.widget.TextView",
+    "bounds": [
+      442,
+      1388,
+      606,
+      1528
+    ],
+    "center": [
+      524,
+      1458
+    ],
+    "clickable": true,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "搜索",
+    "content_desc": "",
+    "class_name": "android.widget.TextView",
+    "bounds": [
+      290,
+      1344,
+      430,
+      1400
+    ],
+    "center": [
+      360,
+      1372
+    ],
+    "clickable": true,
+    "scrollable": false
+  },
+  {
+    "resource_id": "com.oppo.launcher:id/apps_view",
+    "text": "",
+    "content_desc": "",
+    "class_name": "android.widget.RelativeLayout",
+    "bounds": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "center": [
+      0,
+      0
+    ],
+    "clickable": false,
+    "scrollable": false
+  }
+]

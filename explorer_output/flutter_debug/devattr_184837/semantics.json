@@ -1,0 +1,650 @@
+[
+  {
+    "resource_id": "",
+    "text": "",
+    "content_desc": "",
+    "class_name": "android.widget.FrameLayout",
+    "bounds": [
+      0,
+      0,
+      720,
+      1528
+    ],
+    "center": [
+      360,
+      764
+    ],
+    "clickable": false,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "",
+    "content_desc": "",
+    "class_name": "android.widget.LinearLayout",
+    "bounds": [
+      0,
+      0,
+      720,
+      1528
+    ],
+    "center": [
+      360,
+      764
+    ],
+    "clickable": false,
+    "scrollable": false
+  },
+  {
+    "resource_id": "android:id/content",
+    "text": "",
+    "content_desc": "",
+    "class_name": "android.widget.FrameLayout",
+    "bounds": [
+      0,
+      0,
+      720,
+      1528
+    ],
+    "center": [
+      360,
+      764
+    ],
+    "clickable": false,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "",
+    "content_desc": "",
+    "class_name": "android.widget.FrameLayout",
+    "bounds": [
+      0,
+      0,
+      720,
+      1528
+    ],
+    "center": [
+      360,
+      764
+    ],
+    "clickable": false,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "",
+    "content_desc": "",
+    "class_name": "android.widget.FrameLayout",
+    "bounds": [
+      0,
+      0,
+      720,
+      1528
+    ],
+    "center": [
+      360,
+      764
+    ],
+    "clickable": false,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "",
+    "content_desc": "",
+    "class_name": "android.view.View",
+    "bounds": [
+      0,
+      0,
+      720,
+      1528
+    ],
+    "center": [
+      360,
+      764
+    ],
+    "clickable": false,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "",
+    "content_desc": "",
+    "class_name": "android.view.View",
+    "bounds": [
+      0,
+      0,
+      720,
+      1528
+    ],
+    "center": [
+      360,
+      764
+    ],
+    "clickable": false,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "",
+    "content_desc": "",
+    "class_name": "android.view.View",
+    "bounds": [
+      0,
+      0,
+      720,
+      1528
+    ],
+    "center": [
+      360,
+      764
+    ],
+    "clickable": false,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "",
+    "content_desc": "",
+    "class_name": "android.view.View",
+    "bounds": [
+      0,
+      0,
+      720,
+      1528
+    ],
+    "center": [
+      360,
+      764
+    ],
+    "clickable": false,
+    "scrollable": false
+  },
+  {
+    "resource_id": "device_page",
+    "text": "",
+    "content_desc": "设备",
+    "class_name": "android.view.View",
+    "bounds": [
+      0,
+      0,
+      720,
+      1528
+    ],
+    "center": [
+      360,
+      764
+    ],
+    "clickable": false,
+    "scrollable": false
+  },
+  {
+    "resource_id": "device_add_button",
+    "text": "",
+    "content_desc": "添加设备",
+    "class_name": "android.widget.ImageView",
+    "bounds": [
+      620,
+      72,
+      716,
+      184
+    ],
+    "center": [
+      668,
+      128
+    ],
+    "clickable": true,
+    "scrollable": false
+  },
+  {
+    "resource_id": "device_wifi_section",
+    "text": "",
+    "content_desc": "WIFI",
+    "class_name": "android.widget.Button",
+    "bounds": [
+      0,
+      216,
+      128,
+      324
+    ],
+    "center": [
+      64,
+      270
+    ],
+    "clickable": true,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "",
+    "content_desc": "本机",
+    "class_name": "android.view.View",
+    "bounds": [
+      0,
+      334,
+      128,
+      442
+    ],
+    "center": [
+      64,
+      388
+    ],
+    "clickable": true,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "",
+    "content_desc": "Apple",
+    "class_name": "android.view.View",
+    "bounds": [
+      0,
+      452,
+      128,
+      560
+    ],
+    "center": [
+      64,
+      506
+    ],
+    "clickable": true,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "",
+    "content_desc": "低音炮",
+    "class_name": "android.view.View",
+    "bounds": [
+      0,
+      570,
+      128,
+      678
+    ],
+    "center": [
+      64,
+      624
+    ],
+    "clickable": true,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "",
+    "content_desc": "DSP",
+    "class_name": "android.view.View",
+    "bounds": [
+      0,
+      688,
+      128,
+      796
+    ],
+    "center": [
+      64,
+      742
+    ],
+    "clickable": true,
+    "scrollable": false
+  },
+  {
+    "resource_id": "device_refresh_button",
+    "text": "",
+    "content_desc": "",
+    "class_name": "android.widget.Button",
+    "bounds": [
+      128,
+      216,
+      720,
+      1528
+    ],
+    "center": [
+      424,
+      872
+    ],
+    "clickable": true,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "",
+    "content_desc": "",
+    "class_name": "android.view.View",
+    "bounds": [
+      128,
+      216,
+      720,
+      1528
+    ],
+    "center": [
+      424,
+      872
+    ],
+    "clickable": false,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "",
+    "content_desc": "",
+    "class_name": "android.widget.ScrollView",
+    "bounds": [
+      128,
+      216,
+      720,
+      1528
+    ],
+    "center": [
+      424,
+      872
+    ],
+    "clickable": false,
+    "scrollable": true
+  },
+  {
+    "resource_id": "",
+    "text": "",
+    "content_desc": "WIFI",
+    "class_name": "android.view.View",
+    "bounds": [
+      128,
+      216,
+      720,
+      312
+    ],
+    "center": [
+      424,
+      264
+    ],
+    "clickable": false,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "",
+    "content_desc": "暂无WIFI设备\n暂无歌曲\n暂无艺术家",
+    "class_name": "android.widget.ImageView",
+    "bounds": [
+      128,
+      312,
+      720,
+      621
+    ],
+    "center": [
+      424,
+      466
+    ],
+    "clickable": false,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "",
+    "content_desc": "本机",
+    "class_name": "android.view.View",
+    "bounds": [
+      128,
+      621,
+      720,
+      717
+    ],
+    "center": [
+      424,
+      669
+    ],
+    "clickable": false,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "",
+    "content_desc": "扬声器\n - - : - - -\n - - : - - -",
+    "class_name": "android.widget.ImageView",
+    "bounds": [
+      128,
+      717,
+      720,
+      1028
+    ],
+    "center": [
+      424,
+      872
+    ],
+    "clickable": true,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "",
+    "content_desc": "Apple Music",
+    "class_name": "android.view.View",
+    "bounds": [
+      128,
+      1028,
+      720,
+      1124
+    ],
+    "center": [
+      424,
+      1076
+    ],
+    "clickable": false,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "",
+    "content_desc": "扬声器\n连接 Apple Music\n连接 Apple Music",
+    "class_name": "android.widget.ImageView",
+    "bounds": [
+      128,
+      1124,
+      720,
+      1435
+    ],
+    "center": [
+      424,
+      1279
+    ],
+    "clickable": true,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "",
+    "content_desc": "低音炮",
+    "class_name": "android.view.View",
+    "bounds": [
+      128,
+      1435,
+      720,
+      1528
+    ],
+    "center": [
+      424,
+      1481
+    ],
+    "clickable": false,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "",
+    "content_desc": "添加低音炮",
+    "class_name": "android.widget.ImageView",
+    "bounds": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "center": [
+      0,
+      0
+    ],
+    "clickable": true,
+    "scrollable": false
+  },
+  {
+    "resource_id": "bottom_player",
+    "text": "",
+    "content_desc": "扬声器\n - - ",
+    "class_name": "android.widget.Button",
+    "bounds": [
+      0,
+      1334,
+      720,
+      1464
+    ],
+    "center": [
+      360,
+      1399
+    ],
+    "clickable": true,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "",
+    "content_desc": "",
+    "class_name": "android.widget.ImageView",
+    "bounds": [
+      42,
+      1352,
+      134,
+      1444
+    ],
+    "center": [
+      88,
+      1398
+    ],
+    "clickable": false,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "",
+    "content_desc": "",
+    "class_name": "android.widget.ImageView",
+    "bounds": [
+      460,
+      1386,
+      516,
+      1442
+    ],
+    "center": [
+      488,
+      1414
+    ],
+    "clickable": false,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "",
+    "content_desc": "",
+    "class_name": "android.widget.ImageView",
+    "bounds": [
+      540,
+      1386,
+      596,
+      1442
+    ],
+    "center": [
+      568,
+      1414
+    ],
+    "clickable": false,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "",
+    "content_desc": "",
+    "class_name": "android.widget.ImageView",
+    "bounds": [
+      608,
+      1374,
+      688,
+      1454
+    ],
+    "center": [
+      648,
+      1414
+    ],
+    "clickable": true,
+    "scrollable": false
+  },
+  {
+    "resource_id": "tab_recommend",
+    "text": "",
+    "content_desc": "首页",
+    "class_name": "android.widget.ImageView",
+    "bounds": [
+      0,
+      1464,
+      180,
+      1528
+    ],
+    "center": [
+      90,
+      1496
+    ],
+    "clickable": true,
+    "scrollable": false
+  },
+  {
+    "resource_id": "tab_platform",
+    "text": "",
+    "content_desc": "平台",
+    "class_name": "android.widget.ImageView",
+    "bounds": [
+      180,
+      1464,
+      360,
+      1528
+    ],
+    "center": [
+      270,
+      1496
+    ],
+    "clickable": true,
+    "scrollable": false
+  },
+  {
+    "resource_id": "tab_device",
+    "text": "",
+    "content_desc": "设备",
+    "class_name": "android.widget.ImageView",
+    "bounds": [
+      360,
+      1464,
+      540,
+      1528
+    ],
+    "center": [
+      450,
+      1496
+    ],
+    "clickable": true,
+    "scrollable": false
+  },
+  {
+    "resource_id": "tab_me",
+    "text": "",
+    "content_desc": "我的",
+    "class_name": "android.widget.ImageView",
+    "bounds": [
+      540,
+      1464,
+      720,
+      1528
+    ],
+    "center": [
+      630,
+      1496
+    ],
+    "clickable": true,
+    "scrollable": false
+  }
+]

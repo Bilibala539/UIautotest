@@ -1,0 +1,560 @@
+[
+  {
+    "resource_id": "",
+    "text": "",
+    "content_desc": "",
+    "class_name": "android.widget.FrameLayout",
+    "bounds": [
+      0,
+      0,
+      720,
+      1528
+    ],
+    "center": [
+      360,
+      764
+    ],
+    "clickable": false,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "",
+    "content_desc": "",
+    "class_name": "android.widget.LinearLayout",
+    "bounds": [
+      0,
+      0,
+      720,
+      1528
+    ],
+    "center": [
+      360,
+      764
+    ],
+    "clickable": false,
+    "scrollable": false
+  },
+  {
+    "resource_id": "android:id/content",
+    "text": "",
+    "content_desc": "",
+    "class_name": "android.widget.FrameLayout",
+    "bounds": [
+      0,
+      0,
+      720,
+      1528
+    ],
+    "center": [
+      360,
+      764
+    ],
+    "clickable": false,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "",
+    "content_desc": "",
+    "class_name": "android.widget.FrameLayout",
+    "bounds": [
+      0,
+      0,
+      720,
+      1528
+    ],
+    "center": [
+      360,
+      764
+    ],
+    "clickable": false,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "",
+    "content_desc": "",
+    "class_name": "android.widget.FrameLayout",
+    "bounds": [
+      0,
+      0,
+      720,
+      1528
+    ],
+    "center": [
+      360,
+      764
+    ],
+    "clickable": false,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "",
+    "content_desc": "",
+    "class_name": "android.view.View",
+    "bounds": [
+      0,
+      0,
+      720,
+      1528
+    ],
+    "center": [
+      360,
+      764
+    ],
+    "clickable": false,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "",
+    "content_desc": "",
+    "class_name": "android.view.View",
+    "bounds": [
+      0,
+      0,
+      720,
+      1528
+    ],
+    "center": [
+      360,
+      764
+    ],
+    "clickable": false,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "",
+    "content_desc": "",
+    "class_name": "android.view.View",
+    "bounds": [
+      0,
+      0,
+      720,
+      1528
+    ],
+    "center": [
+      360,
+      764
+    ],
+    "clickable": false,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "",
+    "content_desc": "",
+    "class_name": "android.view.View",
+    "bounds": [
+      0,
+      0,
+      720,
+      1528
+    ],
+    "center": [
+      360,
+      764
+    ],
+    "clickable": false,
+    "scrollable": false
+  },
+  {
+    "resource_id": "login_page",
+    "text": "",
+    "content_desc": "",
+    "class_name": "android.view.View",
+    "bounds": [
+      0,
+      0,
+      720,
+      1528
+    ],
+    "center": [
+      360,
+      764
+    ],
+    "clickable": true,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "",
+    "content_desc": "",
+    "class_name": "android.view.View",
+    "bounds": [
+      0,
+      0,
+      720,
+      1528
+    ],
+    "center": [
+      360,
+      764
+    ],
+    "clickable": false,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "",
+    "content_desc": "",
+    "class_name": "android.view.View",
+    "bounds": [
+      0,
+      0,
+      720,
+      1528
+    ],
+    "center": [
+      360,
+      764
+    ],
+    "clickable": false,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "",
+    "content_desc": "",
+    "class_name": "android.view.View",
+    "bounds": [
+      0,
+      0,
+      720,
+      162
+    ],
+    "center": [
+      360,
+      81
+    ],
+    "clickable": false,
+    "scrollable": false
+  },
+  {
+    "resource_id": "login_use_password_button",
+    "text": "",
+    "content_desc": "密码登入",
+    "class_name": "android.widget.Button",
+    "bounds": [
+      532,
+      108,
+      678,
+      162
+    ],
+    "center": [
+      605,
+      135
+    ],
+    "clickable": true,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "",
+    "content_desc": "",
+    "class_name": "android.widget.ImageView",
+    "bounds": [
+      0,
+      162,
+      720,
+      384
+    ],
+    "center": [
+      360,
+      273
+    ],
+    "clickable": false,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "",
+    "content_desc": "",
+    "class_name": "android.view.View",
+    "bounds": [
+      0,
+      384,
+      720,
+      526
+    ],
+    "center": [
+      360,
+      455
+    ],
+    "clickable": false,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "",
+    "content_desc": "登入后就可畅享音乐世界",
+    "class_name": "android.view.View",
+    "bounds": [
+      0,
+      526,
+      720,
+      578
+    ],
+    "center": [
+      360,
+      552
+    ],
+    "clickable": false,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "",
+    "content_desc": "",
+    "class_name": "android.view.View",
+    "bounds": [
+      0,
+      578,
+      720,
+      610
+    ],
+    "center": [
+      360,
+      594
+    ],
+    "clickable": false,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "",
+    "content_desc": "",
+    "class_name": "android.view.View",
+    "bounds": [
+      0,
+      610,
+      720,
+      702
+    ],
+    "center": [
+      360,
+      656
+    ],
+    "clickable": false,
+    "scrollable": false
+  },
+  {
+    "resource_id": "login_area_code_button",
+    "text": "",
+    "content_desc": "+86",
+    "class_name": "android.widget.ImageView",
+    "bounds": [
+      76,
+      610,
+      236,
+      702
+    ],
+    "center": [
+      156,
+      656
+    ],
+    "clickable": true,
+    "scrollable": false
+  },
+  {
+    "resource_id": "login_phone_field",
+    "text": "",
+    "content_desc": "",
+    "class_name": "android.widget.EditText",
+    "bounds": [
+      236,
+      610,
+      644,
+      702
+    ],
+    "center": [
+      440,
+      656
+    ],
+    "clickable": false,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "",
+    "content_desc": "",
+    "class_name": "android.widget.EditText",
+    "bounds": [
+      236,
+      610,
+      644,
+      702
+    ],
+    "center": [
+      440,
+      656
+    ],
+    "clickable": true,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "",
+    "content_desc": "",
+    "class_name": "android.view.View",
+    "bounds": [
+      0,
+      702,
+      720,
+      814
+    ],
+    "center": [
+      360,
+      758
+    ],
+    "clickable": false,
+    "scrollable": false
+  },
+  {
+    "resource_id": "login_submit_button",
+    "text": "",
+    "content_desc": "下一步",
+    "class_name": "android.widget.Button",
+    "bounds": [
+      76,
+      722,
+      644,
+      814
+    ],
+    "center": [
+      360,
+      768
+    ],
+    "clickable": false,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "",
+    "content_desc": "已经阅读并同意\n和\n。",
+    "class_name": "android.view.View",
+    "bounds": [
+      0,
+      814,
+      720,
+      922
+    ],
+    "center": [
+      360,
+      868
+    ],
+    "clickable": false,
+    "scrollable": false
+  },
+  {
+    "resource_id": "login_agreement_checkbox",
+    "text": "",
+    "content_desc": "",
+    "class_name": "android.widget.CheckBox",
+    "bounds": [
+      62,
+      846,
+      122,
+      906
+    ],
+    "center": [
+      92,
+      876
+    ],
+    "clickable": true,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "",
+    "content_desc": "《隐私政策》",
+    "class_name": "android.view.View",
+    "bounds": [
+      304,
+      850,
+      451,
+      894
+    ],
+    "center": [
+      377,
+      872
+    ],
+    "clickable": true,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "",
+    "content_desc": "《使用政策》",
+    "class_name": "android.view.View",
+    "bounds": [
+      475,
+      850,
+      622,
+      894
+    ],
+    "center": [
+      548,
+      872
+    ],
+    "clickable": true,
+    "scrollable": false
+  },
+  {
+    "resource_id": "",
+    "text": "",
+    "content_desc": "",
+    "class_name": "android.view.View",
+    "bounds": [
+      0,
+      922,
+      720,
+      1046
+    ],
+    "center": [
+      360,
+      984
+    ],
+    "clickable": false,
+    "scrollable": false
+  },
+  {
+    "resource_id": "login_third_party_wechat_button",
+    "text": "",
+    "content_desc": "",
+    "class_name": "android.widget.ImageView",
+    "bounds": [
+      244,
+      982,
+      308,
+      1046
+    ],
+    "center": [
+      276,
+      1014
+    ],
+    "clickable": false,
+    "scrollable": false
+  },
+  {
+    "resource_id": "login_third_party_weibo_button",
+    "text": "",
+    "content_desc": "",
+    "class_name": "android.widget.ImageView",
+    "bounds": [
+      412,
+      982,
+      476,
+      1046
+    ],
+    "center": [
+      444,
+      1014
+    ],
+    "clickable": false,
+    "scrollable": false
+  }
+]

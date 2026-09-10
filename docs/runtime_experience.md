@@ -12,7 +12,7 @@
 | 取码链路 | App 触发后 `GET <SWAN_OTP_GATEWAY>/api/test/otp/latest?phone=` 取码；开发接口为 `https://testnetwork.hivi.com/api/user/captcha/mockCode`（必须带 api 前缀） | orchestrator 2026-09-08 |
 | 拿未登录态 | 杀进程无效（登录态持久）、OPPO 禁 pm clear；唯一途径：我的→个人信息→退出登入 | element 2026-09-08 |
 | 登录页"下一步"图 | `swan_下一步按钮` 模板是置灰态，仅作存在性断言；点击一律走 key `login_submit_button` | element 2026-09-08 |
-| 新建歌单弹窗 | 第一次 press_back 只收键盘，需两次返回才关弹窗 | verify 2026-09-08 |
+| 新建歌单弹窗 | ~~第一次 press_back 只收键盘，需两次返回才关弹窗~~（09-08 旧结论已作废：见下一行 09-10 实测，必须点右上关闭按钮） | verify 2026-09-08（已被 Wave2 勘误取代） |
 | 音质弹层关闭判定 | 不能用"音质设置"文案判（列表项同名），判 OCR"流畅音质"/"完成"消失 | verify 2026-09-08 |
 | 设备卡定位 | key 按设备 UUID 动态拼接：`wifi_device_card_<UUID>`，用前缀匹配 | explorer 2026-09-08 |
 | 密码页 press_back | 只收键盘，不退出 App（验证码输入页的 press_back 才会退出） | codegen 2026-09-08 |

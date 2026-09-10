@@ -62,3 +62,4 @@
 | protobuf 版本 | 必须钉 3.20.2：chromadb 会把它顶到 7.x 弄坏 PaddleOCR；连带 googleapis-common-protos 钉 1.63.2 | orchestrator 2026-09-08 |
 | paddle+torch 同进程 | 先 import paddle 再 import torch 会 shm.dll 崩溃；两者分进程跑（向量管线不含 paddle，天然安全） | orchestrator 2026-09-08 |
 | 验证码页返回 | press_back 会退出 App（不是回登录页）；重启后回登录页 | element 2026-09-08 |
+| paddle 抢占 root logger | import paddleocr 后再 logging.basicConfig 是 no-op，独立验证脚本 INFO 全被吞（exit 0 但无日志）；import 后须显式 root.addHandler(StreamHandler(sys.stdout)) + setLevel(INFO)，并把 ppocr/paddle logger 压到 WARNING | verify 2026-09-10 Wave4 |

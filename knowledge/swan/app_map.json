@@ -287,9 +287,9 @@
   },
   "elements": {
     "image_verified": {
-      "verified_at": "2026-09-08",
-      "verifier": "aw-verify 真机验证（serial c0614b6a，OpenCV threshold 0.8，全部 score=1.00）",
-      "note": "18 张元素图全部通过并转正到 image/flutter/；常量见 image/image_name_mapping.py（正式路径）",
+      "verified_at": "2026-09-10",
+      "verifier": "aw-verify 真机验证（serial c0614b6a，OpenCV threshold 0.8）",
+      "note": "09-08 首批 18 张 + 09-10 Wave4 平台/搜索域 7 张（全链路 PASS，score=1.00）已转正 image/flutter/；Wave1/2 批次见 image/image_name_mapping.py 分块注释；常量见 image/image_name_mapping.py（正式路径）",
       "swan_首页": [
         "swan_底部播放条.png"
       ],
@@ -326,7 +326,20 @@
         "swan_添加设备按钮.png"
       ],
       "swan_平台页": [
-        "swan_平台_网易云音乐行.png"
+        "swan_平台_网易云音乐行.png",
+        "swan_平台_电台行箭头.png"
+      ],
+      "swan_搜索输入页": [
+        "swan_搜索输入页_返回按钮.png",
+        "swan_搜索输入页_搜索按钮.png",
+        "swan_搜索输入页_清空按钮.png"
+      ],
+      "swan_搜索结果页": [
+        "swan_搜索结果页_空态文案.png"
+      ],
+      "swan_授权门禁弹层": [
+        "swan_授权门禁弹层_授权登录按钮.png",
+        "swan_授权门禁弹层_添加按钮.png"
       ]
     }
   },

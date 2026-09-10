@@ -1,0 +1,70 @@
+---
+page_id: swan_扫一扫页
+name: "扫一扫"
+aliases: [扫码页, scan_qr_code_page]
+route: /me/scan-qr-code
+status: verified
+last_updated: 2026-09-10
+type: screen
+package_name: com.swan.network
+activity: null
+orientation: portrait
+---
+
+# 扫一扫 (swan_扫一扫页)
+
+## 页面概述
+
+我的页右上角「扫一扫」图标进入的扫码页（相机取景）。首次进入触发 Android 系统相机权限弹窗；
+权限被拒时弹窗关闭并直接退回我的页；授权后进入扫码界面（标题"扫一扫" + 扫码框 + 底部提示文案）。
+explorer 早前记录：测试机（c0614b6a）相机硬件不可用，授权后进入「相机不可用 + 重试」错误态；
+2026-09-10 aw-verify 复验未复现错误态——授权后为相机激活态（提示文案命中、取景区非黑屏）。
+两种形态均以 OCR"扫一扫"标题为页面判据，错误态出现与否不影响进入断言。
+**本页无「我的二维码」入口**（错误态与激活态均实测确认）。
+
+## 生效断言
+
+| 断言元素 | 出现/消失 | 断言方式 | 含义 |
+|---|---|---|---|
+| 页面标题 | 出现 | OCR"扫一扫"（注意与我的页右上角图标区分：进入本页后标题居中显示） | 已进入扫码页 |
+| 提示文案 | 出现 | OCR"将二维码/条码放入框内" | 相机激活态 |
+
+## 进入方式
+
+| 来源页面 | 操作元素（locator） | 操作类型 | 到达断言 |
+|---|---|---|---|
+| `[[swan_我的页]]` | 扫一扫图标（无 key 无文案，bounds 约 [626,216][674,264]，**需 element 截图后 `click_image`**） | click | 见「生效断言」 |
+
+自然语言补充：
+- 首次进入会弹系统相机权限弹窗（见下方关键元素），需先处理权限。
+- 拒绝权限（`permission_deny_button`）→ 弹窗关闭且**不进入本页**，直接停留在我的页（实测）。
+- 「仅本次使用时允许」授权仅本次会话有效，重启 App 后再次弹窗。
+
+## 关键元素
+
+| 元素 | locator（key / OCR 文案 / 图片常量） | 类型 | 操作 | 成功断言 | 截图 | 验证状态 |
+|---|---|---|---|---|---|---|
+| 返回箭头 | 无 key（左上角图标 [0,72][128,184]） | static | click / `press_back` | 回 `[[swan_我的页]]` | 待截 | draft |
+| 扫一扫图标（我的页入口） | `SWAN_ME_SCAN_ICON`（图，我的页右上角，无 key 无文案） | static | click（`click_image`） | 本页生效断言 | 已截（image/flutter/swan_我的_扫一扫图标.png，2026-09-10 verify 实测转正） | verified |
+| 相机权限弹窗-使用时允许 | `permission_allow_foreground_only_button`（系统 key，✅ 实测） | static | click | 进入本页（相机可用时） | dynamic-不截图（系统弹窗，机型相关） | draft |
+| 相机权限弹窗-仅本次允许 | `permission_allow_one_time_button`（系统 key，✅ 实测） | static | click | 进入本页（会话级授权） | dynamic-不截图 | draft |
+| 相机权限弹窗-拒绝 | `permission_deny_button`（系统 key，✅ 实测） | static | click | 弹窗关闭，停留我的页 | dynamic-不截图 | draft |
+| 相机权限弹窗根节点 | `grant_dialog` / `grant_singleton`（系统 key，✅ 实测） | static | 只读断言（权限弹窗出现判据） | — | dynamic-不截图 | draft |
+| 相机不可用错误态 | OCR"相机不可用" | dynamic | 只读断言 | — | dynamic-不截图 | draft |
+| 重试按钮 | OCR"重试"（desc=重试） | static | 未实测（相机硬件不可用，重试无意义） | — | 待截 | draft |
+
+### 元素截图（image/flutter）
+
+本轮未截。建议 aw-element 清单见知识库总结。
+
+## 页面布局
+
+- 顶栏：返回箭头 + 居中标题"扫一扫"
+- 内容区：相机取景全屏（扫码框为 canvas 绘制，无语义节点；相机不可用时显示错误文案 + 重试按钮）
+- 底部：提示文案"将二维码/条码放入框内，即可自动扫描"
+
+## 功能关联
+
+- 所属 feature：`[[feature_账号体系]]`（扫码登录/Pad 登录确认 /me/scan/pad-login-confirm 相关）
+- 上游：`[[swan_我的页]]`
+- 下游：扫码结果流程（未探索，依赖可用相机）；**无「我的二维码」入口**（实测，见 `[[swan_我的二维码页]]`）

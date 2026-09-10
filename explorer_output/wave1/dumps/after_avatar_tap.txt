@@ -1,0 +1,10 @@
+# dump after_avatar_tap
+  content	text=''	desc=''	[0,0][720,1528]
+* person_info_page	text=''	desc='个人信息修改'	[0,0][720,1528]
+* 	text=''	desc='头像'	[0,200][720,360]
+* 	text=''	desc=''	[504,220][624,340]
+* 	text=''	desc='昵称\n惠威2b11'	[0,376][720,504]
+* 	text=''	desc='密码\n******'	[0,505][720,633]
+  	text=''	desc='手机号\n13555555555'	[0,634][720,762]
+* person_info_cancel_account_button	text=''	desc='注销账号'	[0,778][720,906]
+* person_info_logout_button	text=''	desc='退出登入'	[0,922][720,1050]

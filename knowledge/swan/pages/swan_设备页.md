@@ -80,7 +80,10 @@
 
 | 引用来源 | 页面ID |
 |---------|--------|
+| digest/features/feature_导航框架.md | [[feature_导航框架]] |
+| digest/features/feature_设备管理.md | [[feature_设备管理]] |
+| pages/swan_播放页.md | [[swan_播放页]] |
 | pages/swan_首页.md | [[swan_首页]] |
 
-_自动生成于 2026-09-09 08:29_
+_自动生成于 2026-09-10 14:19_
 <!-- backlinks:end -->

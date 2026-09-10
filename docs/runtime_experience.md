@@ -22,6 +22,27 @@
 | 我的页滚动位 | 从帮助/关于页返回后页面停在滚动位，`me_user_profile_entry` 离屏不在语义树中；判该 key 前先 swipe_down 复位 | verify 2026-09-08 |
 | 危险入口 | `person_info_cancel_account_button`（注销账号）紧邻退出登入，⛔ 任何自动化禁止点击 | explorer 2026-09-08 |
 | 真实音箱安全 | 播放/音量/同步/授权/充值类按钮只做 image_exists，不下发点击 | 编排约定 2026-09-08 |
+| 修改密码页 FLAG_SECURE | 该页防截屏：`adb screencap` 返回空、OCR 0 项，离开即恢复；禁止对该页截图/OCR 断言，"截图失败"本身可作页面判据 | explorer 2026-09-10 |
+| `logout_if_needed()` 误判 | 在个人信息页会静默跳过（`tab_me` 不可见即视为未登录）；须先 `press_back` 回我的页再登出 | explorer 2026-09-10 |
+| 首页顶 Tab 持久化 | 顶 Tab 选择跨底栏切换、跨登出/登录持久，`go_home()` 不重置；要稳定进推荐 Tab 必须显式 `click_text("推荐")` | explorer 2026-09-10 |
+| uiautomator dump 瞬时失败 | 页面动画中 dump 只返回 1-2 个节点，重试即可（3 次内置重试） | explorer 2026-09-10 |
+| 个人信息页行可点性 | 手机号行是非 clickable View（点击无反应）；昵称/密码行 clickable 状态以 raw dump 为准（时序可能不显示） | explorer 2026-09-10 |
+| 昵称编辑页返回 | `press_back` 需两次（收键盘+返回）；头像弹层点 OCR"取消"关闭 | explorer 2026-09-10 |
+| 短文案 OCR 歧义 | "AI"等短文案在页内多处出现（顶 Tab y≈121 vs 页内 y≈737），用 region 限定区域提高鲁棒性 | explorer 2026-09-10 |
+| 扫一扫权限弹窗 | 首次进入触发系统相机权限；用 `permission_allow_one_time_button` 最小授权 / `permission_deny_button` 断言不进页 | explorer 2026-09-10 |
+| 顶 Tab 选中态判定 | 选中 Tab 文字近黑（暗像素≈1000），未选中灰（≈0）；顶 Tab 截图一律取未选中态（`SWAN_HOME_TAB_*`），交叉匹配选中态仅 0.48-0.67 不会误命中 | element 2026-09-10 |
+| 推荐 Tab 内容（勘误） | 推荐 Tab = 音源卡+我喜欢/歌单/AI+最近播放（与 09-08 首页 dump 一致）；音乐 Tab = 歌单宫格；电台 Tab = 全国电台。09-10 element 记录的"推荐与电台内容相同"系顶 Tab 持久化陷阱下的误读（采集时实际停在电台 Tab） | explorer 2026-09-10 Wave2 勘误 |
+| AI 角色设置入口 | 实为「添加更多AI角色」右侧的图标按钮（无文案，OCR 不可用），图模板 `SWAN_HOME_AI_ROLE_SETTINGS`；实测落地「所有角色」页（系统角色+自定义区） | element 2026-09-10 |
+| 区号行防误匹配 | 区号页"中国"两字会模板匹配到"中国香港"行首；`SWAN_AREA_CODE_CHINA_ROW` 必须含行尾 +86 的整行裁剪（港澳台行交叉得分 0.61-0.67） | element 2026-09-10 |
+| 完成按钮双义 | 资料编辑页昵称输入态下顶栏"完成"与 IME 键盘右下"完成"同文案；`SWAN_PROFILE_EDIT_DONE` 仅匹配顶栏位置 | element 2026-09-10 |
+| 中文输入 | `adb shell input text` 不支持中文（NullPointerException）；AI 对话/歌单名等中文输入现框架不可达，需 IME 方案（框架层，待用户决策） | explorer 2026-09-10 Wave2 |
+| 新建歌单弹窗 | press_back 一次不关闭且弹窗整体下移；须点右上关闭按钮 | explorer 2026-09-10 Wave2 |
+| 播放态前置 | 播放队列/歌词入口在无播放任务时点击零反应；用例设计必须前置播放任务（本账号全平台未授权，无法建立播放） | explorer 2026-09-10 Wave2 |
+| 授权门禁弹层 | "授权登录"/"去授权"/"添加"弹层带 desc='纱罩' scrim，press_back 可关；⛔ 授权按钮不点 | explorer 2026-09-10 Wave2 |
+| 设备单选列表 | 切换设备弹层与 AI 自动朗读设备弹层共用设备列表（真实音箱×3+手机扬声器+Apple Music），⛔ 全部禁止选择 | explorer 2026-09-10 Wave2 |
+| AI 语音按钮权限 | 触发系统麦克风权限弹窗，key 与相机权限同族（permission_allow_one_time_button 等） | explorer 2026-09-10 Wave2 |
+| 播放历史计数口径 | 首页卡片"已播歌曲 1首"与播放历史页内"暂无历史播放"口径不一致（App 行为，断言以页内为准） | explorer 2026-09-10 Wave2 |
+| 歌单域两套详情 | 歌单页路径详情带右上 ⋮（修改名称/删除歌单），收藏页路径无 ⋮；布局同模板数据同源但行为两套 | explorer 2026-09-10 Wave2 |
 
 ## 框架 / 环境
 

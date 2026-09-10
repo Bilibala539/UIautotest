@@ -1,0 +1,10 @@
+# dump ai_icon1
+  content	text=''	desc=''	[0,72][720,1528]
+* grant_singleton	text=''	desc=''	[0,72][720,1528]
+* grant_dialog	text=''	desc=''	[16,506][704,1165]
+  content_container	text=''	desc=''	[44,518][676,729]
+  permission_icon	text=''	desc=''	[336,566][384,614]
+  permission_message	text='“Swan Audio”需要使用麦克风权限'	desc=''	[104,662][616,705]
+* permission_allow_foreground_only_button	text='使用时允许'	desc=''	[44,781][676,885]
+* permission_allow_one_time_button	text='仅本次使用时允许'	desc=''	[44,885][676,989]
+* permission_deny_button	text='拒绝'	desc=''	[44,989][676,1093]

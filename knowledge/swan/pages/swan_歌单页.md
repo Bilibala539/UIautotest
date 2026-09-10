@@ -1,0 +1,117 @@
+---
+page_id: swan_歌单页
+name: "歌单页"
+aliases: [歌单列表, playlist_page]
+route: "/player/playlist"
+status: verified
+last_updated: 2026-09-10
+type: screen
+package_name: com.swan.network
+activity: null
+orientation: portrait
+---
+
+# 歌单页 (swan_歌单页)
+
+## 页面概述
+
+歌单列表页（`playlist_page.dart`），首页·推荐 Tab 的「歌单」卡片进入。顶部为平台筛选 Tab
+（SWAN/QQ音乐/网易云音乐/酷狗音乐），SWAN Tab 下有 创建/聚合 两个筛选 chip 与歌单行列表
+（当前账号 2 个聚合歌单：我的家庭/我的音乐，均 0 首歌），底部「已加载全部 · 共2个歌单」。
+右上角图标打开「新建歌单」弹窗。与 `[[swan_收藏页]]`（SWAN收藏，我的页入口）展示同一批
+收藏歌单数据但 UI 不同（本页多平台 Tab/筛选 chip/新建入口，收藏页是"添加新的收藏歌单"流程）。
+
+⚠️ 全页无 accessibility key（除 `bottom_player`），定位全靠 OCR。
+
+## 生效断言
+
+| 断言元素 | 出现/消失 | 断言方式 | 含义 |
+|---|---|---|---|
+| 页面标题 | 出现 | OCR"歌单"（顶栏中央，y≈110-146；注意与筛选 chip/行内文案区分，用 region 限定顶栏） | 进入本页 |
+| 平台 Tab 行 | 出现 | OCR"SWAN" | 列表框架已渲染 |
+| 列表脚注 | 出现 | OCR"已加载全部"（SWAN Tab 有歌单时） | 数据加载完成 |
+
+## 进入方式
+
+| 来源页面 | 操作元素（locator） | 操作类型 | 到达断言 |
+|---|---|---|---|
+| `[[swan_首页]]`（推荐 Tab） | `OCR"歌单"`（我喜欢/歌单/AI 卡片区中列，卡片 desc='歌单'） | click | 见「生效断言」 |
+
+前置：首页顶部 Tab 停在**推荐**（顶 Tab 持久化，须显式 `click_text("推荐")`）。
+
+⚠️ **入口依赖首页推荐 Tab 的服务端动态布局（2026-09-10 aw-verify 实测）**：推荐 Tab 在两种
+布局间间歇轮换——完整布局（搜索条+平台图标行+我喜欢/歌单/AI 卡片行+最近播放，有「歌单」卡）
+与紧凑布局（仅 我喜欢|AI 卡片行+最近播放，**无「歌单」卡**）。紧凑布局态入口不可达，
+需下拉刷新/等待轮换回完整布局再进（自动化入口前置须 dump 检查 desc='歌单' 卡片存在）。
+
+## 关键元素
+
+| 元素 | locator（key / OCR 文案 / 图片常量） | 类型 | 操作 | 成功断言 | 截图 | 验证状态 |
+|---|---|---|---|---|---|---|
+| 返回按钮 | 无文案 ImageView [0,72][134,184]（无 key/desc） | static | press_back 等效 | 回 `[[swan_首页]]` | 已转正 `SWAN_PLAYLIST_BACK_BTN`（2026-09-10 verify 实测存在） | verified |
+| 页面标题 | OCR"歌单" | static | 只读 | — | 待截（含顶栏） | verified |
+| 新建歌单入口 | 右上角无文案图标 [586,73][720,183] | static | click | 「新建歌单」弹窗出现（OCR"选择平台"） | 已转正 `SWAN_PLAYLIST_CREATE_BTN`（2026-09-10 verify 实测点击成功） | verified |
+| 平台筛选 Tab（SWAN/QQ音乐/网易云音乐/酷狗音乐） | `OCR"SWAN"` 等 | static | click | 切换平台歌单列表 | 已转正 `SWAN_PLAYLIST_TAB_SWAN`（未选中态；2026-09-10 verify 实测 QQ音乐 Tab 下图匹配+点击切回）；其余 Tab 待截 | verified |
+| 创建/聚合 chip | `OCR"创建"` / `OCR"聚合"`（SWAN Tab 专属） | static | click | 列表切换（创建=自建歌单，聚合=收藏聚合歌单） | 待截 | verified（存在性 OCR 实测；切换行为未验证） |
+| 收藏/创建 chip | `OCR"收藏"` / `OCR"创建"`（第三方平台 Tab 下） | static | click | 未验证（未授权） | 待截 | verified（存在性 OCR 实测；未点击） |
+| 歌单行 | `OCR"我的家庭"` / `OCR"我的音乐"`（行含"0首歌"） | dynamic | click | `[[swan_歌单详情页]]` 生效断言 | dynamic-不截图（行首固定部分可截） | verified（2026-09-10 verify 实测点"我的家庭"进详情页） |
+| 列表脚注 | OCR"已加载全部 · 共2个歌单" | dynamic | 只读 | — | dynamic-不截图 | verified |
+| 空态（创建筛选无歌单时） | OCR"你还没有在 Swans 创建过歌单 / 去创建一个吧～" + 「新建歌单」按钮 [246,1112][474,1192] | dynamic | 「新建歌单」按钮 click → 新建歌单弹窗 | — | dynamic-不截图（按钮可截） | draft（本账号聚合筛选有歌单，未触发空态） |
+| 未授权空态（第三方 Tab） | OCR"授权已过期 / 授权后再使用哦～ / 去授权"（2026-09-10 verify 实测文案） | dynamic | ⛔「去授权」授权类禁止点击 | — | dynamic-不截图 | verified |
+| 底部播放条 | `bottom_player`（key） | static | click | `[[swan_播放页]]` | 已有图 | verified |
+
+### 「新建歌单」弹窗（本页内嵌 dialog，type: dialog）
+
+顶右上角图标或空态「新建歌单」按钮打开。元素：标题「新建歌单」+ 关闭按钮（无文案，
+[556,241][604,289]，press_back 一次实测未关闭、弹窗整体下移，需点关闭按钮，
+aw-verify 2026-09-10 补截 `SWAN_PLAYLIST_NEWDLG_CLOSE_BTN` 图定位实测关闭成功）；
+「选择平台」SWAN/QQ音乐/网易云音乐/酷狗音乐 四选一；「选择类型」自建歌单/聚合歌单 二选一；
+歌单名输入框（无 key，[116,659][604,735]）；「保存」按钮。
+⛔ 保存会真实创建歌单，测试须自清理；2026-09-10 verify 实测开→关流程（未点保存）。
+
+### 元素截图（2026-09-10 aw-verify 真机验证通过，已转正 image/flutter/）
+
+| 元素 | 常量（image/image_name_mapping.py） | 图片文件 |
+|---|---|---|
+| 左上角返回箭头 | `SWAN_PLAYLIST_BACK_BTN` | image/flutter/swan_歌单页_返回按钮.png |
+| 右上角新建歌单图标 | `SWAN_PLAYLIST_CREATE_BTN` | image/flutter/swan_歌单页_新建歌单按钮.png |
+| 平台 Tab「SWAN」未选中态（自 QQ音乐 Tab 页截取） | `SWAN_PLAYLIST_TAB_SWAN` | image/flutter/swan_歌单页_SWAN平台Tab.png |
+| 新建歌单弹窗右上关闭按钮 | `SWAN_PLAYLIST_NEWDLG_CLOSE_BTN` | image/flutter/swan_歌单页_新建歌单关闭按钮.png |
+
+注：返回箭头为全局共用图标资产，离线匹配显示同款箭头在其他二级页（如资料编辑页）得分 1.000，
+其他二级页返回按钮可直接复用本模板。
+
+## 页面布局
+
+```
+┌────────────────────────┐
+│ [←]      歌单       [＋] │  返回 / 标题 / 新建歌单
+│ SWAN | QQ音乐 | 网易云 | 酷狗 │  平台筛选 Tab（可横滑）
+│ [创建] [聚合]             │  筛选 chip（SWAN Tab；第三方 Tab 为 收藏/创建）
+│ ┌────────────────────┐ │
+│ │ 我的家庭      0首歌  │ │  歌单行（封面+名称+歌曲数）
+│ │ 我的音乐      0首歌  │ │
+│ └────────────────────┘ │
+│   已加载全部 · 共2个歌单    │  列表脚注（dynamic）
+│ [bottom_player]        │
+└────────────────────────┘
+```
+
+## 功能关联
+
+- 所属 feature：`[[feature_收藏管理]]`（收藏与曲库域）
+- 上游：`[[swan_首页]]`（推荐 Tab 歌单卡片）
+- 下游：`[[swan_歌单详情页]]`（歌单行）、新建歌单弹窗（本页内）
+- 数据关系：与 `[[swan_收藏页]]` 共享同一批收藏歌单（我的家庭/我的音乐），为两个不同 UI 入口
+
+## 反向引用
+<!-- backlinks:start -->
+
+| 引用来源 | 页面ID |
+|---------|--------|
+| digest/features/feature_收藏管理.md | [[feature_收藏管理]] |
+| pages/swan_歌单详情页.md | [[swan_歌单详情页]] |
+| pages/swan_首页.md | [[swan_首页]] |
+
+_自动生成于 2026-09-10 14:19_
+<!-- backlinks:end -->

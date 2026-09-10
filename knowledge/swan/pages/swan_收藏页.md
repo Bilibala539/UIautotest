@@ -63,8 +63,10 @@ SWAN收藏页。收藏歌单分组列表（我的家庭 / 我的音乐），底�
 
 | 引用来源 | 页面ID |
 |---------|--------|
+| digest/features/feature_收藏管理.md | [[feature_收藏管理]] |
 | pages/swan_我的页.md | [[swan_我的页]] |
 | pages/swan_收藏分组详情页.md | [[swan_收藏分组详情页]] |
+| pages/swan_歌单页.md | [[swan_歌单页]] |
 
-_自动生成于 2026-09-09 08:29_
+_自动生成于 2026-09-10 14:19_
 <!-- backlinks:end -->

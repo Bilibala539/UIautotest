@@ -1,0 +1,85 @@
+---
+page_id: swan_我喜欢页
+name: "我喜欢"
+aliases: [我喜欢页, my_likes]
+route: "/player/playlist-detail"   # 与歌单详情同模板的特殊歌单（我喜欢），独立路由待源码确认
+status: verified
+last_updated: 2026-09-10
+type: screen
+package_name: com.swan.network
+activity: null
+orientation: portrait
+---
+
+# 我喜欢 (swan_我喜欢页)
+
+## 页面概述
+
+「我喜欢」收藏歌曲列表页，首页·推荐 Tab 的「我喜欢」卡片进入。布局与
+`[[swan_歌单详情页]]` / `[[swan_收藏分组详情页]]` 同模板：返回 + 标题「我喜欢」+ 歌单头
+（"我喜欢 / 宝藏音乐，随心收藏"）+「播放全部 0首歌」+ 来源筛选 Tab + 歌曲列表。
+本页**无右上角更多按钮**（同收藏分组详情页）。
+
+⚠️ 本账号当前空态区显示平台错误文案「QQ音乐登录TOKEN过期,请重新授权!」+「重试」按钮
+（QQ音乐授权过又过期所致），属 dynamic 错误态，不是稳定 UI。
+
+## 生效断言
+
+| 断言元素 | 出现/消失 | 断言方式 | 含义 |
+|---|---|---|---|
+| 页面标题 | 出现 | OCR"我喜欢"（顶栏 y≈92-140） | 进入本页 |
+| 歌单头副标题 | 出现 | OCR"宝藏音乐，随心收藏" | 本页特有判据（区别于歌单详情） |
+
+## 进入方式
+
+| 来源页面 | 操作元素（locator） | 操作类型 | 到达断言 |
+|---|---|---|---|
+| `[[swan_首页]]`（推荐 Tab） | `OCR"我喜欢"`（我喜欢/歌单/AI 卡片区左卡片，卡片 desc='我喜欢\n暂无歌曲'） | click | 见「生效断言」 |
+
+前置：首页顶部 Tab 停在**推荐**；OCR 注意"我喜欢"也出现在卡片内 desc，click_text 首个命中即卡片，实测稳定。
+
+## 关键元素
+
+| 元素 | locator（key / OCR 文案 / 图片常量） | 类型 | 操作 | 成功断言 | 截图 | 验证状态 |
+|---|---|---|---|---|---|---|
+| 返回按钮 | 无文案 ImageView [0,72][128,160] | static | press_back | 回 `[[swan_首页]]` | 待截 | verified（press_back 实测） |
+| 标题 | OCR"我喜欢"（y≈92-140） | static | 只读 | — | 待截 | verified |
+| 歌单头 | OCR"我喜欢"（y≈192-238）+"宝藏音乐，随心收藏" | dynamic | 只读 | — | dynamic-不截图 | verified |
+| 播放全部 | OCR"播放全部\n0首歌" [32,438][234,614] | static | ⛔ 播放控制类，只断言不点 | — | 已转正 `SWAN_FAVORITE_PLAY_ALL`（2026-09-10 verify 图断言通过；⚠️ 含"0首歌"计数，与歌单详情页分开截，歌单加歌后需重截） | verified |
+| 来源筛选 Tab | OCR"全部 (0)"/"QQ音乐 (0)"/"网易云音乐 (0)"/"酷狗音乐 (0)" | dynamic | click（未验证） | — | 待截 | verified（存在性 OCR 实测；未点击） |
+| 错误空态（本账号） | OCR"QQ音乐登录TOKEN过期,请重新授权!" + 「重试」按钮 | dynamic | 「重试」⛔ 涉及授权链路未点 | — | dynamic-不截图 | verified（2026-09-10 verify 实测仍在） |
+| 底部播放条 | `bottom_player`（key） | static | click | `[[swan_播放页]]` | 已有图 | verified |
+
+判别补充（2026-09-10 verify 实测）：本页 `SWAN_PD_MORE_BTN` 图不存在（与
+`[[swan_歌单详情页]]` 的反证判据成立）。
+
+### 元素截图（2026-09-10 aw-verify 真机验证通过，已转正 image/flutter/）
+
+| 元素 | 常量（image/image_name_mapping.py） | 图片文件 |
+|---|---|---|
+| 「播放全部」行（▶图标+两行文案，⚠️ 含"0首歌"计数） | `SWAN_FAVORITE_PLAY_ALL` | image/flutter/swan_我喜欢页_播放全部.png |
+
+## 页面布局
+
+同 `[[swan_歌单详情页]]` 布局图，差异：标题「我喜欢」、歌单头副标题「宝藏音乐，随心收藏」、
+无右上角「⋮」更多按钮、空态区可能显示 TOKEN 过期错误（本账号实测）。
+
+## 功能关联
+
+- 所属 feature：`[[feature_收藏管理]]`
+- 上游：`[[swan_首页]]`（推荐 Tab 我喜欢卡片）
+- 下游：`[[swan_播放页]]`（bottom_player）
+- 模板同源：`[[swan_歌单详情页]]`、`[[swan_收藏分组详情页]]`
+
+## 反向引用
+<!-- backlinks:start -->
+
+| 引用来源 | 页面ID |
+|---------|--------|
+| digest/features/feature_收藏管理.md | [[feature_收藏管理]] |
+| pages/swan_播放页.md | [[swan_播放页]] |
+| pages/swan_歌单详情页.md | [[swan_歌单详情页]] |
+| pages/swan_首页.md | [[swan_首页]] |
+
+_自动生成于 2026-09-10 14:19_
+<!-- backlinks:end -->

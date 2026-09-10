@@ -68,9 +68,11 @@ Swan（com.swan.network v5.3.0）启动后的默认落地页。手机号 + 验�
 
 | 引用来源 | 页面ID |
 |---------|--------|
+| digest/features/feature_账号体系.md | [[feature_账号体系]] |
 | pages/swan_个人信息页.md | [[swan_个人信息页]] |
+| pages/swan_区号选择页.md | [[swan_区号选择页]] |
 | pages/swan_密码登入页.md | [[swan_密码登入页]] |
 | pages/swan_验证码输入页.md | [[swan_验证码输入页]] |
 
-_自动生成于 2026-09-09 08:29_
+_自动生成于 2026-09-10 14:19_
 <!-- backlinks:end -->

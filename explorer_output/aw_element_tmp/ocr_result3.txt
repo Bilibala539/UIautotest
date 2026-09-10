@@ -1,0 +1,87 @@
+[2026/09/10 11:02:02] ppocr DEBUG: Namespace(help='==SUPPRESS==', use_gpu=False, use_xpu=False, use_npu=False, use_mlu=False, ir_optim=True, use_tensorrt=False, min_subgraph_size=15, precision='fp32', gpu_mem=500, gpu_id=0, image_dir=None, page_num=0, det_algorithm='DB', det_model_dir='C:\\Users\\menglz.SWANSPEAKERS/.paddleocr/whl\\det\\ch\\ch_PP-OCRv4_det_infer', det_limit_side_len=960, det_limit_type='max', det_box_type='quad', det_db_thresh=0.3, det_db_box_thresh=0.6, det_db_unclip_ratio=1.5, max_batch_size=10, use_dilation=False, det_db_score_mode='fast', det_east_score_thresh=0.8, det_east_cover_thresh=0.1, det_east_nms_thresh=0.2, det_sast_score_thresh=0.5, det_sast_nms_thresh=0.2, det_pse_thresh=0, det_pse_box_thresh=0.85, det_pse_min_area=16, det_pse_scale=1, scales=[8, 16, 32], alpha=1.0, beta=1.0, fourier_degree=5, rec_algorithm='SVTR_LCNet', rec_model_dir='C:\\Users\\menglz.SWANSPEAKERS/.paddleocr/whl\\rec\\ch\\ch_PP-OCRv4_rec_infer', rec_image_inverse=True, rec_image_shape='3, 48, 320', rec_batch_num=6, max_text_length=25, rec_char_dict_path='E:\\UIAutotest\\venv\\Lib\\site-packages\\paddleocr\\ppocr\\utils\\ppocr_keys_v1.txt', use_space_char=True, vis_font_path='./doc/fonts/simfang.ttf', drop_score=0.5, e2e_algorithm='PGNet', e2e_model_dir=None, e2e_limit_side_len=768, e2e_limit_type='max', e2e_pgnet_score_thresh=0.5, e2e_char_dict_path='./ppocr/utils/ic15_dict.txt', e2e_pgnet_valid_set='totaltext', e2e_pgnet_mode='fast', use_angle_cls=False, cls_model_dir='C:\\Users\\menglz.SWANSPEAKERS/.paddleocr/whl\\cls\\ch_ppocr_mobile_v2.0_cls_infer', cls_image_shape='3, 48, 192', label_list=['0', '180'], cls_batch_num=6, cls_thresh=0.9, enable_mkldnn=False, cpu_threads=10, use_pdserving=False, warmup=False, sr_model_dir=None, sr_image_shape='3, 32, 128', sr_batch_num=1, draw_img_save_dir='./inference_results', save_crop_res=False, crop_res_save_dir='./output', use_mp=False, total_process_num=1, process_id=0, benchmark=False, save_log_path='./log_output/', show_log=True, use_onnx=False, return_word_box=False, output='./output', table_max_len=488, table_algorithm='TableAttn', table_model_dir=None, merge_no_span_structure=True, table_char_dict_path=None, layout_model_dir=None, layout_dict_path=None, layout_score_threshold=0.5, layout_nms_threshold=0.5, kie_algorithm='LayoutXLM', ser_model_dir=None, re_model_dir=None, use_visual_backbone=True, ser_dict_path='../train_data/XFUND/class_list_xfun.txt', ocr_order_method=None, mode='structure', image_orientation=False, layout=True, table=True, ocr=True, recovery=False, use_pdf2docx_api=False, invert=False, binarize=False, alphacolor=(255, 255, 255), lang='ch', det=True, rec=True, type='ocr', savefile=False, ocr_version='PP-OCRv4', structure_version='PP-StructureV2', use_textline_orientation=False, use_doc_orientation_classify=False, text_detection_model_name='PP-OCRv5_mobile_det', text_recognition_model_name='PP-OCRv5_mobile_rec')
+=== src_me.png (720x1600) ===
+[2026/09/10 11:02:02] ppocr WARNING: Since the angle classifier is not initialized, it will not be used during the forward process
+[2026/09/10 11:02:02] ppocr DEBUG: dt_boxes num : 26, elapsed : 0.28354692459106445
+[2026/09/10 11:02:03] ppocr DEBUG: rec_res num  : 26, elapsed : 0.5312166213989258
+  ( 492,  28)-( 677,  62)  '为磊》冒'
+  ( 103,  30)-( 169,  60)  '11:01'
+  ( 181, 160)-( 327, 205)  '惠威2b11'
+  ( 186, 213)-( 339, 237)  '13555555555'
+  ( 624, 215)-( 677, 267)  '8'
+  (  29, 335)-( 166, 375)  '我的权益'
+  (  63, 435)-( 278, 468)  '充值与消费记录'
+  (  61, 562)-( 190, 602)  '家庭管理'
+  (  63, 693)-( 214, 728)  'SWAN收藏'
+  (  31, 818)-( 164, 858)  '设备管理'
+  (  59, 933)-( 188, 973)  '设备管理'
+  (  63,1065)-( 190,1107)  '音质设置'
+  (  25,1186)-( 100,1236)  '更多'
+  ( 122,1308)-( 283,1348)  '帮助与反馈'
+  ( 174,1375)-( 265,1412)  '扬声器'
+  ( 545,1388)-( 593,1432)  '三'
+  ( 619,1388)-( 678,1438)  'Q'
+  ( 608,1483)-( 654,1532)  '?'
+  ( 246,1532)-( 292,1563)  '平台'
+  ( 428,1532)-( 474,1563)  '设备'
+  ( 606,1532)-( 654,1563)  '我的'
+  (  71,1533)-( 114,1563)  '首页'
+=== src_person_info.png (720x1600) ===
+[2026/09/10 11:02:03] ppocr WARNING: Since the angle classifier is not initialized, it will not be used during the forward process
+[2026/09/10 11:02:03] ppocr DEBUG: dt_boxes num : 12, elapsed : 0.048838138580322266
+[2026/09/10 11:02:03] ppocr DEBUG: rec_res num  : 12, elapsed : 0.18687081336975098
+  ( 103,  30)-( 169,  60)  '11:01'
+  ( 249, 108)-( 471, 148)  '个人信息修改'
+  (  27, 260)-( 101, 303)  '头像'
+  (  27, 420)-( 103, 463)  '昵称'
+  ( 500, 422)-( 625, 457)  '惠威2b11'
+  (  27, 548)-( 101, 593)  '密码'
+  ( 553, 555)-( 620, 572)  '******'
+  (  29, 680)-( 132, 722)  '手机号'
+  ( 509, 683)-( 689, 712)  '13555555555'
+  ( 292, 823)-( 428, 863)  '注销账号'
+  ( 289, 965)-( 428,1010)  '退出登入'
+=== src_avatar_popup.png (720x1600) ===
+[2026/09/10 11:02:03] ppocr WARNING: Since the angle classifier is not initialized, it will not be used during the forward process
+[2026/09/10 11:02:03] ppocr DEBUG: dt_boxes num : 14, elapsed : 0.058335304260253906
+[2026/09/10 11:02:03] ppocr DEBUG: rec_res num  : 14, elapsed : 0.2278146743774414
+  ( 104,  28)-( 167,  60)  '11:01'
+  ( 251, 108)-( 471, 148)  '个人信息修改'
+  (  27, 260)-( 101, 303)  '头像'
+  (  27, 420)-( 103, 463)  '昵称'
+  ( 501, 423)-( 624, 453)  '惠威2b11'
+  (  27, 548)-( 101, 592)  '密码'
+  (  25, 676)-( 132, 724)  '手机号'
+  ( 511, 683)-( 689, 712)  '13555555555'
+  ( 292, 823)-( 428, 865)  '注销账号'
+  ( 291, 967)-( 428,1008)  '退出登入'
+  ( 321,1191)-( 398,1242)  '拍照'
+  ( 249,1342)-( 474,1377)  '从手机相册选取'
+  ( 323,1478)-( 397,1522)  '取消'
+=== src_profile_edit.png (720x1600) ===
+[2026/09/10 11:02:04] ppocr WARNING: Since the angle classifier is not initialized, it will not be used during the forward process
+[2026/09/10 11:02:04] ppocr DEBUG: dt_boxes num : 25, elapsed : 0.07079029083251953
+[2026/09/10 11:02:04] ppocr DEBUG: rec_res num  : 25, elapsed : 0.47403931617736816
+  ( 492,  28)-( 677,  62)  '为磊》冒'
+  ( 103,  30)-( 169,  62)  '11:01'
+  ( 284, 108)-( 434, 150)  '修改昵称'
+  ( 609, 110)-( 672, 150)  '完成'
+  (  32, 247)-( 175, 282)  '惠威2b11'
+  ( 432,1058)-( 545,1095)  '5网盘'
+  (  34,1060)-( 405,1095)  '号点个的元'
+  ( 537,1060)-( 612,1097)  '对'
+  ( 169,1163)-( 243,1208)  '分词'
+  ( 635,1167)-( 677,1193)  'α'
+  ( 328,1170)-( 395,1202)  'ABC'
+  ( 485,1170)-( 548,1202)  'DEF'
+  ( 614,1267)-( 691,1310)  '清空'
+  ( 175,1275)-( 236,1313)  'GHI'
+  ( 333,1277)-( 389,1310)  'JKL'
+  ( 477,1278)-( 554,1310)  'MNO'
+  ( 159,1385)-( 246,1422)  'PQRS'
+  ( 472,1385)-( 566,1420)  'WXYZ'
+  ( 328,1387)-( 394,1418)  'TUV'
+  ( 644,1388)-( 665,1415)  '0'
+  (  50,1482)-(  88,1523)  '符'
+  ( 617,1482)-( 691,1527)  '完成'
+  ( 480,1483)-( 557,1524)  '中/英'
+  ( 172,1487)-( 236,1523)  '123'

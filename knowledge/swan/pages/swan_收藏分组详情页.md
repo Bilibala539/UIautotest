@@ -60,6 +60,13 @@
 - 来源筛选 tab 切换后列表变化未验证（全部 0 首）
 - 有歌曲时的列表项结构未知
 
+## Wave 2 关系结论（2026-09-10）
+
+与 `[[swan_歌单详情页]]`（/player/playlist-detail，歌单页路径进入）**布局逐像素一致但行为两套**：
+本页（收藏页路径）右上角无「⋮」更多按钮，歌单页路径有（修改名称/删除歌单 action sheet）——
+双路径 raw dump 对比实测。数据同源（我的家庭/我的音乐）。本页 route 未确认，疑似 my_collects 模块
+内页而非 /player/playlist-detail；待源码考古。
+
 ## 关联
 
 - [[swan_收藏页]]（分组行进入，press_back 返回）
@@ -71,7 +78,11 @@
 
 | 引用来源 | 页面ID |
 |---------|--------|
+| digest/features/feature_收藏管理.md | [[feature_收藏管理]] |
+| pages/swan_我喜欢页.md | [[swan_我喜欢页]] |
+| pages/swan_播放页.md | [[swan_播放页]] |
 | pages/swan_收藏页.md | [[swan_收藏页]] |
+| pages/swan_歌单详情页.md | [[swan_歌单详情页]] |
 
-_自动生成于 2026-09-09 08:29_
+_自动生成于 2026-09-10 14:19_
 <!-- backlinks:end -->

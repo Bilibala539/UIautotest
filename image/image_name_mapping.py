@@ -140,6 +140,74 @@ SWAN_DEVICE_ADD_BTN = image_path("swan_添加设备按钮.png", platform="flutte
 SWAN_PLATFORM_NETEASE_ROW = image_path("swan_平台_网易云音乐行.png", platform="flutter")
 
 
+# =====================================================================
+# Swan (Flutter) Wave 1 元素图片（✅ 已转正）
+# 2026-09-10 aw-element 采集（serial c0614b6a，720x1600），
+# 源图与裁剪分析脚本见 explorer_output/aw_element_tmp/。
+# 2026-09-10 aw-verify 真机走通验证（explorer_output/verify_wave1/），
+# 14 张全部 click_image / image_exists 实测通过后 promote_image 转正。
+# =====================================================================
+
+# --- 首页顶 Tab 行（未选中态，用于 click_image 切换顶 Tab） ---
+SWAN_HOME_TAB_RECOMMEND = image_path("swan_首页_推荐Tab按钮.png", platform="flutter")
+SWAN_HOME_TAB_MUSIC = image_path("swan_首页_音乐Tab按钮.png", platform="flutter")
+SWAN_HOME_TAB_RADIO = image_path("swan_首页_电台Tab按钮.png", platform="flutter")
+SWAN_HOME_TAB_AI = image_path("swan_首页_AITab按钮.png", platform="flutter")
+SWAN_HOME_TAB_VISION = image_path("swan_首页_可视音箱Tab按钮.png", platform="flutter")
+
+# --- 首页各顶 Tab 内容区元素 ---
+SWAN_HOME_MUSIC_SEARCH_BAR = image_path("swan_首页音乐Tab_搜索条.png", platform="flutter")
+SWAN_HOME_RADIO_SEARCH_BAR = image_path("swan_首页电台Tab_搜索条.png", platform="flutter")
+SWAN_HOME_AI_ADD_ROLE = image_path("swan_首页AITab_添加角色入口.png", platform="flutter")
+SWAN_HOME_AI_ROLE_SETTINGS = image_path("swan_首页AITab_角色设置入口.png", platform="flutter")
+SWAN_HOME_VISION_UNBOUND_HINT = image_path("swan_首页可视音箱Tab_未绑定提示.png", platform="flutter")
+
+# --- 我的页 ---
+SWAN_ME_SCAN_ICON = image_path("swan_我的_扫一扫图标.png", platform="flutter")
+
+# --- 资料编辑页 / 头像弹层 ---
+SWAN_PROFILE_EDIT_DONE = image_path("swan_资料编辑_完成按钮.png", platform="flutter")
+SWAN_PROFILE_EDIT_AVATAR_CANCEL = image_path("swan_资料编辑_头像弹层取消.png", platform="flutter")
+
+# --- 区号选择页 ---
+SWAN_AREA_CODE_CHINA_ROW = image_path("swan_区号选择_中国行.png", platform="flutter")
+
+
+# =====================================================================
+# Swan (Flutter) Wave 2 元素图片（2026-09-10 aw-verify 真机验证通过，已转正）
+# 验证记录：explorer_output/verify_wave2/verify_wave2.py（s1-s6 全 PASS）
+# =====================================================================
+
+# --- 歌单页 (swan_歌单页) ---
+SWAN_PLAYLIST_BACK_BTN = image_path("swan_歌单页_返回按钮.png", platform="flutter")
+SWAN_PLAYLIST_CREATE_BTN = image_path("swan_歌单页_新建歌单按钮.png", platform="flutter")
+SWAN_PLAYLIST_TAB_SWAN = image_path("swan_歌单页_SWAN平台Tab.png", platform="flutter")
+# 新建歌单弹窗右上关闭按钮（aw-verify 2026-09-10 从 wave2 源图裁剪补充：弹窗无 key/desc/文案，
+# press_back 实测不关闭，只能图定位；glyph 568,253-591,276）
+SWAN_PLAYLIST_NEWDLG_CLOSE_BTN = image_path("swan_歌单页_新建歌单关闭按钮.png", platform="flutter")
+
+# --- 歌单详情页 (swan_歌单详情页) ---
+SWAN_PD_MORE_BTN = image_path("swan_歌单详情页_更多按钮.png", platform="flutter")
+SWAN_PD_PLAY_ALL = image_path("swan_歌单详情页_播放全部.png", platform="flutter")  # ⚠️ 含"0首歌"计数，歌单加歌后需重截
+
+# --- 我喜欢页 (swan_我喜欢页) ---
+SWAN_FAVORITE_PLAY_ALL = image_path("swan_我喜欢页_播放全部.png", platform="flutter")  # ⚠️ 含"0首歌"计数，歌单加歌后需重截
+
+# --- 播放历史页 (swan_播放历史页) ---
+SWAN_HISTORY_TOPBAR = image_path("swan_播放历史页_顶栏.png", platform="flutter")
+SWAN_HISTORY_TABBAR = image_path("swan_播放历史页_分类Tab条.png", platform="flutter")
+
+# --- 切换设备弹层 (swan_切换设备弹层) ---
+SWAN_DEVICE_SHEET_TITLE = image_path("swan_切换设备弹层_标题行.png", platform="flutter")
+
+# --- 播放页 (swan_播放页) ---
+SWAN_PLAYER_DEVICE_BTN = image_path("swan_播放页_设备切换按钮.png", platform="flutter")
+
+# --- AI 对话页 (swan_AI对话页) ---
+SWAN_AI_CHAT_VOICE_BTN = image_path("swan_AI对话页_语音按钮.png", platform="flutter")
+SWAN_AI_CHAT_INPUT = image_path("swan_AI对话页_输入框.png", platform="flutter")
+
+
 __all__ = [
     "ANDROID_DRAFT_IMAGE_DIR",
     "ANDROID_IMAGE_DIR",
@@ -167,6 +235,33 @@ __all__ = [
     "SWAN_PLAYER_DISMISS_BTN",
     "SWAN_PLAYER_PLAY_PAUSE_BTN",
     "SWAN_SOUND_QUALITY_DONE_BUTTON",
+    "SWAN_HOME_TAB_RECOMMEND",
+    "SWAN_HOME_TAB_MUSIC",
+    "SWAN_HOME_TAB_RADIO",
+    "SWAN_HOME_TAB_AI",
+    "SWAN_HOME_TAB_VISION",
+    "SWAN_HOME_MUSIC_SEARCH_BAR",
+    "SWAN_HOME_RADIO_SEARCH_BAR",
+    "SWAN_HOME_AI_ADD_ROLE",
+    "SWAN_HOME_AI_ROLE_SETTINGS",
+    "SWAN_HOME_VISION_UNBOUND_HINT",
+    "SWAN_ME_SCAN_ICON",
+    "SWAN_PROFILE_EDIT_DONE",
+    "SWAN_PROFILE_EDIT_AVATAR_CANCEL",
+    "SWAN_AREA_CODE_CHINA_ROW",
+    "SWAN_PLAYLIST_BACK_BTN",
+    "SWAN_PLAYLIST_CREATE_BTN",
+    "SWAN_PLAYLIST_TAB_SWAN",
+    "SWAN_PLAYLIST_NEWDLG_CLOSE_BTN",
+    "SWAN_PD_MORE_BTN",
+    "SWAN_PD_PLAY_ALL",
+    "SWAN_FAVORITE_PLAY_ALL",
+    "SWAN_HISTORY_TOPBAR",
+    "SWAN_HISTORY_TABBAR",
+    "SWAN_DEVICE_SHEET_TITLE",
+    "SWAN_PLAYER_DEVICE_BTN",
+    "SWAN_AI_CHAT_VOICE_BTN",
+    "SWAN_AI_CHAT_INPUT",
     "WEB_DRAFT_IMAGE_DIR",
     "WEB_IMAGE_DIR",
     "demote_image",

@@ -10,10 +10,12 @@
       "android_version": "11",
       "screen_size": "720x1600"
     },
-    "last_updated": "2026-09-08",
+    "last_updated": "2026-09-10",
     "locator_policy": "accessibility key > OCR 文本 > 图像模板（禁止坐标）",
-    "notes": "本知识库从零开始，所有页面事实必须由真机探索或测试实际验证后写入，禁止猜测。2026-09-08 首版 11 页已由 explorer+verify 双重验证转正；同日 enrich-kb 批次新增 4 页（收藏分组详情/密码登入/帮助与反馈/关于与升级，均已 verify 转正）。",
-    "reader_entry": "digest/中文索引.md"
+    "notes": "本知识库从零开始，所有页面事实必须由真机探索或测试实际验证后写入，禁止猜测。2026-09-08 首版 11 页已由 explorer+verify 双重验证转正；同日 enrich-kb 批次新增 4 页（收藏分组详情/密码登入/帮助与反馈/关于与升级，均已 verify 转正）。2026-09-10 Wave1 新增 9 页 draft：首页四顶 Tab（音乐/电台/AI/可视音箱）、扫一扫、我的二维码（入口受限）、消息中心（入口受限）、资料编辑（昵称/密码/头像，密码页防截屏）、区号选择。2026-09-10 Wave2 新增 9 页 draft：歌单页/歌单详情页/我喜欢页/播放历史页/切换设备弹层/AI对话页 + 统一音乐库/批量操作/选择歌单（入口受限，全平台未授权）；播放页原地补全；新建 feature_播放器。",
+    "reader_entry": "digest/中文索引.md",
+    "coverage_doc": "digest/页面覆盖对照.md",
+    "feature_map_source": "E:/UIAutotest/功能地图.md (App dev@4d1ed7b / Core dev@402853ab, 2026-09-09)"
   },
   "pages": {
     "swan_验证码登录页": {
@@ -61,8 +63,9 @@
     "swan_播放页": {
       "title": "播放页",
       "status": "page",
+      "route": "/player",
       "doc": "pages/swan_播放页.md",
-      "summary": "全屏播放页，播放控制条 + 音量 + 设备切换；控制类按钮只记录不实测"
+      "summary": "全屏播放页 /player：控制条+音量+设备切换(multiroom_sheet)；Wave2 补全——无播放任务时队列/标题区点击无反应，本账号全平台未授权无法建立播放任务"
     },
     "swan_家庭管理页": {
       "title": "家庭管理",
@@ -105,6 +108,132 @@
       "status": "page",
       "doc": "pages/swan_关于与升级页.md",
       "summary": "我的页滚动后进入：关于我们/使用政策/隐私政策协议/软件升级(版本5.3.0 build 32)；无 key"
+    },
+    "swan_首页音乐Tab": {
+      "title": "首页·音乐 Tab",
+      "status": "verified",
+      "route": null,
+      "doc": "pages/swan_首页音乐Tab.md",
+      "summary": "首页顶 Tab：跨平台搜索音乐搜索条 + QQ/网易/酷狗/Apple 歌单宫格（dynamic）；无 key"
+    },
+    "swan_首页电台Tab": {
+      "title": "首页·电台 Tab",
+      "status": "verified",
+      "route": null,
+      "doc": "pages/swan_首页电台Tab.md",
+      "summary": "首页顶 Tab：搜索电台 + 全国电台列表（dynamic）+ 80/90 年代分组；无 key"
+    },
+    "swan_首页AITab": {
+      "title": "首页·AI Tab",
+      "status": "verified",
+      "route": "/home/aiRoles",
+      "doc": "pages/swan_首页AITab.md",
+      "summary": "首页顶 Tab：AI 角色卡横滑（惠威百科/小薇/惠声远）+ 添加角色/角色设置 + 历史对话记录空态；无 key"
+    },
+    "swan_首页可视音箱Tab": {
+      "title": "首页·可视音箱 Tab",
+      "status": "verified",
+      "route": null,
+      "doc": "pages/swan_首页可视音箱Tab.md",
+      "summary": "首页顶 Tab：未绑定预览态（添加可视音响/暂未添加可视音箱此功能不可使用）；内容区无语义节点"
+    },
+    "swan_扫一扫页": {
+      "title": "扫一扫",
+      "status": "verified",
+      "route": "/me/scan-qr-code",
+      "doc": "pages/swan_扫一扫页.md",
+      "summary": "我的页右上扫一扫图标进入；首次触发系统相机权限弹窗（permission_* key 实测）；测试机相机不可用；无我的二维码入口"
+    },
+    "swan_我的二维码页": {
+      "title": "我的二维码",
+      "status": "draft",
+      "route": "/me/my-qrcode",
+      "doc": "draft/swan_我的二维码页.md",
+      "summary": "⛔ 入口受限：APK 有 MyQrCodePage/ic_qrcode.png，但真机全路径排查（我的页/个人信息/扫一扫/各顶栏）未找到 UI 入口"
+    },
+    "swan_消息中心页": {
+      "title": "消息中心",
+      "status": "draft",
+      "route": "/me/messages",
+      "doc": "draft/swan_消息中心页.md",
+      "summary": "⛔ 入口受限：message_page.dart 存在，但真机无 UI 入口；疑似推送通知触达（message_center_port）"
+    },
+    "swan_资料编辑页": {
+      "title": "资料编辑（修改昵称/修改密码/头像）",
+      "status": "verified",
+      "route": "/me/edit-*",
+      "doc": "pages/swan_资料编辑页.md",
+      "summary": "个人信息页资料行编辑：修改昵称页/修改密码页(⚠️FLAG_SECURE防截屏,OCR不可用)/头像底部弹层；手机号行不可点"
+    },
+    "swan_区号选择页": {
+      "title": "区号选择（选择归属地）",
+      "status": "verified",
+      "route": "/login/area-code",
+      "doc": "pages/swan_区号选择页.md",
+      "summary": "登录页 login_area_code_button 进入：选择归属地标题 + 热门4行(中国+86/香港/澳门/台湾)；选行自动返回；无 key"
+    },
+    "swan_歌单页": {
+      "title": "歌单页",
+      "status": "verified",
+      "route": "/player/playlist",
+      "doc": "pages/swan_歌单页.md",
+      "summary": "首页推荐Tab歌单卡片进入：平台Tab(SWAN/QQ/网易/酷狗)+创建/聚合chip+歌单行(我的家庭/我的音乐)+右上新建歌单弹窗；无 key；第三方Tab未授权空态"
+    },
+    "swan_歌单详情页": {
+      "title": "歌单详情页",
+      "status": "verified",
+      "route": "/player/playlist-detail",
+      "doc": "pages/swan_歌单详情页.md",
+      "summary": "歌单页歌单行进入：与收藏分组详情页同布局但带右上⋮更多菜单(修改名称/删除歌单⛔/取消)；两套实现实测确认；无 key"
+    },
+    "swan_我喜欢页": {
+      "title": "我喜欢",
+      "status": "verified",
+      "route": "/player/playlist-detail",
+      "doc": "pages/swan_我喜欢页.md",
+      "summary": "首页推荐Tab我喜欢卡片进入：同歌单详情模板无更多按钮；本账号空态显示QQ音乐TOKEN过期错误+重试(⛔)"
+    },
+    "swan_播放历史页": {
+      "title": "播放历史",
+      "status": "verified",
+      "route": "/me/play-history",
+      "doc": "pages/swan_播放历史页.md",
+      "summary": "首页推荐Tab已播歌曲卡片进入：标题最近播放+六分类Tab(歌曲/艺人/专辑/歌单/电台/播客)+空态暂无历史播放；无 key；无底部4tab"
+    },
+    "swan_切换设备弹层": {
+      "title": "切换设备弹层",
+      "status": "verified",
+      "route": null,
+      "doc": "pages/swan_切换设备弹层.md",
+      "summary": "播放页 player_device_button 打开的 bottom sheet：multiroom_sheet key(唯一)+设备单选列表(Libretto/Maestro1100/HiVi M300MKII/手机扬声器/Apple Music)；⛔真实音箱禁止选择"
+    },
+    "swan_AI对话页": {
+      "title": "AI 对话页",
+      "status": "verified",
+      "route": null,
+      "doc": "pages/swan_AI对话页.md",
+      "summary": "AI Tab角色卡进入：角色名+暂无设备+三顶栏图标(语音🎤权限弹窗/字幕通话/自动朗读设备弹层)+发送消息输入框；AI点歌被授权门禁拦截；中文无法adb输入"
+    },
+    "swan_统一音乐库页": {
+      "title": "统一音乐库",
+      "status": "draft",
+      "route": "/player/unifiedMusic",
+      "doc": "draft/swan_统一音乐库页.md",
+      "summary": "⛔ 入口受限：unified_music_page.dart(约4900行)全路径排查无UI入口；疑似需平台授权后的歌曲列表上下文或搜索页(ANR BLOCKED)；一级骨架待 Wave 2b"
+    },
+    "swan_批量操作页": {
+      "title": "批量操作",
+      "status": "draft",
+      "route": "/player/bulk-operate",
+      "doc": "draft/swan_批量操作页.md",
+      "summary": "⛔ 入口受限：疑似歌曲列表多选模式入口，本账号无歌曲数据+平台未授权不可达；待 Wave 2b"
+    },
+    "swan_选择歌单页": {
+      "title": "选择歌单",
+      "status": "draft",
+      "route": "/player/select-playlist",
+      "doc": "draft/swan_选择歌单页.md",
+      "summary": "⛔ 入口受限：疑似收藏/加入歌单的目标选择页，本账号无歌曲数据不可达；待 Wave 2b"
     }
   },
   "elements": {
@@ -165,6 +294,12 @@
         "action": "输入手机号+勾选协议后 click login_submit_button（下一步）",
         "type": "推进",
         "status": "verified"
+      },
+      {
+        "to": "swan_区号选择页",
+        "action": "click login_area_code_button（手机号左侧 +86，两表单形态共用）",
+        "type": "推进",
+        "status": "verified"
       }
     ],
     "swan_密码登入页": [
@@ -191,6 +326,30 @@
     ],
     "swan_首页": [
       {
+        "to": "swan_首页音乐Tab",
+        "action": "click_text 音乐（顶部 Tab 行 OCR；go_home 只回容器，顶部 Tab 停留上次选择——实测跨登出/登录持久）；click_image SWAN_HOME_TAB_MUSIC（未选中态模板）2026-09-10 verify 实测",
+        "type": "顶 Tab 切换",
+        "status": "verified"
+      },
+      {
+        "to": "swan_首页AITab",
+        "action": "click_text AI（顶部 Tab 行 OCR）；click_image SWAN_HOME_TAB_AI（未选中态模板）2026-09-10 verify 实测",
+        "type": "顶 Tab 切换",
+        "status": "verified"
+      },
+      {
+        "to": "swan_首页可视音箱Tab",
+        "action": "click_text 可视音箱（顶部 Tab 行 OCR）；click_image SWAN_HOME_TAB_VISION（未选中态模板）2026-09-10 verify 实测",
+        "type": "顶 Tab 切换",
+        "status": "verified"
+      },
+      {
+        "to": "swan_首页电台Tab",
+        "action": "click_text 电台（顶部 Tab 行最右 OCR）；click_image SWAN_HOME_TAB_RADIO（未选中态模板）2026-09-10 verify 实测",
+        "type": "顶 Tab 切换",
+        "status": "verified"
+      },
+      {
         "to": "swan_播放页",
         "action": "click bottom_player",
         "type": "推进",
@@ -212,6 +371,78 @@
         "to": "swan_设备页",
         "action": "click tab_device",
         "type": "tab 切换",
+        "status": "verified"
+      },
+      {
+        "to": "swan_歌单页",
+        "action": "click_text 歌单（推荐 Tab 完整布局态卡片行中卡；顶 Tab 须在推荐；⚠️ 推荐 Tab 服务端动态轮换，紧凑布局态无此卡，2026-09-10 verify 实测）",
+        "type": "推进",
+        "status": "verified"
+      },
+      {
+        "to": "swan_我喜欢页",
+        "action": "click_text 我喜欢（推荐 Tab 卡片区左卡，2026-09-10 verify 实测）",
+        "type": "推进",
+        "status": "verified"
+      },
+      {
+        "to": "swan_播放历史页",
+        "action": "swipe_up 露出最近播放区后 click_text 已播歌曲（2026-09-10 verify 实测）",
+        "type": "推进",
+        "status": "verified"
+      }
+    ],
+    "swan_歌单页": [
+      {
+        "to": "swan_歌单详情页",
+        "action": "click_text 我的家庭（歌单行，SWAN Tab 聚合筛选，2026-09-10 verify 实测）",
+        "type": "推进",
+        "status": "verified"
+      },
+      {
+        "to": "swan_首页",
+        "action": "press_back（实测）",
+        "type": "返回",
+        "status": "verified"
+      }
+    ],
+    "swan_歌单详情页": [
+      {
+        "to": "swan_歌单页",
+        "action": "press_back（实测一次即回歌单页）",
+        "type": "返回",
+        "status": "verified"
+      }
+    ],
+    "swan_我喜欢页": [
+      {
+        "to": "swan_首页",
+        "action": "press_back（实测）",
+        "type": "返回",
+        "status": "verified"
+      }
+    ],
+    "swan_播放历史页": [
+      {
+        "to": "swan_首页",
+        "action": "press_back（实测；返回图标同效）",
+        "type": "返回",
+        "status": "verified"
+      }
+    ],
+    "swan_AI对话页": [
+      {
+        "to": "swan_首页AITab",
+        "action": "press_back（实测；对话记录回显在 AI Tab 历史对话记录区）",
+        "type": "返回",
+        "status": "verified"
+      }
+    ],
+    "swan_切换设备弹层": [
+      {
+        "to": "swan_播放页",
+        "action": "press_back（实测关闭弹层回播放页；⛔ 设备行禁止点击）",
+        "type": "关闭弹层",
         "status": "verified"
       }
     ],
@@ -273,6 +504,12 @@
         "action": "click player_dismiss_button",
         "type": "返回",
         "status": "verified"
+      },
+      {
+        "to": "swan_切换设备弹层",
+        "action": "click player_device_button（key，右上角；multiroom_sheet 出现；⛔ 设备行禁止选择；press_back 关闭，2026-09-10 verify 实测）",
+        "type": "弹层",
+        "status": "verified"
       }
     ],
     "swan_我的页": [
@@ -316,6 +553,104 @@
         "to": "swan_关于与升级页",
         "action": "swipe_up x2 后 click_text 关于与升级（不滚动则被 bottom_player 遮挡）",
         "type": "推进",
+        "status": "verified"
+      },
+      {
+        "to": "swan_扫一扫页",
+        "action": "click_image SWAN_ME_SCAN_ICON（swan_我的_扫一扫图标.png，2026-09-10 verify 实测）；首次进入触发系统相机权限弹窗",
+        "type": "推进",
+        "status": "verified"
+      },
+      {
+        "to": "swan_平台页",
+        "action": "click tab_platform",
+        "type": "tab 切换",
+        "status": "pending"
+      },
+      {
+        "to": "swan_设备页",
+        "action": "click tab_device",
+        "type": "tab 切换",
+        "status": "verified"
+      },
+      {
+        "to": "swan_播放页",
+        "action": "click bottom_player",
+        "type": "推进",
+        "status": "pending"
+      }
+    ],
+    "swan_首页音乐Tab": [
+      {
+        "to": "swan_首页",
+        "action": "click_text 推荐（顶部 Tab 行 OCR）；click_image SWAN_HOME_TAB_RECOMMEND 2026-09-10 verify 实测",
+        "type": "顶 Tab 切换",
+        "status": "verified"
+      },
+      {
+        "to": "swan_首页电台Tab",
+        "action": "click_text 电台（顶部 Tab 行 OCR）",
+        "type": "顶 Tab 切换",
+        "status": "verified"
+      }
+    ],
+    "swan_首页电台Tab": [
+      {
+        "to": "swan_首页音乐Tab",
+        "action": "click_text 音乐（顶部 Tab 行 OCR）",
+        "type": "顶 Tab 切换",
+        "status": "verified"
+      },
+      {
+        "to": "swan_首页",
+        "action": "click_text 推荐（顶部 Tab 行 OCR）；click_image SWAN_HOME_TAB_RECOMMEND 2026-09-10 verify 实测",
+        "type": "顶 Tab 切换",
+        "status": "verified"
+      }
+    ],
+    "swan_首页AITab": [
+      {
+        "to": "swan_首页",
+        "action": "click_text 推荐（顶部 Tab 行 OCR）；click_image SWAN_HOME_TAB_RECOMMEND 2026-09-10 verify 实测",
+        "type": "顶 Tab 切换",
+        "status": "verified"
+      },
+      {
+        "to": "swan_AI对话页",
+        "action": "click_text 小薇（角色卡；惠威百科/惠声远同构，2026-09-10 verify 实测）",
+        "type": "推进",
+        "status": "verified"
+      }
+    ],
+    "swan_首页可视音箱Tab": [
+      {
+        "to": "swan_首页",
+        "action": "click_text 推荐（顶部 Tab 行 OCR）；click_image SWAN_HOME_TAB_RECOMMEND 2026-09-10 verify 实测",
+        "type": "顶 Tab 切换",
+        "status": "verified"
+      }
+    ],
+    "swan_扫一扫页": [
+      {
+        "to": "swan_我的页",
+        "action": "press_back（实测）；拒绝相机权限时弹窗关闭直接停留我的页不进本页",
+        "type": "返回",
+        "status": "verified"
+      }
+    ],
+    "swan_资料编辑页": [
+      {
+        "to": "swan_个人信息页",
+        "action": "press_back（昵称页键盘弹出时需按两次：收键盘+返回；密码页一次即回；头像弹层点 OCR 取消）",
+        "type": "返回",
+        "status": "verified"
+      }
+    ],
+    "swan_区号选择页": [
+      {
+        "to": "swan_验证码登录页",
+        "action": "click_text 中国（区号行，选后自动返回登录页，login_area_code_button desc 更新为所选区号）",
+        "type": "选择返回",
         "status": "verified"
       }
     ],
@@ -381,6 +716,12 @@
         "status": "verified"
       },
       {
+        "to": "swan_资料编辑页",
+        "action": "click_text 昵称/密码/头像（对应行；手机号行不可点，实测无反应）；2026-09-10 verify 实测昵称行（SWAN_PROFILE_EDIT_DONE 图断言）与头像弹层（SWAN_PROFILE_EDIT_AVATAR_CANCEL 图关闭），密码页按约束未复验",
+        "type": "推进",
+        "status": "verified"
+      },
+      {
         "to": "swan_我的页",
         "action": "press_back",
         "type": "返回",
@@ -388,5 +729,116 @@
       }
     ]
   },
-  "feature_categories": {}
+  "feature_categories": {
+    "feature_账号体系": {
+      "name": "账号体系",
+      "domains": [
+        "会话与登录",
+        "个人中心"
+      ],
+      "pages": [
+        "swan_验证码登录页",
+        "swan_验证码输入页",
+        "swan_密码登入页",
+        "swan_个人信息页",
+        "swan_资料编辑页",
+        "swan_区号选择页",
+        "swan_我的二维码页",
+        "swan_消息中心页",
+        "swan_扫一扫页"
+      ],
+      "status": "draft",
+      "doc": "digest/features/feature_账号体系.md"
+    },
+    "feature_导航框架": {
+      "name": "导航框架",
+      "domains": [
+        "主框架与导航",
+        "首页"
+      ],
+      "pages": [
+        "swan_首页",
+        "swan_首页音乐Tab",
+        "swan_首页电台Tab",
+        "swan_首页AITab",
+        "swan_首页可视音箱Tab",
+        "swan_AI对话页",
+        "swan_我的页",
+        "swan_平台页",
+        "swan_设备页"
+      ],
+      "status": "draft",
+      "doc": "digest/features/feature_导航框架.md"
+    },
+    "feature_播放器": {
+      "name": "播放器",
+      "domains": [
+        "播放器与输出"
+      ],
+      "pages": [
+        "swan_播放页",
+        "swan_切换设备弹层"
+      ],
+      "status": "draft",
+      "doc": "digest/features/feature_播放器.md"
+    },
+    "feature_收藏管理": {
+      "name": "收藏管理",
+      "domains": [
+        "收藏与曲库"
+      ],
+      "pages": [
+        "swan_收藏页",
+        "swan_收藏分组详情页",
+        "swan_歌单页",
+        "swan_歌单详情页",
+        "swan_我喜欢页",
+        "swan_播放历史页",
+        "swan_统一音乐库页",
+        "swan_批量操作页",
+        "swan_选择歌单页",
+        "swan_家庭管理页"
+      ],
+      "status": "draft",
+      "doc": "digest/features/feature_收藏管理.md"
+    },
+    "feature_设备管理": {
+      "name": "设备管理",
+      "domains": [
+        "设备管理与配网"
+      ],
+      "pages": [
+        "swan_设备页"
+      ],
+      "status": "draft",
+      "doc": "digest/features/feature_设备管理.md"
+    },
+    "feature_平台聚合": {
+      "name": "平台聚合",
+      "domains": [
+        "音乐平台聚合",
+        "电台/播客"
+      ],
+      "pages": [
+        "swan_平台页"
+      ],
+      "status": "draft",
+      "doc": "digest/features/feature_平台聚合.md"
+    },
+    "feature_帮助与关于": {
+      "name": "帮助与关于",
+      "domains": [
+        "帮助/关于/反馈",
+        "设置"
+      ],
+      "pages": [
+        "swan_帮助与反馈页",
+        "swan_关于与升级页",
+        "swan_音质设置页"
+      ],
+      "status": "draft",
+      "doc": "digest/features/feature_帮助与关于.md"
+    }
+  },
+  "flows": []
 }

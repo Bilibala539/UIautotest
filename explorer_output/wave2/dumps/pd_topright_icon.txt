@@ -1,0 +1,5 @@
+# dump pd_topright_icon
+  content	text=''	desc=''	[0,0][720,1528]
+* 	text=''	desc='修改名称'	[0,1146][720,1286]
+* 	text=''	desc='删除歌单'	[0,1287][720,1427]
+* 	text=''	desc='取消'	[0,1428][720,1528]

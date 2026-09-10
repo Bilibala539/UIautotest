@@ -1,0 +1,13 @@
+# dump queue_sheet
+  content	text=''	desc=''	[0,0][720,1528]
+  full_player_page	text=''	desc='扬声器\n00:00\n00:00'	[0,0][720,1528]
+* player_dismiss_button	text=''	desc=''	[0,72][128,184]
+* player_device_button	text=''	desc=''	[592,72][720,184]
+* player_title	text=''	desc='- -\n---'	[0,200][720,1162]
+* 	text=''	desc='0%'	[20,1206][700,1234]
+  player_loop_mode_button	text=''	desc=''	[0,1290][144,1418]
+  player_previous_button	text=''	desc=''	[144,1290][288,1418]
+  player_play_pause_button	text=''	desc=''	[288,1290][432,1418]
+  player_next_button	text=''	desc=''	[432,1290][576,1418]
+  player_queue_button	text=''	desc=''	[576,1290][720,1418]
+* player_volume_button	text=''	desc=''	[140,1448][250,1528]

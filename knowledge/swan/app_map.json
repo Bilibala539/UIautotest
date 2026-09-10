@@ -12,7 +12,7 @@
     },
     "last_updated": "2026-09-10",
     "locator_policy": "accessibility key > OCR 文本 > 图像模板（禁止坐标）",
-    "notes": "本知识库从零开始，所有页面事实必须由真机探索或测试实际验证后写入，禁止猜测。2026-09-08 首版 11 页已由 explorer+verify 双重验证转正；同日 enrich-kb 批次新增 4 页（收藏分组详情/密码登入/帮助与反馈/关于与升级，均已 verify 转正）。2026-09-10 Wave1 新增 9 页 draft：首页四顶 Tab（音乐/电台/AI/可视音箱）、扫一扫、我的二维码（入口受限）、消息中心（入口受限）、资料编辑（昵称/密码/头像，密码页防截屏）、区号选择。2026-09-10 Wave2 新增 9 页 draft：歌单页/歌单详情页/我喜欢页/播放历史页/切换设备弹层/AI对话页 + 统一音乐库/批量操作/选择歌单（入口受限，全平台未授权）；播放页原地补全；新建 feature_播放器。",
+    "notes": "本知识库从零开始，所有页面事实必须由真机探索或测试实际验证后写入，禁止猜测。2026-09-08 首版 11 页已由 explorer+verify 双重验证转正；同日 enrich-kb 批次新增 4 页（收藏分组详情/密码登入/帮助与反馈/关于与升级，均已 verify 转正）。2026-09-10 Wave1 新增 9 页 draft：首页四顶 Tab（音乐/电台/AI/可视音箱）、扫一扫、我的二维码（入口受限）、消息中心（入口受限）、资料编辑（昵称/密码/头像，密码页防截屏）、区号选择。2026-09-10 Wave2 新增 9 页 draft：歌单页/歌单详情页/我喜欢页/播放历史页/切换设备弹层/AI对话页 + 统一音乐库/批量操作/选择歌单（入口受限，全平台未授权）；播放页原地补全；新建 feature_播放器。2026-09-10 Wave4（平台/搜索域）新增 7 页 draft：搜索输入页/搜索结果页（✅ 实测，未授权账号搜索恒空态）+ 授权门禁弹层（两变体，纱罩判据）+ 全国电台页(含80/90)/城市选择/艺人页/排行榜（⚠️/❌ 授权门禁拦截）；平台页补记：左侧分类 音乐/AI/电台 跨会话持久、分类行本体不可点仅右侧图标可点。",
     "reader_entry": "digest/中文索引.md",
     "coverage_doc": "digest/页面覆盖对照.md",
     "feature_map_source": "E:/UIAutotest/功能地图.md (App dev@4d1ed7b / Core dev@402853ab, 2026-09-09)"
@@ -234,6 +234,55 @@
       "route": "/player/select-playlist",
       "doc": "draft/swan_选择歌单页.md",
       "summary": "⛔ 入口受限：疑似收藏/加入歌单的目标选择页，本账号无歌曲数据不可达；待 Wave 2b"
+    },
+    "swan_搜索输入页": {
+      "title": "搜索输入页",
+      "status": "draft",
+      "route": "/search",
+      "doc": "draft/swan_搜索输入页.md",
+      "summary": "全域搜索输入页：原生EditText搜索框+搜索历史chip+App自定义T9键盘；多入口共用（音乐/电台Tab搜索条实测）；adb英文输入有效"
+    },
+    "swan_搜索结果页": {
+      "title": "搜索结果页",
+      "status": "draft",
+      "route": "/search/results",
+      "doc": "draft/swan_搜索结果页.md",
+      "summary": "搜索结果页：六分类Tab(单曲/艺人/专辑/歌单/电台/播客)原地切换；未授权账号任意关键词均空态（数据源依赖平台授权）"
+    },
+    "swan_授权门禁弹层": {
+      "title": "授权门禁弹层",
+      "status": "draft",
+      "route": null,
+      "doc": "draft/swan_授权门禁弹层.md",
+      "summary": "未授权访问平台内容的拦截弹窗：desc='纱罩'为唯一稳定判据；变体A(添加新平台/添加)与变体B(请先登录X/授权登录)；press_back关闭，⛔主按钮不点"
+    },
+    "swan_全国电台页": {
+      "title": "全国电台（FM多级页族入口）",
+      "status": "draft",
+      "route": "/music_platform/radio/country",
+      "doc": "draft/swan_全国电台页.md",
+      "summary": "⚠️ 授权门禁拦截未进入：全国/80年代/90年代电台多级页全部入口（平台页电台分类行箭头+电台Tab分组标题）弹添加新平台门禁；电台行播放不需授权但分组标题进多级页需要"
+    },
+    "swan_城市选择页": {
+      "title": "城市选择",
+      "status": "draft",
+      "route": "/music_platform/radio/select-city",
+      "doc": "draft/swan_城市选择页.md",
+      "summary": "❌ 不可达：嵌套在FM电台多级页内，上游全国电台页被授权门禁拦截，无可见触达路径"
+    },
+    "swan_艺人页": {
+      "title": "艺人页",
+      "status": "draft",
+      "route": "/music_platform/artists(/detail)",
+      "doc": "draft/swan_艺人页.md",
+      "summary": "❌ 不可达：搜索结果艺人Tab空态+平台区块门禁+播放历史艺人Tab空态；已播歌手卡进的是播放历史页(艺人Tab)；待验证播放历史艺人Tab是否复用artists_page"
+    },
+    "swan_排行榜页": {
+      "title": "排行榜",
+      "status": "draft",
+      "route": "/music_platform/rank-list",
+      "doc": "draft/swan_排行榜页.md",
+      "summary": "❌ 不可达：推测挂在平台多级页内（Qobuz奖榜/Apple榜单），全部被授权门禁拦截；音乐Tab无独立排行榜区块"
     }
   },
   "elements": {
@@ -390,6 +439,12 @@
         "action": "swipe_up 露出最近播放区后 click_text 已播歌曲（2026-09-10 verify 实测）",
         "type": "推进",
         "status": "verified"
+      },
+      {
+        "to": "swan_播放历史页",
+        "action": "swipe_up 露出最近播放区后 click_text 已播歌手（2026-09-10 Wave4 explorer 实测，落地「艺人」子 Tab）",
+        "type": "推进",
+        "status": "verified"
       }
     ],
     "swan_歌单页": [
@@ -470,6 +525,12 @@
         "action": "click bottom_player",
         "type": "推进",
         "status": "pending"
+      },
+      {
+        "to": "swan_授权门禁弹层",
+        "action": "左侧切到「电台」分类（click_text 电台，注意与内容区文案区分）后 click 电台行（全国电台/90年代电台/80年代电台）右侧圆形箭头图标（无 key 无文案，待截图）；变体A；⛔ 主按钮不点，press_back 关闭（2026-09-10 Wave4 explorer 实测；行本体 clickable=false 点击无反应）",
+        "type": "弹层（授权拦截）",
+        "status": "verified"
       }
     ],
     "swan_设备页": [
@@ -592,6 +653,18 @@
         "action": "click_text 电台（顶部 Tab 行 OCR）",
         "type": "顶 Tab 切换",
         "status": "verified"
+      },
+      {
+        "to": "swan_搜索输入页",
+        "action": "click_text 跨平台搜索音乐（搜索条，2026-09-10 Wave4 explorer 实测；页面停在滚动位时先 swipe_down 复位）",
+        "type": "推进",
+        "status": "verified"
+      },
+      {
+        "to": "swan_授权门禁弹层",
+        "action": "click_text 平台区块标题（如 QQ音乐/网易云音乐）或区块内歌单卡（如 今日最佳）；变体B（请先登录X/授权登录）；⛔ 主按钮不点，press_back 关闭（2026-09-10 Wave4 explorer 实测）",
+        "type": "弹层（授权拦截）",
+        "status": "verified"
       }
     ],
     "swan_首页电台Tab": [
@@ -605,6 +678,18 @@
         "to": "swan_首页",
         "action": "click_text 推荐（顶部 Tab 行 OCR）；click_image SWAN_HOME_TAB_RECOMMEND 2026-09-10 verify 实测",
         "type": "顶 Tab 切换",
+        "status": "verified"
+      },
+      {
+        "to": "swan_搜索输入页",
+        "action": "click_text 搜索电台（搜索条，2026-09-10 Wave4 explorer 实测；与音乐 Tab 搜索条进同一 /search 页；页面停在滚动位时先 swipe_down 复位）",
+        "type": "推进",
+        "status": "verified"
+      },
+      {
+        "to": "swan_授权门禁弹层",
+        "action": "click_text 分组标题（全国电台 / 80er-Radio harmony / 90年代电台，整行可点）；变体A（添加新平台/添加）；⛔ 主按钮不点，press_back 关闭（2026-09-10 Wave4 explorer 实测）",
+        "type": "弹层（授权拦截）",
         "status": "verified"
       }
     ],
@@ -727,6 +812,42 @@
         "type": "返回",
         "status": "pending"
       }
+    ],
+    "swan_搜索输入页": [
+      {
+        "to": "swan_搜索结果页",
+        "action": "click_text 搜索歌曲或艺术家等（hint 定位输入框）后 input_text(英文关键词) 再 click_text 搜索（顶栏右侧，region 限定避开自定义键盘同名键）；2026-09-10 Wave4 explorer 实测（piano/harmony）",
+        "type": "推进",
+        "status": "verified"
+      },
+      {
+        "to": "swan_搜索结果页",
+        "action": "click_text 搜索历史关键词 chip（如 piano，整行可点，一键带词复搜直达结果页）；2026-09-10 Wave4 explorer 实测",
+        "type": "推进",
+        "status": "verified"
+      },
+      {
+        "to": "swan_首页音乐Tab",
+        "action": "press_back（实测一次即回来源页；从音乐/电台 Tab 搜索条进入均同）",
+        "type": "返回",
+        "status": "verified"
+      }
+    ],
+    "swan_搜索结果页": [
+      {
+        "to": "swan_搜索输入页",
+        "action": "press_back（实测；关键词作为历史 chip 保留在输入页）",
+        "type": "返回",
+        "status": "verified"
+      }
+    ],
+    "swan_授权门禁弹层": [
+      {
+        "to": "swan_首页音乐Tab",
+        "action": "press_back（实测关闭弹层回来源页；变体A/B 均一次即关）；⛔ 添加/授权登录按钮禁止点击",
+        "type": "关闭弹层",
+        "status": "verified"
+      }
     ]
   },
   "feature_categories": {
@@ -817,10 +938,18 @@
       "name": "平台聚合",
       "domains": [
         "音乐平台聚合",
-        "电台/播客"
+        "电台/播客",
+        "搜索"
       ],
       "pages": [
-        "swan_平台页"
+        "swan_平台页",
+        "swan_搜索输入页",
+        "swan_搜索结果页",
+        "swan_授权门禁弹层",
+        "swan_全国电台页",
+        "swan_城市选择页",
+        "swan_艺人页",
+        "swan_排行榜页"
       ],
       "status": "draft",
       "doc": "digest/features/feature_平台聚合.md"

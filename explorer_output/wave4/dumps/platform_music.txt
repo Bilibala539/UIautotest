@@ -1,0 +1,7 @@
+# dump platform_music
+  content	text=''	desc=''	[0,0][720,1528]
+* 	text=''	desc=''	[0,100][112,196]
+* 	text=''	desc=''	[184,122][579,158]
+* 	text=''	desc='搜索'	[579,117][688,163]
+* 	text=''	desc='搜索历史'	[0,260][720,308]
+* 	text=''	desc='piano'	[0,308][720,434]

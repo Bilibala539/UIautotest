@@ -11,6 +11,14 @@
 3. `utils/aw/business/swan.py` —— 已有业务方法与 key 常量
 4. 架构规则：`.claude/rules/aw_architecture.mdc`
 
+## 调用约定（写用例必知）
+
+- `self.user = self.users("swan")` 之后：`user.aw` / `user.biz` / `user.business` 是**同一个对象**（SwanBusiness 实例，经 FlutterBaseAW 继承 AWBase，三层能力集于一身）
+- 业务方法直接调：`self.user.login_by_sms(...)` —— `User.__getattr__` 自动代理到 business，无需绕写 `user.business.xxx`
+- 基础操作入口：`self.user.aw.click_image(...)` / `click_text` / `text_exists` / `image_exists` / `input_text`
+- 断言走 `self.user.aw.image_exists(...)` / `text_exists(...)`，不要 try/except 包失败（CLAUDE.md 规则 6）
+- 缺业务动作 → 加到 `SwanBusiness`；**不要**在用例里堆基础操作序列，也**不要**为此改 base 层或 AWBase
+
 ## 产出规范
 
 - 业务方法：`utils/aw/business/swan.py` 的 `SwanBusiness`，新 key 先加类常量

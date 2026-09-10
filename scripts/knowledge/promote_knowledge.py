@@ -84,7 +84,14 @@ def validate_draft(filepath: Path) -> dict:
         if not target.exists():
             # 也检查 draft 里有没有
             draft_target = DRAFT_DIR / f"{link}.md"
-            if not draft_target.exists():
+            # feature_/flow_ 前缀的链接指向 digest/features|flows/（见 templates/page.md 功能关联）
+            digest_target = None
+            if link.startswith("feature_"):
+                digest_target = KNOWLEDGE_DIR / "digest" / "features" / f"{link}.md"
+            elif link.startswith("flow_"):
+                digest_target = KNOWLEDGE_DIR / "digest" / "flows" / f"{link}.md"
+            if not (draft_target.exists()
+                    or (digest_target is not None and digest_target.exists())):
                 result["warnings"].append(f"链接目标不存在: [[{link}]]")
 
     # 检查文档长度（太短可能是空壳）
@@ -180,8 +187,9 @@ def discover_cross_references(filepath: Path) -> list:
                 if word.endswith(suffix) and len(word) > len(suffix) + 1:
                     search_terms.add(word[:-len(suffix)])
 
-    # 过滤通用词
-    stopwords = {'页面', '设置', '管理', '操作', '功能', '列表', '消息', '详情'}
+    # 过滤通用词（含项目前缀与泛用 ASCII 词——"swan" 会命中知识库所有页面，产生大量假阳性）
+    stopwords = {'页面', '设置', '管理', '操作', '功能', '列表', '消息', '详情',
+                 'swan', 'web', 'android', 'app', 'tab', 'Tab'}
     search_terms -= stopwords
 
     if not search_terms:
@@ -327,20 +335,21 @@ def promote_file(filepath: Path, check_only: bool = False) -> bool:
 
 
 def run_post_promote():
-    """转正后自动重建 backlinks + 增量更新向量索引"""
+    """转正后自动重建 backlinks + 增量更新向量索引（作用于当前 --knowledge-dir 指定的知识库）"""
     import subprocess
     import sys
 
     scripts_dir = Path("scripts/knowledge")
 
     print(f"\n{'='*60}")
-    print("  转正后自动更新索引...")
+    print(f"  转正后自动更新索引（知识库: {KNOWLEDGE_DIR}）...")
     print(f"{'='*60}")
 
     # 重建反向链接
     print("  [1/2] 重建反向链接...")
     result = subprocess.run(
-        [sys.executable, str(scripts_dir / "backlinks_generator.py")],
+        [sys.executable, str(scripts_dir / "backlinks_generator.py"),
+         "--knowledge-dir", str(KNOWLEDGE_DIR)],
         capture_output=True, text=True, encoding="utf-8", errors="replace"
     )
     if result.returncode == 0:
@@ -350,9 +359,16 @@ def run_post_promote():
 
     # 增量更新向量索引
     print("  [2/2] 增量更新向量索引...")
+    env = os.environ.copy()
+    env.setdefault("UIAUTOTEST_EMBEDDING_MODEL",
+                   str(PROJ_ROOT / "models" / "paraphrase-multilingual-MiniLM-L12-v2"))
     result = subprocess.run(
-        [sys.executable, str(scripts_dir / "embedding_pipeline.py"), "--incremental"],
-        capture_output=True, text=True, encoding="utf-8", errors="replace"
+        [sys.executable, str(scripts_dir / "embedding_pipeline.py"),
+         "--knowledge-dir", str(KNOWLEDGE_DIR),
+         "--chroma-dir", str(KNOWLEDGE_DIR / ".chroma_db"),
+         "--incremental"],
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
+        env=env
     )
     if result.returncode == 0:
         # 提取最后几行输出

@@ -48,7 +48,7 @@ curl 'https://otp.example.test/api/test/otp/recent?limit=100'
 浏览器打开服务根地址即可查看动态页面，页面每两秒自动刷新：
 
 ```text
-http://192.168.12.5:18080/
+http://192.168.12.166:18080/
 ```
 
 ## 消费验证码

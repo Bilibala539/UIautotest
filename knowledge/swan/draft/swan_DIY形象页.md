@@ -44,16 +44,21 @@ AI 角色 DIY 形象生成页（从 AI 形象页底部「DIY形象」进入）�
 | 元素 | locator（key / OCR 文案 / 图片常量） | 类型 | 操作 | 成功断言 | 截图 | 验证状态 |
 |---|---|---|---|---|---|---|
 | 返回按钮 | 顶栏左上图标（无 key 无文案，[0,72][128,184]） | static | click / press_back | 回 `[[swan_AI形象页]]` | 待截 | verified（press_back 实测） |
-| 上传照片卡 | `OCR"上传照片"`（大虚线卡） | static | ⛔ 未点（拉起系统相册/相机，探索不触发） | — | 待截 | draft |
+| 上传照片卡 | `OCR"上传照片"`（大虚线卡） | static | ⛔ 未点（拉起系统相册/相机，探索不触发） | — | `swan_DIY形象页_上传照片卡.png`（draft） | draft |
 | 注意提示 | `OCR"注意：上传正面拍摄且背景干净的照片"` | static | 只读断言 | — | 待截 | draft |
 | 风格卡（×4） | 无 key 无文案（纯图缩略卡，[54,872] 起两行两列排布） | static | click 切换风格（未实测） | 选中态样式未验证 | 待截 | draft |
-| 开始生成 | `OCR"开始生成"`（通栏按钮） | static | ⛔ **禁止点击**（消耗 0.2 惠币/张起的付费生成） | — | 待截 | draft |
+| 开始生成 | `OCR"开始生成"`（通栏按钮） | static | ⛔ **禁止点击**（消耗 0.2 惠币/张起的付费生成） | — | `swan_DIY形象页_开始生成按钮.png`（draft） | draft |
 | 付费提示 | `OCR"DIY形象功能需消费管功能，一次0.2惠币/张（起）。"` | static | 只读断言 | — | dynamic-不截图 | verified（OCR 实测；文案"消费管功能"疑为 App 文案笔误，原文如此） |
 | 充值链接 | `OCR"充值"`（页面底部居中） | static | ⛔ **禁止点击**（真实付费入口） | — | 待截 | draft |
 
 ### 元素截图（image/flutter）
 
-无（Wave5 只探索未截图，待 aw-element 采集）。
+| 常量 | 文件（image_ai/flutter/，draft） |
+|---|---|
+| `SWAN_DIY_GENERATE_BTN` | `swan_DIY形象页_开始生成按钮.png`（⛔ 只断言不点击） |
+| `SWAN_DIY_UPLOAD_CARD` | `swan_DIY形象页_上传照片卡.png`（⛔ 只断言不点击，勿触发相册） |
+
+（均 2026-09-10 Wave5 采集，真机 find_image 0.8 通过。）
 
 ## 页面布局
 

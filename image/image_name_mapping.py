@@ -233,6 +233,38 @@ SWAN_AUTH_GATE_ADD_BTN = image_path("swan_授权门禁弹层_添加按钮.png", 
 SWAN_PLATFORM_RADIO_ROW_ARROW = image_path("swan_平台_电台行箭头.png", platform="flutter")
 
 
+# =====================================================================
+# Swan (Flutter) Wave 5 元素图片（AI/Vision/视频域，draft 待验证）
+# 2026-09-10 aw-element 采集（serial c0614b6a，720x1600），
+# 源图与裁剪分析脚本见 explorer_output/aw_element_tmp/wave5/。
+# ⛔ 红线：开始生成/充值/上传照片（DIY 付费/相册）只断言不点击；
+#    完成按钮（角色编辑页，创建角色）只断言不点击；
+#    平台行按钮所在门禁「添加」禁止点击。
+# =====================================================================
+
+# --- 所有角色页 (swan_所有角色页) ---
+SWAN_ALL_ROLES_MULTISELECT = image_path("swan_所有角色页_多选按钮.png", platform="flutter", draft=True)
+
+# --- 角色编辑页 (swan_角色编辑页，表单两屏长：完成在 swipe_up x3 后可见) ---
+SWAN_ROLE_EDITOR_SELECT = image_path("swan_角色编辑页_选择按钮.png", platform="flutter", draft=True)
+SWAN_ROLE_EDITOR_MORE_PLATFORM = image_path("swan_角色编辑页_更多AI平台按钮.png", platform="flutter", draft=True)
+SWAN_ROLE_EDITOR_DONE = image_path("swan_角色编辑页_完成按钮.png", platform="flutter", draft=True)  # ⛔ 只断言不点击
+
+# --- AI 形象页 (swan_AI形象页) ---
+SWAN_ROLE_IMAGES_DIY_BTN = image_path("swan_AI形象页_DIY形象按钮.png", platform="flutter", draft=True)
+
+# --- DIY 形象页 (swan_DIY形象页) ⛔ 只断言不点击（付费/相册） ---
+SWAN_DIY_GENERATE_BTN = image_path("swan_DIY形象页_开始生成按钮.png", platform="flutter", draft=True)
+SWAN_DIY_UPLOAD_CARD = image_path("swan_DIY形象页_上传照片卡.png", platform="flutter", draft=True)
+
+# --- AI 平台管理页 (swan_AI平台管理页) ---
+SWAN_AI_PLATFORM_ROW_BTN = image_path("swan_AI平台管理页_平台行按钮.png", platform="flutter", draft=True)  # 点击会弹门禁
+SWAN_AI_PLATFORM_TITLE = image_path("swan_AI平台管理页_顶栏平台标题.png", platform="flutter", draft=True)
+
+# --- AI 历史页 (swan_AI历史页) ---
+SWAN_AI_HISTORY_TITLE = image_path("swan_AI历史页_标题行.png", platform="flutter", draft=True)
+
+
 __all__ = [
     "ANDROID_DRAFT_IMAGE_DIR",
     "ANDROID_IMAGE_DIR",
@@ -294,6 +326,16 @@ __all__ = [
     "SWAN_AUTH_GATE_LOGIN_BTN",
     "SWAN_AUTH_GATE_ADD_BTN",
     "SWAN_PLATFORM_RADIO_ROW_ARROW",
+    "SWAN_ALL_ROLES_MULTISELECT",
+    "SWAN_ROLE_EDITOR_SELECT",
+    "SWAN_ROLE_EDITOR_MORE_PLATFORM",
+    "SWAN_ROLE_EDITOR_DONE",
+    "SWAN_ROLE_IMAGES_DIY_BTN",
+    "SWAN_DIY_GENERATE_BTN",
+    "SWAN_DIY_UPLOAD_CARD",
+    "SWAN_AI_PLATFORM_ROW_BTN",
+    "SWAN_AI_PLATFORM_TITLE",
+    "SWAN_AI_HISTORY_TITLE",
     "WEB_DRAFT_IMAGE_DIR",
     "WEB_IMAGE_DIR",
     "demote_image",

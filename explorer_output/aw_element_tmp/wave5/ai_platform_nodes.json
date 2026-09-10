@@ -1,0 +1,446 @@
+[
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "content",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": true,
+  "bounds": [
+   0,
+   72,
+   128,
+   184
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "平台",
+  "click": false,
+  "bounds": [
+   324,
+   104,
+   396,
+   152
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   184,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   184,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "Qwen",
+  "click": false,
+  "bounds": [
+   0,
+   216,
+   720,
+   392
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   70,
+   254,
+   138,
+   322
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": true,
+  "bounds": [
+   576,
+   232,
+   688,
+   344
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "DeepSeek",
+  "click": false,
+  "bounds": [
+   0,
+   392,
+   720,
+   568
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   70,
+   430,
+   138,
+   498
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": true,
+  "bounds": [
+   576,
+   408,
+   688,
+   520
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "豆包",
+  "click": false,
+  "bounds": [
+   0,
+   568,
+   720,
+   744
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   70,
+   606,
+   138,
+   674
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": true,
+  "bounds": [
+   576,
+   584,
+   688,
+   696
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "Kimi",
+  "click": false,
+  "bounds": [
+   0,
+   744,
+   720,
+   920
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   70,
+   782,
+   138,
+   850
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": true,
+  "bounds": [
+   576,
+   760,
+   688,
+   872
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "智谱清言",
+  "click": false,
+  "bounds": [
+   0,
+   920,
+   720,
+   1096
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   70,
+   958,
+   138,
+   1026
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": true,
+  "bounds": [
+   576,
+   936,
+   688,
+   1048
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "文心一言",
+  "click": false,
+  "bounds": [
+   0,
+   1096,
+   720,
+   1272
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   70,
+   1134,
+   138,
+   1202
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": true,
+  "bounds": [
+   576,
+   1112,
+   688,
+   1224
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "讯飞星火",
+  "click": false,
+  "bounds": [
+   0,
+   1272,
+   720,
+   1448
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   70,
+   1310,
+   138,
+   1378
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": true,
+  "bounds": [
+   576,
+   1288,
+   688,
+   1400
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "腾讯混元",
+  "click": false,
+  "bounds": [
+   0,
+   1448,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   70,
+   1486,
+   138,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": true,
+  "bounds": [
+   576,
+   1464,
+   688,
+   1528
+  ]
+ }
+]

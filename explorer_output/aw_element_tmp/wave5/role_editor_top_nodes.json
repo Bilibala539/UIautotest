@@ -1,0 +1,338 @@
+[
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "content",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": true,
+  "bounds": [
+   0,
+   72,
+   128,
+   184
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "自定义设置",
+  "click": false,
+  "bounds": [
+   269,
+   104,
+   451,
+   152
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   184,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "形象生成",
+  "click": false,
+  "bounds": [
+   32,
+   241,
+   162,
+   287
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   64,
+   353,
+   168,
+   457
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "选择",
+  "click": true,
+  "bounds": [
+   523,
+   365,
+   656,
+   445
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   32,
+   540,
+   52,
+   560
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "AI平台选择",
+  "click": false,
+  "bounds": [
+   56,
+   526,
+   218,
+   574
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "暂无AI平台",
+  "click": false,
+  "bounds": [
+   96,
+   694,
+   238,
+   736
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   64,
+   650,
+   656,
+   780
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "豆包",
+  "click": true,
+  "bounds": [
+   64,
+   828,
+   656,
+   932
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   96,
+   864,
+   128,
+   896
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   164,
+   848,
+   228,
+   912
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "更多AI平台",
+  "click": true,
+  "bounds": [
+   64,
+   1024,
+   656,
+   1132
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   32,
+   1200,
+   52,
+   1220
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "输入提示",
+  "click": false,
+  "bounds": [
+   56,
+   1187,
+   186,
+   1233
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": true,
+  "bounds": [
+   32,
+   1270,
+   688,
+   1374
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": true,
+  "bounds": [
+   32,
+   1394,
+   688,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   0,
+   0
+  ]
+ }
+]

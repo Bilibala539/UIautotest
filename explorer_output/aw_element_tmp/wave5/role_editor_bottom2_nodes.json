@@ -1,0 +1,350 @@
+[
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "content",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": true,
+  "bounds": [
+   0,
+   72,
+   128,
+   184
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "自定义设置",
+  "click": false,
+  "bounds": [
+   269,
+   104,
+   451,
+   152
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   184,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "知楠(中、英)",
+  "click": false,
+  "bounds": [
+   96,
+   240,
+   259,
+   282
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   64,
+   196,
+   656,
+   326
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   64,
+   354,
+   688,
+   1098
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   64,
+   354,
+   688,
+   1098
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   64,
+   354,
+   688,
+   1098
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "知楠(中、英)",
+  "click": true,
+  "bounds": [
+   64,
+   374,
+   656,
+   478
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   96,
+   410,
+   128,
+   442
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   382,
+   402,
+   430,
+   450
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "知琪(中、英)",
+  "click": true,
+  "bounds": [
+   64,
+   498,
+   656,
+   602
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "知厨(中、英)",
+  "click": true,
+  "bounds": [
+   64,
+   622,
+   656,
+   726
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "知德(中、英)",
+  "click": true,
+  "bounds": [
+   64,
+   746,
+   656,
+   850
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "知佳(中、英)",
+  "click": true,
+  "bounds": [
+   64,
+   870,
+   656,
+   974
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "知茹(中、英)",
+  "click": true,
+  "bounds": [
+   64,
+   994,
+   656,
+   1098
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   32,
+   1204,
+   52,
+   1224
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "昵称输入",
+  "click": false,
+  "bounds": [
+   56,
+   1191,
+   186,
+   1237
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": true,
+  "bounds": [
+   32,
+   1274,
+   688,
+   1378
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "完成",
+  "click": true,
+  "bounds": [
+   32,
+   1410,
+   688,
+   1522
+  ]
+ }
+]

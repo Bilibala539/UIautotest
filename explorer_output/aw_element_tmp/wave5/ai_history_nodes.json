@@ -1,0 +1,194 @@
+[
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "content",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": true,
+  "bounds": [
+   0,
+   72,
+   128,
+   184
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "历史对话记录",
+  "click": false,
+  "bounds": [
+   251,
+   104,
+   469,
+   152
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   184,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   184,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "play a song\n音乐服务需要授权，请到音乐页面完成授权后再试。",
+  "click": true,
+  "bounds": [
+   0,
+   204,
+   720,
+   370
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   81,
+   245,
+   165,
+   329
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   126,
+   290,
+   182,
+   346
+  ]
+ }
+]

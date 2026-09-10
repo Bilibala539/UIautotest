@@ -1,0 +1,290 @@
+[
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "content",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": true,
+  "bounds": [
+   0,
+   72,
+   128,
+   184
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "DIY形象",
+  "click": false,
+  "bounds": [
+   295,
+   103,
+   425,
+   153
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   184,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "上传照片",
+  "click": true,
+  "bounds": [
+   54,
+   258,
+   666,
+   618
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "注意：上传正面拍摄且背景干净的照片，效果会更佳。",
+  "click": false,
+  "bounds": [
+   64,
+   642,
+   656,
+   674
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "选择风格",
+  "click": false,
+  "bounds": [
+   58,
+   744,
+   662,
+   784
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   54,
+   800,
+   666,
+   1080
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   54,
+   800,
+   666,
+   1080
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": true,
+  "bounds": [
+   54,
+   872,
+   258,
+   976
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": true,
+  "bounds": [
+   258,
+   872,
+   462,
+   976
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": true,
+  "bounds": [
+   462,
+   872,
+   666,
+   976
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": true,
+  "bounds": [
+   54,
+   976,
+   258,
+   1080
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "开始生成",
+  "click": true,
+  "bounds": [
+   32,
+   1144,
+   688,
+   1256
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "DIY 形象功能需消费管功能，一次0.2惠币/张（起）。",
+  "click": false,
+  "bounds": [
+   32,
+   1266,
+   688,
+   1302
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "充值",
+  "click": true,
+  "bounds": [
+   323,
+   1372,
+   397,
+   1406
+  ]
+ }
+]

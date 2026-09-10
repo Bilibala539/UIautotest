@@ -1,0 +1,374 @@
+[
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "content",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": true,
+  "bounds": [
+   0,
+   72,
+   128,
+   184
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "AI 形象",
+  "click": false,
+  "bounds": [
+   301,
+   103,
+   419,
+   153
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   184,
+   720,
+   1470
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   184,
+   720,
+   1470
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "动图",
+  "click": true,
+  "bounds": [
+   0,
+   208,
+   720,
+   536
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   88,
+   208,
+   632,
+   514
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   112,
+   232,
+   160,
+   280
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   523,
+   244,
+   547,
+   268
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "动图",
+  "click": true,
+  "bounds": [
+   0,
+   536,
+   720,
+   863
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   88,
+   536,
+   632,
+   841
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   112,
+   560,
+   160,
+   608
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   523,
+   572,
+   547,
+   596
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "动图",
+  "click": true,
+  "bounds": [
+   0,
+   863,
+   720,
+   1191
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   88,
+   863,
+   632,
+   1169
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   112,
+   887,
+   160,
+   935
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   523,
+   899,
+   547,
+   923
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "动图",
+  "click": true,
+  "bounds": [
+   0,
+   1191,
+   720,
+   1470
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   88,
+   1191,
+   632,
+   1470
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   112,
+   1215,
+   160,
+   1263
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   523,
+   1227,
+   547,
+   1251
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "完成",
+  "click": true,
+  "bounds": [
+   32,
+   1502,
+   344,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "DIY形象",
+  "click": true,
+  "bounds": [
+   376,
+   1502,
+   688,
+   1528
+  ]
+ }
+]

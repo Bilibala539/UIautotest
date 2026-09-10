@@ -24,7 +24,8 @@ orientation: portrait
 4. ***语音选择**：语音单选列表（知楠/知琪/知厨/知德/知佳/知茹，均标注"中、英"），默认选中知楠
 5. ***昵称输入**：昵称输入框（hint"昵称输入"）
 
-底部通栏「完成」按钮提交。全页无 accessibility key，需滚动两屏才能看全（语音列表+昵称在下半屏）。
+底部通栏「完成」按钮提交。全页无 accessibility key，需滚动两屏以上才能看全（语音列表+昵称在下半屏，
+⚠️ 实测 swipe_up x2 不够，「完成」需 swipe_up x3（400px/次）才进屏）。
 
 ## 生效断言
 
@@ -46,19 +47,23 @@ orientation: portrait
 | 元素 | locator（key / OCR 文案 / 图片常量） | 类型 | 操作 | 成功断言 | 截图 | 验证状态 |
 |---|---|---|---|---|---|---|
 | 返回按钮 | 顶栏左上图标（无 key 无文案，[0,72][128,184]） | static | click / press_back | 回来源页 | 待截 | verified（press_back 实测） |
-| 选择（形象） | `OCR"选择"`（形象生成区右上） | static | click | `[[swan_AI形象页]]`（2026-09-10 Wave5 实测） | 待截 | verified |
+| 选择（形象） | `OCR"选择"`（形象生成区右上） | static | click | `[[swan_AI形象页]]`（2026-09-10 Wave5 实测） | `swan_角色编辑页_选择按钮.png`（draft） | verified |
 | 豆包预置卡片 | `OCR"豆包"`（AI平台选择区） | static | 未实测（推测选择平台/展开） | — | 待截 | draft |
-| 更多AI平台 | `OCR"更多AI平台"`（通栏按钮） | static | click | `[[swan_AI平台管理页]]`（2026-09-10 Wave5 实测） | 待截 | verified |
+| 更多AI平台 | `OCR"更多AI平台"`（通栏按钮） | static | click | `[[swan_AI平台管理页]]`（2026-09-10 Wave5 实测） | `swan_角色编辑页_更多AI平台按钮.png`（draft） | verified |
 | 提示词输入区 | 无 key（大文本框，hint 两行示例文案；OCR"示例"锚定） | static | click 后 input_text（仅 ASCII） | 键盘弹出 | 待截 | draft |
 | 计数器 | `OCR"0/200"` | dynamic | 只读 | — | dynamic-不截图 | verified（OCR 实测） |
 | 使用按钮 | `OCR"使用"`（提示词计数右侧） | static | 未实测 | — | 待截 | draft |
 | 语音单选行（×6） | `OCR"知楠(中、英)"` 等（单选圆圈+文案行） | static | click 切换选中 | 选中圆圈实心（未逐个实测） | 待截 | draft |
 | 昵称输入框 | `OCR"昵称输入"`（hint） | static | click 后 input_text | 键盘弹出 | 待截 | draft |
-| 完成按钮 | `OCR"完成"`（底部通栏，页面最底） | static | ⛔ 未点（必填项全空，提交行为未探索；填齐后应创建角色） | — | 待截 | draft |
+| 完成按钮 | `OCR"完成"`（底部通栏，页面最底） | static | ⛔ 未点（必填项全空，提交行为未探索；填齐后应创建角色） | — | `swan_角色编辑页_完成按钮.png`（draft） | draft（图像已采集，find_image 0.8 通过；点击行为未探索） |
 
 ### 元素截图（image/flutter）
 
-无（Wave5 只探索未截图，待 aw-element 采集）。
+| 常量 | 文件（image_ai/flutter/，draft） |
+|---|---|
+| `SWAN_ROLE_EDITOR_SELECT` | `swan_角色编辑页_选择按钮.png` |
+| `SWAN_ROLE_EDITOR_MORE_PLATFORM` | `swan_角色编辑页_更多AI平台按钮.png` |
+| `SWAN_ROLE_EDITOR_DONE` | `swan_角色编辑页_完成按钮.png`（⛔ 只断言不点击；截自 swipe_up x3 后的下半屏源图） |
 
 ## 页面布局
 

@@ -40,11 +40,13 @@ AI 角色头像选择页（路由 /ai/role/images，从角色编辑页「形象�
 | 返回按钮 | 顶栏左上图标（无 key 无文案，[0,72][128,184]） | static | click / press_back | 回 `[[swan_角色编辑页]]` | 待截 | verified（press_back 实测） |
 | 动图头像卡（×4） | 无 key 无文案（整卡可点，卡内 OCR"动图"角标锚定卡位置） | dynamic | click 选中（未实测选中态样式） | 选中标记出现（未验证） | 待截 | draft |
 | 完成按钮 | `OCR"完成"`（底部左半） | static | click（未实测，应携带所选头像返回角色编辑页） | 回 `[[swan_角色编辑页]]` | 待截 | draft |
-| DIY形象按钮 | `OCR"DIY形象"`（底部右半） | static | click | `[[swan_DIY形象页]]`（2026-09-10 Wave5 实测） | 待截 | verified |
+| DIY形象按钮 | `OCR"DIY形象"`（底部右半） | static | click | `[[swan_DIY形象页]]`（2026-09-10 Wave5 实测） | `swan_AI形象页_DIY形象按钮.png`（draft） | verified |
 
 ### 元素截图（image/flutter）
 
-无（Wave5 只探索未截图，待 aw-element 采集）。
+| 常量 | 文件（image_ai/flutter/，draft） |
+|---|---|
+| `SWAN_ROLE_IMAGES_DIY_BTN` | `swan_AI形象页_DIY形象按钮.png`（2026-09-10 Wave5 采集，真机 find_image 0.8 通过） |
 
 ## 页面布局
 

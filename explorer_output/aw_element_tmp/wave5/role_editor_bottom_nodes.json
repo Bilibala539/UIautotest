@@ -1,0 +1,386 @@
+[
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "content",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": true,
+  "bounds": [
+   0,
+   72,
+   128,
+   184
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "自定义设置",
+  "click": false,
+  "bounds": [
+   269,
+   104,
+   451,
+   152
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   184,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": true,
+  "bounds": [
+   32,
+   184,
+   688,
+   208
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": true,
+  "bounds": [
+   32,
+   228,
+   688,
+   456
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "0",
+  "click": false,
+  "bounds": [
+   64,
+   465,
+   82,
+   511
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "/200",
+  "click": false,
+  "bounds": [
+   82,
+   465,
+   152,
+   511
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "使用",
+  "click": true,
+  "bounds": [
+   559,
+   456,
+   664,
+   520
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   32,
+   570,
+   52,
+   590
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "语音选择",
+  "click": false,
+  "bounds": [
+   56,
+   557,
+   186,
+   603
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "知楠(中、英)",
+  "click": false,
+  "bounds": [
+   96,
+   724,
+   259,
+   766
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   64,
+   680,
+   656,
+   810
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   64,
+   838,
+   688,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   64,
+   838,
+   688,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   64,
+   838,
+   688,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "知楠(中、英)",
+  "click": true,
+  "bounds": [
+   64,
+   858,
+   656,
+   962
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   96,
+   894,
+   128,
+   926
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   382,
+   886,
+   430,
+   934
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "知琪(中、英)",
+  "click": true,
+  "bounds": [
+   64,
+   982,
+   656,
+   1086
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "知厨(中、英)",
+  "click": true,
+  "bounds": [
+   64,
+   1106,
+   656,
+   1210
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "知德(中、英)",
+  "click": true,
+  "bounds": [
+   64,
+   1230,
+   656,
+   1334
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "知佳(中、英)",
+  "click": true,
+  "bounds": [
+   64,
+   1354,
+   656,
+   1458
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "知茹(中、英)",
+  "click": true,
+  "bounds": [
+   64,
+   1478,
+   656,
+   1528
+  ]
+ }
+]

@@ -1,0 +1,84 @@
+---
+page_id: swan_AI平台管理页
+name: "AI 平台管理"
+aliases: [AI平台, 平台选择, ai_platform_manage]
+route: /ai/platform/manage
+status: draft
+last_updated: 2026-09-10
+type: screen
+package_name: com.swan.network
+activity: null
+orientation: portrait
+---
+
+# AI 平台管理 (swan_AI平台管理页)
+
+## 页面概述
+
+大模型 AI 平台选择/绑定页（路由 /ai/platform/manage，ai_platform_manage_page.dart），
+标题「平台」（注意：标题就两个字"平台"，**不是**"AI平台管理"，与底部 tab「平台」同名，OCR 需 region 限定顶栏）。
+列表固定 8 个 AI 平台（实测完整列表，无更多）：
+Qwen / DeepSeek / 豆包 / Kimi / 智谱清言 / 文心一言 / 讯飞星火 / 腾讯混元。
+
+每行：平台 logo + 平台名 + 行右侧一个 48×48 深色方形图标按钮（无 key 无文案，
+形状为深色圆角方块内含白色图标）。**点击该按钮弹出授权门禁弹层**（变体"添加新平台"）：
+"请先添加该 AI 平台，即可开启专属于你的 AI 之旅～" + 「添加」按钮 + desc='纱罩' scrim。
+即：未添加平台时绑定入口全部被门禁拦截（⛔ 添加按钮不点，press_back 关闭，2026-09-10 Wave5 实测）。
+
+行本体不可点，只有右侧图标按钮可点。全页无 accessibility key。
+
+## 生效断言
+
+| 断言元素 | 出现/消失 | 断言方式 | 含义 |
+|---|---|---|---|
+| 页面标题 | 出现 | OCR"平台"（region 限定顶栏 y≈107-155，避开底 tab「平台」） | 进入本页 |
+| 平台行 | 出现 | OCR"Qwen"（首行）/ OCR"腾讯混元"（末行，swipe_up 后可见） | 列表渲染完成 |
+
+## 进入方式
+
+| 来源页面 | 操作元素（locator） | 操作类型 | 到达断言 |
+|---|---|---|---|
+| `[[swan_角色编辑页]]` | `OCR"更多AI平台"`（AI平台选择区通栏按钮） | click | 见「生效断言」（2026-09-10 Wave5 实测） |
+
+自然语言补充：本页从角色编辑流程进入，未发现其他独立入口（我的页/设置无此入口）。
+
+## 关键元素
+
+| 元素 | locator（key / OCR 文案 / 图片常量） | 类型 | 操作 | 成功断言 | 截图 | 验证状态 |
+|---|---|---|---|---|---|---|
+| 返回按钮 | 顶栏左上图标（无 key 无文案，[0,72][128,184]） | static | click / press_back | 回 `[[swan_角色编辑页]]` | 待截 | verified（press_back 实测） |
+| 平台行（×8） | `OCR"Qwen"`/`OCR"DeepSeek"`/`OCR"豆包"`/`OCR"Kimi"`/`OCR"智谱清言"`/`OCR"文心一言"`/`OCR"讯飞星火"`/`OCR"腾讯混元"` | static | 行本体不可点（clickable=false） | — | 待截 | verified（OCR 实测） |
+| 平台添加/绑定按钮（×8） | 无 key 无文案（行右侧 48×48 深色方形图标；Qwen 行的位于 [576,192][688,304]，各行等距下移） | static | click | `[[swan_授权门禁弹层]]`（添加新平台变体，2026-09-10 Wave5 实测 Qwen 行） | 待截 | verified |
+
+### 「添加新平台」门禁弹层（本页触发）
+
+文案："添加新平台" / "请先添加该 AI 平台，即可开启专属于你的 AI 之旅～" + 「添加」主按钮。
+带 desc='纱罩' scrim（与 `[[swan_授权门禁弹层]]` 同判据）。press_back 一次关闭回本页。
+⛔ 「添加」按钮禁止点击（绑定/开通 AI 平台，性质同平台授权）。
+
+### 元素截图（image/flutter）
+
+无（Wave5 只探索未截图，待 aw-element 采集）。
+
+## 页面布局
+
+```
+┌────────────────────────┐
+│ [←]       平台          │
+│ [logo] Qwen        [▦] │
+│ [logo] DeepSeek    [▦] │
+│ [logo] 豆包         [▦] │
+│ [logo] Kimi        [▦] │
+│ [logo] 智谱清言      [▦] │
+│ [logo] 文心一言      [▦] │
+│ [logo] 讯飞星火      [▦] │
+│ [logo] 腾讯混元      [▦] │ ← 列表到底，无更多
+└────────────────────────┘
+```
+
+## 功能关联
+
+- 所属 feature：建议新单列 `feature_AI助手`（AI 平台域）
+- 上游：`[[swan_角色编辑页]]`（更多AI平台按钮）
+- 下游：`[[swan_授权门禁弹层]]`（平台添加按钮 → 添加新平台变体）
+- 功能地图对照：AI 平台管理 /ai/platform/manage [已扫描-未考古] → 本页实测补全

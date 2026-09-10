@@ -57,6 +57,7 @@
 | 角色编辑表单两屏长 | 语音/昵称/「完成」在下半屏,须 **swipe_up x3**(400px/次)才进屏(x2 不够,完成按钮仍贴底) | explorer 2026-09-10 Wave5;element 2026-09-10 修正 |
 | DIY形象付费功能 | 0.2 惠币/张起;「开始生成/充值」⛔ 只断言不点 | explorer 2026-09-10 Wave5 |
 | 授权门禁第三变体 | AI 平台管理页行右侧按钮弹「添加新平台」门禁(文案:请先添加该 AI 平台…),纱罩判据不变,press_back 关 | explorer 2026-09-10 Wave5 |
+| 所有角色页多选态判据 | 点「多选」后原位变「取消」+底栏「全选/删除」出现;`on_text("全选")` 出现/消失即可作多选态进出判据,无需截图 | verify 2026-09-10 Wave5 |
 
 ## 框架 / 环境
 
@@ -68,3 +69,4 @@
 | paddle+torch 同进程 | 先 import paddle 再 import torch 会 shm.dll 崩溃；两者分进程跑（向量管线不含 paddle，天然安全） | orchestrator 2026-09-08 |
 | 验证码页返回 | press_back 会退出 App（不是回登录页）；重启后回登录页 | element 2026-09-08 |
 | paddle 抢占 root logger | import paddleocr 后再 logging.basicConfig 是 no-op，独立验证脚本 INFO 全被吞（exit 0 但无日志）；import 后须显式 root.addHandler(StreamHandler(sys.stdout)) + setLevel(INFO)，并把 ppocr/paddle logger 压到 WARNING | verify 2026-09-10 Wave4 |
+| 本机 adb 路径 | 本机 adb 在 `D:\scrcpy-win64-v4.1\adb.exe`（`C:\platform-tools\adb.exe` 不存在，那是远端 166 的路径）；脚本直连 adb 时勿混用两机路径 | verify 2026-09-10 Wave5 |

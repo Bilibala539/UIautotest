@@ -234,35 +234,36 @@ SWAN_PLATFORM_RADIO_ROW_ARROW = image_path("swan_平台_电台行箭头.png", pl
 
 
 # =====================================================================
-# Swan (Flutter) Wave 5 元素图片（AI/Vision/视频域，draft 待验证）
+# Swan (Flutter) Wave 5 元素图片（AI/Vision/视频域，✅ 已转正）
 # 2026-09-10 aw-element 采集（serial c0614b6a，720x1600），
 # 源图与裁剪分析脚本见 explorer_output/aw_element_tmp/wave5/。
-# ⛔ 红线：开始生成/充值/上传照片（DIY 付费/相册）只断言不点击；
-#    完成按钮（角色编辑页，创建角色）只断言不点击；
-#    平台行按钮所在门禁「添加」禁止点击。
+# 2026-09-10 aw-verify 真机验证（explorer_output/verify_wave5/verify_wave5_awverify.py，
+# 10/10 全部通过：4 项点击反应验证 + 6 项存在断言，score=1.00@0.8）后 promote_image 转正。
+# ⛔ 红线：开始生成/上传照片卡（DIY 付费/相册）、完成按钮（角色编辑页，创建角色）、
+#    平台行按钮（点击会弹「添加新平台」授权门禁）只断言不点击。
 # =====================================================================
 
 # --- 所有角色页 (swan_所有角色页) ---
-SWAN_ALL_ROLES_MULTISELECT = image_path("swan_所有角色页_多选按钮.png", platform="flutter", draft=True)
+SWAN_ALL_ROLES_MULTISELECT = image_path("swan_所有角色页_多选按钮.png", platform="flutter")
 
 # --- 角色编辑页 (swan_角色编辑页，表单两屏长：完成在 swipe_up x3 后可见) ---
-SWAN_ROLE_EDITOR_SELECT = image_path("swan_角色编辑页_选择按钮.png", platform="flutter", draft=True)
-SWAN_ROLE_EDITOR_MORE_PLATFORM = image_path("swan_角色编辑页_更多AI平台按钮.png", platform="flutter", draft=True)
-SWAN_ROLE_EDITOR_DONE = image_path("swan_角色编辑页_完成按钮.png", platform="flutter", draft=True)  # ⛔ 只断言不点击
+SWAN_ROLE_EDITOR_SELECT = image_path("swan_角色编辑页_选择按钮.png", platform="flutter")
+SWAN_ROLE_EDITOR_MORE_PLATFORM = image_path("swan_角色编辑页_更多AI平台按钮.png", platform="flutter")
+SWAN_ROLE_EDITOR_DONE = image_path("swan_角色编辑页_完成按钮.png", platform="flutter")  # ⛔ 只断言不点击
 
 # --- AI 形象页 (swan_AI形象页) ---
-SWAN_ROLE_IMAGES_DIY_BTN = image_path("swan_AI形象页_DIY形象按钮.png", platform="flutter", draft=True)
+SWAN_ROLE_IMAGES_DIY_BTN = image_path("swan_AI形象页_DIY形象按钮.png", platform="flutter")
 
 # --- DIY 形象页 (swan_DIY形象页) ⛔ 只断言不点击（付费/相册） ---
-SWAN_DIY_GENERATE_BTN = image_path("swan_DIY形象页_开始生成按钮.png", platform="flutter", draft=True)
-SWAN_DIY_UPLOAD_CARD = image_path("swan_DIY形象页_上传照片卡.png", platform="flutter", draft=True)
+SWAN_DIY_GENERATE_BTN = image_path("swan_DIY形象页_开始生成按钮.png", platform="flutter")  # ⛔ 只断言不点击
+SWAN_DIY_UPLOAD_CARD = image_path("swan_DIY形象页_上传照片卡.png", platform="flutter")  # ⛔ 只断言不点击
 
 # --- AI 平台管理页 (swan_AI平台管理页) ---
-SWAN_AI_PLATFORM_ROW_BTN = image_path("swan_AI平台管理页_平台行按钮.png", platform="flutter", draft=True)  # 点击会弹门禁
-SWAN_AI_PLATFORM_TITLE = image_path("swan_AI平台管理页_顶栏平台标题.png", platform="flutter", draft=True)
+SWAN_AI_PLATFORM_ROW_BTN = image_path("swan_AI平台管理页_平台行按钮.png", platform="flutter")  # ⛔ 只断言不点击（点击会弹门禁）
+SWAN_AI_PLATFORM_TITLE = image_path("swan_AI平台管理页_顶栏平台标题.png", platform="flutter")
 
 # --- AI 历史页 (swan_AI历史页) ---
-SWAN_AI_HISTORY_TITLE = image_path("swan_AI历史页_标题行.png", platform="flutter", draft=True)
+SWAN_AI_HISTORY_TITLE = image_path("swan_AI历史页_标题行.png", platform="flutter")
 
 
 __all__ = [

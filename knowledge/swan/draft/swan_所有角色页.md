@@ -44,7 +44,7 @@ AI 角色全量列表页（2026-09-10 Wave5 实测，从首页·AI Tab「AI 角�
 |---|---|---|---|---|---|---|
 | 返回按钮 | 顶栏左上图标（无 key 无文案，[0,72][128,172]） | static | click / press_back | 回 `[[swan_首页AITab]]` | 待截 | verified（press_back 实测） |
 | 系统角色行（×4） | OCR 角色问候语（"你好，我是你的应用助手，惠威百科"等整行） | dynamic | click | `[[swan_AI对话页]]`（2026-09-10 Wave5 实测云舒雁行落地 AI 对话，对话记录回显） | dynamic-不截图 | verified |
-| 多选按钮 | `OCR"多选"`（自定义区标题行右侧，y≈906） | static | click | 按钮变「取消」+ 底部出现「全选」「删除」 | `swan_所有角色页_多选按钮.png`（draft） | verified（2026-09-10 Wave5 实测） |
+| 多选按钮 | `OCR"多选"`（自定义区标题行右侧，y≈906） | static | click | 按钮变「取消」+ 底部出现「全选」「删除」 | `swan_所有角色页_多选按钮.png`（正式） | verified（2026-09-10 Wave5 实测） |
 | 取消按钮（多选态） | `OCR"取消"`（多选按钮原位） | static | click | 退出多选，恢复「多选」+ 底部按钮消失 | 待截 | verified |
 | 全选按钮（多选态） | `OCR"全选"`（底部左） | static | ⛔ 不点（会勾选全部自定义角色，配合删除危险） | — | 待截 | draft |
 | 删除按钮（多选态） | `OCR"删除"`（底部右，红字） | static | ⛔ **禁止点击**（删除自定义角色，不可逆） | — | 待截 | draft |
@@ -53,7 +53,7 @@ AI 角色全量列表页（2026-09-10 Wave5 实测，从首页·AI Tab「AI 角�
 
 ### 元素截图（image/flutter）
 
-| 常量 | 文件（image_ai/flutter/，draft） |
+| 常量 | 文件（image/flutter，正式；2026-09-10 aw-verify 真机验证通过后转正） |
 |---|---|
 | `SWAN_ALL_ROLES_MULTISELECT` | `swan_所有角色页_多选按钮.png`（2026-09-10 Wave5 采集，真机 find_image 0.8 通过） |
 

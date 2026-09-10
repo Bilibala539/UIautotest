@@ -46,13 +46,13 @@ AI 对话历史全量页（路由 /ai/history，ai_history_page.dart）。标题
 | 元素 | locator（key / OCR 文案 / 图片常量） | 类型 | 操作 | 成功断言 | 截图 | 验证状态 |
 |---|---|---|---|---|---|---|
 | 返回按钮 | 顶栏左上图标（无 key 无文案，[0,72][128,184]） | static | click / press_back | 回 `[[swan_首页AITab]]` | 待截 | verified（press_back 实测，落地 AI Tab） |
-| 页面标题行 | `OCR"历史对话记录"`（顶栏居中，OCR (252,110,469,150)） | static | 只读断言（region 限定顶栏） | 进入本页 | `swan_AI历史页_标题行.png`（draft） | draft（图像已采集，find_image 0.8 通过） |
+| 页面标题行 | `OCR"历史对话记录"`（顶栏居中，OCR (252,110,469,150)） | static | 只读断言（region 限定顶栏） | 进入本页 | `swan_AI历史页_标题行.png`（正式） | draft（图像已采集，2026-09-10 aw-verify 真机存在断言通过后转正） |
 | 会话记录行 | OCR 记录摘要文案（如 "play a song"，整行可点；无 key） | dynamic | click | `[[swan_AI对话页]]`（对应对话回显，2026-09-10 Wave5 实测） | dynamic-不截图 | verified |
 | 空态 | 本账号未出现（已有 1 条历史）；推测无历史时显示空态文案（未验证） | dynamic | 只读 | — | dynamic-不截图 | draft |
 
 ### 元素截图（image/flutter）
 
-| 常量 | 文件（image_ai/flutter/，draft） |
+| 常量 | 文件（image/flutter，正式；2026-09-10 aw-verify 真机验证通过后转正） |
 |---|---|
 | `SWAN_AI_HISTORY_TITLE` | `swan_AI历史页_标题行.png`（2026-09-10 Wave5 采集，真机 find_image 0.8 通过） |
 

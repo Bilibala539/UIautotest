@@ -48,7 +48,7 @@ Qwen / DeepSeek / 豆包 / Kimi / 智谱清言 / 文心一言 / 讯飞星火 / �
 |---|---|---|---|---|---|---|
 | 返回按钮 | 顶栏左上图标（无 key 无文案，[0,72][128,184]） | static | click / press_back | 回 `[[swan_角色编辑页]]` | 待截 | verified（press_back 实测） |
 | 平台行（×8） | `OCR"Qwen"`/`OCR"DeepSeek"`/`OCR"豆包"`/`OCR"Kimi"`/`OCR"智谱清言"`/`OCR"文心一言"`/`OCR"讯飞星火"`/`OCR"腾讯混元"` | static | 行本体不可点（clickable=false） | — | 待截 | verified（OCR 实测） |
-| 平台添加/绑定按钮（×8） | 无 key 无文案（行右侧 48×48 深色圆角方块图标；Qwen 行的实测位于 [608,264][655,311]，各行等距下移，8 行同构共用一张图） | static | click | `[[swan_授权门禁弹层]]`（添加新平台变体，2026-09-10 Wave5 实测 Qwen 行） | `swan_AI平台管理页_平台行按钮.png`（draft） | verified |
+| 平台添加/绑定按钮（×8） | 无 key 无文案（行右侧 48×48 深色圆角方块图标；Qwen 行的实测位于 [608,264][655,311]，各行等距下移，8 行同构共用一张图） | static | click | `[[swan_授权门禁弹层]]`（添加新平台变体，2026-09-10 Wave5 实测 Qwen 行） | `swan_AI平台管理页_平台行按钮.png`（正式） | verified |
 
 ### 「添加新平台」门禁弹层（本页触发）
 
@@ -58,7 +58,7 @@ Qwen / DeepSeek / 豆包 / Kimi / 智谱清言 / 文心一言 / 讯飞星火 / �
 
 ### 元素截图（image/flutter）
 
-| 常量 | 文件（image_ai/flutter/，draft） |
+| 常量 | 文件（image/flutter，正式；2026-09-10 aw-verify 真机验证通过后转正） |
 |---|---|
 | `SWAN_AI_PLATFORM_ROW_BTN` | `swan_AI平台管理页_平台行按钮.png`（Qwen 行右侧 48×48 深色方块，⛔ 点击会弹门禁；2026-09-10 Wave5 采集，find_image 0.8 通过） |
 | `SWAN_AI_PLATFORM_TITLE` | `swan_AI平台管理页_顶栏平台标题.png`（region 限定顶栏断言用，避开底 tab 同名「平台」） |

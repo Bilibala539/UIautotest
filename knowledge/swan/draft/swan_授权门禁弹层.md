@@ -50,15 +50,15 @@ orientation: portrait
 | 元素 | locator（key / OCR 文案 / 图片常量） | 类型 | 操作 | 成功断言 | 截图 | 验证状态 |
 |---|---|---|---|---|---|---|
 | 遮罩（纱罩） | 语义 desc=`纱罩`（无 resource_id） | static | 只读断言 | — | dynamic-不截图 | verified |
-| 主按钮（添加/授权登录） | `OCR"添加"` / `OCR"授权登录"`（变体 A/B） | static | ⛔ 只断言不点击 | — | 待截（备防御性断言用） | verified（存在性） |
+| 主按钮（添加/授权登录） | `OCR"添加"` / `OCR"授权登录"`（变体 A/B）或图片 `SWAN_AUTH_GATE_ADD_BTN` / `SWAN_AUTH_GATE_LOGIN_BTN` | static | ⛔ 只断言不点击 | — | `swan_授权门禁弹层_添加按钮.png` / `swan_授权门禁弹层_授权登录按钮.png`（draft） | verified（存在性） |
 | 标题/副文案 | OCR"添加新平台"/"请先登录 X" | static | 只读断言 | — | 待截 | verified |
 
 ### 元素截图（image/flutter）
 
 | 元素 | 建议常量 | 图片文件 |
 |---|---|---|
-| 主按钮（授权登录） | `SWAN_AUTH_GATE_LOGIN_BTN` | 待 element 采集（⛔ 仅存在性断言用） |
-| 主按钮（添加） | `SWAN_AUTH_GATE_ADD_BTN` | 待 element 采集（⛔ 同上） |
+| 主按钮（授权登录） | `SWAN_AUTH_GATE_LOGIN_BTN` | image_ai/flutter/swan_授权门禁弹层_授权登录按钮.png（2026-09-10 已采集，draft；⛔ 仅存在性断言用） |
+| 主按钮（添加） | `SWAN_AUTH_GATE_ADD_BTN` | image_ai/flutter/swan_授权门禁弹层_添加按钮.png（2026-09-10 已采集，draft；⛔ 同上） |
 
 ## 页面布局
 

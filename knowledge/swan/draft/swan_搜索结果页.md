@@ -48,17 +48,17 @@ orientation: portrait
 |---|---|---|---|---|---|---|
 | 返回按钮（左上） | 无 key 无文案（待截图） | static | click | 回 `[[swan_搜索输入页]]`（历史 chip 保留） | 待截 | verified（press_back 等效） |
 | 关键词输入框 | 原生 EditText（text=关键词，可直接 dump 断言） | dynamic | 修改后点搜索重新提交 | 新结果/空态 | dynamic-不截图 | draft |
-| 搜索按钮 | `OCR"搜索"`（顶栏右，region 限定） | static | click | 重新搜索 | 待截 | verified |
+| 搜索按钮 | `OCR"搜索"`（顶栏右，region 限定）或图片 `SWAN_SEARCH_SUBMIT`（与输入页共用） | static | click | 重新搜索 | `swan_搜索输入页_搜索按钮.png`（draft） | verified |
 | 六分类 Tab | `OCR"单曲"` 等（Tab 行 y≈218-288，region 限定） | static | click | 内容区切换 | 待截 | verified（艺人 Tab 实测原地切换） |
-| 空态文案 | OCR"没有找到相关结果" | static | 只读断言 | — | 待截 | verified |
+| 空态文案 | `OCR"没有找到相关结果"` 或图片 `SWAN_SEARCH_EMPTY` | static | 只读断言 | — | `swan_搜索结果页_空态文案.png`（draft） | verified |
 | 结果行（单曲/艺人/专辑等） | 未取得（本账号空态） | dynamic | — | — | dynamic-不截图 | blocked（需授权账号） |
 
 ### 元素截图（image/flutter）
 
 | 元素 | 建议常量 | 图片文件 |
 |---|---|---|
-| 搜索按钮 | `SWAN_SEARCH_SUBMIT`（与输入页共用，采集一次） | 待 element 采集 |
-| 空态文案 | `SWAN_SEARCH_EMPTY` | 待 element 采集 |
+| 搜索按钮 | `SWAN_SEARCH_SUBMIT`（与输入页共用，采集一次） | image_ai/flutter/swan_搜索输入页_搜索按钮.png（2026-09-10 已采集，draft） |
+| 空态文案 | `SWAN_SEARCH_EMPTY` | image_ai/flutter/swan_搜索结果页_空态文案.png（2026-09-10 已采集，draft） |
 
 ## 页面布局
 

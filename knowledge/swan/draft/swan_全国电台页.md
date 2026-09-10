@@ -42,7 +42,7 @@ fm_country_radio_page.dart）在未授权账号下所有入口均弹 `[[swan_授
 
 | 来源页面 | 操作元素（locator） | 操作类型 | 到达断言 |
 |---|---|---|---|
-| `[[swan_平台页]]` | 电台分类「全国电台」行右侧圆形箭头图标（无 key 无文案，待截图） | click | ⚠️ 未授权账号弹 `[[swan_授权门禁弹层]]` |
+| `[[swan_平台页]]` | 电台分类「全国电台」行右侧圆形箭头图标（无 key 无文案 → 图片 `SWAN_PLATFORM_RADIO_ROW_ARROW`） | click | ⚠️ 未授权账号弹 `[[swan_授权门禁弹层]]` |
 | `[[swan_首页电台Tab]]` | `OCR"全国电台"`（分组标题行） | click | ⚠️ 同上 |
 | `[[swan_首页电台Tab]]` | `OCR"80er-Radio harmony"` / OCR"90年代电台"（分组标题行） | click | ⚠️ 同上（80s/90s 变体入口） |
 
@@ -56,7 +56,7 @@ fm_country_radio_page.dart）在未授权账号下所有入口均弹 `[[swan_授
 
 | 元素 | locator | 类型 | 操作 | 成功断言 | 截图 | 验证状态 |
 |---|---|---|---|---|---|---|
-| 平台页电台行右侧箭头图标 | 无 key 无文案（圆形 chevron） | static | click | 弹门禁（未授权） | 待截 `SWAN_PLATFORM_RADIO_ROW_ARROW` | verified（拦截行为） |
+| 平台页电台行右侧箭头图标 | 无 key 无文案（圆形 chevron）→ 图片 `SWAN_PLATFORM_RADIO_ROW_ARROW` | static | click | 弹门禁（未授权） | `swan_平台_电台行箭头.png`（draft） | verified（拦截行为） |
 | 电台 Tab 分组标题 | `OCR"全国电台"` / `OCR"80er-Radio harmony"` | static | click | 弹门禁（未授权） | 待截 | verified（拦截行为） |
 
 ## 页面布局

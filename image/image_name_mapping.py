@@ -208,6 +208,29 @@ SWAN_AI_CHAT_VOICE_BTN = image_path("swan_AI对话页_语音按钮.png", platfor
 SWAN_AI_CHAT_INPUT = image_path("swan_AI对话页_输入框.png", platform="flutter")
 
 
+# =====================================================================
+# Swan (Flutter) Wave 4 元素图片（平台/搜索域，⏳ 草稿待验证）
+# 2026-09-10 aw-element 采集（serial c0614b6a，720x1600），
+# 源图与裁剪分析脚本见 explorer_output/aw_element_tmp/wave4/。
+# ⛔ 授权门禁两个主按钮仅用于 image_exists 防御性存在断言，禁止 click_image。
+# =====================================================================
+
+# --- 搜索输入页 (swan_搜索输入页) ---
+SWAN_SEARCH_BACK = image_path("swan_搜索输入页_返回按钮.png", platform="flutter", draft=True)
+SWAN_SEARCH_SUBMIT = image_path("swan_搜索输入页_搜索按钮.png", platform="flutter", draft=True)
+SWAN_SEARCH_CLEAR = image_path("swan_搜索输入页_清空按钮.png", platform="flutter", draft=True)
+
+# --- 搜索结果页 (swan_搜索结果页) ---
+SWAN_SEARCH_EMPTY = image_path("swan_搜索结果页_空态文案.png", platform="flutter", draft=True)
+
+# --- 授权门禁弹层 (swan_授权门禁弹层) ⛔ 只断言不点击 ---
+SWAN_AUTH_GATE_LOGIN_BTN = image_path("swan_授权门禁弹层_授权登录按钮.png", platform="flutter", draft=True)
+SWAN_AUTH_GATE_ADD_BTN = image_path("swan_授权门禁弹层_添加按钮.png", platform="flutter", draft=True)
+
+# --- 平台页 (swan_平台页) ---
+SWAN_PLATFORM_RADIO_ROW_ARROW = image_path("swan_平台_电台行箭头.png", platform="flutter", draft=True)
+
+
 __all__ = [
     "ANDROID_DRAFT_IMAGE_DIR",
     "ANDROID_IMAGE_DIR",
@@ -262,6 +285,13 @@ __all__ = [
     "SWAN_PLAYER_DEVICE_BTN",
     "SWAN_AI_CHAT_VOICE_BTN",
     "SWAN_AI_CHAT_INPUT",
+    "SWAN_SEARCH_BACK",
+    "SWAN_SEARCH_SUBMIT",
+    "SWAN_SEARCH_CLEAR",
+    "SWAN_SEARCH_EMPTY",
+    "SWAN_AUTH_GATE_LOGIN_BTN",
+    "SWAN_AUTH_GATE_ADD_BTN",
+    "SWAN_PLATFORM_RADIO_ROW_ARROW",
     "WEB_DRAFT_IMAGE_DIR",
     "WEB_IMAGE_DIR",
     "demote_image",

@@ -1,0 +1,590 @@
+[
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "content",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "platform_page",
+  "text": "",
+  "desc": "平台\n总资产（惠币/HC）\n0.49678500\n充值购买便可购买更多服务哦",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "消费明细",
+  "click": true,
+  "bounds": [
+   544,
+   72,
+   720,
+   184
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "充值\n充值",
+  "click": true,
+  "bounds": [
+   563,
+   282,
+   664,
+   346
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "音乐",
+  "click": true,
+  "bounds": [
+   0,
+   432,
+   124,
+   538
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "AI",
+  "click": true,
+  "bounds": [
+   0,
+   550,
+   124,
+   656
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "电台",
+  "click": true,
+  "bounds": [
+   0,
+   668,
+   124,
+   774
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   124,
+   432,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   124,
+   432,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "音乐",
+  "click": false,
+  "bounds": [
+   124,
+   432,
+   720,
+   492
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "QQ音乐\n未授权",
+  "click": true,
+  "bounds": [
+   124,
+   492,
+   720,
+   656
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   192,
+   524,
+   272,
+   604
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": true,
+  "bounds": [
+   574,
+   508,
+   686,
+   620
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "Spotify",
+  "click": true,
+  "bounds": [
+   124,
+   656,
+   720,
+   820
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   192,
+   688,
+   272,
+   768
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": true,
+  "bounds": [
+   574,
+   672,
+   686,
+   784
+  ]
+ },
+ {
+  "id": "netease_platform_entry",
+  "text": "",
+  "desc": "网易云音乐\n未授权",
+  "click": true,
+  "bounds": [
+   124,
+   820,
+   720,
+   984
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   192,
+   852,
+   272,
+   932
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": true,
+  "bounds": [
+   574,
+   836,
+   686,
+   948
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "酷狗音乐\n未授权",
+  "click": true,
+  "bounds": [
+   124,
+   984,
+   720,
+   1148
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   192,
+   1016,
+   272,
+   1096
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": true,
+  "bounds": [
+   574,
+   1000,
+   686,
+   1112
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "Apple Music\n未授权",
+  "click": true,
+  "bounds": [
+   124,
+   1148,
+   720,
+   1312
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   192,
+   1180,
+   272,
+   1260
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": true,
+  "bounds": [
+   574,
+   1164,
+   686,
+   1276
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "Qobuz\n未授权",
+  "click": true,
+  "bounds": [
+   124,
+   1312,
+   720,
+   1476
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   192,
+   1344,
+   272,
+   1424
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": true,
+  "bounds": [
+   574,
+   1328,
+   686,
+   1440
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "AI",
+  "click": false,
+  "bounds": [
+   124,
+   1476,
+   720,
+   1528
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "Qwen",
+  "click": true,
+  "bounds": [
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": true,
+  "bounds": [
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ {
+  "id": "bottom_player",
+  "text": "",
+  "desc": "扬声器\n - - ",
+  "click": true,
+  "bounds": [
+   0,
+   1334,
+   720,
+   1464
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   42,
+   1352,
+   134,
+   1444
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   460,
+   1386,
+   516,
+   1442
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": false,
+  "bounds": [
+   540,
+   1386,
+   596,
+   1442
+  ]
+ },
+ {
+  "id": "",
+  "text": "",
+  "desc": "",
+  "click": true,
+  "bounds": [
+   608,
+   1374,
+   688,
+   1454
+  ]
+ },
+ {
+  "id": "tab_recommend",
+  "text": "",
+  "desc": "首页",
+  "click": true,
+  "bounds": [
+   0,
+   1464,
+   180,
+   1528
+  ]
+ },
+ {
+  "id": "tab_platform",
+  "text": "",
+  "desc": "平台",
+  "click": true,
+  "bounds": [
+   180,
+   1464,
+   360,
+   1528
+  ]
+ },
+ {
+  "id": "tab_device",
+  "text": "",
+  "desc": "设备",
+  "click": true,
+  "bounds": [
+   360,
+   1464,
+   540,
+   1528
+  ]
+ },
+ {
+  "id": "tab_me",
+  "text": "",
+  "desc": "我的",
+  "click": true,
+  "bounds": [
+   540,
+   1464,
+   720,
+   1528
+  ]
+ }
+]

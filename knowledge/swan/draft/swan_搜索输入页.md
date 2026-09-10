@@ -47,10 +47,10 @@ orientation: portrait
 
 | 元素 | locator（key / OCR 文案 / 图片常量） | 类型 | 操作 | 成功断言 | 截图 | 验证状态 |
 |---|---|---|---|---|---|---|
-| 返回按钮（左上） | 无 key 无文案（bounds 类 ImageView，待截图） | static | click | 回来源页 | 待截 | draft |
+| 返回按钮（左上） | 无 key 无文案（bounds 类 ImageView）→ 图片 `SWAN_SEARCH_BACK` | static | click | 回来源页 | `swan_搜索输入页_返回按钮.png`（draft） | 2026-09-10 element 已采集 |
 | 搜索输入框 | 原生 EditText；OCR hint"搜索歌曲或艺术家等"定位后 click，`input_text(英文)` | dynamic | input | 框内出现关键词（OCR） | dynamic-不截图 | verified（piano/harmony 实测） |
-| X 清空按钮 | 输入后出现于框右侧，无 key；OCR"X"（弱置信，待截图） | static | click | 关键词清空 | 待截 | draft |
-| 搜索按钮 | `OCR"搜索"`（顶栏右，region 限定避开自定义键盘"搜索"键） | static | click | `[[swan_搜索结果页]]` 生效断言 | 待截 | verified |
+| X 清空按钮 | 输入后出现于框右侧，无 key → 图片 `SWAN_SEARCH_CLEAR` | static | click | 关键词清空 | `swan_搜索输入页_清空按钮.png`（draft） | 2026-09-10 element 已采集 |
+| 搜索按钮 | `OCR"搜索"`（顶栏右，region 限定避开自定义键盘"搜索"键）或图片 `SWAN_SEARCH_SUBMIT` | static | click | `[[swan_搜索结果页]]` 生效断言 | `swan_搜索输入页_搜索按钮.png`（draft） | verified |
 | 搜索历史 chip | OCR 关键词文案（如"piano"，整行节点 desc=关键词） | dynamic | click | 直达 `[[swan_搜索结果页]]` 并自动执行搜索 | dynamic-不截图 | verified（piano 实测） |
 | 自定义 T9 键盘 | OCR"分词"/"中/英"/"清空"（键盘区 y>1150） | static | 只读 | — | 待截 | draft（未用键盘输入，走 adb） |
 
@@ -58,9 +58,9 @@ orientation: portrait
 
 | 元素 | 建议常量 | 图片文件 |
 |---|---|---|
-| 返回按钮 | `SWAN_SEARCH_BACK` | 待 element 采集 |
-| 搜索按钮 | `SWAN_SEARCH_SUBMIT` | 待 element 采集 |
-| X 清空按钮 | `SWAN_SEARCH_CLEAR` | 待 element 采集 |
+| 返回按钮 | `SWAN_SEARCH_BACK` | image_ai/flutter/swan_搜索输入页_返回按钮.png（2026-09-10 已采集，draft） |
+| 搜索按钮 | `SWAN_SEARCH_SUBMIT` | image_ai/flutter/swan_搜索输入页_搜索按钮.png（2026-09-10 已采集，draft；与结果页共用） |
+| X 清空按钮 | `SWAN_SEARCH_CLEAR` | image_ai/flutter/swan_搜索输入页_清空按钮.png（2026-09-10 已采集，draft） |
 
 ## 页面布局
 

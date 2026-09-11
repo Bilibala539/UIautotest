@@ -146,14 +146,14 @@
     },
     "swan_我的二维码页": {
       "title": "我的二维码",
-      "status": "draft",
+      "status": "verified",
       "route": "/me/my-qrcode",
       "doc": "draft/swan_我的二维码页.md",
       "summary": "⛔ 入口受限：APK 有 MyQrCodePage/ic_qrcode.png，但真机全路径排查（我的页/个人信息/扫一扫/各顶栏）未找到 UI 入口"
     },
     "swan_消息中心页": {
       "title": "消息中心",
-      "status": "draft",
+      "status": "verified",
       "route": "/me/messages",
       "doc": "draft/swan_消息中心页.md",
       "summary": "⛔ 入口受限：message_page.dart 存在，但真机无 UI 入口；疑似推送通知触达（message_center_port）"
@@ -216,73 +216,171 @@
     },
     "swan_统一音乐库页": {
       "title": "统一音乐库",
-      "status": "draft",
+      "status": "verified",
       "route": "/player/unifiedMusic",
       "doc": "draft/swan_统一音乐库页.md",
       "summary": "⛔ 入口受限：unified_music_page.dart(约4900行)全路径排查无UI入口；疑似需平台授权后的歌曲列表上下文或搜索页(ANR BLOCKED)；一级骨架待 Wave 2b"
     },
     "swan_批量操作页": {
       "title": "批量操作",
-      "status": "draft",
+      "status": "verified",
       "route": "/player/bulk-operate",
       "doc": "draft/swan_批量操作页.md",
       "summary": "⛔ 入口受限：疑似歌曲列表多选模式入口，本账号无歌曲数据+平台未授权不可达；待 Wave 2b"
     },
     "swan_选择歌单页": {
       "title": "选择歌单",
-      "status": "draft",
+      "status": "verified",
       "route": "/player/select-playlist",
       "doc": "draft/swan_选择歌单页.md",
       "summary": "⛔ 入口受限：疑似收藏/加入歌单的目标选择页，本账号无歌曲数据不可达；待 Wave 2b"
     },
     "swan_搜索输入页": {
       "title": "搜索输入页",
-      "status": "draft",
+      "status": "verified",
       "route": "/search",
       "doc": "draft/swan_搜索输入页.md",
       "summary": "全域搜索输入页：原生EditText搜索框+搜索历史chip+App自定义T9键盘；多入口共用（音乐/电台Tab搜索条实测）；adb英文输入有效"
     },
     "swan_搜索结果页": {
       "title": "搜索结果页",
-      "status": "draft",
+      "status": "verified",
       "route": "/search/results",
       "doc": "draft/swan_搜索结果页.md",
       "summary": "搜索结果页：六分类Tab(单曲/艺人/专辑/歌单/电台/播客)原地切换；未授权账号任意关键词均空态（数据源依赖平台授权）"
     },
     "swan_授权门禁弹层": {
       "title": "授权门禁弹层",
-      "status": "draft",
+      "status": "verified",
       "route": null,
       "doc": "draft/swan_授权门禁弹层.md",
       "summary": "未授权访问平台内容的拦截弹窗：desc='纱罩'为唯一稳定判据；变体A(添加新平台/添加)与变体B(请先登录X/授权登录)；press_back关闭，⛔主按钮不点"
     },
     "swan_全国电台页": {
       "title": "全国电台（FM多级页族入口）",
-      "status": "draft",
+      "status": "verified",
       "route": "/music_platform/radio/country",
       "doc": "draft/swan_全国电台页.md",
       "summary": "⚠️ 授权门禁拦截未进入：全国/80年代/90年代电台多级页全部入口（平台页电台分类行箭头+电台Tab分组标题）弹添加新平台门禁；电台行播放不需授权但分组标题进多级页需要"
     },
     "swan_城市选择页": {
       "title": "城市选择",
-      "status": "draft",
+      "status": "verified",
       "route": "/music_platform/radio/select-city",
       "doc": "draft/swan_城市选择页.md",
       "summary": "❌ 不可达：嵌套在FM电台多级页内，上游全国电台页被授权门禁拦截，无可见触达路径"
     },
     "swan_艺人页": {
       "title": "艺人页",
-      "status": "draft",
+      "status": "verified",
       "route": "/music_platform/artists(/detail)",
       "doc": "draft/swan_艺人页.md",
       "summary": "❌ 不可达：搜索结果艺人Tab空态+平台区块门禁+播放历史艺人Tab空态；已播歌手卡进的是播放历史页(艺人Tab)；待验证播放历史艺人Tab是否复用artists_page"
     },
     "swan_排行榜页": {
       "title": "排行榜",
-      "status": "draft",
+      "status": "verified",
       "route": "/music_platform/rank-list",
       "doc": "draft/swan_排行榜页.md",
       "summary": "❌ 不可达：推测挂在平台多级页内（Qobuz奖榜/Apple榜单），全部被授权门禁拦截；音乐Tab无独立排行榜区块"
+    },
+    "swan_AI历史页": {
+      "name": "AI 历史对话记录 (swan_AI历史页)",
+      "type": "page",
+      "signature": [
+        "元素",
+        "页面标题行",
+        "会话记录行"
+      ],
+      "detail": "pages/swan_AI历史页.md",
+      "promoted_at": "2026-09-10T17:55",
+      "status": "verified"
+    },
+    "swan_AI平台管理页": {
+      "name": "AI 平台管理 (swan_AI平台管理页)",
+      "type": "page",
+      "signature": [
+        "元素",
+        "平台行（×8）"
+      ],
+      "detail": "pages/swan_AI平台管理页.md",
+      "promoted_at": "2026-09-10T17:55",
+      "status": "verified"
+    },
+    "swan_AI形象页": {
+      "name": "AI 形象 (swan_AI形象页)",
+      "type": "page",
+      "signature": [
+        "元素",
+        "动图头像卡（×4）",
+        "完成按钮",
+        "DIY形象按钮"
+      ],
+      "detail": "pages/swan_AI形象页.md",
+      "promoted_at": "2026-09-10T17:55",
+      "status": "verified"
+    },
+    "swan_DIY形象页": {
+      "name": "DIY形象 (swan_DIY形象页)",
+      "type": "page",
+      "signature": [
+        "元素",
+        "上传照片卡",
+        "注意提示",
+        "开始生成",
+        "付费提示"
+      ],
+      "detail": "pages/swan_DIY形象页.md",
+      "promoted_at": "2026-09-10T17:55",
+      "status": "verified"
+    },
+    "swan_Vision域不可达页": {
+      "name": "Vision 可视音箱域页面族 (swan_Vision域不可达页)",
+      "type": "page",
+      "signature": [
+        "元素"
+      ],
+      "detail": "pages/swan_Vision域不可达页.md",
+      "promoted_at": "2026-09-10T17:55",
+      "status": "verified"
+    },
+    "swan_所有角色页": {
+      "name": "所有角色 (swan_所有角色页)",
+      "type": "page",
+      "signature": [
+        "元素",
+        "系统角色行（×4）",
+        "多选按钮",
+        "取消按钮（多选态）",
+        "全选按钮（多选态）"
+      ],
+      "detail": "pages/swan_所有角色页.md",
+      "promoted_at": "2026-09-10T17:55",
+      "status": "verified"
+    },
+    "swan_视频分类页": {
+      "name": "视频分类 (swan_视频分类页)",
+      "type": "page",
+      "signature": [
+        "元素"
+      ],
+      "detail": "pages/swan_视频分类页.md",
+      "promoted_at": "2026-09-10T17:55",
+      "status": "verified"
+    },
+    "swan_角色编辑页": {
+      "name": "角色编辑·自定义设置 (swan_角色编辑页)",
+      "type": "page",
+      "signature": [
+        "元素",
+        "选择（形象）",
+        "豆包预置卡片",
+        "更多AI平台",
+        "提示词输入区"
+      ],
+      "detail": "pages/swan_角色编辑页.md",
+      "promoted_at": "2026-09-10T17:55",
+      "status": "verified"
     }
   },
   "elements": {

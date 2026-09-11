@@ -3,9 +3,9 @@ page_id: swan_播放页
 name: "播放页"
 aliases: [全屏播放页, full_player, player]
 route: "/player"
-status: page
+status: 页面
 last_updated: 2026-09-10
-type: screen
+type: 页面
 package_name: com.swan.network
 activity: null
 orientation: portrait
@@ -36,29 +36,29 @@ AI 点歌也被拒"音乐服务需要授权"，无法建立播放任务）。有
 
 | 来源页面 | 操作元素（locator） | 操作类型 | 到达断言 |
 |---|---|---|---|
-| `[[swan_首页]]` | `bottom_player`（key） | click | 见「生效断言」 |
-| `[[swan_我的页]]` / `[[swan_平台页]]` / `[[swan_设备页]]` | `bottom_player`（key） | click | 同上（transitions 中部分仍标 pending） |
-| `[[swan_歌单详情页]]` / `[[swan_收藏分组详情页]]` / `[[swan_我喜欢页]]` 等 push 页 | `bottom_player`（key，贴底） | click | 同上 |
+| `[[swan_首页]]` | `bottom_player`（无障碍键） | click | 见「生效断言」 |
+| `[[swan_我的页]]` / `[[swan_平台页]]` / `[[swan_设备页]]` | `bottom_player`（无障碍键） | click | 同上（transitions 中部分仍标 pending） |
+| `[[swan_歌单详情页]]` / `[[swan_收藏分组详情页]]` / `[[swan_我喜欢页]]` 等 push 页 | `bottom_player`（无障碍键，贴底） | click | 同上 |
 
 ## 关键元素
 
 > 控制类按钮（loop/previous/play_pause/next/queue/volume）按安全约定**只记录不点击**；
-> dump 中 clickable=False 是 Flutter 手势未暴露所致，实际可点性由 verify 确认。
+> dump 中 可点击=False 是 Flutter 手势未暴露所致，实际可点性由 verify 确认。
 
 | 元素 | locator（key / OCR 文案 / 图片常量） | 类型 | 操作 | 成功断言 | 截图 | 验证状态 |
 |---|---|---|---|---|---|---|
-| 页面根节点 | `full_player_page`（key，desc 含设备名+时间） | dynamic | 只读判据 | — | dynamic-不截图 | verified |
-| 收起/返回 | `player_dismiss_button`（key） | static | click | 回到进入前页面 | `SWAN_PLAYER_DISMISS_BTN` | verified |
-| 输出设备切换 | `player_device_button`（key，右上角） | static | click | `[[swan_切换设备弹层]]` 生效断言（`multiroom_sheet`） | 已截 `SWAN_PLAYER_DEVICE_BTN`（image_ai 草稿，2026-09-10） | draft |
-| 曲目名/歌手 | `player_title`（key；无任务 desc"- -\n---"） | dynamic | 只读 | — | dynamic-不截图 | verified |
-| 进度条 + 时间 | OCR"00:00 / 00:00"（无 key） | dynamic | 只读 | — | dynamic-不截图 | draft |
-| 循环模式 | `player_loop_mode_button`（key） | static | ⛔ 只断言不点 | — | 待截 | draft |
-| 上一首 | `player_previous_button`（key） | static | ⛔ 只断言不点 | — | 待截 | draft |
-| 播放/暂停 | `player_play_pause_button`（key） | static | ⛔ 只断言不点（真实音箱安全约定） | `image_exists(SWAN_PLAYER_PLAY_PAUSE_BTN)` | 已有（▶ 态） | verified |
-| 下一首 | `player_next_button`（key） | static | ⛔ 只断言不点 | — | 待截 | draft |
-| 播放队列 | `player_queue_button`（key，右下） | static | ⛔ 只断言不点 | ⚠️ 无播放任务时点击**无任何反应**（2026-09-10 实测），队列 sheet 待有任务账号复验 | 待截 | draft |
-| 音量 | `player_volume_button`（key，OCR"0%"） | static | ⛔ 只断言不点（不改音量） | — | 待截 | draft |
-| 输出设备名 | OCR"扬声器"（页顶中央） | dynamic | 只读 | — | dynamic-不截图 | draft |
+| 页面根节点 | `full_player_page`（无障碍键，desc 含设备名+时间） | 动态 | 只读判据 | — | 动态-不截图 | 已验证 |
+| 收起/返回 | `player_dismiss_button`（无障碍键） | 静态 | click | 回到进入前页面 | `SWAN_PLAYER_DISMISS_BTN` | 已验证 |
+| 输出设备切换 | `player_device_button`（无障碍键，右上角） | 静态 | click | `[[swan_切换设备弹层]]` 生效断言（`multiroom_sheet`） | 已截 `SWAN_PLAYER_DEVICE_BTN`（image_ai 草稿，2026-09-10） | 草稿 |
+| 曲目名/歌手 | `player_title`（key；无任务 desc"- -\n---"） | 动态 | 只读 | — | 动态-不截图 | 已验证 |
+| 进度条 + 时间 | OCR"00:00 / 00:00"（无无障碍键） | 动态 | 只读 | — | 动态-不截图 | 草稿 |
+| 循环模式 | `player_loop_mode_button`（无障碍键） | 静态 | ⛔ 只断言不点 | — | 待截 | 草稿 |
+| 上一首 | `player_previous_button`（无障碍键） | 静态 | ⛔ 只断言不点 | — | 待截 | 草稿 |
+| 播放/暂停 | `player_play_pause_button`（无障碍键） | 静态 | ⛔ 只断言不点（真实音箱安全约定） | `image_exists(SWAN_PLAYER_PLAY_PAUSE_BTN)` | 已有（▶ 态） | 已验证 |
+| 下一首 | `player_next_button`（无障碍键） | 静态 | ⛔ 只断言不点 | — | 待截 | 草稿 |
+| 播放队列 | `player_queue_button`（无障碍键，右下） | 静态 | ⛔ 只断言不点 | ⚠️ 无播放任务时点击**无任何反应**（2026-09-10 实测），队列 弹层 待有任务账号复验 | 待截 | 草稿 |
+| 音量 | `player_volume_button`（无障碍键，OCR"0%"） | 静态 | ⛔ 只断言不点（不改音量） | — | 待截 | 草稿 |
+| 输出设备名 | OCR"扬声器"（页顶中央） | 动态 | 只读 | — | 动态-不截图 | 草稿 |
 
 ### 元素截图（image/flutter，2026-09-08 aw-element 采集 + verify 复验转正）
 
@@ -67,11 +67,11 @@ AI 点歌也被拒"音乐服务需要授权"，无法建立播放任务）。有
 | 播放/暂停圆钮（无播放任务时的 ▶ 态） | `SWAN_PLAYER_PLAY_PAUSE_BTN` | image/flutter/swan_播放页_播放暂停按钮.png |
 | 左上角收起按钮 | `SWAN_PLAYER_DISMISS_BTN` | image/flutter/swan_播放页_收起按钮.png |
 
-### 元素截图（image_ai/flutter 草稿，2026-09-10 aw-element Wave2 采集，待 verify 转正）
+### 元素截图（image/flutter，2026-09-10 aw-element Wave2 采集，已转正）
 
 | 元素 | 常量（image/image_name_mapping.py） | 图片文件 |
 |---|---|---|
-| 右上角输出设备切换图标 | `SWAN_PLAYER_DEVICE_BTN` | image_ai/flutter/swan_播放页_设备切换按钮.png |
+| 右上角输出设备切换图标 | `SWAN_PLAYER_DEVICE_BTN` | image/flutter/swan_播放页_设备切换按钮.png |
 
 ## 页面布局
 
@@ -106,7 +106,7 @@ AI 点歌也被拒"音乐服务需要授权"，无法建立播放任务）。有
 - 所属 feature：`[[feature_播放器]]`（2026-09-10 新建，原属 feature_导航框架；理由：播放域页面
   已成簇——播放页/切换设备弹层/（待解锁）队列与歌词，独立成 feature 便于用例归属）
 - 上游：`[[swan_首页]]`、`[[swan_我的页]]`、`[[swan_平台页]]`、`[[swan_设备页]]`（bottom_player 进入）
-- 下游：`[[swan_切换设备弹层]]`；（入口存在但未解锁）播放队列 sheet、歌词视图
+- 下游：`[[swan_切换设备弹层]]`；（入口存在但未解锁）播放队列 弹层、歌词视图
 
 ## 反向引用
 <!-- backlinks:start -->
@@ -115,6 +115,7 @@ AI 点歌也被拒"音乐服务需要授权"，无法建立播放任务）。有
 |---------|--------|
 | digest/features/feature_导航框架.md | [[feature_导航框架]] |
 | digest/features/feature_播放器.md | [[feature_播放器]] |
+| digest/flows/flow_导航_迷你播放器展开.md | [[flow_导航_迷你播放器展开]] |
 | pages/swan_切换设备弹层.md | [[swan_切换设备弹层]] |
 | pages/swan_我喜欢页.md | [[swan_我喜欢页]] |
 | pages/swan_播放历史页.md | [[swan_播放历史页]] |
@@ -126,5 +127,5 @@ AI 点歌也被拒"音乐服务需要授权"，无法建立播放任务）。有
 | pages/swan_首页电台Tab.md | [[swan_首页电台Tab]] |
 | pages/swan_首页音乐Tab.md | [[swan_首页音乐Tab]] |
 
-_自动生成于 2026-09-10 14:19_
+_自动生成于 2026-09-11 13:44_
 <!-- backlinks:end -->

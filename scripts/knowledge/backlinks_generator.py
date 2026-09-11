@@ -233,6 +233,15 @@ def main():
         if not target_file.exists():
             target_file = DRAFT / f"{target_id}.md"
         if not target_file.exists():
+            # feature_/flow_ 前缀的链接指向 digest/features|flows/（与 promote_knowledge.py 的解析一致）
+            digest_root = None
+            if target_id.startswith("feature_"):
+                digest_root = DIGEST_DIR / "features"
+            elif target_id.startswith("flow_"):
+                digest_root = DIGEST_DIR / "flows"
+            if digest_root is not None and (digest_root / f"{target_id}.md").exists():
+                target_file = digest_root / f"{target_id}.md"
+        if not target_file.exists():
             # 兜底：遍历 pages 和 draft 比较 stem
             cand = None
             for d in (PAGES_DIR, DRAFT):

@@ -3,9 +3,9 @@ page_id: swan_资料编辑页
 name: "资料编辑（修改昵称/修改密码/头像）"
 aliases: [修改昵称页, 修改密码页, 头像修改弹层, edit_nickname_page, edit_password_page]
 route: /me/edit-*        # 修改昵称 /me/edit-nickname、修改密码 /me/edit-password（弹层无路由）
-status: verified
+status: 已验证
 last_updated: 2026-09-10
-type: screen
+type: 页面
 package_name: com.swan.network
 activity: null
 orientation: portrait
@@ -19,8 +19,8 @@ orientation: portrait
 
 - **修改昵称**：独立页面，标题"修改昵称"，右上"完成"，输入框预填当前昵称（惠威2b11）。本轮只读未提交。
 - **修改密码**：独立页面，⚠️ **FLAG_SECURE 防截屏**——`adb screencap` 返回空数据，截图/OCR 全部不可用（实测反复确认，离开该页后截图立即恢复）。只能靠 dump 结构 + 键盘按键操作。本轮只读未提交。
-- **头像修改**：底部弹层（拍照 / 从手机相册选取 / 取消），type: sheet。
-- **手机号行**：纯展示不可点（raw dump 为非 clickable View，实测点击无反应）。换绑走 /login/bind-phone（50015 分支，本轮明确不探索）。
+- **头像修改**：底部弹层（拍照 / 从手机相册选取 / 取消），type: 弹层。
+- **手机号行**：纯展示不可点（raw dump 为非 可点击 View，实测点击无反应）。换绑走 /login/bind-phone（50015 分支，本轮明确不探索）。
 - **邮箱编辑**：本账号个人信息页无邮箱行（功能地图 /me/edit-* 含邮箱，当前构建/账号不可见）。
 
 ## 生效断言
@@ -40,8 +40,8 @@ orientation: portrait
 | `[[swan_个人信息页]]` | `OCR"头像"`（头像行） | click | OCR"从手机相册选取"（底部弹层） |
 | `[[swan_个人信息页]]` | `OCR"手机号"`（手机号行） | click | **不可点**（无反应，实测） |
 
-注意：昵称/密码/头像行在 uiautomator dump 里可能不显示 clickable 标记（dump 时序相关），
-raw dump 里昵称/密码行为 clickable ImageView、手机号行为非 clickable View——以 raw dump 为准。
+注意：昵称/密码/头像行在 uiautomator dump 里可能不显示 可点击 标记（dump 时序相关），
+raw dump 里昵称/密码行为 可点击 ImageView、手机号行为非 可点击 View——以 raw dump 为准。
 
 ## 关键元素
 
@@ -49,10 +49,10 @@ raw dump 里昵称/密码行为 clickable ImageView、手机号行为非 clickab
 
 | 元素 | locator（key / OCR 文案 / 图片常量） | 类型 | 操作 | 成功断言 | 截图 | 验证状态 |
 |---|---|---|---|---|---|---|
-| 返回箭头 | 无 key（左上角 [0,72][128,184]） | static | click / `press_back` | 回 `[[swan_个人信息页]]` | 待截 | draft |
-| 完成按钮 | `OCR"完成"`（右上，desc=完成）/ `SWAN_PROFILE_EDIT_DONE`（图；⚠️ IME 键盘右下也有"完成"字样，图仅匹配顶栏按钮） | static | ⛔ 未实测提交（不修改昵称数据） | 未验证（预期：值变化后可点） | 已截 | verified |
-| 昵称输入框 | EditText 节点（text=当前昵称，[0,240][608,288]，无 key） | dynamic | input_text | — | dynamic-不截图 | draft |
-| 输入框清空按钮 | 无 key（输入框右侧 [608,240][720,288]） | static | 未实测 | — | 待截 | draft |
+| 返回箭头 | 无无障碍键（左上角 [0,72][128,184]） | 静态 | click / `press_back` | 回 `[[swan_个人信息页]]` | 待截 | 草稿 |
+| 完成按钮 | `OCR"完成"`（右上，desc=完成）/ `SWAN_PROFILE_EDIT_DONE`（图；⚠️ IME 键盘右下也有"完成"字样，图仅匹配顶栏按钮） | 静态 | ⛔ 未实测提交（不修改昵称数据） | 未验证（预期：值变化后可点） | 已截 | 已验证 |
+| 昵称输入框 | EditText 节点（text=当前昵称，[0,240][608,288]，无无障碍键） | 动态 | input_text | — | 动态-不截图 | 草稿 |
+| 输入框清空按钮 | 无无障碍键（输入框右侧 [608,240][720,288]） | 静态 | 未实测 | — | 待截 | 草稿 |
 
 实测返回路径：`press_back` 第一次收起键盘，第二次返回个人信息页（键盘弹出时需按两次）。
 
@@ -60,33 +60,33 @@ raw dump 里昵称/密码行为 clickable ImageView、手机号行为非 clickab
 
 | 元素 | locator（key / OCR 文案 / 图片常量） | 类型 | 操作 | 成功断言 | 截图 | 验证状态 |
 |---|---|---|---|---|---|---|
-| 返回箭头 | 无 key（左上角 [0,72][128,184]） | static | click / `press_back` | 回 `[[swan_个人信息页]]`（实测 back x1 即回） | 待截 | draft |
-| 密码输入行 x2 | 无 key（两行 [0,240][608,288] / [0,384][608,432]，右侧各带眼睛图标 [608..][240..288] / [608..][384..432]） | dynamic | ⛔ 未实测输入提交（连续错误可能锁号） | — | dynamic-不截图 | draft |
-| ⚠️ 全页 | — | — | — | **防截屏：OCR/截图断言全部不可用** | dynamic-不截图 | draft |
+| 返回箭头 | 无无障碍键（左上角 [0,72][128,184]） | 静态 | click / `press_back` | 回 `[[swan_个人信息页]]`（实测 back x1 即回） | 待截 | 草稿 |
+| 密码输入行 x2 | 无无障碍键（两行 [0,240][608,288] / [0,384][608,432]，右侧各带眼睛图标 [608..][240..288] / [608..][384..432]） | 动态 | ⛔ 未实测输入提交（连续错误可能锁号） | — | 动态-不截图 | 草稿 |
+| ⚠️ 全页 | — | — | — | **防截屏：OCR/截图断言全部不可用** | 动态-不截图 | 草稿 |
 
 ⚠️ 给 codegen 的硬约束：修改密码页只能用 dump 结构 + `press_back` 验证导航，禁止安排 OCR/截图断言（必失败）；
 提交类操作（改密码）属高危，只断言不提交。
 
-### 头像修改弹层（sheet）
+### 头像修改弹层（弹层）
 
 | 元素 | locator（key / OCR 文案 / 图片常量） | 类型 | 操作 | 成功断言 | 截图 | 验证状态 |
 |---|---|---|---|---|---|---|
-| 拍照 | `OCR"拍照"`（desc=拍照） | static | ⛔ 不点（拉起系统相机） | — | 待截 | draft |
-| 从手机相册选取 | `OCR"从手机相册选取"`（desc=同文） | static | ⛔ 不点（拉起系统相册） | — | 待截 | draft |
-| 取消 | `OCR"取消"`（desc=取消）/ `SWAN_PROFILE_EDIT_AVATAR_CANCEL`（图） | static | click | 弹层关闭，回个人信息页（实测） | 已截 | verified |
-| 遮罩 | desc=纱罩（[0,0][720,1146]） | static | 只读断言（弹层出现判据） | — | dynamic-不截图 | draft |
+| 拍照 | `OCR"拍照"`（desc=拍照） | 静态 | ⛔ 不点（拉起系统相机） | — | 待截 | 草稿 |
+| 从手机相册选取 | `OCR"从手机相册选取"`（desc=同文） | 静态 | ⛔ 不点（拉起系统相册） | — | 待截 | 草稿 |
+| 取消 | `OCR"取消"`（desc=取消）/ `SWAN_PROFILE_EDIT_AVATAR_CANCEL`（图） | 静态 | click | 弹层关闭，回个人信息页（实测） | 已截 | 已验证 |
+| 遮罩 | desc=纱罩（[0,0][720,1146]） | 静态 | 只读断言（弹层出现判据） | — | 动态-不截图 | 草稿 |
 
 ### 元素截图（image/flutter，2026-09-10 aw-verify 真机走通复验通过，promote_image 已转正）
 
 | 元素 | 常量（image/image_name_mapping.py） | 图片文件 |
 |---|---|---|
-| 完成按钮（顶栏右上） | `SWAN_PROFILE_EDIT_DONE` | image_ai/flutter/swan_资料编辑_完成按钮.png |
-| 头像弹层「取消」 | `SWAN_PROFILE_EDIT_AVATAR_CANCEL` | image_ai/flutter/swan_资料编辑_头像弹层取消.png |
+| 完成按钮（顶栏右上） | `SWAN_PROFILE_EDIT_DONE` | image/flutter/swan_资料编辑_完成按钮.png |
+| 头像弹层「取消」 | `SWAN_PROFILE_EDIT_AVATAR_CANCEL` | image/flutter/swan_资料编辑_头像弹层取消.png |
 
 ## 页面布局
 
 - 修改昵称/修改密码：顶栏（返回 + 居中标题 + 右上"完成"仅昵称页有）/ 单输入框（昵称）或双输入框（密码，各带明文切换眼睛图标）/ 软键盘自动弹出
-- 头像弹层：底部 action sheet（拍照 / 从手机相册选取 / 取消）+ 上方半透明遮罩
+- 头像弹层：底部 action 弹层（拍照 / 从手机相册选取 / 取消）+ 上方半透明遮罩
 - ⚠️ 动态区域：输入框内容随账号数据预填
 
 ## 功能关联
@@ -94,3 +94,13 @@ raw dump 里昵称/密码行为 clickable ImageView、手机号行为非 clickab
 - 所属 feature：`[[feature_账号体系]]`（个人中心域）
 - 上游：`[[swan_个人信息页]]`
 - 下游：无（编辑提交后停留原页）；手机号换绑 /login/bind-phone（⛔ 50015 分支，不探索）
+
+## 反向引用
+<!-- backlinks:start -->
+
+| 引用来源 | 页面ID |
+|---------|--------|
+| digest/features/feature_账号体系.md | [[feature_账号体系]] |
+
+_自动生成于 2026-09-11 13:44_
+<!-- backlinks:end -->

@@ -1,0 +1,116 @@
+1	# 运行时经验知识库（子 Agent 执行经验沉淀）
+2	
+3	> 按编排约定，子 agent 返回 [完成] 后由 orchestrator 把新验证的 AW 方法 / 新坑追加到对应表格，供向量检索注入。
+4	> 记录格式：场景 / 正确做法 / 来源与日期。
+5	
+6	## Swan 项目（flutter）
+7	
+8	| 场景 | 正确做法 | 来源 |
+9	|------|----------|------|
+10	| 发送验证码 | 点"下一步"（`login_submit_button`）即自动发送，页面无"获取验证码"按钮 | explorer 2026-09-08 |
+11	| 验证码输入 | 4 位填满自动提交，无需点确认；等 `tab_me` 出现判成功 | explorer 2026-09-08 |
+12	| 取码链路 | App 触发后 `GET <SWAN_OTP_GATEWAY>/api/test/otp/latest?phone=` 取码；开发接口为 `https://testnetwork.hivi.com/api/user/captcha/mockCode`（必须带 api 前缀） | orchestrator 2026-09-08 |
+13	| 拿未登录态 | 杀进程无效（登录态持久）、OPPO 禁 pm clear；唯一途径：我的→个人信息→退出登入 | element 2026-09-08 |
+14	| 登录页"下一步"图 | `swan_下一步按钮` 模板是置灰态，仅作存在性断言；点击一律走 key `login_submit_button` | element 2026-09-08 |
+15	| 新建歌单弹窗 | 第一次 press_back 只收键盘，需两次返回才关弹窗 | verify 2026-09-08 |
+16	| 音质弹层关闭判定 | 不能用"音质设置"文案判（列表项同名），判 OCR"流畅音质"/"完成"消失 | verify 2026-09-08 |
+17	| 设备卡定位 | key 按设备 UUID 动态拼接：`wifi_device_card_<UUID>`，用前缀匹配 | explorer 2026-09-08 |
+18	| 密码页 press_back | 只收键盘，不退出 App（验证码输入页的 press_back 才会退出） | codegen 2026-09-08 |
+19	| 密码错误提示 | 是常驻语义节点 `login_error_text`（content-desc"密码错误，请重新输入！"），不是 toast，可直接 key 断言 | codegen 2026-09-08 |
+20	| 登录页脏表单 | 提交失败后已填文本+协议勾选态残留；盲点勾选框会把已勾选态反选导致提交按钮置灰。重跑前重启 App 重置（登录页无状态持久化） | codegen 2026-09-08 |
+21	| 输入框复用 | 登录类输入前先 `clear_input()`，避免上一轮残留 | codegen 2026-09-08 |
+22	| 我的页滚动位 | 从帮助/关于页返回后页面停在滚动位，`me_user_profile_entry` 离屏不在语义树中；判该 key 前先 swipe_down 复位 | verify 2026-09-08 |
+23	| 危险入口 | `person_info_cancel_account_button`（注销账号）紧邻退出登入，⛔ 任何自动化禁止点击 | explorer 2026-09-08 |
+24	| 真实音箱安全 | 播放/音量/同步/授权/充值类按钮只做 image_exists，不下发点击 | 编排约定 2026-09-08 |
+25	| 修改密码页 FLAG_SECURE | 该页防截屏：`adb screencap` 返回空、OCR 0 项，离开即恢复；禁止对该页截图/OCR 断言，"截图失败"本身可作页面判据 | explorer 2026-09-10 |
+26	| `logout_if_needed()` 误判 | 在个人信息页会静默跳过（`tab_me` 不可见即视为未登录）；须先 `press_back` 回我的页再登出 | explorer 2026-09-10 |
+27	| 首页顶 Tab 持久化 | 顶 Tab 选择跨底栏切换、跨登出/登录持久，`go_home()` 不重置；要稳定进推荐 Tab 必须显式 `click_text("推荐")` | explorer 2026-09-10 |
+28	| uiautomator dump 瞬时失败 | 页面动画中 dump 只返回 1-2 个节点，重试即可（3 次内置重试） | explorer 2026-09-10 |
+29	| 个人信息页行可点性 | 手机号行是非 clickable View（点击无反应）；昵称/密码行 clickable 状态以 raw dump 为准（时序可能不显示） | explorer 2026-09-10 |
+30	| 昵称编辑页返回 | `press_back` 需两次（收键盘+返回）；头像弹层点 OCR"取消"关闭 | explorer 2026-09-10 |
+31	| 短文案 OCR 歧义 | "AI"等短文案在页内多处出现（顶 Tab y≈121 vs 页内 y≈737），用 region 限定区域提高鲁棒性 | explorer 2026-09-10 |
+32	| 扫一扫权限弹窗 | 首次进入触发系统相机权限；用 `permission_allow_one_time_button` 最小授权 / `permission_deny_button` 断言不进页 | explorer 2026-09-10 |
+33	| 顶 Tab 选中态判定 | 选中 Tab 文字近黑（暗像素≈1000），未选中灰（≈0）；顶 Tab 截图一律取未选中态（`SWAN_HOME_TAB_*`），交叉匹配选中态仅 0.48-0.67 不会误命中 | element 2026-09-10 |
+34	| 推荐 Tab 内容（勘误） | 推荐 Tab = 音源卡+我喜欢/歌单/AI+最近播放（与 09-08 首页 dump 一致）；音乐 Tab = 歌单宫格；电台 Tab = 全国电台。09-10 element 记录的"推荐与电台内容相同"系顶 Tab 持久化陷阱下的误读（采集时实际停在电台 Tab） | explorer 2026-09-10 Wave2 勘误 |
+35	| AI 角色设置入口 | 实为「添加更多AI角色」右侧的图标按钮（无文案，OCR 不可用），图模板 `SWAN_HOME_AI_ROLE_SETTINGS`；实测落地「所有角色」页（系统角色+自定义区） | element 2026-09-10 |
+36	| 区号行防误匹配 | 区号页"中国"两字会模板匹配到"中国香港"行首；`SWAN_AREA_CODE_CHINA_ROW` 必须含行尾 +86 的整行裁剪（港澳台行交叉得分 0.61-0.67） | element 2026-09-10 |
+37	| 完成按钮双义 | 资料编辑页昵称输入态下顶栏"完成"与 IME 键盘右下"完成"同文案；`SWAN_PROFILE_EDIT_DONE` 仅匹配顶栏位置 | element 2026-09-10 |
+38	| 中文输入 | `adb shell input text` 不支持中文（NullPointerException）；AI 对话/歌单名等中文输入现框架不可达，需 IME 方案（框架层，待用户决策） | explorer 2026-09-10 Wave2 |
+39	| 新建歌单弹窗 | press_back 一次不关闭且弹窗整体下移；须点右上关闭按钮 | explorer 2026-09-10 Wave2 |
+40	| 播放态前置 | 播放队列/歌词入口在无播放任务时点击零反应；用例设计必须前置播放任务（本账号全平台未授权，无法建立播放） | explorer 2026-09-10 Wave2 |
+41	| 授权门禁弹层 | "授权登录"/"去授权"/"添加"弹层带 desc='纱罩' scrim，press_back 可关；⛔ 授权按钮不点 | explorer 2026-09-10 Wave2 |
+42	| 设备单选列表 | 切换设备弹层与 AI 自动朗读设备弹层共用设备列表（真实音箱×3+手机扬声器+Apple Music），⛔ 全部禁止选择 | explorer 2026-09-10 Wave2 |
+43	| AI 语音按钮权限 | 触发系统麦克风权限弹窗，key 与相机权限同族（permission_allow_one_time_button 等） | explorer 2026-09-10 Wave2 |
+44	| 播放历史计数口径 | 首页卡片"已播歌曲 1首"与播放历史页内"暂无历史播放"口径不一致（App 行为，断言以页内为准） | explorer 2026-09-10 Wave2 |
+45	| 歌单域两套详情 | 歌单页路径详情带右上 ⋮（修改名称/删除歌单），收藏页路径无 ⋮；布局同模板数据同源但行为两套 | explorer 2026-09-10 Wave2 |
+46	
+47	## 框架 / 环境
+48	
+49	| 场景 | 正确做法 | 来源 |
+50	|------|----------|------|
+51	| 元素图转正门禁 | image_ai 暂存 → 离线匹配（scripts/verify_element_match.py，≥0.8）→ verify 真机点击反应 → 才 promote_image；禁止跳步 | 编排约定 2026-09-08 |
+52	| 嵌入模型下载 | huggingface / hf-mirror 均被网络拦截；用 ModelScope 下载到本地 `models/`，管线经 `UIAUTOTEST_EMBEDDING_MODEL` 指向 | orchestrator 2026-09-08 |
+53	| protobuf 版本 | 必须钉 3.20.2：chromadb 会把它顶到 7.x 弄坏 PaddleOCR；连带 googleapis-common-protos 钉 1.63.2 | orchestrator 2026-09-08 |
+54	| paddle+torch 同进程 | 先 import paddle 再 import torch 会 shm.dll 崩溃；两者分进程跑（向量管线不含 paddle，天然安全） | orchestrator 2026-09-08 |
+55	| 验证码页返回 | press_back 会退出 App（不是回登录页）；重启后回登录页 | element 2026-09-08 |
+56	
+
+====
+
+1	---
+2	page_id: swan_艺人页
+3	name: "艺人页"
+4	aliases: [artists, 艺人列表/详情]
+5	route: "/music_platform/artists(/detail)"
+6	status: draft
+7	last_updated: 2026-09-10
+8	type: screen
+9	package_name: com.swan.network
+10	activity: null
+11	orientation: portrait
+12	---
+13	
+14	# 艺人页 (swan_艺人页)
+15	
+16	## 页面概述
+17	
+18	❌ **不可达**。艺人页（`/music_platform/artists(/detail)`，artists_page.dart）在未授权账号下
+19	无可见入口。2026-09-10 Wave4 排查过的入口面：
+20	
+21	1. 搜索结果页「艺人」Tab：任意关键词（"piano"/"harmony"）均空态，无艺人结果行可点
+22	   （搜索源依赖平台授权，与关键词无关）
+23	2. 首页音乐 Tab 平台区块（QQ音乐/Apple Music 等）：区块标题与歌单卡均弹
+24	   `[[swan_授权门禁弹层]]` 变体 B
+25	3. 首页推荐 Tab「已播歌手」卡：进入的是 `[[swan_播放历史页]]`（route /me/play-history，
+26	   落地「艺人」子 Tab，空态「暂无历史播放」）——**注意口径**：首页卡片显示「已播歌手 1位歌手」
+27	   但页内空态（与已播歌曲计数口径不一致问题同族，runtime_experience 已记）
+28	4. 播放历史页「艺人」Tab：空态（无历史数据）
+29	
+30	待验证假设：播放历史页「艺人」Tab 的内容组件可能就是 artists_page（/music_platform/artists）
+31	的复用——需有播放历史的账号点击艺人行后比对路由，当前无法验证。
+32	
+33	## 生效断言
+34	
+35	未进入，无断言。route 来自功能地图（App dev@4d1ed7b），未经真机验证。
+36	
+37	## 进入方式
+38	
+39	| 来源页面 | 操作元素（locator） | 操作类型 | 到达断言 |
+40	|---|---|---|---|
+41	| `[[swan_搜索结果页]]` | 艺人 Tab 下的艺人结果行 | click | ⚠️ 结果空态不可达（需授权账号） |
+42	| `[[swan_播放历史页]]` | 艺人 Tab 下的艺人行（假设，未验证） | click | ⚠️ 空态不可达 |
+43	
+44	## 关键元素
+45	
+46	未进入，无元素。待授权账号补全。
+47	
+48	## 页面布局
+49	
+50	未知。
+51	
+52	## 功能关联
+53	
+54	- 所属 feature：`[[feature_平台聚合]]`（音乐平台聚合域）
+55	- 上游（假设）：`[[swan_搜索结果页]]`（艺人 Tab）、`[[swan_播放历史页]]`（艺人 Tab）
+56	- 阻断方：`[[swan_授权门禁弹层]]`、搜索空态
+57	

@@ -3,9 +3,9 @@ page_id: swan_选择歌单页
 name: "选择歌单"
 aliases: [select_playlist]
 route: "/player/select-playlist"
-status: draft
+status: 已验证
 last_updated: 2026-09-10
-type: screen
+type: 页面
 package_name: com.swan.network
 activity: null
 orientation: portrait
@@ -48,6 +48,8 @@ orientation: portrait
 | 引用来源 | 页面ID |
 |---------|--------|
 | digest/features/feature_收藏管理.md | [[feature_收藏管理]] |
+| pages/swan_批量操作页.md | [[swan_批量操作页]] |
+| pages/swan_统一音乐库页.md | [[swan_统一音乐库页]] |
 
-_自动生成于 2026-09-10 14:19_
+_自动生成于 2026-09-11 13:44_
 <!-- backlinks:end -->

@@ -25,7 +25,7 @@
 
 ## 关键元素（来源：uiautomator dump）
 
-| key | 文案/说明 | clickable | 备注 |
+| 无障碍键 | 文案/说明 | 可点击 | 备注 |
 |---|---|---|---|
 | `tab_recommend` | 首页 tab | ✅ | |
 | `tab_platform` | 平台 tab | ✅ | |
@@ -33,7 +33,7 @@
 | `tab_me` | 我的 tab | ✅ | 登录态判据 |
 | `bottom_player` | 底部播放条（"扬声器 - -"） | ✅ | 点进播放页 |
 
-无 key 的 OCR 文本元素：网易云练习/网易云音乐/酷狗音乐/Apple Music/Qobuz（音源入口）、
+无无障碍键 的 OCR 文本元素：网易云练习/网易云音乐/酷狗音乐/Apple Music/Qobuz（音源入口）、
 我喜欢/歌单/AI 卡片、最近播放（已播歌曲/已播歌手/已播专辑）、立马授权。
 
 
@@ -78,6 +78,11 @@
 | 引用来源 | 页面ID |
 |---------|--------|
 | digest/features/feature_导航框架.md | [[feature_导航框架]] |
+| digest/flows/flow_导航_四tab切换.md | [[flow_导航_四tab切换]] |
+| digest/flows/flow_导航_迷你播放器展开.md | [[flow_导航_迷你播放器展开]] |
+| digest/flows/flow_搜索_关键词搜索全链路.md | [[flow_搜索_关键词搜索全链路]] |
+| digest/flows/flow_歌单_新建歌单弹窗开关.md | [[flow_歌单_新建歌单弹窗开关]] |
+| digest/flows/flow_登录_验证码登录全链路.md | [[flow_登录_验证码登录全链路]] |
 | pages/swan_平台页.md | [[swan_平台页]] |
 | pages/swan_我喜欢页.md | [[swan_我喜欢页]] |
 | pages/swan_我的页.md | [[swan_我的页]] |
@@ -94,5 +99,5 @@
 | pages/swan_验证码登录页.md | [[swan_验证码登录页]] |
 | pages/swan_验证码输入页.md | [[swan_验证码输入页]] |
 
-_自动生成于 2026-09-10 14:19_
+_自动生成于 2026-09-11 13:44_
 <!-- backlinks:end -->

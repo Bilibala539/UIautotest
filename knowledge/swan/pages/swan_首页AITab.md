@@ -3,9 +3,9 @@ page_id: swan_首页AITab
 name: "首页·AI Tab"
 aliases: [AITab, home_ai_page, AI角色主页]
 route: /home/aiRoles
-status: verified
+status: 已验证
 last_updated: 2026-09-10
-type: screen
+type: 页面
 package_name: com.swan.network
 activity: null
 orientation: portrait
@@ -18,7 +18,7 @@ orientation: portrait
 首页五顶 Tab 之一（AI 角色主页，路由 /home/aiRoles）。上半部为 AI 角色卡横向滑动区
 （当前账号可见角色：惠威百科 / 小薇 / 惠声远，左右有翻页箭头），下方一排入口：
 「添加更多AI角色」「AI 角色设置」；再下方「历史对话记录」区（新账号为空态：
-暂无对话记录 / 你与AI的对话将展示在这里）。除公共 key 外无任何 accessibility key。
+暂无对话记录 / 你与AI的对话将展示在这里）。除公共 key 外无任何 无障碍键。
 
 ## 生效断言
 
@@ -42,15 +42,15 @@ orientation: portrait
 
 | 元素 | locator（key / OCR 文案 / 图片常量） | 类型 | 操作 | 成功断言 | 截图 | 验证状态 |
 |---|---|---|---|---|---|---|
-| 顶部 Tab 行 | `OCR"AI"`（region 限定顶栏）/ `SWAN_HOME_TAB_AI`（图，未选中态） | static | click | 本页生效断言 | 已截 | verified |
-| AI 角色卡（惠威百科/小薇/惠声远） | OCR 角色名 | dynamic | ⛔ 不点（进 AI 对话 /ai/chat，本轮未探索） | — | dynamic-不截图 | draft |
-| 角色卡左右翻页箭头 | 无 key 无文案（图标） | static | 未实测 | — | 待截 | draft |
-| 添加更多AI角色 | `OCR"添加更多AI角色"` / `SWAN_HOME_AI_ADD_ROLE`（图，整 pill） | static | click | — | 已截 | verified |
-| AI 角色设置 | `SWAN_HOME_AI_ROLE_SETTINGS`（图，右 pill；⚠️ 实为图标按钮无文案，OCR 无文本） | static | click（2026-09-10 实测：落地「所有角色」页，含系统角色列表+自定义区） | 落地页标题"所有角色" | 已截 | verified |
-| 历史对话记录标题 | `OCR"历史对话记录"` | static | 只读断言 | — | 待截 | draft |
-| 历史对话空态 | `OCR"暂无对话记录"` | dynamic | 只读 | — | dynamic-不截图 | draft |
-| 底部播放条 | `bottom_player`（key） | static | click | `[[swan_播放页]]` | 已有图 | draft |
-| 底部 4 tab | `tab_recommend` 等（key） | static | click | 对应 tab 页 | 已有图 | draft |
+| 顶部 Tab 行 | `OCR"AI"`（region 限定顶栏）/ `SWAN_HOME_TAB_AI`（图，未选中态） | 静态 | click | 本页生效断言 | 已截 | 已验证 |
+| AI 角色卡（惠威百科/小薇/惠声远） | OCR 角色名 | 动态 | ⛔ 不点（进 AI 对话 /ai/chat，本轮未探索） | — | 动态-不截图 | 草稿 |
+| 角色卡左右翻页箭头 | 无无障碍键 无文案（图标） | 静态 | 未实测 | — | 待截 | 草稿 |
+| 添加更多AI角色 | `OCR"添加更多AI角色"` / `SWAN_HOME_AI_ADD_ROLE`（图，整 pill） | 静态 | click | — | 已截 | 已验证 |
+| AI 角色设置 | `SWAN_HOME_AI_ROLE_SETTINGS`（图，右 pill；⚠️ 实为图标按钮无文案，OCR 无文本） | 静态 | click（2026-09-10 实测：落地「所有角色」页，含系统角色列表+自定义区） | 落地页标题"所有角色" | 已截 | 已验证 |
+| 历史对话记录标题 | `OCR"历史对话记录"` | 静态 | 只读断言 | — | 待截 | 草稿 |
+| 历史对话空态 | `OCR"暂无对话记录"` | 动态 | 只读 | — | 动态-不截图 | 草稿 |
+| 底部播放条 | `bottom_player`（无障碍键） | 静态 | click | `[[swan_播放页]]` | 已有图 | 草稿 |
+| 底部 4 tab | `tab_recommend` 等（无障碍键） | 静态 | click | 对应 tab 页 | 已有图 | 草稿 |
 
 ### 元素截图（image/flutter）
 
@@ -58,9 +58,9 @@ orientation: portrait
 
 | 元素 | 常量（image/image_name_mapping.py） | 图片文件 |
 |---|---|---|
-| 添加更多AI角色（左 pill 含文案） | `SWAN_HOME_AI_ADD_ROLE` | image_ai/flutter/swan_首页AITab_添加角色入口.png |
-| AI 角色设置（右 pill 图标按钮，无文案） | `SWAN_HOME_AI_ROLE_SETTINGS` | image_ai/flutter/swan_首页AITab_角色设置入口.png |
-| 顶部 Tab「AI」（未选中态） | `SWAN_HOME_TAB_AI` | image_ai/flutter/swan_首页_AITab按钮.png |
+| 添加更多AI角色（左 pill 含文案） | `SWAN_HOME_AI_ADD_ROLE` | image/flutter/swan_首页AITab_添加角色入口.png |
+| AI 角色设置（右 pill 图标按钮，无文案） | `SWAN_HOME_AI_ROLE_SETTINGS` | image/flutter/swan_首页AITab_角色设置入口.png |
+| 顶部 Tab「AI」（未选中态） | `SWAN_HOME_TAB_AI` | image/flutter/swan_首页_AITab按钮.png |
 
 ## 页面布局
 
@@ -83,8 +83,11 @@ orientation: portrait
 | 引用来源 | 页面ID |
 |---------|--------|
 | digest/features/feature_导航框架.md | [[feature_导航框架]] |
+| pages/swan_AI历史页.md | [[swan_AI历史页]] |
 | pages/swan_AI对话页.md | [[swan_AI对话页]] |
+| pages/swan_所有角色页.md | [[swan_所有角色页]] |
+| pages/swan_角色编辑页.md | [[swan_角色编辑页]] |
 | pages/swan_首页音乐Tab.md | [[swan_首页音乐Tab]] |
 
-_自动生成于 2026-09-10 14:19_
+_自动生成于 2026-09-11 13:44_
 <!-- backlinks:end -->

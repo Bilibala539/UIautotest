@@ -2,7 +2,7 @@
 flow_id: flow_收藏_查看分组空态
 name: "我的 → SWAN收藏 → 「我的家庭」分组详情空态查看"
 feature: "[[feature_收藏管理]]"
-status: draft
+status: 草稿
 last_updated: 2026-09-10
 automation: yes
 risk: none
@@ -24,7 +24,7 @@ risk: none
 
 | # | 页面 | 元素（locator） | 操作 | 预期 App 反应 |
 |---|---|---|---|---|
-| 1 | `[[swan_我的页]]` | `tab_me`（key） | click | 我的页生效断言通过 |
+| 1 | `[[swan_我的页]]` | `tab_me`（无障碍键） | click | 我的页生效断言通过 |
 | 2 | `[[swan_我的页]]` | `SWAN_ME_FAVORITES_ROW`（图，「SWAN收藏」列表行）或 OCR"SWAN收藏" | click | 进入 `[[swan_收藏页]]` |
 | 3 | `[[swan_收藏页]]` | `SWAN_FAV_ADD_PLAYLIST_BUTTON`（图，底部按钮）+ OCR"SWAN收藏"（页标题） | 断言 | 收藏页生效：分组列表页框架已渲染 |
 | 4 | `[[swan_收藏页]]` | `SWAN_FAV_FAMILY_GROUP_ROW`（图，「我的家庭」分组行）或 OCR"我的家庭" | click | 进入 `[[swan_收藏分组详情页]]` |

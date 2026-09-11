@@ -2,7 +2,7 @@
 feature_id: feature_账号体系
 name: "账号体系"
 aliases: []
-status: draft            # draft → active（覆盖页面全部转正后）
+status: 草稿             # 草稿 → 已验证（覆盖页面全部转正后）
 last_updated: null
 domains: [会话与登录, 个人中心]   # 功能地图.md 中的功能域名
 ---

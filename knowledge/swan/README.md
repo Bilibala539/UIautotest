@@ -1,6 +1,6 @@
 # Swan (Flutter) 知识库
 
-本目录记录 Swan App（Flutter，`com.swan.network`）的已验证页面、导航路径、accessibility 定位器和可复用测试上下文。
+本目录记录 Swan App（Flutter，`com.swan.network`）的已验证页面、导航路径、无障碍 定位器和可复用测试上下文。
 
 ## 隔离原则
 
@@ -12,7 +12,7 @@
 
 - 状态：15 页已录入并转正（2026-09-08，explorer + verify 双重验证）
 - 设备：Android 真机，`ANDROID_DEVICE_SERIAL` 指定
-- 定位策略：accessibility key 优先（Flutter Semantics 暴露的 resource-id），OCR 文本次之，图像模板兜底，禁止坐标
+- 定位策略：无障碍键 优先（Flutter Semantics 暴露的 resource-id），OCR 文本次之，图像模板兜底，禁止坐标
 
 ## 目录结构
 
@@ -28,11 +28,11 @@ swan/
 └── templates/page.md       # 页面文档模板
 ```
 
-## 页面文档五要素（draft 转正门槛）
+## 页面文档五要素（草稿 转正门槛）
 
 1. `## 页面概述` — 用途、进入条件、稳定 UI 状态
 2. `## 进入方式` — 可执行的导航步骤 + 成功断言
-3. `## 关键元素` — accessibility key / 文案 / 图片常量表
+3. `## 关键元素` — 无障碍键 / 文案 / 图片常量表
 4. `## 页面布局` — 区域划分（不写死坐标）
 5. `## 关联` — `[[swan_page_id]]` 上下游关系
 

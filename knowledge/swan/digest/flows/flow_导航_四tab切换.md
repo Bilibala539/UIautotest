@@ -2,7 +2,7 @@
 flow_id: flow_导航_四tab切换
 name: "底部四 Tab 轮巡（首页→平台→设备→我的→首页）+ 顶 Tab 持久化注意事项"
 feature: "[[feature_导航框架]]"
-status: draft
+status: 草稿
 last_updated: 2026-09-10
 automation: yes
 risk: none
@@ -24,24 +24,24 @@ risk: none
 
 | # | 页面 | 元素（locator） | 操作 | 预期 App 反应 |
 |---|---|---|---|---|
-| 1 | `[[swan_首页]]` | `tab_recommend`（key） | click | 切回首页容器。⚠️ **risk（顶 Tab 持久化）**：点 `tab_recommend`（即 `go_home()`）只回首页容器，**顶部五顶 Tab 停留在上次选择**（实测跨底栏切换、跨登出/登录均持久）；要稳定落在推荐 Tab 必须显式 `click_text("推荐")`（或 `click_image(SWAN_HOME_TAB_RECOMMEND)`） |
+| 1 | `[[swan_首页]]` | `tab_recommend`（无障碍键） | click | 切回首页容器。⚠️ **risk（顶 Tab 持久化）**：点 `tab_recommend`（即 `go_home()`）只回首页容器，**顶部五顶 Tab 停留在上次选择**（实测跨底栏切换、跨登出/登录均持久）；要稳定落在推荐 Tab 必须显式 `click_text("推荐")`（或 `click_image(SWAN_HOME_TAB_RECOMMEND)`） |
 | 2 | `[[swan_首页]]` | OCR"最近播放"（内容区） | 断言 | 首页生效：内容区已渲染（完整/紧凑两种布局均含"最近播放"） |
-| 3 | `[[swan_平台页]]` | `tab_platform`（key） | click | 平台页生效断言通过 |
-| 4 | `[[swan_平台页]]` | `platform_page`（key，页面根节点） | 断言 | 根节点可见（desc 含"平台/总资产（惠币/HC）"）；可辅以 `image_exists(SWAN_PLATFORM_NETEASE_ROW)` |
-| 5 | `[[swan_设备页]]` | `tab_device`（key） | click | 设备页生效断言通过 |
-| 6 | `[[swan_设备页]]` | `device_page`（key，页面根节点）/ `device_add_button`（key） | 断言 | 根节点与右上角"添加设备"可见（可辅以 `image_exists(SWAN_DEVICE_ADD_BTN)`） |
-| 7 | `[[swan_我的页]]` | `tab_me`（key） | click | 我的页生效断言通过 |
-| 8 | `[[swan_我的页]]` | `me_user_profile_entry`（key）/ `SWAN_ME_FAVORITES_ROW`（图） | 断言 | 顶部账号入口与"SWAN收藏"列表行可见 |
-| 9 | `[[swan_首页]]` | `tab_recommend`（key） | click | 回到首页容器，顶部 Tab 保持步骤 1 后的选择（持久化行为，非 bug） |
+| 3 | `[[swan_平台页]]` | `tab_platform`（无障碍键） | click | 平台页生效断言通过 |
+| 4 | `[[swan_平台页]]` | `platform_page`（无障碍键，页面根节点） | 断言 | 根节点可见（desc 含"平台/总资产（惠币/HC）"）；可辅以 `image_exists(SWAN_PLATFORM_NETEASE_ROW)` |
+| 5 | `[[swan_设备页]]` | `tab_device`（无障碍键） | click | 设备页生效断言通过 |
+| 6 | `[[swan_设备页]]` | `device_page`（无障碍键，页面根节点）/ `device_add_button`（无障碍键） | 断言 | 根节点与右上角"添加设备"可见（可辅以 `image_exists(SWAN_DEVICE_ADD_BTN)`） |
+| 7 | `[[swan_我的页]]` | `tab_me`（无障碍键） | click | 我的页生效断言通过 |
+| 8 | `[[swan_我的页]]` | `me_user_profile_entry`（无障碍键）/ `SWAN_ME_FAVORITES_ROW`（图） | 断言 | 顶部账号入口与"SWAN收藏"列表行可见 |
+| 9 | `[[swan_首页]]` | `tab_recommend`（无障碍键） | click | 回到首页容器，顶部 Tab 保持步骤 1 后的选择（持久化行为，非 bug） |
 
 ## 断言点
 
 | # | 类型 | 内容 |
 |---|---|---|
 | 1 | OCR | 首页："最近播放"出现（两种轮换布局下均稳定） |
-| 2 | key | 平台页：`platform_page` 根节点出现 |
-| 3 | key | 设备页：`device_page` 根节点 + `device_add_button` 出现 |
-| 4 | key | 我的页：`me_user_profile_entry` 出现 |
+| 2 | 无障碍键 | 平台页：`platform_page` 根节点出现 |
+| 3 | 无障碍键 | 设备页：`device_page` 根节点 + `device_add_button` 出现 |
+| 4 | 无障碍键 | 我的页：`me_user_profile_entry` 出现 |
 | 5 | 图片 | 我的页：`image_exists(SWAN_ME_FAVORITES_ROW)`（"SWAN收藏"列表行） |
 | 6 | 图片 | 全程：`image_exists(SWAN_BOTTOM_PLAYER_BAR)` —— 底栏迷你播放条在四个 tab 页持续可见 |
 

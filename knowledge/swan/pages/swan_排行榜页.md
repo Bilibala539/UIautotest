@@ -3,9 +3,9 @@ page_id: swan_排行榜页
 name: "排行榜"
 aliases: [rank_list, 榜单]
 route: "/music_platform/rank-list"
-status: draft
+status: 已验证
 last_updated: 2026-09-10
-type: screen
+type: 页面
 package_name: com.swan.network
 activity: null
 orientation: portrait

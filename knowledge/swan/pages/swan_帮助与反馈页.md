@@ -1,12 +1,12 @@
 # swan_帮助与反馈页
 
-> 状态：draft（2026-09-08 真机 dump + OCR 验证，explorer enrich-kb 批次）
+> 状态：草稿（2026-09-08 真机 dump + OCR 验证，explorer enrich-kb 批次）
 > 数据来源：我的页向下滚动后点"帮助与反馈"实机 dump + OCR；截图 explorer_output/screenshots/swan_explore2/swan_help_feedback_page.png
 
 ## 页面概述
 
 帮助与反馈页。4 个入口行：可适配音箱型号 / 使用说明 / 用户反馈 / 常见问题。
-页内无 accessibility key，定位靠 OCR 文本。
+页内无 无障碍键，定位靠 OCR 文本。
 
 ## 进入方式
 
@@ -16,9 +16,9 @@
 
 ## 关键元素（来源：uiautomator dump / OCR）
 
-无 key。dump 文本元素：
+无无障碍键。dump 文本元素：
 
-| 文案 | clickable | bounds | 备注 |
+| 文案 | 可点击 | 坐标范围 | 备注 |
 |---|---|---|---|
 | 返回按钮（无文案图标） | ✅ | [0,72][128,184] | press_back 等效（实测可用） |
 | 帮助与反馈（标题） | ❌ | [269,102][451,154] | 页面判据 |
@@ -59,6 +59,7 @@
 |---------|--------|
 | digest/features/feature_帮助与关于.md | [[feature_帮助与关于]] |
 | pages/swan_我的页.md | [[swan_我的页]] |
+| pages/swan_消息中心页.md | [[swan_消息中心页]] |
 
-_自动生成于 2026-09-10 14:19_
+_自动生成于 2026-09-11 13:44_
 <!-- backlinks:end -->

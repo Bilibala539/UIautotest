@@ -3,9 +3,9 @@ page_id: swan_AI对话页
 name: "AI 对话页"
 aliases: [AI角色对话, ai_chat]
 route: null              # 首页·AI Tab 点角色卡进入，路由未在功能地图单列（待考古）
-status: verified
+status: 已验证
 last_updated: 2026-09-10
-type: screen
+type: 页面
 package_name: com.swan.network
 activity: null
 orientation: portrait
@@ -43,15 +43,15 @@ Wave2 实测（小薇）：发送"play a song"，AI 回复「音乐服务需要�
 
 | 元素 | locator（key / OCR 文案 / 图片常量） | 类型 | 操作 | 成功断言 | 截图 | 验证状态 |
 |---|---|---|---|---|---|---|
-| 返回按钮 | 无文案 ImageView [0,100][128,212] | static | press_back | 回 `[[swan_首页AITab]]` | 待截 | verified（press_back 实测） |
-| 语音输入图标 | 顶栏图标① [432,116][512,196]（无 key/desc） | static | click | 系统麦克风权限弹窗（`permission_deny_button` 等系统 key） | 已转正 `SWAN_AI_CHAT_VOICE_BTN`（2026-09-10 verify 图断言通过；⛔ 未点击避免麦克风权限） | verified |
-| 字幕/通话图标 | 顶栏图标② [528,116][608,196] | static | click | 进入通话态（OCR"字幕"+"按住说话"） | 待截 | draft（未验证） |
-| 自动朗读设备图标 | 顶栏图标③ [624,116][704,196] | static | click | 「自动朗读设备」弹层（OCR"自动朗读设备"+"完成"） | 待截 | draft（未验证） |
-| 对话流 | 文本节点（text 属性，非 desc） | dynamic | 只读 | — | dynamic-不截图 | verified（欢迎语 OCR 实测） |
-| 输入框 | OCR"发送消息.."（无 key，[64,1418][588,1510]） | static | click 后 input_text（仅 ASCII） | 键盘弹出 | 已转正 `SWAN_AI_CHAT_INPUT`（2026-09-10 verify 图断言通过，含占位文案；不输入中文） | verified |
-| 发送按钮 | 无文案图标（输入框右侧） | static | click | 消息气泡出现 | 待截 | draft（未验证） |
+| 返回按钮 | 无文案 ImageView [0,100][128,212] | 静态 | press_back | 回 `[[swan_首页AITab]]` | 待截 | 已验证（press_back 实测） |
+| 语音输入图标 | 顶栏图标① [432,116][512,196]（无无障碍键/desc） | 静态 | click | 系统麦克风权限弹窗（`permission_deny_button` 等系统 key） | 已转正 `SWAN_AI_CHAT_VOICE_BTN`（2026-09-10 verify 图断言通过；⛔ 未点击避免麦克风权限） | 已验证 |
+| 字幕/通话图标 | 顶栏图标② [528,116][608,196] | 静态 | click | 进入通话态（OCR"字幕"+"按住说话"） | 待截 | 草稿（未验证） |
+| 自动朗读设备图标 | 顶栏图标③ [624,116][704,196] | 静态 | click | 「自动朗读设备」弹层（OCR"自动朗读设备"+"完成"） | 待截 | 草稿（未验证） |
+| 对话流 | 文本节点（text 属性，非 desc） | 动态 | 只读 | — | 动态-不截图 | 已验证（欢迎语 OCR 实测） |
+| 输入框 | OCR"发送消息.."（无无障碍键，[64,1418][588,1510]） | 静态 | click 后 input_text（仅 ASCII） | 键盘弹出 | 已转正 `SWAN_AI_CHAT_INPUT`（2026-09-10 verify 图断言通过，含占位文案；不输入中文） | 已验证 |
+| 发送按钮 | 无文案图标（输入框右侧） | 静态 | click | 消息气泡出现 | 待截 | 草稿（未验证） |
 
-### 「自动朗读设备」弹层（本页内嵌 sheet）
+### 「自动朗读设备」弹层（本页内嵌 弹层）
 
 列表：全选 / HiVi M300MKII / 手机扬声器（与 `[[swan_切换设备弹层]]` 同款设备单选，
 ⛔ 含真实音箱禁止选择），「完成」按钮关闭（OCR"完成"）。
@@ -92,7 +92,9 @@ Wave2 实测（小薇）：发送"play a song"，AI 回复「音乐服务需要�
 | 引用来源 | 页面ID |
 |---------|--------|
 | digest/features/feature_导航框架.md | [[feature_导航框架]] |
+| pages/swan_AI历史页.md | [[swan_AI历史页]] |
+| pages/swan_所有角色页.md | [[swan_所有角色页]] |
 | pages/swan_首页AITab.md | [[swan_首页AITab]] |
 
-_自动生成于 2026-09-10 14:19_
+_自动生成于 2026-09-11 13:44_
 <!-- backlinks:end -->

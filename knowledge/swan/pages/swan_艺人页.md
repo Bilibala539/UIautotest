@@ -3,9 +3,9 @@ page_id: swan_艺人页
 name: "艺人页"
 aliases: [artists, 艺人列表/详情]
 route: "/music_platform/artists(/detail)"
-status: draft
+status: 已验证
 last_updated: 2026-09-10
-type: screen
+type: 页面
 package_name: com.swan.network
 activity: null
 orientation: portrait
@@ -54,3 +54,14 @@ orientation: portrait
 - 所属 feature：`[[feature_平台聚合]]`（音乐平台聚合域）
 - 上游（假设）：`[[swan_搜索结果页]]`（艺人 Tab）、`[[swan_播放历史页]]`（艺人 Tab）
 - 阻断方：`[[swan_授权门禁弹层]]`、搜索空态
+
+## 反向引用
+<!-- backlinks:start -->
+
+| 引用来源 | 页面ID |
+|---------|--------|
+| digest/flows/flow_搜索_关键词搜索全链路.md | [[flow_搜索_关键词搜索全链路]] |
+| pages/swan_搜索结果页.md | [[swan_搜索结果页]] |
+
+_自动生成于 2026-09-11 13:44_
+<!-- backlinks:end -->

@@ -3,9 +3,9 @@ page_id: swan_我的二维码页
 name: "我的二维码"
 aliases: [MyQrCode, my_qr_code_page]
 route: /me/my-qrcode
-status: draft
+status: 已验证
 last_updated: 2026-09-10
-type: screen
+type: 页面
 package_name: com.swan.network
 activity: null
 orientation: portrait
@@ -27,7 +27,7 @@ orientation: portrait
 
 ## 生效断言
 
-> 未进入本页，暂无可执行断言。进入后需补充：二维码图 + 昵称/头像展示（预期 dynamic，二维码本体不可截图断言，需另找锚点）。
+> 未进入本页，暂无可执行断言。进入后需补充：二维码图 + 昵称/头像展示（预期 动态，二维码本体不可截图断言，需另找锚点）。
 
 | 断言元素 | 出现/消失 | 断言方式 | 含义 |
 |---|---|---|---|
@@ -60,7 +60,7 @@ orientation: portrait
 
 ### 元素截图（image/flutter）
 
-无。二维码本体为 dynamic（每账号不同），禁止截图断言。
+无。二维码本体为 动态（每账号不同），禁止截图断言。
 
 ## 页面布局
 
@@ -77,7 +77,8 @@ orientation: portrait
 
 | 引用来源 | 页面ID |
 |---------|--------|
+| digest/features/feature_账号体系.md | [[feature_账号体系]] |
 | pages/swan_扫一扫页.md | [[swan_扫一扫页]] |
 
-_自动生成于 2026-09-10 14:19_
+_自动生成于 2026-09-11 13:44_
 <!-- backlinks:end -->

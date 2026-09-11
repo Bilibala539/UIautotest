@@ -3,9 +3,9 @@ page_id: swan_首页可视音箱Tab
 name: "首页·可视音箱 Tab"
 aliases: [可视音箱Tab, home_vision_page, Vision]
 route: null              # 内嵌于 /home/main 五顶 Tab 容器，无独立路由
-status: verified
+status: 已验证
 last_updated: 2026-09-10
-type: screen
+type: 页面
 package_name: com.swan.network
 activity: null
 orientation: portrait
@@ -40,11 +40,11 @@ orientation: portrait
 
 | 元素 | locator（key / OCR 文案 / 图片常量） | 类型 | 操作 | 成功断言 | 截图 | 验证状态 |
 |---|---|---|---|---|---|---|
-| 顶部 Tab 行 | `OCR"可视音箱"` / `SWAN_HOME_TAB_VISION`（图，未选中态） | static | click | 本页生效断言 | 已截 | verified |
-| 添加引导标题 | `OCR"添加可视音响"` | static | 只读断言（⛔ 不点——推测进添加设备/配网流程，禁止误触） | — | 待截 | draft |
-| 未绑定提示 | `OCR"暂未添加可视音箱，此功能不可使用"` / `SWAN_HOME_VISION_UNBOUND_HINT`（图） | static | 只读断言 | — | 已截 | verified |
-| 底部播放条 | `bottom_player`（key） | static | click | `[[swan_播放页]]` | 已有图 | draft |
-| 底部 4 tab | `tab_recommend` 等（key） | static | click | 对应 tab 页 | 已有图 | draft |
+| 顶部 Tab 行 | `OCR"可视音箱"` / `SWAN_HOME_TAB_VISION`（图，未选中态） | 静态 | click | 本页生效断言 | 已截 | 已验证 |
+| 添加引导标题 | `OCR"添加可视音响"` | 静态 | 只读断言（⛔ 不点——推测进添加设备/配网流程，禁止误触） | — | 待截 | 草稿 |
+| 未绑定提示 | `OCR"暂未添加可视音箱，此功能不可使用"` / `SWAN_HOME_VISION_UNBOUND_HINT`（图） | 静态 | 只读断言 | — | 已截 | 已验证 |
+| 底部播放条 | `bottom_player`（无障碍键） | 静态 | click | `[[swan_播放页]]` | 已有图 | 草稿 |
+| 底部 4 tab | `tab_recommend` 等（无障碍键） | 静态 | click | 对应 tab 页 | 已有图 | 草稿 |
 
 ### 元素截图（image/flutter）
 
@@ -52,8 +52,8 @@ orientation: portrait
 
 | 元素 | 常量（image/image_name_mapping.py） | 图片文件 |
 |---|---|---|
-| 未绑定提示行（灰字整行） | `SWAN_HOME_VISION_UNBOUND_HINT` | image_ai/flutter/swan_首页可视音箱Tab_未绑定提示.png |
-| 顶部 Tab「可视音箱」（未选中态） | `SWAN_HOME_TAB_VISION` | image_ai/flutter/swan_首页_可视音箱Tab按钮.png |
+| 未绑定提示行（灰字整行） | `SWAN_HOME_VISION_UNBOUND_HINT` | image/flutter/swan_首页可视音箱Tab_未绑定提示.png |
+| 顶部 Tab「可视音箱」（未选中态） | `SWAN_HOME_TAB_VISION` | image/flutter/swan_首页_可视音箱Tab按钮.png |
 
 ## 页面布局
 
@@ -75,6 +75,7 @@ orientation: portrait
 | 引用来源 | 页面ID |
 |---------|--------|
 | digest/features/feature_导航框架.md | [[feature_导航框架]] |
+| pages/swan_Vision域不可达页.md | [[swan_Vision域不可达页]] |
 
-_自动生成于 2026-09-10 14:19_
+_自动生成于 2026-09-11 13:44_
 <!-- backlinks:end -->

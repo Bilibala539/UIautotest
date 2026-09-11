@@ -2,7 +2,7 @@
 flow_id: flow_歌单_新建歌单弹窗开关
 name: "歌单页打开「新建歌单」弹窗并关闭（不保存）"
 feature: "[[feature_收藏管理]]"
-status: draft
+status: 草稿
 last_updated: 2026-09-10
 automation: yes
 risk: low
@@ -30,7 +30,7 @@ risk: low
 | 3 | `[[swan_歌单页]]` | OCR"歌单"（页标题，顶栏中央，region 限定）/ OCR"SWAN"（平台 Tab） | 断言 | 歌单页生效：标题与平台筛选 Tab 已渲染 |
 | 4 | `[[swan_歌单页]]` | `SWAN_PLAYLIST_CREATE_BTN`（图，右上角新建图标） | click | 「新建歌单」弹窗打开，OCR"新建歌单" + "选择平台" 出现 |
 | 5 | 新建歌单弹窗（`[[swan_歌单页]]` 内嵌） | OCR"选择平台"（SWAN/QQ音乐/网易云音乐/酷狗音乐）+ OCR"自建歌单/聚合歌单" | 断言（不选择） | 弹窗内容完整：平台四选一 + 类型二选一 + 歌单名输入框 + 「保存」按钮可见。⚠️ **risk**：⛔「保存」会真实创建歌单，禁止点击 |
-| 6 | 新建歌单弹窗 | `SWAN_PLAYLIST_NEWDLG_CLOSE_BTN`（图，弹窗右上关闭按钮） | click | 弹窗关闭，回歌单页列表。⚠️ **risk（坑）**：press_back 一次实测**不关闭**弹窗且弹窗整体下移（第一次只收键盘），关闭必须点右上关闭按钮图定位（弹窗关闭按钮无 key/desc/文案） |
+| 6 | 新建歌单弹窗 | `SWAN_PLAYLIST_NEWDLG_CLOSE_BTN`（图，弹窗右上关闭按钮） | click | 弹窗关闭，回歌单页列表。⚠️ **risk（坑）**：press_back 一次实测**不关闭**弹窗且弹窗整体下移（第一次只收键盘），关闭必须点右上关闭按钮图定位（弹窗关闭按钮无无障碍键/desc/文案） |
 | 7 | `[[swan_歌单页]]` | OCR"已加载全部"（列表脚注，SWAN Tab 有歌单时） | 断言 | 已回歌单页，列表与脚注复现 |
 | 8 | `[[swan_歌单页]]` | `SWAN_PLAYLIST_BACK_BTN`（图，左上返回箭头） | click | 回 `[[swan_首页]]`（press_back 等效） |
 
@@ -49,7 +49,7 @@ risk: low
 - **risk（入口间歇不可达）**：首页推荐 Tab 布局轮换导致「歌单」卡片间歇消失（步骤 2），自动化需带布局检查/重试前置。
 - **risk（关闭方式唯一）**：弹窗只能图定位关闭（`SWAN_PLAYLIST_NEWDLG_CLOSE_BTN`）；press_back 不关闭且引起弹窗下移，误用会导致步骤 6 断言失败后状态错乱。
 - **risk（破坏性近邻）**：弹窗内「保存」真实创建歌单（测试须自清理），本 flow 明确不点；若后续 flow 需要建歌单，须配对删除步骤。
-- 歌单页除 `bottom_player` 外全页无 accessibility key，定位依赖 OCR + 图常量。
+- 歌单页除 `bottom_player` 外全页无 无障碍键，定位依赖 OCR + 图常量。
 
 ## 对应用例
 

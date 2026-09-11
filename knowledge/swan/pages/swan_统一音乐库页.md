@@ -3,9 +3,9 @@ page_id: swan_统一音乐库页
 name: "统一音乐库"
 aliases: [unified_music]
 route: "/player/unifiedMusic"
-status: draft
+status: 已验证
 last_updated: 2026-09-10
-type: screen
+type: 页面
 package_name: com.swan.network
 activity: null
 orientation: portrait
@@ -57,6 +57,7 @@ orientation: portrait
 | 引用来源 | 页面ID |
 |---------|--------|
 | digest/features/feature_收藏管理.md | [[feature_收藏管理]] |
+| pages/swan_批量操作页.md | [[swan_批量操作页]] |
 
-_自动生成于 2026-09-10 14:19_
+_自动生成于 2026-09-11 13:44_
 <!-- backlinks:end -->

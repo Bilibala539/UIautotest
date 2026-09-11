@@ -2,7 +2,7 @@
 feature_id: feature_设备管理
 name: "设备管理"
 aliases: [配网, 音箱]
-status: draft
+status: 草稿
 last_updated: 2026-09-10
 domains: [设备管理与配网]
 ---
@@ -17,7 +17,7 @@ domains: [设备管理与配网]
 
 | 页面 | 角色 | 状态 |
 |---|---|---|
-| `[[swan_设备页]]` | 设备 Tab 主页 | page |
+| `[[swan_设备页]]` | 设备 Tab 主页 | 页面 |
 
 缺口：添加设备 `/device/add`、BLE/WiFi 配网、设备设置族（5+ 页）、兼容机型、远程控制面板。多数入口依赖已绑定真实音箱设备；无设备时部分页面不可达。
 

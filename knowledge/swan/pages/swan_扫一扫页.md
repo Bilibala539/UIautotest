@@ -3,9 +3,9 @@ page_id: swan_扫一扫页
 name: "扫一扫"
 aliases: [扫码页, scan_qr_code_page]
 route: /me/scan-qr-code
-status: verified
+status: 已验证
 last_updated: 2026-09-10
-type: screen
+type: 页面
 package_name: com.swan.network
 activity: null
 orientation: portrait
@@ -33,7 +33,7 @@ explorer 早前记录：测试机（c0614b6a）相机硬件不可用，授权后
 
 | 来源页面 | 操作元素（locator） | 操作类型 | 到达断言 |
 |---|---|---|---|
-| `[[swan_我的页]]` | 扫一扫图标（无 key 无文案，bounds 约 [626,216][674,264]，**需 element 截图后 `click_image`**） | click | 见「生效断言」 |
+| `[[swan_我的页]]` | 扫一扫图标（无无障碍键 无文案，坐标范围 约 [626,216][674,264]，**需 element 截图后 `click_image`**） | click | 见「生效断言」 |
 
 自然语言补充：
 - 首次进入会弹系统相机权限弹窗（见下方关键元素），需先处理权限。
@@ -44,14 +44,14 @@ explorer 早前记录：测试机（c0614b6a）相机硬件不可用，授权后
 
 | 元素 | locator（key / OCR 文案 / 图片常量） | 类型 | 操作 | 成功断言 | 截图 | 验证状态 |
 |---|---|---|---|---|---|---|
-| 返回箭头 | 无 key（左上角图标 [0,72][128,184]） | static | click / `press_back` | 回 `[[swan_我的页]]` | 待截 | draft |
-| 扫一扫图标（我的页入口） | `SWAN_ME_SCAN_ICON`（图，我的页右上角，无 key 无文案） | static | click（`click_image`） | 本页生效断言 | 已截（image/flutter/swan_我的_扫一扫图标.png，2026-09-10 verify 实测转正） | verified |
-| 相机权限弹窗-使用时允许 | `permission_allow_foreground_only_button`（系统 key，✅ 实测） | static | click | 进入本页（相机可用时） | dynamic-不截图（系统弹窗，机型相关） | draft |
-| 相机权限弹窗-仅本次允许 | `permission_allow_one_time_button`（系统 key，✅ 实测） | static | click | 进入本页（会话级授权） | dynamic-不截图 | draft |
-| 相机权限弹窗-拒绝 | `permission_deny_button`（系统 key，✅ 实测） | static | click | 弹窗关闭，停留我的页 | dynamic-不截图 | draft |
-| 相机权限弹窗根节点 | `grant_dialog` / `grant_singleton`（系统 key，✅ 实测） | static | 只读断言（权限弹窗出现判据） | — | dynamic-不截图 | draft |
-| 相机不可用错误态 | OCR"相机不可用" | dynamic | 只读断言 | — | dynamic-不截图 | draft |
-| 重试按钮 | OCR"重试"（desc=重试） | static | 未实测（相机硬件不可用，重试无意义） | — | 待截 | draft |
+| 返回箭头 | 无无障碍键（左上角图标 [0,72][128,184]） | 静态 | click / `press_back` | 回 `[[swan_我的页]]` | 待截 | 草稿 |
+| 扫一扫图标（我的页入口） | `SWAN_ME_SCAN_ICON`（图，我的页右上角，无无障碍键 无文案） | 静态 | click（`click_image`） | 本页生效断言 | 已截（image/flutter/swan_我的_扫一扫图标.png，2026-09-10 verify 实测转正） | 已验证 |
+| 相机权限弹窗-使用时允许 | `permission_allow_foreground_only_button`（系统 key，✅ 实测） | 静态 | click | 进入本页（相机可用时） | 动态-不截图（系统弹窗，机型相关） | 草稿 |
+| 相机权限弹窗-仅本次允许 | `permission_allow_one_time_button`（系统 key，✅ 实测） | 静态 | click | 进入本页（会话级授权） | 动态-不截图 | 草稿 |
+| 相机权限弹窗-拒绝 | `permission_deny_button`（系统 key，✅ 实测） | 静态 | click | 弹窗关闭，停留我的页 | 动态-不截图 | 草稿 |
+| 相机权限弹窗根节点 | `grant_dialog` / `grant_singleton`（系统 key，✅ 实测） | 静态 | 只读断言（权限弹窗出现判据） | — | 动态-不截图 | 草稿 |
+| 相机不可用错误态 | OCR"相机不可用" | 动态 | 只读断言 | — | 动态-不截图 | 草稿 |
+| 重试按钮 | OCR"重试"（desc=重试） | 静态 | 未实测（相机硬件不可用，重试无意义） | — | 待截 | 草稿 |
 
 ### 元素截图（image/flutter）
 
@@ -68,3 +68,14 @@ explorer 早前记录：测试机（c0614b6a）相机硬件不可用，授权后
 - 所属 feature：`[[feature_账号体系]]`（扫码登录/Pad 登录确认 /me/scan/pad-login-confirm 相关）
 - 上游：`[[swan_我的页]]`
 - 下游：扫码结果流程（未探索，依赖可用相机）；**无「我的二维码」入口**（实测，见 `[[swan_我的二维码页]]`）
+
+## 反向引用
+<!-- backlinks:start -->
+
+| 引用来源 | 页面ID |
+|---------|--------|
+| digest/features/feature_账号体系.md | [[feature_账号体系]] |
+| pages/swan_我的二维码页.md | [[swan_我的二维码页]] |
+
+_自动生成于 2026-09-11 13:44_
+<!-- backlinks:end -->

@@ -3,9 +3,9 @@ page_id: swan_AI形象页
 name: "AI 形象（头像动图选择）"
 aliases: [AI形象, role_images, 头像选择]
 route: /ai/role/images
-status: draft
+status: 已验证
 last_updated: 2026-09-10
-type: screen
+type: 页面
 package_name: com.swan.network
 activity: null
 orientation: portrait
@@ -18,7 +18,7 @@ orientation: portrait
 AI 角色头像选择页（路由 /ai/role/images，从角色编辑页「形象生成→选择」进入）。
 标题「AI 形象」，内容为预设动图头像卡竖列（实测 4 张，每张整卡可点，卡右上角标「动图」）。
 底部双按钮：「完成」（左，选定返回）+「DIY形象」（右，进 DIY 形象生成页）。
-列表不可再滚动出更多卡（4 张为固定集合，实测滚动后仍 4 张）。全页无 accessibility key。
+列表不可再滚动出更多卡（4 张为固定集合，实测滚动后仍 4 张）。全页无 无障碍键。
 
 ## 生效断言
 
@@ -37,10 +37,10 @@ AI 角色头像选择页（路由 /ai/role/images，从角色编辑页「形象�
 
 | 元素 | locator（key / OCR 文案 / 图片常量） | 类型 | 操作 | 成功断言 | 截图 | 验证状态 |
 |---|---|---|---|---|---|---|
-| 返回按钮 | 顶栏左上图标（无 key 无文案，[0,72][128,184]） | static | click / press_back | 回 `[[swan_角色编辑页]]` | 待截 | verified（press_back 实测） |
-| 动图头像卡（×4） | 无 key 无文案（整卡可点，卡内 OCR"动图"角标锚定卡位置） | dynamic | click 选中（未实测选中态样式） | 选中标记出现（未验证） | 待截 | draft |
-| 完成按钮 | `OCR"完成"`（底部左半） | static | click（未实测，应携带所选头像返回角色编辑页） | 回 `[[swan_角色编辑页]]` | 待截 | draft |
-| DIY形象按钮 | `OCR"DIY形象"`（底部右半） | static | click | `[[swan_DIY形象页]]`（2026-09-10 Wave5 实测） | `swan_AI形象页_DIY形象按钮.png`（正式） | verified |
+| 返回按钮 | 顶栏左上图标（无无障碍键 无文案，[0,72][128,184]） | 静态 | click / press_back | 回 `[[swan_角色编辑页]]` | 待截 | 已验证（press_back 实测） |
+| 动图头像卡（×4） | 无无障碍键 无文案（整卡可点，卡内 OCR"动图"角标锚定卡位置） | 动态 | click 选中（未实测选中态样式） | 选中标记出现（未验证） | 待截 | 草稿 |
+| 完成按钮 | `OCR"完成"`（底部左半） | 静态 | click（未实测，应携带所选头像返回角色编辑页） | 回 `[[swan_角色编辑页]]` | 待截 | 草稿 |
+| DIY形象按钮 | `OCR"DIY形象"`（底部右半） | 静态 | click | `[[swan_DIY形象页]]`（2026-09-10 Wave5 实测） | `swan_AI形象页_DIY形象按钮.png`（正式） | 已验证 |
 
 ### 元素截图（image/flutter）
 
@@ -70,3 +70,14 @@ AI 角色头像选择页（路由 /ai/role/images，从角色编辑页「形象�
 - 上游：`[[swan_角色编辑页]]`（选择按钮）
 - 下游：`[[swan_DIY形象页]]`（DIY形象按钮）
 - 功能地图对照：/ai/role/images [已扫描-未考古] → 本页实测补全
+
+## 反向引用
+<!-- backlinks:start -->
+
+| 引用来源 | 页面ID |
+|---------|--------|
+| pages/swan_DIY形象页.md | [[swan_DIY形象页]] |
+| pages/swan_角色编辑页.md | [[swan_角色编辑页]] |
+
+_自动生成于 2026-09-11 13:44_
+<!-- backlinks:end -->

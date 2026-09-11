@@ -3,9 +3,9 @@ page_id: swan_歌单详情页
 name: "歌单详情页"
 aliases: [统一歌单详情, playlist_detail]
 route: "/player/playlist-detail"
-status: verified
+status: 已验证
 last_updated: 2026-09-10
-type: screen
+type: 页面
 package_name: com.swan.network
 activity: null
 orientation: portrait
@@ -21,7 +21,7 @@ orientation: portrait
 
 与 `[[swan_收藏分组详情页]]`（SWAN收藏 → 分组行进入）**布局逐像素一致但为两套入口/两套行为**：
 本页右上角有「⋮」更多按钮（修改名称/删除歌单），收藏分组详情页没有（2026-09-10 双路径 raw dump
-对比实测：收藏路径顶部 [560,720]×[60,200] 区域无任何节点，歌单页路径有 clickable 图标
+对比实测：收藏路径顶部 [560,720]×[60,200] 区域无任何节点，歌单页路径有 可点击 图标
 [610,72][720,160]，盲点该坐标亦无反应）。两页可能共用同一 widget 的两种模式（待源码考古确认），
 但从测试视角按两页维护。歌单数据同源（我的家庭/我的音乐）。
 
@@ -30,7 +30,7 @@ orientation: portrait
 | 断言元素 | 出现/消失 | 断言方式 | 含义 |
 |---|---|---|---|
 | 页面标题 | 出现 | OCR 歌单名（顶栏 y≈92-140，与下方分组头同名需 region/y 区分） | 进入本页 |
-| 更多按钮 | 出现 | 右上角无文案图标（无 key，可后期截 `SWAN_PD_MORE_BTN` 图） | 区别于收藏分组详情页的判据 |
+| 更多按钮 | 出现 | 右上角无文案图标（无无障碍键，可后期截 `SWAN_PD_MORE_BTN` 图） | 区别于收藏分组详情页的判据 |
 | 空态文案 | 出现 | OCR"暂无内容"（0 首歌时） | 列表已加载 |
 
 ## 进入方式
@@ -43,18 +43,18 @@ orientation: portrait
 
 | 元素 | locator（key / OCR 文案 / 图片常量） | 类型 | 操作 | 成功断言 | 截图 | 验证状态 |
 |---|---|---|---|---|---|---|
-| 返回按钮 | 无文案 ImageView [0,72][128,160] | static | click / press_back | 回 `[[swan_歌单页]]` | 可复用 `SWAN_PLAYLIST_BACK_BTN`（同款箭头，见歌单页注） | verified（press_back 实测；图片复用未单测） |
-| 标题（歌单名） | OCR"我的家庭"（y≈92-140） | dynamic | 只读 | — | dynamic-不截图 | verified |
-| 更多按钮「⋮」 | 无文案图标 [610,72][720,160] | static | click | 「修改名称/删除歌单/取消」action sheet 出现 | 已转正 `SWAN_PD_MORE_BTN`（2026-09-10 verify 实测点击成功） | verified |
-| 歌单头（封面+名称+歌曲数） | OCR"我的家庭"（y≈192-238）+"0首歌" | dynamic | 只读 | — | dynamic-不截图 | verified |
-| 播放全部 | OCR"播放全部\n0首歌" [32,438][234,614] | static | ⛔ 播放控制类，只断言不点 | — | 已转正 `SWAN_PD_PLAY_ALL`（2026-09-10 verify 图断言通过；⚠️ 含"0首歌"计数，歌单加歌后需重截） | verified |
-| 来源筛选 Tab | OCR"全部 (0)"/"QQ音乐 (0)"/"网易云音乐 (0)"/"酷狗音乐 (0)" | dynamic（计数变化） | click（未验证） | 列表按来源过滤（未验证） | 待截（tab 条） | verified（存在性 OCR 实测；未点击） |
-| 空态 | OCR"暂无内容 / 快添加歌曲吧～" | dynamic | 只读 | — | dynamic-不截图 | verified |
-| 底部播放条 | `bottom_player`（key） | static | click | `[[swan_播放页]]` | 已有图 | verified |
+| 返回按钮 | 无文案 ImageView [0,72][128,160] | 静态 | click / press_back | 回 `[[swan_歌单页]]` | 可复用 `SWAN_PLAYLIST_BACK_BTN`（同款箭头，见歌单页注） | 已验证（press_back 实测；图片复用未单测） |
+| 标题（歌单名） | OCR"我的家庭"（y≈92-140） | 动态 | 只读 | — | 动态-不截图 | 已验证 |
+| 更多按钮「⋮」 | 无文案图标 [610,72][720,160] | 静态 | click | 「修改名称/删除歌单/取消」action 弹层 出现 | 已转正 `SWAN_PD_MORE_BTN`（2026-09-10 verify 实测点击成功） | 已验证 |
+| 歌单头（封面+名称+歌曲数） | OCR"我的家庭"（y≈192-238）+"0首歌" | 动态 | 只读 | — | 动态-不截图 | 已验证 |
+| 播放全部 | OCR"播放全部\n0首歌" [32,438][234,614] | 静态 | ⛔ 播放控制类，只断言不点 | — | 已转正 `SWAN_PD_PLAY_ALL`（2026-09-10 verify 图断言通过；⚠️ 含"0首歌"计数，歌单加歌后需重截） | 已验证 |
+| 来源筛选 Tab | OCR"全部 (0)"/"QQ音乐 (0)"/"网易云音乐 (0)"/"酷狗音乐 (0)" | 动态（计数变化） | click（未验证） | 列表按来源过滤（未验证） | 待截（tab 条） | 已验证（存在性 OCR 实测；未点击） |
+| 空态 | OCR"暂无内容 / 快添加歌曲吧～" | 动态 | 只读 | — | 动态-不截图 | 已验证 |
+| 底部播放条 | `bottom_player`（无障碍键） | 静态 | click | `[[swan_播放页]]` | 已有图 | 已验证 |
 
-### 「更多」action sheet（本页内嵌 sheet）
+### 「更多」action 弹层（本页内嵌 弹层）
 
-「⋮」打开的底部 action sheet：`修改名称` / `删除歌单` / `取消`（均无 key，OCR 定位，
+「⋮」打开的底部 action 弹层：`修改名称` / `删除歌单` / `取消`（均无无障碍键，OCR 定位，
 行高 ~140px 贴底）。⛔ `删除歌单` 为危险操作，自动化禁止点击；关闭走 `OCR"取消"`
 （2026-09-10 verify 实测开→点取消关闭，未碰删除）。
 
@@ -85,7 +85,7 @@ orientation: portrait
 
 - 所属 feature：`[[feature_收藏管理]]`
 - 上游：`[[swan_歌单页]]`
-- 下游：`[[swan_播放页]]`（bottom_player）；修改名称/删除歌单 action sheet（本页内）
+- 下游：`[[swan_播放页]]`（bottom_player）；修改名称/删除歌单 action 弹层（本页内）
 - 对照页：`[[swan_收藏分组详情页]]`（同布局无更多按钮；`[[swan_我喜欢页]]` 同布局无更多按钮）
 
 ## 反向引用
@@ -94,10 +94,11 @@ orientation: portrait
 | 引用来源 | 页面ID |
 |---------|--------|
 | digest/features/feature_收藏管理.md | [[feature_收藏管理]] |
+| digest/flows/flow_收藏_查看分组空态.md | [[flow_收藏_查看分组空态]] |
 | pages/swan_我喜欢页.md | [[swan_我喜欢页]] |
 | pages/swan_播放页.md | [[swan_播放页]] |
 | pages/swan_收藏分组详情页.md | [[swan_收藏分组详情页]] |
 | pages/swan_歌单页.md | [[swan_歌单页]] |
 
-_自动生成于 2026-09-10 14:19_
+_自动生成于 2026-09-11 13:44_
 <!-- backlinks:end -->

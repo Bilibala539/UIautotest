@@ -3,9 +3,9 @@ page_id: swan_视频分类页
 name: "视频分类（QQ音乐视频域入口族）"
 aliases: [video_classify, 视频分类, 平台视频]
 route: /music_platform/qq/video-classify
-status: draft
+status: 已验证
 last_updated: 2026-09-10
-type: screen
+type: 页面
 package_name: com.swan.network
 activity: null
 orientation: portrait
@@ -16,7 +16,7 @@ orientation: portrait
 ## 页面概述
 
 QQ音乐平台视频分类页（路由 /music_platform/qq/video-classify，platform_video_classify_page.dart）。
-同族还有视频播放页 /music_platform/video-player、视频投屏浮窗、投屏设备选择 sheet（功能地图「视频与投屏」域）。
+同族还有视频播放页 /music_platform/video-player、视频投屏浮窗、投屏设备选择 弹层（功能地图「视频与投屏」域）。
 
 **⚠️ 入口受限（授权门禁拦截）**：视频分类页挂在 QQ音乐平台多级页内，
 而 QQ音乐多级页的全部入口在未授权账号下均被 `[[swan_授权门禁弹层]]` 拦截

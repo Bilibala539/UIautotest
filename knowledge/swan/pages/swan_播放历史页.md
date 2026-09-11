@@ -3,9 +3,9 @@ page_id: swan_播放历史页
 name: "播放历史"
 aliases: [最近播放, play_history]
 route: "/me/play-history"
-status: verified
+status: 已验证
 last_updated: 2026-09-10
-type: screen
+type: 页面
 package_name: com.swan.network
 activity: null
 orientation: portrait
@@ -20,7 +20,7 @@ orientation: portrait
 歌曲/艺人/专辑/歌单/电台/播客，内容区为历史列表（本账号空态「暂无历史播放」——
 注意首页卡片显示"已播歌曲 1首"但本页歌曲 Tab 为空，两处统计口径不一致，待有播放数据账号复验）。
 
-⚠️ 全页无 accessibility key（除 `bottom_player`），本页无底部 4 tab（push 页，仅贴底播放条）。
+⚠️ 全页无 无障碍键（除 `bottom_player`），本页无底部 4 tab（push 页，仅贴底播放条）。
 
 ## 生效断言
 
@@ -43,11 +43,11 @@ orientation: portrait
 
 | 元素 | locator（key / OCR 文案 / 图片常量） | 类型 | 操作 | 成功断言 | 截图 | 验证状态 |
 |---|---|---|---|---|---|---|
-| 返回按钮 | 无文案 ImageView [0,72][128,184] | static | click / press_back | 回 `[[swan_首页]]` | 可复用 `SWAN_PLAYLIST_BACK_BTN`（同款箭头，见歌单页注）或顶栏整条图 | verified（press_back 实测；顶栏整条图断言通过） |
-| 标题 | OCR"最近播放" [287,104][433,152] | static | 只读 | — | 已转正（含顶栏）`SWAN_HISTORY_TOPBAR`（2026-09-10 verify 图断言通过） | verified |
-| 分类 Tab | OCR"歌曲"/"艺人"/"专辑"/"歌单"/"电台"/"播客"（六 Tab，y≈204-276） | static | click | 列表切换（未逐一验证） | 已转正（Tab 条整条）`SWAN_HISTORY_TABBAR`（2026-09-10 verify 图断言通过，歌曲 Tab 选中态） | verified |
-| 空态 | OCR"暂无历史播放" [0,732][720,772] | dynamic | 只读 | — | dynamic-不截图 | verified（2026-09-10 verify 实测） |
-| 底部播放条 | `bottom_player`（key，[0,1470][720,1528]） | static | click | `[[swan_播放页]]` | 已有图 | verified |
+| 返回按钮 | 无文案 ImageView [0,72][128,184] | 静态 | click / press_back | 回 `[[swan_首页]]` | 可复用 `SWAN_PLAYLIST_BACK_BTN`（同款箭头，见歌单页注）或顶栏整条图 | 已验证（press_back 实测；顶栏整条图断言通过） |
+| 标题 | OCR"最近播放" [287,104][433,152] | 静态 | 只读 | — | 已转正（含顶栏）`SWAN_HISTORY_TOPBAR`（2026-09-10 verify 图断言通过） | 已验证 |
+| 分类 Tab | OCR"歌曲"/"艺人"/"专辑"/"歌单"/"电台"/"播客"（六 Tab，y≈204-276） | 静态 | click | 列表切换（未逐一验证） | 已转正（Tab 条整条）`SWAN_HISTORY_TABBAR`（2026-09-10 verify 图断言通过，歌曲 Tab 选中态） | 已验证 |
+| 空态 | OCR"暂无历史播放" [0,732][720,772] | 动态 | 只读 | — | 动态-不截图 | 已验证（2026-09-10 verify 实测） |
+| 底部播放条 | `bottom_player`（无障碍键，[0,1470][720,1528]） | 静态 | click | `[[swan_播放页]]` | 已有图 | 已验证 |
 
 ### 元素截图（2026-09-10 aw-verify 真机验证通过，已转正 image/flutter/）
 
@@ -81,7 +81,9 @@ orientation: portrait
 | 引用来源 | 页面ID |
 |---------|--------|
 | digest/features/feature_收藏管理.md | [[feature_收藏管理]] |
+| pages/swan_搜索结果页.md | [[swan_搜索结果页]] |
+| pages/swan_艺人页.md | [[swan_艺人页]] |
 | pages/swan_首页.md | [[swan_首页]] |
 
-_自动生成于 2026-09-10 14:19_
+_自动生成于 2026-09-11 13:44_
 <!-- backlinks:end -->

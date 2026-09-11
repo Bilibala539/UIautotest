@@ -15,11 +15,11 @@
 
 ## 关键元素（来源：uiautomator dump）
 
-| key | 文案/说明 | clickable | 备注 |
+| 无障碍键 | 文案/说明 | 可点击 | 备注 |
 |---|---|---|---|
 | `login_page` | 页面根节点（与登录页同根） | ✅ | |
 | `login_code_field` | 验证码输入框 | ❌（内层节点可点） | 已固化 KEY_CODE_FIELD |
-| 重新发送(54s) | 重发倒计时（OCR 文本，无 key） | ✅ | 倒计时结束才可点 |
+| 重新发送(54s) | 重发倒计时（OCR 文本，无无障碍键） | ✅ | 倒计时结束才可点 |
 
 
 ### 元素截图（image/flutter，2026-09-08 aw-element 采集 + verify 复验转正）
@@ -44,8 +44,9 @@
 | 引用来源 | 页面ID |
 |---------|--------|
 | digest/features/feature_账号体系.md | [[feature_账号体系]] |
+| digest/flows/flow_登录_验证码登录全链路.md | [[flow_登录_验证码登录全链路]] |
 | pages/swan_首页.md | [[swan_首页]] |
 | pages/swan_验证码登录页.md | [[swan_验证码登录页]] |
 
-_自动生成于 2026-09-10 14:19_
+_自动生成于 2026-09-11 13:44_
 <!-- backlinks:end -->

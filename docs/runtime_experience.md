@@ -12,7 +12,7 @@
 | 取码链路 | App 触发后 `GET <SWAN_OTP_GATEWAY>/api/test/otp/latest?phone=` 取码；开发接口为 `https://testnetwork.hivi.com/api/user/captcha/mockCode`（必须带 api 前缀） | orchestrator 2026-09-08 |
 | 拿未登录态 | 杀进程无效（登录态持久）、OPPO 禁 pm clear；唯一途径：我的→个人信息→退出登入 | element 2026-09-08 |
 | 登录页"下一步"图 | `swan_下一步按钮` 模板是置灰态，仅作存在性断言；点击一律走 key `login_submit_button` | element 2026-09-08 |
-| 新建歌单弹窗 | ~~第一次 press_back 只收键盘，需两次返回才关弹窗~~（09-08 旧结论已作废：见下一行 09-10 实测，必须点右上关闭按钮） | verify 2026-09-08（已被 Wave2 勘误取代） |
+| 新建歌单弹窗 | `press_back` 关不掉（09-10 实测：一次不关闭且弹窗整体下移，推翻 09-08"两次返回可关"旧结论）；须点右上关闭按钮 `SWAN_PLAYLIST_NEWDLG_CLOSE_BTN` | verify 2026-09-08 + explorer 2026-09-10 Wave2 合并 |
 | 音质弹层关闭判定 | 不能用"音质设置"文案判（列表项同名），判 OCR"流畅音质"/"完成"消失 | verify 2026-09-08 |
 | 设备卡定位 | key 按设备 UUID 动态拼接：`wifi_device_card_<UUID>`，用前缀匹配 | explorer 2026-09-08 |
 | 密码页 press_back | 只收键盘，不退出 App（验证码输入页的 press_back 才会退出） | codegen 2026-09-08 |
@@ -36,9 +36,8 @@
 | 区号行防误匹配 | 区号页"中国"两字会模板匹配到"中国香港"行首；`SWAN_AREA_CODE_CHINA_ROW` 必须含行尾 +86 的整行裁剪（港澳台行交叉得分 0.61-0.67） | element 2026-09-10 |
 | 完成按钮双义 | 资料编辑页昵称输入态下顶栏"完成"与 IME 键盘右下"完成"同文案；`SWAN_PROFILE_EDIT_DONE` 仅匹配顶栏位置 | element 2026-09-10 |
 | 中文输入 | `adb shell input text` 不支持中文（NullPointerException）；AI 对话/歌单名等中文输入现框架不可达，需 IME 方案（框架层，待用户决策） | explorer 2026-09-10 Wave2 |
-| 新建歌单弹窗 | press_back 一次不关闭且弹窗整体下移；须点右上关闭按钮 | explorer 2026-09-10 Wave2 |
 | 播放态前置 | 播放队列/歌词入口在无播放任务时点击零反应；用例设计必须前置播放任务（本账号全平台未授权，无法建立播放） | explorer 2026-09-10 Wave2 |
-| 授权门禁弹层 | "授权登录"/"去授权"/"添加"弹层带 desc='纱罩' scrim，press_back 可关；⛔ 授权按钮不点 | explorer 2026-09-10 Wave2 |
+| 授权门禁弹层 | "授权登录"/"去授权"/"添加"弹层带 desc='纱罩' scrim，`press_back` 可关；⛔ 授权按钮不点（Wave5 补充第三种文案变体"请先添加该 AI 平台"，判据不变） | explorer 2026-09-10 Wave2 |
 | 设备单选列表 | 切换设备弹层与 AI 自动朗读设备弹层共用设备列表（真实音箱×3+手机扬声器+Apple Music），⛔ 全部禁止选择 | explorer 2026-09-10 Wave2 |
 | AI 语音按钮权限 | 触发系统麦克风权限弹窗，key 与相机权限同族（permission_allow_one_time_button 等） | explorer 2026-09-10 Wave2 |
 | 播放历史计数口径 | 首页卡片"已播歌曲 1首"与播放历史页内"暂无历史播放"口径不一致（App 行为，断言以页内为准） | explorer 2026-09-10 Wave2 |

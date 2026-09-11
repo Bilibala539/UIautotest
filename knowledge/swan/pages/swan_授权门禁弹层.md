@@ -3,9 +3,9 @@ page_id: swan_授权门禁弹层
 name: "授权门禁弹层"
 aliases: [平台授权弹窗, auth_gate]
 route: null
-status: draft
+status: 已验证
 last_updated: 2026-09-10
-type: dialog
+type: 弹窗
 package_name: com.swan.network
 activity: null
 orientation: portrait
@@ -31,7 +31,7 @@ orientation: portrait
 
 | 断言元素 | 出现/消失 | 断言方式 | 含义 |
 |---|---|---|---|
-| 遮罩节点 | 出现 | 语义节点 desc=`纱罩`（key 判据：dump 中 content_desc='纱罩'，bounds 全屏上部） | 弹层已弹出 |
+| 遮罩节点 | 出现 | 语义节点 desc=`纱罩`（key 判据：dump 中 content_desc='纱罩'，坐标范围 全屏上部） | 弹层已弹出 |
 | 主按钮 | 出现 | OCR"添加" / OCR"授权登录" | 变体识别 |
 | 遮罩节点 | 消失 | press_back 后 desc=`纱罩` 不在语义树 | 弹层已关闭 |
 
@@ -41,7 +41,7 @@ orientation: portrait
 |---|---|---|---|
 | `[[swan_首页音乐Tab]]` | OCR"QQ音乐"（平台区块标题）/ 平台区块内歌单卡（如 OCR"今日最佳"） | click | 见「生效断言」 |
 | `[[swan_首页电台Tab]]` | OCR"全国电台" / OCR"80er-Radio harmony"（分组标题，整行可点） | click | 见「生效断言」 |
-| `[[swan_平台页]]` | 电台分类行右侧圆形箭头图标（无 key 无文案，[图标形态] 见 dump） | click | 见「生效断言」 |
+| `[[swan_平台页]]` | 电台分类行右侧圆形箭头图标（无无障碍键 无文案，[图标形态] 见 dump） | click | 见「生效断言」 |
 
 前置条件：对应平台未授权（本测试账号全平台未授权，2026-09-10 Wave2 结论）。
 
@@ -49,16 +49,16 @@ orientation: portrait
 
 | 元素 | locator（key / OCR 文案 / 图片常量） | 类型 | 操作 | 成功断言 | 截图 | 验证状态 |
 |---|---|---|---|---|---|---|
-| 遮罩（纱罩） | 语义 desc=`纱罩`（无 resource_id） | static | 只读断言 | — | dynamic-不截图 | verified |
-| 主按钮（添加/授权登录） | `OCR"添加"` / `OCR"授权登录"`（变体 A/B）或图片 `SWAN_AUTH_GATE_ADD_BTN` / `SWAN_AUTH_GATE_LOGIN_BTN` | static | ⛔ 只断言不点击 | — | `swan_授权门禁弹层_添加按钮.png` / `swan_授权门禁弹层_授权登录按钮.png`（draft） | verified（存在性） |
-| 标题/副文案 | OCR"添加新平台"/"请先登录 X" | static | 只读断言 | — | 待截 | verified |
+| 遮罩（纱罩） | 语义 desc=`纱罩`（无 resource_id） | 静态 | 只读断言 | — | 动态-不截图 | 已验证 |
+| 主按钮（添加/授权登录） | `OCR"添加"` / `OCR"授权登录"`（变体 A/B）或图片 `SWAN_AUTH_GATE_ADD_BTN` / `SWAN_AUTH_GATE_LOGIN_BTN` | 静态 | ⛔ 只断言不点击 | — | `swan_授权门禁弹层_添加按钮.png` / `swan_授权门禁弹层_授权登录按钮.png`（草稿） | 已验证（存在性） |
+| 标题/副文案 | OCR"添加新平台"/"请先登录 X" | 静态 | 只读断言 | — | 待截 | 已验证 |
 
 ### 元素截图（image/flutter）
 
 | 元素 | 建议常量 | 图片文件 |
 |---|---|---|
-| 主按钮（授权登录） | `SWAN_AUTH_GATE_LOGIN_BTN` | image_ai/flutter/swan_授权门禁弹层_授权登录按钮.png（2026-09-10 已采集，draft；⛔ 仅存在性断言用） |
-| 主按钮（添加） | `SWAN_AUTH_GATE_ADD_BTN` | image_ai/flutter/swan_授权门禁弹层_添加按钮.png（2026-09-10 已采集，draft；⛔ 同上） |
+| 主按钮（授权登录） | `SWAN_AUTH_GATE_LOGIN_BTN` | image/flutter/swan_授权门禁弹层_授权登录按钮.png（2026-09-10 已转正；⛔ 仅存在性断言用） |
+| 主按钮（添加） | `SWAN_AUTH_GATE_ADD_BTN` | image/flutter/swan_授权门禁弹层_添加按钮.png（2026-09-10 已转正；⛔ 同上） |
 
 ## 页面布局
 
@@ -72,3 +72,18 @@ orientation: portrait
 - 上游：`[[swan_首页音乐Tab]]`、`[[swan_首页电台Tab]]`、`[[swan_平台页]]`
 - 下游：⛔ 授权流程（`/music_platform/manage-one`，探索禁入）
 - 同族：`[[swan_歌单页]]` 第三方平台 Tab 未授权空态（非弹层形态）
+
+## 反向引用
+<!-- backlinks:start -->
+
+| 引用来源 | 页面ID |
+|---------|--------|
+| pages/swan_AI平台管理页.md | [[swan_AI平台管理页]] |
+| pages/swan_全国电台页.md | [[swan_全国电台页]] |
+| pages/swan_城市选择页.md | [[swan_城市选择页]] |
+| pages/swan_排行榜页.md | [[swan_排行榜页]] |
+| pages/swan_艺人页.md | [[swan_艺人页]] |
+| pages/swan_视频分类页.md | [[swan_视频分类页]] |
+
+_自动生成于 2026-09-11 13:44_
+<!-- backlinks:end -->

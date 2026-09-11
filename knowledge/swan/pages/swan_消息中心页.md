@@ -3,9 +3,9 @@ page_id: swan_消息中心页
 name: "消息中心"
 aliases: [消息页, message_page]
 route: /me/messages
-status: draft
+status: 已验证
 last_updated: 2026-09-10
-type: screen
+type: 页面
 package_name: com.swan.network
 activity: null
 orientation: portrait
@@ -62,10 +62,20 @@ orientation: portrait
 
 ## 页面布局
 
-未验证。消息列表预期为 dynamic（内容随消息变化）。
+未验证。消息列表预期为 动态（内容随消息变化）。
 
 ## 功能关联
 
 - 所属 feature：`[[feature_账号体系]]`（个人中心域）
 - 相关：反馈未读红点服务（功能地图：pure_flutter_user_feedback_unread_port）、`[[swan_帮助与反馈页]]`
 - 上游：未知（疑似推送通知）；下游：消息详情 /me/messages/detail（未验证）
+
+## 反向引用
+<!-- backlinks:start -->
+
+| 引用来源 | 页面ID |
+|---------|--------|
+| digest/features/feature_账号体系.md | [[feature_账号体系]] |
+
+_自动生成于 2026-09-11 13:44_
+<!-- backlinks:end -->

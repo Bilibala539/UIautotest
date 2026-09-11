@@ -3,9 +3,9 @@ page_id: swan_歌单页
 name: "歌单页"
 aliases: [歌单列表, playlist_page]
 route: "/player/playlist"
-status: verified
+status: 已验证
 last_updated: 2026-09-10
-type: screen
+type: 页面
 package_name: com.swan.network
 activity: null
 orientation: portrait
@@ -21,7 +21,7 @@ orientation: portrait
 右上角图标打开「新建歌单」弹窗。与 `[[swan_收藏页]]`（SWAN收藏，我的页入口）展示同一批
 收藏歌单数据但 UI 不同（本页多平台 Tab/筛选 chip/新建入口，收藏页是"添加新的收藏歌单"流程）。
 
-⚠️ 全页无 accessibility key（除 `bottom_player`），定位全靠 OCR。
+⚠️ 全页无 无障碍键（除 `bottom_player`），定位全靠 OCR。
 
 ## 生效断言
 
@@ -48,25 +48,25 @@ orientation: portrait
 
 | 元素 | locator（key / OCR 文案 / 图片常量） | 类型 | 操作 | 成功断言 | 截图 | 验证状态 |
 |---|---|---|---|---|---|---|
-| 返回按钮 | 无文案 ImageView [0,72][134,184]（无 key/desc） | static | press_back 等效 | 回 `[[swan_首页]]` | 已转正 `SWAN_PLAYLIST_BACK_BTN`（2026-09-10 verify 实测存在） | verified |
-| 页面标题 | OCR"歌单" | static | 只读 | — | 待截（含顶栏） | verified |
-| 新建歌单入口 | 右上角无文案图标 [586,73][720,183] | static | click | 「新建歌单」弹窗出现（OCR"选择平台"） | 已转正 `SWAN_PLAYLIST_CREATE_BTN`（2026-09-10 verify 实测点击成功） | verified |
-| 平台筛选 Tab（SWAN/QQ音乐/网易云音乐/酷狗音乐） | `OCR"SWAN"` 等 | static | click | 切换平台歌单列表 | 已转正 `SWAN_PLAYLIST_TAB_SWAN`（未选中态；2026-09-10 verify 实测 QQ音乐 Tab 下图匹配+点击切回）；其余 Tab 待截 | verified |
-| 创建/聚合 chip | `OCR"创建"` / `OCR"聚合"`（SWAN Tab 专属） | static | click | 列表切换（创建=自建歌单，聚合=收藏聚合歌单） | 待截 | verified（存在性 OCR 实测；切换行为未验证） |
-| 收藏/创建 chip | `OCR"收藏"` / `OCR"创建"`（第三方平台 Tab 下） | static | click | 未验证（未授权） | 待截 | verified（存在性 OCR 实测；未点击） |
-| 歌单行 | `OCR"我的家庭"` / `OCR"我的音乐"`（行含"0首歌"） | dynamic | click | `[[swan_歌单详情页]]` 生效断言 | dynamic-不截图（行首固定部分可截） | verified（2026-09-10 verify 实测点"我的家庭"进详情页） |
-| 列表脚注 | OCR"已加载全部 · 共2个歌单" | dynamic | 只读 | — | dynamic-不截图 | verified |
-| 空态（创建筛选无歌单时） | OCR"你还没有在 Swans 创建过歌单 / 去创建一个吧～" + 「新建歌单」按钮 [246,1112][474,1192] | dynamic | 「新建歌单」按钮 click → 新建歌单弹窗 | — | dynamic-不截图（按钮可截） | draft（本账号聚合筛选有歌单，未触发空态） |
-| 未授权空态（第三方 Tab） | OCR"授权已过期 / 授权后再使用哦～ / 去授权"（2026-09-10 verify 实测文案） | dynamic | ⛔「去授权」授权类禁止点击 | — | dynamic-不截图 | verified |
-| 底部播放条 | `bottom_player`（key） | static | click | `[[swan_播放页]]` | 已有图 | verified |
+| 返回按钮 | 无文案 ImageView [0,72][134,184]（无无障碍键/desc） | 静态 | press_back 等效 | 回 `[[swan_首页]]` | 已转正 `SWAN_PLAYLIST_BACK_BTN`（2026-09-10 verify 实测存在） | 已验证 |
+| 页面标题 | OCR"歌单" | 静态 | 只读 | — | 待截（含顶栏） | 已验证 |
+| 新建歌单入口 | 右上角无文案图标 [586,73][720,183] | 静态 | click | 「新建歌单」弹窗出现（OCR"选择平台"） | 已转正 `SWAN_PLAYLIST_CREATE_BTN`（2026-09-10 verify 实测点击成功） | 已验证 |
+| 平台筛选 Tab（SWAN/QQ音乐/网易云音乐/酷狗音乐） | `OCR"SWAN"` 等 | 静态 | click | 切换平台歌单列表 | 已转正 `SWAN_PLAYLIST_TAB_SWAN`（未选中态；2026-09-10 verify 实测 QQ音乐 Tab 下图匹配+点击切回）；其余 Tab 待截 | 已验证 |
+| 创建/聚合 chip | `OCR"创建"` / `OCR"聚合"`（SWAN Tab 专属） | 静态 | click | 列表切换（创建=自建歌单，聚合=收藏聚合歌单） | 待截 | 已验证（存在性 OCR 实测；切换行为未验证） |
+| 收藏/创建 chip | `OCR"收藏"` / `OCR"创建"`（第三方平台 Tab 下） | 静态 | click | 未验证（未授权） | 待截 | 已验证（存在性 OCR 实测；未点击） |
+| 歌单行 | `OCR"我的家庭"` / `OCR"我的音乐"`（行含"0首歌"） | 动态 | click | `[[swan_歌单详情页]]` 生效断言 | 动态-不截图（行首固定部分可截） | 已验证（2026-09-10 verify 实测点"我的家庭"进详情页） |
+| 列表脚注 | OCR"已加载全部 · 共2个歌单" | 动态 | 只读 | — | 动态-不截图 | 已验证 |
+| 空态（创建筛选无歌单时） | OCR"你还没有在 Swans 创建过歌单 / 去创建一个吧～" + 「新建歌单」按钮 [246,1112][474,1192] | 动态 | 「新建歌单」按钮 click → 新建歌单弹窗 | — | 动态-不截图（按钮可截） | 草稿（本账号聚合筛选有歌单，未触发空态） |
+| 未授权空态（第三方 Tab） | OCR"授权已过期 / 授权后再使用哦～ / 去授权"（2026-09-10 verify 实测文案） | 动态 | ⛔「去授权」授权类禁止点击 | — | 动态-不截图 | 已验证 |
+| 底部播放条 | `bottom_player`（无障碍键） | 静态 | click | `[[swan_播放页]]` | 已有图 | 已验证 |
 
-### 「新建歌单」弹窗（本页内嵌 dialog，type: dialog）
+### 「新建歌单」弹窗（本页内嵌 弹窗，type: 弹窗）
 
 顶右上角图标或空态「新建歌单」按钮打开。元素：标题「新建歌单」+ 关闭按钮（无文案，
 [556,241][604,289]，press_back 一次实测未关闭、弹窗整体下移，需点关闭按钮，
 aw-verify 2026-09-10 补截 `SWAN_PLAYLIST_NEWDLG_CLOSE_BTN` 图定位实测关闭成功）；
 「选择平台」SWAN/QQ音乐/网易云音乐/酷狗音乐 四选一；「选择类型」自建歌单/聚合歌单 二选一；
-歌单名输入框（无 key，[116,659][604,735]）；「保存」按钮。
+歌单名输入框（无无障碍键，[116,659][604,735]）；「保存」按钮。
 ⛔ 保存会真实创建歌单，测试须自清理；2026-09-10 verify 实测开→关流程（未点保存）。
 
 ### 元素截图（2026-09-10 aw-verify 真机验证通过，已转正 image/flutter/）
@@ -110,8 +110,11 @@ aw-verify 2026-09-10 补截 `SWAN_PLAYLIST_NEWDLG_CLOSE_BTN` 图定位实测关�
 | 引用来源 | 页面ID |
 |---------|--------|
 | digest/features/feature_收藏管理.md | [[feature_收藏管理]] |
+| digest/flows/flow_歌单_新建歌单弹窗开关.md | [[flow_歌单_新建歌单弹窗开关]] |
+| pages/swan_授权门禁弹层.md | [[swan_授权门禁弹层]] |
 | pages/swan_歌单详情页.md | [[swan_歌单详情页]] |
+| pages/swan_选择歌单页.md | [[swan_选择歌单页]] |
 | pages/swan_首页.md | [[swan_首页]] |
 
-_自动生成于 2026-09-10 14:19_
+_自动生成于 2026-09-11 13:44_
 <!-- backlinks:end -->

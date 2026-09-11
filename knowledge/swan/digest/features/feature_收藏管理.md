@@ -2,7 +2,7 @@
 feature_id: feature_收藏管理
 name: "收藏管理"
 aliases: [收藏, 歌单]
-status: draft
+status: 草稿
 last_updated: 2026-09-10
 domains: [收藏与曲库]
 ---
@@ -17,16 +17,16 @@ domains: [收藏与曲库]
 
 | 页面 | 角色 | 状态 |
 |---|---|---|
-| `[[swan_收藏页]]` | 收藏分组列表（我的页入口，SWAN收藏） | page |
-| `[[swan_收藏分组详情页]]` | 分组内歌曲列表（收藏页路径，无更多按钮） | page |
-| `[[swan_歌单页]]` | 歌单列表 /player/playlist（首页歌单卡片入口，含新建歌单弹窗） | draft |
-| `[[swan_歌单详情页]]` | 统一歌单详情 /player/playlist-detail（歌单页路径，带 ⠀⋮ 修改/删除菜单） | draft |
-| `[[swan_我喜欢页]]` | 我喜欢歌曲列表（首页我喜欢卡片入口） | draft |
-| `[[swan_播放历史页]]` | 播放历史 /me/play-history（首页已播歌曲卡片入口） | draft |
-| `[[swan_统一音乐库页]]` | 统一音乐库 /player/unifiedMusic（⛔ 入口受限） | draft |
-| `[[swan_批量操作页]]` | 批量操作 /player/bulk-operate（⛔ 入口受限） | draft |
-| `[[swan_选择歌单页]]` | 选择歌单 /player/select-playlist（⛔ 入口受限） | draft |
-| `[[swan_家庭管理页]]` | 家庭成员/共享管理 | page |
+| `[[swan_收藏页]]` | 收藏分组列表（我的页入口，SWAN收藏） | 页面 |
+| `[[swan_收藏分组详情页]]` | 分组内歌曲列表（收藏页路径，无更多按钮） | 页面 |
+| `[[swan_歌单页]]` | 歌单列表 /player/playlist（首页歌单卡片入口，含新建歌单弹窗） | 草稿 |
+| `[[swan_歌单详情页]]` | 统一歌单详情 /player/playlist-detail（歌单页路径，带 ⠀⋮ 修改/删除菜单） | 草稿 |
+| `[[swan_我喜欢页]]` | 我喜欢歌曲列表（首页我喜欢卡片入口） | 草稿 |
+| `[[swan_播放历史页]]` | 播放历史 /me/play-history（首页已播歌曲卡片入口） | 草稿 |
+| `[[swan_统一音乐库页]]` | 统一音乐库 /player/unifiedMusic（⛔ 入口受限） | 草稿 |
+| `[[swan_批量操作页]]` | 批量操作 /player/bulk-operate（⛔ 入口受限） | 草稿 |
+| `[[swan_选择歌单页]]` | 选择歌单 /player/select-playlist（⛔ 入口受限） | 草稿 |
+| `[[swan_家庭管理页]]` | 家庭成员/共享管理 | 页面 |
 
 2026-09-10 Wave2 结论：歌单详情与收藏分组详情**布局同模板但两套行为**（歌单页路径带右上 ⠀⋮
 修改名称/删除歌单菜单，收藏页路径无）；数据同源（我的家庭/我的音乐）。统一音乐库/批量操作/选择歌单
@@ -41,3 +41,21 @@ domains: [收藏与曲库]
 ## 边界与危险操作
 
 - 删除分组/移除歌曲：测试环境可点，但用例需自清理（操作后恢复）。
+
+## 反向引用
+<!-- backlinks:start -->
+
+| 引用来源 | 页面ID |
+|---------|--------|
+| digest/flows/flow_收藏_查看分组空态.md | [[flow_收藏_查看分组空态]] |
+| digest/flows/flow_歌单_新建歌单弹窗开关.md | [[flow_歌单_新建歌单弹窗开关]] |
+| pages/swan_我喜欢页.md | [[swan_我喜欢页]] |
+| pages/swan_批量操作页.md | [[swan_批量操作页]] |
+| pages/swan_播放历史页.md | [[swan_播放历史页]] |
+| pages/swan_歌单详情页.md | [[swan_歌单详情页]] |
+| pages/swan_歌单页.md | [[swan_歌单页]] |
+| pages/swan_统一音乐库页.md | [[swan_统一音乐库页]] |
+| pages/swan_选择歌单页.md | [[swan_选择歌单页]] |
+
+_自动生成于 2026-09-11 13:44_
+<!-- backlinks:end -->

@@ -15,7 +15,7 @@
 
 ## 关键元素（来源：uiautomator dump）
 
-| key | 文案/说明 | clickable | 备注 |
+| 无障碍键 | 文案/说明 | 可点击 | 备注 |
 |---|---|---|---|
 | `login_page` | 页面根节点 | ✅ | 页面判据（与验证码页共用） |
 | `login_use_sms_button` | "验证码登入" | ✅ | **新采集**：切回验证码登录的反向入口（实测可用） |
@@ -26,13 +26,13 @@
 | `login_agreement_checkbox` | 协议勾选框 | ✅ | [100,996][160,1056] |
 | `login_error_text` | "密码错误，请重新输入！" | ❌ | **codegen 实测新发现**：错误提示是常驻语义节点而非 toast，可 key 断言 |
 
-无 key 元素（OCR）：密码可见性切换（眼睛图标，密码框右侧 ≈(595,794)，dump 无独立节点）；
+无无障碍键 元素（OCR）：密码可见性切换（眼睛图标，密码框右侧 ≈(595,794)，dump 无独立节点）；
 《隐私政策》《使用政策》链接（⛔ 授权/外部页类，勿点）。
 
 ## KEY_PASSWORD_FIELD 验证结论（本次核心任务）
 
 **`login_password_field` 真实存在，推断值正确**（2026-09-08 密码登入页全量 dump 实测，
-accessibility_exists 返回 True）。`SwanBusiness.KEY_PASSWORD_FIELD` 无需改值；
+无障碍_exists 返回 True）。`SwanBusiness.KEY_PASSWORD_FIELD` 无需改值；
 代码中的注释"⚠️ 尚未实机验证"已过时，由 codegen 更新为 ✅。
 
 页面全部 login* key（dump 实测）：
@@ -84,5 +84,5 @@ accessibility_exists 返回 True）。`SwanBusiness.KEY_PASSWORD_FIELD` 无需�
 | digest/features/feature_账号体系.md | [[feature_账号体系]] |
 | pages/swan_验证码登录页.md | [[swan_验证码登录页]] |
 
-_自动生成于 2026-09-10 14:19_
+_自动生成于 2026-09-11 13:44_
 <!-- backlinks:end -->

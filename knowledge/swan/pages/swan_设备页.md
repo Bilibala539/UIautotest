@@ -21,7 +21,7 @@
 - `FF311BB6_477E_9FD6_13A6_0E00FF31F012`（Libretto_0E00）
 - `FF315AE1_446A_A8D7_BBD3_003CFF31F012`（HiVi M5A_003C）
 
-| key | 文案/说明 | clickable | 备注 |
+| 无障碍键 | 文案/说明 | 可点击 | 备注 |
 |---|---|---|---|
 | `device_page` | 页面根节点 | ❌ | 页面判据 |
 | `device_add_button` | 添加设备（右上角） | ✅ | |
@@ -31,9 +31,9 @@
 | `wifi_device_settings_<UUID>` | 设备名入口（如"Libretto_0E00"） | ✅ | 未点（内含删除设备风险） |
 | `wifi_device_sync_<UUID>` | 同步设备 | ✅ | 未点（会向真机下发同步） |
 
-无 key 的 OCR 文本元素：
+无无障碍键 的 OCR 文本元素：
 
-| 文案 | clickable | 备注 |
+| 文案 | 可点击 | 备注 |
 |---|---|---|
 | 本机 / Apple / 低音炮 / DSP（左侧分类） | ✅ | 未点 |
 | 更多（每卡片） | ✅ | 未点（可能含删除设备） |
@@ -82,8 +82,9 @@
 |---------|--------|
 | digest/features/feature_导航框架.md | [[feature_导航框架]] |
 | digest/features/feature_设备管理.md | [[feature_设备管理]] |
+| digest/flows/flow_导航_四tab切换.md | [[flow_导航_四tab切换]] |
 | pages/swan_播放页.md | [[swan_播放页]] |
 | pages/swan_首页.md | [[swan_首页]] |
 
-_自动生成于 2026-09-10 14:19_
+_自动生成于 2026-09-11 13:44_
 <!-- backlinks:end -->

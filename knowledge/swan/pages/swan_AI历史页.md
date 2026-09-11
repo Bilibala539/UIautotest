@@ -3,9 +3,9 @@ page_id: swan_AI历史页
 name: "AI 历史对话记录"
 aliases: [AI历史, ai_history, 历史对话记录页]
 route: /ai/history
-status: draft
+status: 已验证
 last_updated: 2026-09-10
-type: screen
+type: 页面
 package_name: com.swan.network
 activity: null
 orientation: portrait
@@ -19,7 +19,7 @@ AI 对话历史全量页（路由 /ai/history，ai_history_page.dart）。标题
 下方为会话记录列表（每条：会话首句摘要 + AI 回复摘要，整行可点）。
 点击记录行 → 进入对应对话的 `[[swan_AI对话页]]`（对话内容回显）。
 本账号仅 1 条历史（Wave2 发送的 "play a song"）。
-页面极简：顶栏返回 + 标题 + 列表，无底部 tab、无 accessibility key。
+页面极简：顶栏返回 + 标题 + 列表，无底部 tab、无 无障碍键。
 
 注意区分：首页·AI Tab 也有一个「历史对话记录」**区块**（内嵌摘要），
 点区块内的记录行直接进 AI 对话页；只有点区块**标题行本身**（可点 ImageView）才进本页。
@@ -36,7 +36,7 @@ AI 对话历史全量页（路由 /ai/history，ai_history_page.dart）。标题
 
 | 来源页面 | 操作元素（locator） | 操作类型 | 到达断言 |
 |---|---|---|---|
-| `[[swan_首页AITab]]` | `OCR"历史对话记录"`（区块标题行本身，⚠️ 不是记录行；无 key，可点 ImageView） | click | 见「生效断言」（2026-09-10 Wave5 实测） |
+| `[[swan_首页AITab]]` | `OCR"历史对话记录"`（区块标题行本身，⚠️ 不是记录行；无无障碍键，可点 ImageView） | click | 见「生效断言」（2026-09-10 Wave5 实测） |
 
 自然语言补充：AI 对话页顶栏三图标（语音/字幕通话/自动朗读设备）均不是历史入口；
 本页入口只有 AI Tab 历史区标题行这一个。
@@ -45,10 +45,10 @@ AI 对话历史全量页（路由 /ai/history，ai_history_page.dart）。标题
 
 | 元素 | locator（key / OCR 文案 / 图片常量） | 类型 | 操作 | 成功断言 | 截图 | 验证状态 |
 |---|---|---|---|---|---|---|
-| 返回按钮 | 顶栏左上图标（无 key 无文案，[0,72][128,184]） | static | click / press_back | 回 `[[swan_首页AITab]]` | 待截 | verified（press_back 实测，落地 AI Tab） |
-| 页面标题行 | `OCR"历史对话记录"`（顶栏居中，OCR (252,110,469,150)） | static | 只读断言（region 限定顶栏） | 进入本页 | `swan_AI历史页_标题行.png`（正式） | draft（图像已采集，2026-09-10 aw-verify 真机存在断言通过后转正） |
-| 会话记录行 | OCR 记录摘要文案（如 "play a song"，整行可点；无 key） | dynamic | click | `[[swan_AI对话页]]`（对应对话回显，2026-09-10 Wave5 实测） | dynamic-不截图 | verified |
-| 空态 | 本账号未出现（已有 1 条历史）；推测无历史时显示空态文案（未验证） | dynamic | 只读 | — | dynamic-不截图 | draft |
+| 返回按钮 | 顶栏左上图标（无无障碍键 无文案，[0,72][128,184]） | 静态 | click / press_back | 回 `[[swan_首页AITab]]` | 待截 | 已验证（press_back 实测，落地 AI Tab） |
+| 页面标题行 | `OCR"历史对话记录"`（顶栏居中，OCR (252,110,469,150)） | 静态 | 只读断言（region 限定顶栏） | 进入本页 | `swan_AI历史页_标题行.png`（正式） | 草稿（图像已采集，2026-09-10 aw-verify 真机存在断言通过后转正） |
+| 会话记录行 | OCR 记录摘要文案（如 "play a song"，整行可点；无无障碍键） | 动态 | click | `[[swan_AI对话页]]`（对应对话回显，2026-09-10 Wave5 实测） | 动态-不截图 | 已验证 |
+| 空态 | 本账号未出现（已有 1 条历史）；推测无历史时显示空态文案（未验证） | 动态 | 只读 | — | 动态-不截图 | 草稿 |
 
 ### 元素截图（image/flutter）
 

@@ -3,9 +3,9 @@ page_id: swan_我喜欢页
 name: "我喜欢"
 aliases: [我喜欢页, my_likes]
 route: "/player/playlist-detail"   # 与歌单详情同模板的特殊歌单（我喜欢），独立路由待源码确认
-status: verified
+status: 已验证
 last_updated: 2026-09-10
-type: screen
+type: 页面
 package_name: com.swan.network
 activity: null
 orientation: portrait
@@ -21,7 +21,7 @@ orientation: portrait
 本页**无右上角更多按钮**（同收藏分组详情页）。
 
 ⚠️ 本账号当前空态区显示平台错误文案「QQ音乐登录TOKEN过期,请重新授权!」+「重试」按钮
-（QQ音乐授权过又过期所致），属 dynamic 错误态，不是稳定 UI。
+（QQ音乐授权过又过期所致），属 动态 错误态，不是稳定 UI。
 
 ## 生效断言
 
@@ -42,13 +42,13 @@ orientation: portrait
 
 | 元素 | locator（key / OCR 文案 / 图片常量） | 类型 | 操作 | 成功断言 | 截图 | 验证状态 |
 |---|---|---|---|---|---|---|
-| 返回按钮 | 无文案 ImageView [0,72][128,160] | static | press_back | 回 `[[swan_首页]]` | 待截 | verified（press_back 实测） |
-| 标题 | OCR"我喜欢"（y≈92-140） | static | 只读 | — | 待截 | verified |
-| 歌单头 | OCR"我喜欢"（y≈192-238）+"宝藏音乐，随心收藏" | dynamic | 只读 | — | dynamic-不截图 | verified |
-| 播放全部 | OCR"播放全部\n0首歌" [32,438][234,614] | static | ⛔ 播放控制类，只断言不点 | — | 已转正 `SWAN_FAVORITE_PLAY_ALL`（2026-09-10 verify 图断言通过；⚠️ 含"0首歌"计数，与歌单详情页分开截，歌单加歌后需重截） | verified |
-| 来源筛选 Tab | OCR"全部 (0)"/"QQ音乐 (0)"/"网易云音乐 (0)"/"酷狗音乐 (0)" | dynamic | click（未验证） | — | 待截 | verified（存在性 OCR 实测；未点击） |
-| 错误空态（本账号） | OCR"QQ音乐登录TOKEN过期,请重新授权!" + 「重试」按钮 | dynamic | 「重试」⛔ 涉及授权链路未点 | — | dynamic-不截图 | verified（2026-09-10 verify 实测仍在） |
-| 底部播放条 | `bottom_player`（key） | static | click | `[[swan_播放页]]` | 已有图 | verified |
+| 返回按钮 | 无文案 ImageView [0,72][128,160] | 静态 | press_back | 回 `[[swan_首页]]` | 待截 | 已验证（press_back 实测） |
+| 标题 | OCR"我喜欢"（y≈92-140） | 静态 | 只读 | — | 待截 | 已验证 |
+| 歌单头 | OCR"我喜欢"（y≈192-238）+"宝藏音乐，随心收藏" | 动态 | 只读 | — | 动态-不截图 | 已验证 |
+| 播放全部 | OCR"播放全部\n0首歌" [32,438][234,614] | 静态 | ⛔ 播放控制类，只断言不点 | — | 已转正 `SWAN_FAVORITE_PLAY_ALL`（2026-09-10 verify 图断言通过；⚠️ 含"0首歌"计数，与歌单详情页分开截，歌单加歌后需重截） | 已验证 |
+| 来源筛选 Tab | OCR"全部 (0)"/"QQ音乐 (0)"/"网易云音乐 (0)"/"酷狗音乐 (0)" | 动态 | click（未验证） | — | 待截 | 已验证（存在性 OCR 实测；未点击） |
+| 错误空态（本账号） | OCR"QQ音乐登录TOKEN过期,请重新授权!" + 「重试」按钮 | 动态 | 「重试」⛔ 涉及授权链路未点 | — | 动态-不截图 | 已验证（2026-09-10 verify 实测仍在） |
+| 底部播放条 | `bottom_player`（无障碍键） | 静态 | click | `[[swan_播放页]]` | 已有图 | 已验证 |
 
 判别补充（2026-09-10 verify 实测）：本页 `SWAN_PD_MORE_BTN` 图不存在（与
 `[[swan_歌单详情页]]` 的反证判据成立）。
@@ -81,5 +81,5 @@ orientation: portrait
 | pages/swan_歌单详情页.md | [[swan_歌单详情页]] |
 | pages/swan_首页.md | [[swan_首页]] |
 
-_自动生成于 2026-09-10 14:19_
+_自动生成于 2026-09-11 13:44_
 <!-- backlinks:end -->

@@ -3,9 +3,9 @@ page_id: swan_全国电台页
 name: "全国电台（FM 多级页族入口）"
 aliases: [fm_country_radio, 全国电台页]
 route: "/music_platform/radio/country"
-status: draft
+status: 已验证
 last_updated: 2026-09-10
-type: screen
+type: 页面
 package_name: com.swan.network
 activity: null
 orientation: portrait
@@ -26,10 +26,10 @@ fm_country_radio_page.dart）在未授权账号下所有入口均弹 `[[swan_授
 - 城市选择 `/music_platform/radio/select-city`（见 `[[swan_城市选择页]]`，嵌套在本页族内）
 
 2026-09-10 Wave4 实测入口与拦截证据：
-1. 平台页·电台分类 →「全国电台」行：行本体不可点（clickable=false，点击无反应），
+1. 平台页·电台分类 →「全国电台」行：行本体不可点（可点击=false，点击无反应），
    右侧**圆形箭头图标**可点 → 弹门禁（变体 A）
 2. 平台页·电台分类 →「90年代电台」「80年代电台」行：同构
-3. 首页电台 Tab →「全国电台」分组标题（整行 clickable）→ 弹门禁（变体 A）
+3. 首页电台 Tab →「全国电台」分组标题（整行 可点击）→ 弹门禁（变体 A）
 4. 首页电台 Tab →「80er-Radio harmony」分组标题 → 弹门禁（变体 A）
 5. 电台 Tab 内电台行（北京交通广播等）直接可点（触发播放，按约定不点）——
    即**电台行播放不需要授权，分组标题进多级页才需要**
@@ -42,7 +42,7 @@ fm_country_radio_page.dart）在未授权账号下所有入口均弹 `[[swan_授
 
 | 来源页面 | 操作元素（locator） | 操作类型 | 到达断言 |
 |---|---|---|---|
-| `[[swan_平台页]]` | 电台分类「全国电台」行右侧圆形箭头图标（无 key 无文案 → 图片 `SWAN_PLATFORM_RADIO_ROW_ARROW`） | click | ⚠️ 未授权账号弹 `[[swan_授权门禁弹层]]` |
+| `[[swan_平台页]]` | 电台分类「全国电台」行右侧圆形箭头图标（无无障碍键 无文案 → 图片 `SWAN_PLATFORM_RADIO_ROW_ARROW`） | click | ⚠️ 未授权账号弹 `[[swan_授权门禁弹层]]` |
 | `[[swan_首页电台Tab]]` | `OCR"全国电台"`（分组标题行） | click | ⚠️ 同上 |
 | `[[swan_首页电台Tab]]` | `OCR"80er-Radio harmony"` / OCR"90年代电台"（分组标题行） | click | ⚠️ 同上（80s/90s 变体入口） |
 
@@ -56,8 +56,8 @@ fm_country_radio_page.dart）在未授权账号下所有入口均弹 `[[swan_授
 
 | 元素 | locator | 类型 | 操作 | 成功断言 | 截图 | 验证状态 |
 |---|---|---|---|---|---|---|
-| 平台页电台行右侧箭头图标 | 无 key 无文案（圆形 chevron）→ 图片 `SWAN_PLATFORM_RADIO_ROW_ARROW` | static | click | 弹门禁（未授权） | `swan_平台_电台行箭头.png`（draft） | verified（拦截行为） |
-| 电台 Tab 分组标题 | `OCR"全国电台"` / `OCR"80er-Radio harmony"` | static | click | 弹门禁（未授权） | 待截 | verified（拦截行为） |
+| 平台页电台行右侧箭头图标 | 无无障碍键 无文案（圆形 chevron）→ 图片 `SWAN_PLATFORM_RADIO_ROW_ARROW` | 静态 | click | 弹门禁（未授权） | `swan_平台_电台行箭头.png`（草稿） | 已验证（拦截行为） |
+| 电台 Tab 分组标题 | `OCR"全国电台"` / `OCR"80er-Radio harmony"` | 静态 | click | 弹门禁（未授权） | 待截 | 已验证（拦截行为） |
 
 ## 页面布局
 
@@ -70,3 +70,13 @@ fm_country_radio_page.dart）在未授权账号下所有入口均弹 `[[swan_授
 - 上游：`[[swan_平台页]]`（电台分类）、`[[swan_首页电台Tab]]`
 - 下游：`[[swan_城市选择页]]`（推测）、电台播放
 - 阻断方：`[[swan_授权门禁弹层]]`
+
+## 反向引用
+<!-- backlinks:start -->
+
+| 引用来源 | 页面ID |
+|---------|--------|
+| pages/swan_城市选择页.md | [[swan_城市选择页]] |
+
+_自动生成于 2026-09-11 13:44_
+<!-- backlinks:end -->

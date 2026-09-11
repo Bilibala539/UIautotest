@@ -2,7 +2,7 @@
 flow_id: flow_搜索_关键词搜索全链路
 name: "首页音乐 Tab → 搜索条 → 输入英文关键词 → 顶栏搜索 → 结果页六分类 Tab → 返回"
 feature: "[[feature_平台聚合]]"
-status: draft
+status: 草稿
 last_updated: 2026-09-10
 automation: yes
 risk: low
@@ -53,7 +53,7 @@ risk: low
 - **risk（中文不可达）**：`input_text` 走 adb，仅英文有效（"piano"/"harmony" 实测成功）；中文关键词用例待 IME 方案（框架层，待用户决策）。
 - **risk（数据受限）**：本账号全平台未授权，搜索结果恒空态；艺人结果行 → `[[swan_艺人页]]` 入口因此未取得，单曲/歌单结果行为未验证（待授权账号）。
 - **risk（OCR 命中歧义）**：顶栏"搜索"与自定义 T9 键盘"搜索"键同名，OCR 定位必须 region 限定顶栏；顶部 Tab"音乐"与"网易云音乐""跨平台搜索音乐"有包含关系，依赖 OCR 自上而下首个命中（顶部 Tab 在最上方，实测稳定）。
-- **risk（页面状态 draft）**：`[[swan_搜索输入页]]` / `[[swan_搜索结果页]]` 文档仍在 draft/（Wave4 验证记录完整、图常量已转正，页面文档待 promote）；本 flow 引用的图常量均为 image/flutter/ 正式资产。
+- **risk（页面状态 草稿）**：`[[swan_搜索输入页]]` / `[[swan_搜索结果页]]` 文档仍在 draft/（Wave4 验证记录完整、图常量已转正，页面文档待 转正）；本 flow 引用的图常量均为 image/flutter/ 正式资产。
 - 功能地图已知 ANR BUG-004 影响 /search 后续 L2 用例执行（探索实测本账号可正常进出，自动化时留意环境）。
 
 ## 对应用例

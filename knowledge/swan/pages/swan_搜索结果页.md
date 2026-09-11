@@ -3,9 +3,9 @@ page_id: swan_搜索结果页
 name: "搜索结果页"
 aliases: [search_results, 搜索结果]
 route: "/search/results"
-status: draft
+status: 已验证
 last_updated: 2026-09-10
-type: screen
+type: 页面
 package_name: com.swan.network
 activity: null
 orientation: portrait
@@ -46,24 +46,24 @@ orientation: portrait
 
 | 元素 | locator（key / OCR 文案 / 图片常量） | 类型 | 操作 | 成功断言 | 截图 | 验证状态 |
 |---|---|---|---|---|---|---|
-| 返回按钮（左上） | 无 key 无文案（待截图） | static | click | 回 `[[swan_搜索输入页]]`（历史 chip 保留） | 待截 | verified（press_back 等效） |
-| 关键词输入框 | 原生 EditText（text=关键词，可直接 dump 断言） | dynamic | 修改后点搜索重新提交 | 新结果/空态 | dynamic-不截图 | draft |
-| 搜索按钮 | `OCR"搜索"`（顶栏右，region 限定）或图片 `SWAN_SEARCH_SUBMIT`（与输入页共用） | static | click | 重新搜索 | `swan_搜索输入页_搜索按钮.png`（draft） | verified |
-| 六分类 Tab | `OCR"单曲"` 等（Tab 行 y≈218-288，region 限定） | static | click | 内容区切换 | 待截 | verified（艺人 Tab 实测原地切换） |
-| 空态文案 | `OCR"没有找到相关结果"` 或图片 `SWAN_SEARCH_EMPTY` | static | 只读断言 | — | `swan_搜索结果页_空态文案.png`（draft） | verified |
-| 结果行（单曲/艺人/专辑等） | 未取得（本账号空态） | dynamic | — | — | dynamic-不截图 | blocked（需授权账号） |
+| 返回按钮（左上） | 无无障碍键 无文案（待截图） | 静态 | click | 回 `[[swan_搜索输入页]]`（历史 chip 保留） | 待截 | 已验证（press_back 等效） |
+| 关键词输入框 | 原生 EditText（text=关键词，可直接 dump 断言） | 动态 | 修改后点搜索重新提交 | 新结果/空态 | 动态-不截图 | 草稿 |
+| 搜索按钮 | `OCR"搜索"`（顶栏右，region 限定）或图片 `SWAN_SEARCH_SUBMIT`（与输入页共用） | 静态 | click | 重新搜索 | `swan_搜索输入页_搜索按钮.png`（草稿） | 已验证 |
+| 六分类 Tab | `OCR"单曲"` 等（Tab 行 y≈218-288，region 限定） | 静态 | click | 内容区切换 | 待截 | 已验证（艺人 Tab 实测原地切换） |
+| 空态文案 | `OCR"没有找到相关结果"` 或图片 `SWAN_SEARCH_EMPTY` | 静态 | 只读断言 | — | `swan_搜索结果页_空态文案.png`（草稿） | 已验证 |
+| 结果行（单曲/艺人/专辑等） | 未取得（本账号空态） | 动态 | — | — | 动态-不截图 | blocked（需授权账号） |
 
 ### 元素截图（image/flutter）
 
 | 元素 | 建议常量 | 图片文件 |
 |---|---|---|
-| 搜索按钮 | `SWAN_SEARCH_SUBMIT`（与输入页共用，采集一次） | image_ai/flutter/swan_搜索输入页_搜索按钮.png（2026-09-10 已采集，draft） |
-| 空态文案 | `SWAN_SEARCH_EMPTY` | image_ai/flutter/swan_搜索结果页_空态文案.png（2026-09-10 已采集，draft） |
+| 搜索按钮 | `SWAN_SEARCH_SUBMIT`（与输入页共用，采集一次） | image/flutter/swan_搜索输入页_搜索按钮.png（2026-09-10 已转正） |
+| 空态文案 | `SWAN_SEARCH_EMPTY` | image/flutter/swan_搜索结果页_空态文案.png（2026-09-10 已转正） |
 
 ## 页面布局
 
 - 顶栏：返回 + 关键词框（回填）+ 搜索按钮
-- Tab 行：单曲 | 艺人 | 专辑 | 歌单 | 电台 | 播客（六等分，均 clickable）
+- Tab 行：单曲 | 艺人 | 专辑 | 歌单 | 电台 | 播客（六等分，均 可点击）
 - 内容区：结果列表（未授权账号为空态居中「没有找到相关结果」）
 - 底栏：bottom_player（可见）；无全局 4 tab
 
@@ -73,3 +73,15 @@ orientation: portrait
 - 上游：`[[swan_搜索输入页]]`
 - 下游：艺人结果行 → `[[swan_艺人页]]`（未授权不可达）；单曲/歌单结果 → 播放/歌单详情（未验证）
 - 功能地图对应：搜索结果页 /search/results（ANR BUG-004 仅影响后续用例执行，本页进出实测正常）
+
+## 反向引用
+<!-- backlinks:start -->
+
+| 引用来源 | 页面ID |
+|---------|--------|
+| digest/flows/flow_搜索_关键词搜索全链路.md | [[flow_搜索_关键词搜索全链路]] |
+| pages/swan_搜索输入页.md | [[swan_搜索输入页]] |
+| pages/swan_艺人页.md | [[swan_艺人页]] |
+
+_自动生成于 2026-09-11 13:44_
+<!-- backlinks:end -->

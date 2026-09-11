@@ -12,9 +12,9 @@ Swan（com.swan.network v5.3.0）启动后的默认落地页。手机号 + 验�
 - 启动 App：`adb shell monkey -p com.swan.network -c android.intent.category.LAUNCHER 1`，约 5s 后落到本页
 - 从密码登录页：点右上角"密码登入"的反向切换（key 待密码页 dump 后补充）
 
-## 关键元素（来源：uiautomator dump，accessibility key）
+## 关键元素（来源：uiautomator dump，无障碍键）
 
-| key | 文案/说明 | clickable | 备注 |
+| 无障碍键 | 文案/说明 | 可点击 | 备注 |
 |---|---|---|---|
 | `login_page` | 页面根节点 | ✅ | |
 | `login_use_password_button` | 密码登入（右上角切换） | ✅ | 已固化 SwanBusiness.KEY_USE_PASSWORD_BUTTON |
@@ -22,8 +22,8 @@ Swan（com.swan.network v5.3.0）启动后的默认落地页。手机号 + 验�
 | `login_phone_field` | 手机号输入框（hint：请输入手机号） | ❌ | 点击后聚焦输入 |
 | `login_submit_button` | 下一步 | ✅ | 未输手机号时置灰 |
 | `login_agreement_checkbox` | 已经阅读并同意勾选框 | ✅ | |
-| 《隐私政策》 | 文案链接（无 key） | ✅ | OCR 文本定位 |
-| 《使用政策》 | 文案链接（无 key） | ✅ | OCR 文本定位 |
+| 《隐私政策》 | 文案链接（无无障碍键） | ✅ | OCR 文本定位 |
+| 《使用政策》 | 文案链接（无无障碍键） | ✅ | OCR 文本定位 |
 | `login_third_party_wechat_button` | 微信登录 | ✅ | |
 | `login_third_party_weibo_button` | 微博登录 | ✅ | |
 
@@ -69,10 +69,11 @@ Swan（com.swan.network v5.3.0）启动后的默认落地页。手机号 + 验�
 | 引用来源 | 页面ID |
 |---------|--------|
 | digest/features/feature_账号体系.md | [[feature_账号体系]] |
+| digest/flows/flow_登录_验证码登录全链路.md | [[flow_登录_验证码登录全链路]] |
 | pages/swan_个人信息页.md | [[swan_个人信息页]] |
 | pages/swan_区号选择页.md | [[swan_区号选择页]] |
 | pages/swan_密码登入页.md | [[swan_密码登入页]] |
 | pages/swan_验证码输入页.md | [[swan_验证码输入页]] |
 
-_自动生成于 2026-09-10 14:19_
+_自动生成于 2026-09-11 13:44_
 <!-- backlinks:end -->

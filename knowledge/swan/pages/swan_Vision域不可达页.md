@@ -3,9 +3,9 @@ page_id: swan_Vision域不可达页
 name: "Vision 可视音箱域页面族（壁纸/唤醒词/语音包/高级设置）"
 aliases: [vision_wallpaper, 壁纸, wake_words, 唤醒词, voice_pack, 语音包, vision_advanced, 高级设置]
 route: null              # 族内路由：/vision/wallpaper、/vision/wake-words、/vision/voice-pack、/vision/advanced-settings*
-status: draft
+status: 已验证
 last_updated: 2026-09-10
-type: screen
+type: 页面
 package_name: com.swan.network
 activity: null
 orientation: portrait

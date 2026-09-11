@@ -15,21 +15,21 @@
 
 ## 关键元素（来源：uiautomator dump）
 
-| key | 文案/说明 | clickable | 备注 |
+| 无障碍键 | 文案/说明 | 可点击 | 备注 |
 |---|---|---|---|
 | `platform_page` | 页面根节点（文本含"平台/总资产（惠币/HC）/0.50000000/充值购买便可购买更多服务哦"） | ❌ | 可作页面判据 |
-| `netease_platform_entry` | 网易云音乐 未授权 | ✅ | 唯一有 key 的平台行 |
+| `netease_platform_entry` | 网易云音乐 未授权 | ✅ | 唯一有无障碍键 的平台行 |
 | `bottom_player` | 底部播放条 | ✅ | 全局 |
 | `tab_recommend` / `tab_platform` / `tab_device` / `tab_me` | 全局 tab | ✅ | |
 
-无 key 的 OCR 文本元素：
+无无障碍键 的 OCR 文本元素：
 
-| 文案 | clickable | 备注 |
+| 文案 | 可点击 | 备注 |
 |---|---|---|
 | 消费明细（右上角） | ✅ | 待探索（未点） |
 | 充值 + 充值按钮（VIP 卡片右侧，OCR"充值"） | ✅ | 涉及真实付费，未点 |
 | 音乐 / AI / 电台（左侧分类栏） | ✅ | 分类切换，未点 |
-| QQ音乐/Spotify/网易云音乐/酷狗音乐/Apple Music/Qobuz 行 | ✅ | 各行右侧有一个"+"图标按钮（OCR 识别为 +/?，无 key，推测为授权/添加入口，未点） |
+| QQ音乐/Spotify/网易云音乐/酷狗音乐/Apple Music/Qobuz 行 | ✅ | 各行右侧有一个"+"图标按钮（OCR 识别为 +/?，无无障碍键，推测为授权/添加入口，未点） |
 
 
 ### 元素截图（image/flutter，2026-09-08 aw-element 采集 + verify 复验转正）
@@ -61,7 +61,7 @@
 
 - 充值/消费明细/平台授权按钮均未点击（涉及真实资产/授权，留待用户决策或专项测试）
 - AI、电台分类页签内容未探索
-- 平台行右侧"+"按钮无 key，后续需 element 截图或 OCR 文案确认
+- 平台行右侧"+"按钮无无障碍键，后续需 element 截图或 OCR 文案确认
 
 ## 关联
 
@@ -74,8 +74,12 @@
 |---------|--------|
 | digest/features/feature_导航框架.md | [[feature_导航框架]] |
 | digest/features/feature_平台聚合.md | [[feature_平台聚合]] |
+| digest/flows/flow_导航_四tab切换.md | [[flow_导航_四tab切换]] |
+| pages/swan_DIY形象页.md | [[swan_DIY形象页]] |
+| pages/swan_全国电台页.md | [[swan_全国电台页]] |
+| pages/swan_授权门禁弹层.md | [[swan_授权门禁弹层]] |
 | pages/swan_播放页.md | [[swan_播放页]] |
 | pages/swan_首页.md | [[swan_首页]] |
 
-_自动生成于 2026-09-10 14:19_
+_自动生成于 2026-09-11 13:44_
 <!-- backlinks:end -->

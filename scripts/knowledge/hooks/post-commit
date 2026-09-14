@@ -1,0 +1,4 @@
+#!/bin/sh
+# git commit 后触发 KB 双层索引同步
+export KB_DIFF_BASE=HEAD~1
+"$(dirname "$0")/kb_auto_update.sh"

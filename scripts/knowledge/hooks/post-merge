@@ -1,0 +1,4 @@
+#!/bin/sh
+# git pull/merge 完成后触发 KB 双层索引同步(以 pull 前的 ORIG_HEAD 为变更基准)
+export KB_DIFF_BASE=ORIG_HEAD
+"$(dirname "$0")/kb_auto_update.sh"

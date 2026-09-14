@@ -4,7 +4,7 @@ name: "我喜欢"
 aliases: [我喜欢页, my_likes]
 route: "/player/playlist-detail"   # 与歌单详情同模板的特殊歌单（我喜欢），独立路由待源码确认
 status: 已验证
-last_updated: 2026-09-10
+last_updated: 2026-09-14
 type: 页面
 package_name: com.swan.network
 activity: null
@@ -48,7 +48,7 @@ orientation: portrait
 | 播放全部 | OCR"播放全部\n0首歌" [32,438][234,614] | 静态 | ⛔ 播放控制类，只断言不点 | — | 已转正 `SWAN_FAVORITE_PLAY_ALL`（2026-09-10 verify 图断言通过；⚠️ 含"0首歌"计数，与歌单详情页分开截，歌单加歌后需重截） | 已验证 |
 | 来源筛选 Tab | OCR"全部 (0)"/"QQ音乐 (0)"/"网易云音乐 (0)"/"酷狗音乐 (0)" | 动态 | click（未验证） | — | 待截 | 已验证（存在性 OCR 实测；未点击） |
 | 错误空态（本账号） | OCR"QQ音乐登录TOKEN过期,请重新授权!" + 「重试」按钮 | 动态 | 「重试」⛔ 涉及授权链路未点 | — | 动态-不截图 | 已验证（2026-09-10 verify 实测仍在） |
-| 底部播放条 | `bottom_player`（无障碍键） | 静态 | click | `[[swan_播放页]]` | 已有图 | 已验证 |
+| 底部播放条 | `bottom_player`（resource-id） | 静态 | click | `[[swan_播放页]]` | 已有图 | 已验证 |
 
 判别补充（2026-09-10 verify 实测）：本页 `SWAN_PD_MORE_BTN` 图不存在（与
 `[[swan_歌单详情页]]` 的反证判据成立）。

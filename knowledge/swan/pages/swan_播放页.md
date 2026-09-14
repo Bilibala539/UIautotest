@@ -4,7 +4,7 @@ name: "播放页"
 aliases: [全屏播放页, full_player, player]
 route: "/player"
 status: 页面
-last_updated: 2026-09-10
+last_updated: 2026-09-14
 type: 页面
 package_name: com.swan.network
 activity: null
@@ -36,9 +36,9 @@ AI 点歌也被拒"音乐服务需要授权"，无法建立播放任务）。有
 
 | 来源页面 | 操作元素（locator） | 操作类型 | 到达断言 |
 |---|---|---|---|
-| `[[swan_首页]]` | `bottom_player`（无障碍键） | click | 见「生效断言」 |
-| `[[swan_我的页]]` / `[[swan_平台页]]` / `[[swan_设备页]]` | `bottom_player`（无障碍键） | click | 同上（transitions 中部分仍标 pending） |
-| `[[swan_歌单详情页]]` / `[[swan_收藏分组详情页]]` / `[[swan_我喜欢页]]` 等 push 页 | `bottom_player`（无障碍键，贴底） | click | 同上 |
+| `[[swan_首页]]` | `bottom_player`（resource-id） | click | 见「生效断言」 |
+| `[[swan_我的页]]` / `[[swan_平台页]]` / `[[swan_设备页]]` | `bottom_player`（resource-id） | click | 同上（transitions 中部分仍标 pending） |
+| `[[swan_歌单详情页]]` / `[[swan_收藏分组详情页]]` / `[[swan_我喜欢页]]` 等 push 页 | `bottom_player`（resource-id，贴底） | click | 同上 |
 
 ## 关键元素
 
@@ -47,17 +47,17 @@ AI 点歌也被拒"音乐服务需要授权"，无法建立播放任务）。有
 
 | 元素 | locator（key / OCR 文案 / 图片常量） | 类型 | 操作 | 成功断言 | 截图 | 验证状态 |
 |---|---|---|---|---|---|---|
-| 页面根节点 | `full_player_page`（无障碍键，desc 含设备名+时间） | 动态 | 只读判据 | — | 动态-不截图 | 已验证 |
-| 收起/返回 | `player_dismiss_button`（无障碍键） | 静态 | click | 回到进入前页面 | `SWAN_PLAYER_DISMISS_BTN` | 已验证 |
-| 输出设备切换 | `player_device_button`（无障碍键，右上角） | 静态 | click | `[[swan_切换设备弹层]]` 生效断言（`multiroom_sheet`） | 已截 `SWAN_PLAYER_DEVICE_BTN`（image_ai 草稿，2026-09-10） | 草稿 |
+| 页面根节点 | `full_player_page`（resource-id，desc 含设备名+时间） | 动态 | 只读判据 | — | 动态-不截图 | 已验证 |
+| 收起/返回 | `player_dismiss_button`（resource-id） | 静态 | click | 回到进入前页面 | `SWAN_PLAYER_DISMISS_BTN` | 已验证 |
+| 输出设备切换 | `player_device_button`（resource-id，右上角） | 静态 | click | `[[swan_切换设备弹层]]` 生效断言（`multiroom_sheet`） | 已截 `SWAN_PLAYER_DEVICE_BTN`（image_ai 草稿，2026-09-10） | 草稿 |
 | 曲目名/歌手 | `player_title`（key；无任务 desc"- -\n---"） | 动态 | 只读 | — | 动态-不截图 | 已验证 |
 | 进度条 + 时间 | OCR"00:00 / 00:00"（无无障碍键） | 动态 | 只读 | — | 动态-不截图 | 草稿 |
-| 循环模式 | `player_loop_mode_button`（无障碍键） | 静态 | ⛔ 只断言不点 | — | 待截 | 草稿 |
-| 上一首 | `player_previous_button`（无障碍键） | 静态 | ⛔ 只断言不点 | — | 待截 | 草稿 |
-| 播放/暂停 | `player_play_pause_button`（无障碍键） | 静态 | ⛔ 只断言不点（真实音箱安全约定） | `image_exists(SWAN_PLAYER_PLAY_PAUSE_BTN)` | 已有（▶ 态） | 已验证 |
-| 下一首 | `player_next_button`（无障碍键） | 静态 | ⛔ 只断言不点 | — | 待截 | 草稿 |
-| 播放队列 | `player_queue_button`（无障碍键，右下） | 静态 | ⛔ 只断言不点 | ⚠️ 无播放任务时点击**无任何反应**（2026-09-10 实测），队列 弹层 待有任务账号复验 | 待截 | 草稿 |
-| 音量 | `player_volume_button`（无障碍键，OCR"0%"） | 静态 | ⛔ 只断言不点（不改音量） | — | 待截 | 草稿 |
+| 循环模式 | `player_loop_mode_button`（resource-id） | 静态 | ⛔ 只断言不点 | — | 待截 | 草稿 |
+| 上一首 | `player_previous_button`（resource-id） | 静态 | ⛔ 只断言不点 | — | 待截 | 草稿 |
+| 播放/暂停 | `player_play_pause_button`（resource-id） | 静态 | ⛔ 只断言不点（真实音箱安全约定） | `image_exists(SWAN_PLAYER_PLAY_PAUSE_BTN)` | 已有（▶ 态） | 已验证 |
+| 下一首 | `player_next_button`（resource-id） | 静态 | ⛔ 只断言不点 | — | 待截 | 草稿 |
+| 播放队列 | `player_queue_button`（resource-id，右下） | 静态 | ⛔ 只断言不点 | ⚠️ 无播放任务时点击**无任何反应**（2026-09-10 实测），队列 弹层 待有任务账号复验 | 待截 | 草稿 |
+| 音量 | `player_volume_button`（resource-id，OCR"0%"） | 静态 | ⛔ 只断言不点（不改音量） | — | 待截 | 草稿 |
 | 输出设备名 | OCR"扬声器"（页顶中央） | 动态 | 只读 | — | 动态-不截图 | 草稿 |
 
 ### 元素截图（image/flutter，2026-09-08 aw-element 采集 + verify 复验转正）

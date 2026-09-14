@@ -4,7 +4,7 @@ name: "选择歌单"
 aliases: [select_playlist]
 route: "/player/select-playlist"
 status: 已验证
-last_updated: 2026-09-10
+last_updated: 2026-09-14
 type: 页面
 package_name: com.swan.network
 activity: null
@@ -15,9 +15,10 @@ orientation: portrait
 
 ## 页面概述
 
-⛔ **入口受限**：`select_playlist/`（`/player/select-playlist`）未找到 UI 入口。预期入口形态为
-「收藏/加入歌单」动作的目标选择页（歌曲行菜单或批量操作页的下游），本账号无歌曲数据且平台未授权，
-无法触发。待 Wave 2b 复验。
+⛔ **入口路径未知**（2026-09-11 R3 归因修正）。`select_playlist/`（`/player/select-playlist`）
+预期入口形态为「收藏/加入歌单」动作的目标选择页。原记"疑似歌曲收藏菜单/批量操作页下游"
+已被证伪：.229 全量 dump 零命中，.144 已排除批量操作页路径（见 [[swan_批量操作页]]），
+**与账号数据量无关**。待后续复验。
 
 ## 生效断言
 
@@ -27,7 +28,7 @@ orientation: portrait
 
 | 来源页面 | 操作元素（locator） | 操作类型 | 到达断言 |
 |---|---|---|---|
-| （未知，疑似歌曲收藏菜单 / `[[swan_批量操作页]]`） | — | — | — |
+| （未知；已排除批量操作页路径与账号数据量归因） | — | — | — |
 
 ## 关键元素
 

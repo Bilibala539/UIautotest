@@ -4,7 +4,7 @@ name: "首页·可视音箱 Tab"
 aliases: [可视音箱Tab, home_vision_page, Vision]
 route: null              # 内嵌于 /home/main 五顶 Tab 容器，无独立路由
 status: 已验证
-last_updated: 2026-09-10
+last_updated: 2026-09-14
 type: 页面
 package_name: com.swan.network
 activity: null
@@ -43,8 +43,8 @@ orientation: portrait
 | 顶部 Tab 行 | `OCR"可视音箱"` / `SWAN_HOME_TAB_VISION`（图，未选中态） | 静态 | click | 本页生效断言 | 已截 | 已验证 |
 | 添加引导标题 | `OCR"添加可视音响"` | 静态 | 只读断言（⛔ 不点——推测进添加设备/配网流程，禁止误触） | — | 待截 | 草稿 |
 | 未绑定提示 | `OCR"暂未添加可视音箱，此功能不可使用"` / `SWAN_HOME_VISION_UNBOUND_HINT`（图） | 静态 | 只读断言 | — | 已截 | 已验证 |
-| 底部播放条 | `bottom_player`（无障碍键） | 静态 | click | `[[swan_播放页]]` | 已有图 | 草稿 |
-| 底部 4 tab | `tab_recommend` 等（无障碍键） | 静态 | click | 对应 tab 页 | 已有图 | 草稿 |
+| 底部播放条 | `bottom_player`（resource-id） | 静态 | click | `[[swan_播放页]]` | 已有图 | 草稿 |
+| 底部 4 tab | `tab_recommend` 等（resource-id） | 静态 | click | 对应 tab 页 | 已有图 | 草稿 |
 
 ### 元素截图（image/flutter）
 

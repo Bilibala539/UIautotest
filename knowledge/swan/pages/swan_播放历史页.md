@@ -4,7 +4,7 @@ name: "播放历史"
 aliases: [最近播放, play_history]
 route: "/me/play-history"
 status: 已验证
-last_updated: 2026-09-10
+last_updated: 2026-09-14
 type: 页面
 package_name: com.swan.network
 activity: null
@@ -47,7 +47,7 @@ orientation: portrait
 | 标题 | OCR"最近播放" [287,104][433,152] | 静态 | 只读 | — | 已转正（含顶栏）`SWAN_HISTORY_TOPBAR`（2026-09-10 verify 图断言通过） | 已验证 |
 | 分类 Tab | OCR"歌曲"/"艺人"/"专辑"/"歌单"/"电台"/"播客"（六 Tab，y≈204-276） | 静态 | click | 列表切换（未逐一验证） | 已转正（Tab 条整条）`SWAN_HISTORY_TABBAR`（2026-09-10 verify 图断言通过，歌曲 Tab 选中态） | 已验证 |
 | 空态 | OCR"暂无历史播放" [0,732][720,772] | 动态 | 只读 | — | 动态-不截图 | 已验证（2026-09-10 verify 实测） |
-| 底部播放条 | `bottom_player`（无障碍键，[0,1470][720,1528]） | 静态 | click | `[[swan_播放页]]` | 已有图 | 已验证 |
+| 底部播放条 | `bottom_player`（resource-id，[0,1470][720,1528]） | 静态 | click | `[[swan_播放页]]` | 已有图 | 已验证 |
 
 ### 元素截图（2026-09-10 aw-verify 真机验证通过，已转正 image/flutter/）
 

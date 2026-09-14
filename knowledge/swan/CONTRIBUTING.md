@@ -48,7 +48,16 @@
 - flow 的 `risk: high`（充值/注销/删除设备）只断言不点击
 - 新建 feature/flow 后更新 `app_map.json` 的 `feature_categories` 与 `flows` 字段
 
-## 7. 双层索引维护
+## 7. 键型标注与 dump 时序（2026-09-11 R3 修订）
+
+- 键型标注：`bottom_player` / `tab_*` / `full_player_page` / `player_*` / `person_info_*` /
+  `me_user_profile_entry` / `multiroom_sheet` / `device_*` / `wifi_device_*` 实机均为
+  **resource-id**，不是 content-desc（R3 P0-2，.62 提出/.229 三方确认）。新页面一律标注
+  `resource-id`；旧页面的「无障碍键」括注已在 R4 统一替换为 resource-id。
+- dump 时序坑：页面转场后立即 dump 语义树常不完整，需等待 2-3s 或重试
+  （nav.py 已内置 3 次重试；R3 P2-12）。dump 结果异常时先怀疑时序，再怀疑结构。
+
+## 8. 双层索引维护
 
 ```
 git commit → post-commit hook → auto_update.py

@@ -4,7 +4,7 @@ name: "歌单页"
 aliases: [歌单列表, playlist_page]
 route: "/player/playlist"
 status: 已验证
-last_updated: 2026-09-10
+last_updated: 2026-09-14
 type: 页面
 package_name: com.swan.network
 activity: null
@@ -58,7 +58,7 @@ orientation: portrait
 | 列表脚注 | OCR"已加载全部 · 共2个歌单" | 动态 | 只读 | — | 动态-不截图 | 已验证 |
 | 空态（创建筛选无歌单时） | OCR"你还没有在 Swans 创建过歌单 / 去创建一个吧～" + 「新建歌单」按钮 [246,1112][474,1192] | 动态 | 「新建歌单」按钮 click → 新建歌单弹窗 | — | 动态-不截图（按钮可截） | 草稿（本账号聚合筛选有歌单，未触发空态） |
 | 未授权空态（第三方 Tab） | OCR"授权已过期 / 授权后再使用哦～ / 去授权"（2026-09-10 verify 实测文案） | 动态 | ⛔「去授权」授权类禁止点击 | — | 动态-不截图 | 已验证 |
-| 底部播放条 | `bottom_player`（无障碍键） | 静态 | click | `[[swan_播放页]]` | 已有图 | 已验证 |
+| 底部播放条 | `bottom_player`（resource-id） | 静态 | click | `[[swan_播放页]]` | 已有图 | 已验证 |
 
 ### 「新建歌单」弹窗（本页内嵌 弹窗，type: 弹窗）
 

@@ -17,6 +17,8 @@
 
 ⚠️ 设备卡片类 key 按设备 MAC/UUID 动态拼接，模式固定但后缀因设备而异：
 `wifi_device_card_<UUID>` / `wifi_device_settings_<UUID>` / `wifi_device_sync_<UUID>`。
+另：`wifi_device_selected_<UUID>` 为**选中态才出现的动态键**（2026-09-11 R3 补充）：
+.229 常规 dump 无此键，.144 选中设备后出现 ⇒ 仅设备被选中时存在，勿用作常驻判据。
 当前实测两台设备 UUID：
 - `FF311BB6_477E_9FD6_13A6_0E00FF31F012`（Libretto_0E00）
 - `FF315AE1_446A_A8D7_BBD3_003CFF31F012`（HiVi M5A_003C）

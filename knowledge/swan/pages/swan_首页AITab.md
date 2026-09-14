@@ -4,7 +4,7 @@ name: "首页·AI Tab"
 aliases: [AITab, home_ai_page, AI角色主页]
 route: /home/aiRoles
 status: 已验证
-last_updated: 2026-09-10
+last_updated: 2026-09-14
 type: 页面
 package_name: com.swan.network
 activity: null
@@ -49,8 +49,8 @@ orientation: portrait
 | AI 角色设置 | `SWAN_HOME_AI_ROLE_SETTINGS`（图，右 pill；⚠️ 实为图标按钮无文案，OCR 无文本） | 静态 | click（2026-09-10 实测：落地「所有角色」页，含系统角色列表+自定义区） | 落地页标题"所有角色" | 已截 | 已验证 |
 | 历史对话记录标题 | `OCR"历史对话记录"` | 静态 | 只读断言 | — | 待截 | 草稿 |
 | 历史对话空态 | `OCR"暂无对话记录"` | 动态 | 只读 | — | 动态-不截图 | 草稿 |
-| 底部播放条 | `bottom_player`（无障碍键） | 静态 | click | `[[swan_播放页]]` | 已有图 | 草稿 |
-| 底部 4 tab | `tab_recommend` 等（无障碍键） | 静态 | click | 对应 tab 页 | 已有图 | 草稿 |
+| 底部播放条 | `bottom_player`（resource-id） | 静态 | click | `[[swan_播放页]]` | 已有图 | 草稿 |
+| 底部 4 tab | `tab_recommend` 等（resource-id） | 静态 | click | 对应 tab 页 | 已有图 | 草稿 |
 
 ### 元素截图（image/flutter）
 

@@ -4,7 +4,7 @@ name: "首页·电台 Tab"
 aliases: [电台Tab, home_radio_page]
 route: null              # 内嵌于 /home/main 五顶 Tab 容器，无独立路由
 status: 已验证
-last_updated: 2026-09-10
+last_updated: 2026-09-14
 type: 页面
 package_name: com.swan.network
 activity: null
@@ -47,8 +47,8 @@ orientation: portrait
 | 分组标题 | `OCR"全国电台"` | 静态 | 只读断言 | — | 待截 | 草稿 |
 | 电台行（台名+频率+封面） | OCR 台名（如"北京交通广播"） | 动态 | ⛔ 不点（触发播放，未探索） | — | 动态-不截图 | 草稿 |
 | 80/90 年代分组 | OCR"harmony"（部分可见） | 动态 | 只读 | — | 动态-不截图 | 草稿 |
-| 底部播放条 | `bottom_player`（无障碍键） | 静态 | click | `[[swan_播放页]]` | 已有图 | 草稿 |
-| 底部 4 tab | `tab_recommend` / `tab_platform` / `tab_device` / `tab_me`（无障碍键） | 静态 | click | 对应 tab 页 | 已有图 | 草稿 |
+| 底部播放条 | `bottom_player`（resource-id） | 静态 | click | `[[swan_播放页]]` | 已有图 | 草稿 |
+| 底部 4 tab | `tab_recommend` / `tab_platform` / `tab_device` / `tab_me`（resource-id） | 静态 | click | 对应 tab 页 | 已有图 | 草稿 |
 
 ### 元素截图（image/flutter）
 

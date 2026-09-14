@@ -4,7 +4,7 @@ name: "首页·音乐 Tab"
 aliases: [音乐Tab, home_music_page]
 route: null              # 内嵌于 /home/main 五顶 Tab 容器，无独立路由
 status: 已验证
-last_updated: 2026-09-10
+last_updated: 2026-09-14
 type: 页面
 package_name: com.swan.network
 activity: null
@@ -49,8 +49,8 @@ orientation: portrait
 | 搜索条 | `OCR"跨平台搜索音乐"` / `SWAN_HOME_MUSIC_SEARCH_BAR`（图） | 静态 | click | 进入 /search（⛔ 本轮未实测，搜索域 ANR BLOCKED） | 已截 | 已验证 |
 | 平台分组标题（QQ音乐/网易云音乐/酷狗音乐/Apple Music/Qobuz） | `OCR"QQ音乐"` 等 | 静态 | 只读断言 | — | 待截（每组标题） | 草稿 |
 | 歌单卡片（封面+歌单名） | OCR 歌单名（如"200首华语金曲…"） | 动态 | ⛔ 不点（进歌单详情，未探索） | — | 动态-不截图 | 草稿 |
-| 底部播放条 | `bottom_player`（无障碍键）/ `SWAN_BOTTOM_PLAYER_BAR` | 静态 | click | `[[swan_播放页]]` | 已有图 | 草稿 |
-| 底部 4 tab | `tab_recommend` / `tab_platform` / `tab_device` / `tab_me`（无障碍键） | 静态 | click | 对应 tab 页 | 已有图 | 草稿 |
+| 底部播放条 | `bottom_player`（resource-id）/ `SWAN_BOTTOM_PLAYER_BAR` | 静态 | click | `[[swan_播放页]]` | 已有图 | 草稿 |
+| 底部 4 tab | `tab_recommend` / `tab_platform` / `tab_device` / `tab_me`（resource-id） | 静态 | click | 对应 tab 页 | 已有图 | 草稿 |
 
 ### 元素截图（image/flutter）
 

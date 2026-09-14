@@ -4,7 +4,7 @@ name: "批量操作"
 aliases: [bulk_operate]
 route: "/player/bulk-operate"
 status: 已验证
-last_updated: 2026-09-10
+last_updated: 2026-09-14
 type: 页面
 package_name: com.swan.network
 activity: null
@@ -15,10 +15,10 @@ orientation: portrait
 
 ## 页面概述
 
-⛔ **入口受限**：`bulk_operate_page.dart`（`/player/bulk-operate`，位于 unified_music/ 目录下）
-未找到 UI 入口。预期入口形态为歌曲列表的多选/批量管理模式（长按歌曲或列表页「管理/多选」按钮），
-而本账号所有歌曲列表均为空（歌单 0 首、我喜欢 0 首、播放历史空），且第三方平台未授权，
-不存在可长按的歌曲行。待 Wave 2b 有歌曲数据的账号复验。
+⛔ **入口未知**（2026-09-11 R3 归因修正）。`bulk_operate_page.dart`（`/player/bulk-operate`，
+位于 unified_music/ 目录下）未找到 UI 入口。**归因修正**：KB 原记"本账号无歌曲数据无法触发"
+已被 .144 证伪——已授权账号（1160 首收藏）长按歌曲行**仍无多选态** ⇒ 入口不在歌曲行长按路径，
+与账号数据量、授权状态无关。预期入口形态仍为歌曲列表的多选/批量管理模式，待后续复验。
 
 ## 生效断言
 
@@ -28,7 +28,7 @@ orientation: portrait
 
 | 来源页面 | 操作元素（locator） | 操作类型 | 到达断言 |
 |---|---|---|---|
-| （未知，疑似 `[[swan_统一音乐库页]]` 或歌单详情歌曲区） | — | — | — |
+| （未知；已排除歌曲行长按路径与账号数据量归因） | — | — | — |
 
 ## 关键元素
 

@@ -26,10 +26,11 @@ SCRIPTS_DIR = PROJ_ROOT / "scripts" / "knowledge"
 
 
 def get_changed_files() -> list:
-    """获取最近一次 commit 变更的文件"""
+    """获取最近一次 commit 变更的文件(基准可用 KB_DIFF_BASE 覆盖,post-merge 传 ORIG_HEAD)"""
+    diff_base = os.environ.get("KB_DIFF_BASE", "HEAD~1")
     try:
         result = subprocess.run(
-            ["git", "diff", "--name-only", "HEAD~1", "HEAD"],
+            ["git", "diff", "--name-only", diff_base, "HEAD"],
             capture_output=True, text=True, cwd=str(PROJ_ROOT),
             encoding='utf-8',
         )

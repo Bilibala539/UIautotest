@@ -79,5 +79,5 @@ AI 角色头像选择页（路由 /ai/role/images，从角色编辑页「形象�
 | pages/swan_DIY形象页.md | [[swan_DIY形象页]] |
 | pages/swan_角色编辑页.md | [[swan_角色编辑页]] |
 
-_自动生成于 2026-09-11 13:44_
+_自动生成于 2026-09-14 13:26_
 <!-- backlinks:end -->

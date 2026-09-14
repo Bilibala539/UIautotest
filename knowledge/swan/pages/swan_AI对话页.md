@@ -96,5 +96,5 @@ Wave2 实测（小薇）：发送"play a song"，AI 回复「音乐服务需要�
 | pages/swan_所有角色页.md | [[swan_所有角色页]] |
 | pages/swan_首页AITab.md | [[swan_首页AITab]] |
 
-_自动生成于 2026-09-11 13:44_
+_自动生成于 2026-09-14 13:26_
 <!-- backlinks:end -->

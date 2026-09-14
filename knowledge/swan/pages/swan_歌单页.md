@@ -116,5 +116,5 @@ aw-verify 2026-09-10 补截 `SWAN_PLAYLIST_NEWDLG_CLOSE_BTN` 图定位实测关�
 | pages/swan_选择歌单页.md | [[swan_选择歌单页]] |
 | pages/swan_首页.md | [[swan_首页]] |
 
-_自动生成于 2026-09-14 13:38_
+_自动生成于 2026-09-14 15:41_
 <!-- backlinks:end -->

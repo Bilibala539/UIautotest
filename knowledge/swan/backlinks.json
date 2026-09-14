@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-09-14T13:38:20.839372",
+  "generated_at": "2026-09-14T15:41:29.279557",
   "stats": {
     "source_files": 61,
-    "total_links": 220,
+    "total_links": 222,
     "target_pages": 50
   },
   "forward_index": {
@@ -11,36 +11,36 @@
       "swan_AI对话页"
     ],
     "pages/swan_AI对话页.md": [
+      "swan_首页AITab",
       "swan_切换设备弹层",
-      "feature_导航框架",
-      "swan_首页AITab"
+      "feature_导航框架"
     ],
     "pages/swan_AI平台管理页.md": [
-      "swan_角色编辑页",
-      "swan_授权门禁弹层"
+      "swan_授权门禁弹层",
+      "swan_角色编辑页"
     ],
     "pages/swan_AI形象页.md": [
-      "swan_角色编辑页",
-      "swan_DIY形象页"
+      "swan_DIY形象页",
+      "swan_角色编辑页"
     ],
     "pages/swan_DIY形象页.md": [
       "swan_AI形象页",
       "swan_平台页"
     ],
     "pages/swan_Vision域不可达页.md": [
-      "feature_导航框架",
-      "swan_首页可视音箱Tab"
+      "swan_首页可视音箱Tab",
+      "feature_导航框架"
     ],
     "pages/swan_个人信息页.md": [
-      "swan_验证码登录页",
-      "swan_我的页"
+      "swan_我的页",
+      "swan_验证码登录页"
     ],
     "pages/swan_全国电台页.md": [
-      "swan_首页电台Tab",
       "swan_平台页",
       "swan_城市选择页",
-      "swan_授权门禁弹层",
-      "feature_平台聚合"
+      "swan_首页电台Tab",
+      "feature_平台聚合",
+      "swan_授权门禁弹层"
     ],
     "pages/swan_关于与升级页.md": [
       "swan_我的页"
@@ -54,8 +54,8 @@
       "swan_验证码登录页"
     ],
     "pages/swan_城市选择页.md": [
-      "swan_授权门禁弹层",
       "swan_全国电台页",
+      "swan_授权门禁弹层",
       "feature_平台聚合"
     ],
     "pages/swan_家庭管理页.md": [
@@ -71,10 +71,10 @@
       "swan_首页"
     ],
     "pages/swan_我喜欢页.md": [
-      "feature_收藏管理",
+      "swan_收藏分组详情页",
       "swan_播放页",
       "swan_歌单详情页",
-      "swan_收藏分组详情页",
+      "feature_收藏管理",
       "swan_首页"
     ],
     "pages/swan_我的二维码页.md": [
@@ -82,35 +82,35 @@
       "feature_账号体系"
     ],
     "pages/swan_我的页.md": [
-      "swan_个人信息页",
       "swan_收藏页",
-      "swan_关于与升级页",
-      "swan_家庭管理页",
-      "swan_音质设置页",
       "swan_帮助与反馈页",
+      "swan_关于与升级页",
+      "swan_音质设置页",
+      "swan_个人信息页",
+      "swan_家庭管理页",
       "swan_首页"
     ],
     "pages/swan_所有角色页.md": [
-      "feature_导航框架",
-      "swan_角色编辑页",
       "swan_首页AITab",
-      "swan_AI对话页"
+      "swan_角色编辑页",
+      "swan_AI对话页",
+      "feature_导航框架"
     ],
     "pages/swan_扫一扫页.md": [
+      "swan_我的页",
       "feature_账号体系",
-      "swan_我的二维码页",
-      "swan_我的页"
+      "swan_我的二维码页"
     ],
     "pages/swan_批量操作页.md": [
-      "swan_选择歌单页",
       "feature_收藏管理",
+      "swan_选择歌单页",
       "swan_统一音乐库页"
     ],
     "pages/swan_授权门禁弹层.md": [
-      "swan_首页电台Tab",
       "swan_平台页",
       "swan_首页音乐Tab",
       "swan_歌单页",
+      "swan_首页电台Tab",
       "feature_平台聚合"
     ],
     "pages/swan_排行榜页.md": [
@@ -118,56 +118,56 @@
       "feature_平台聚合"
     ],
     "pages/swan_搜索结果页.md": [
-      "swan_搜索输入页",
-      "swan_艺人页",
+      "swan_播放历史页",
       "feature_平台聚合",
-      "swan_播放历史页"
+      "swan_搜索输入页",
+      "swan_艺人页"
     ],
     "pages/swan_搜索输入页.md": [
-      "swan_首页电台Tab",
       "swan_首页音乐Tab",
-      "feature_平台聚合",
-      "swan_搜索结果页"
+      "swan_首页电台Tab",
+      "swan_搜索结果页",
+      "feature_平台聚合"
     ],
     "pages/swan_播放历史页.md": [
+      "feature_收藏管理",
       "swan_播放页",
-      "swan_首页",
-      "feature_收藏管理"
+      "swan_首页"
     ],
     "pages/swan_播放页.md": [
       "swan_平台页",
-      "swan_歌单详情页",
+      "swan_我喜欢页",
+      "swan_收藏分组详情页",
       "feature_播放器",
       "swan_设备页",
-      "swan_我喜欢页",
-      "swan_我的页",
       "swan_切换设备弹层",
-      "swan_收藏分组详情页",
+      "swan_我的页",
+      "swan_歌单详情页",
       "swan_首页"
     ],
     "pages/swan_收藏分组详情页.md": [
       "swan_歌单详情页",
       "swan_收藏页",
-      "swan_首页",
-      "swan_我的页"
+      "swan_我的页",
+      "swan_首页"
     ],
     "pages/swan_收藏页.md": [
+      "swan_我的页",
       "swan_收藏分组详情页",
-      "swan_首页",
-      "swan_我的页"
+      "swan_首页"
     ],
     "pages/swan_歌单详情页.md": [
-      "feature_收藏管理",
-      "swan_播放页",
-      "swan_歌单页",
       "swan_我喜欢页",
-      "swan_收藏分组详情页"
+      "swan_收藏分组详情页",
+      "swan_歌单页",
+      "swan_播放页",
+      "feature_收藏管理"
     ],
     "pages/swan_歌单页.md": [
       "swan_收藏页",
-      "feature_收藏管理",
       "swan_播放页",
       "swan_歌单详情页",
+      "feature_收藏管理",
       "swan_首页"
     ],
     "pages/swan_消息中心页.md": [
@@ -176,14 +176,16 @@
     ],
     "pages/swan_统一音乐库页.md": [
       "swan_批量操作页",
-      "swan_选择歌单页",
-      "feature_收藏管理"
+      "feature_收藏管理",
+      "swan_选择歌单页"
     ],
     "pages/swan_艺人页.md": [
+      "swan_播放历史页",
+      "swan_搜索输入页",
+      "swan_播放页",
       "swan_搜索结果页",
-      "swan_授权门禁弹层",
       "feature_平台聚合",
-      "swan_播放历史页"
+      "swan_授权门禁弹层"
     ],
     "pages/swan_视频分类页.md": [
       "swan_授权门禁弹层",
@@ -191,17 +193,17 @@
       "feature_平台聚合"
     ],
     "pages/swan_角色编辑页.md": [
-      "swan_首页AITab",
       "swan_AI形象页",
       "swan_所有角色页",
+      "swan_首页AITab",
       "swan_AI平台管理页"
     ],
     "pages/swan_设备页.md": [
       "swan_首页"
     ],
     "pages/swan_资料编辑页.md": [
-      "swan_个人信息页",
-      "feature_账号体系"
+      "feature_账号体系",
+      "swan_个人信息页"
     ],
     "pages/swan_选择歌单页.md": [
       "swan_歌单页",
@@ -212,27 +214,27 @@
       "swan_我的页"
     ],
     "pages/swan_首页.md": [
-      "swan_验证码输入页",
       "swan_平台页",
-      "swan_播放历史页",
-      "swan_播放页",
-      "swan_歌单页",
-      "swan_设备页",
       "swan_我喜欢页",
+      "swan_验证码输入页",
+      "swan_播放历史页",
+      "swan_设备页",
+      "swan_歌单页",
+      "swan_播放页",
       "swan_我的页"
     ],
     "pages/swan_首页AITab.md": [
       "swan_首页音乐Tab",
       "feature_导航框架",
       "swan_播放页",
-      "swan_首页",
-      "swan_AI对话页"
+      "swan_AI对话页",
+      "swan_首页"
     ],
     "pages/swan_首页可视音箱Tab.md": [
-      "feature_导航框架",
+      "swan_首页音乐Tab",
       "swan_播放页",
       "swan_首页",
-      "swan_首页音乐Tab"
+      "feature_导航框架"
     ],
     "pages/swan_首页电台Tab.md": [
       "swan_首页音乐Tab",
@@ -242,72 +244,72 @@
       "swan_首页"
     ],
     "pages/swan_首页音乐Tab.md": [
-      "feature_导航框架",
       "swan_首页AITab",
+      "feature_导航框架",
       "swan_播放页",
       "feature_平台聚合",
       "swan_首页"
     ],
     "pages/swan_验证码登录页.md": [
-      "swan_密码登入页",
       "swan_验证码输入页",
+      "swan_密码登入页",
       "swan_首页"
     ],
     "pages/swan_验证码输入页.md": [
-      "swan_首页",
-      "swan_验证码登录页"
+      "swan_验证码登录页",
+      "swan_首页"
     ],
     "digest/features/feature_导航框架.md": [
-      "swan_首页电台Tab",
-      "swan_首页音乐Tab",
       "swan_平台页",
-      "swan_首页AITab",
-      "swan_播放页",
       "feature_播放器",
-      "swan_我的页",
-      "swan_设备页",
+      "swan_首页AITab",
+      "swan_首页音乐Tab",
       "swan_首页可视音箱Tab",
-      "swan_首页",
-      "swan_AI对话页"
+      "swan_设备页",
+      "swan_首页电台Tab",
+      "swan_播放页",
+      "swan_我的页",
+      "swan_AI对话页",
+      "swan_首页"
     ],
     "digest/features/feature_帮助与关于.md": [
       "swan_关于与升级页",
-      "swan_音质设置页",
-      "swan_帮助与反馈页"
+      "swan_帮助与反馈页",
+      "swan_音质设置页"
     ],
     "digest/features/feature_平台聚合.md": [
       "swan_平台页"
     ],
     "digest/features/feature_播放器.md": [
-      "swan_切换设备弹层",
-      "swan_播放页"
+      "swan_播放页",
+      "swan_切换设备弹层"
     ],
     "digest/features/feature_收藏管理.md": [
-      "swan_收藏页",
-      "swan_选择歌单页",
-      "swan_播放历史页",
-      "swan_家庭管理页",
-      "swan_批量操作页",
-      "swan_统一音乐库页",
-      "swan_歌单页",
-      "swan_歌单详情页",
       "swan_我喜欢页",
-      "swan_收藏分组详情页"
+      "swan_收藏分组详情页",
+      "swan_播放历史页",
+      "swan_收藏页",
+      "swan_歌单页",
+      "swan_选择歌单页",
+      "swan_歌单详情页",
+      "swan_统一音乐库页",
+      "swan_批量操作页",
+      "swan_家庭管理页"
     ],
     "digest/features/feature_设备管理.md": [
       "swan_设备页"
     ],
     "digest/features/feature_账号体系.md": [
-      "flow_登录_验证码登录全链路",
-      "swan_验证码输入页",
-      "swan_个人信息页",
       "swan_资料编辑页",
-      "swan_扫一扫页",
-      "swan_区号选择页",
-      "swan_我的二维码页",
-      "swan_验证码登录页",
+      "swan_验证码输入页",
+      "swan_消息中心页",
       "swan_密码登入页",
-      "swan_消息中心页"
+      "swan_我的二维码页",
+      "swan_扫一扫页",
+      "flow_登录_验证码登录全链路",
+      "swan_验证码登录页",
+      "swan_个人信息页",
+      "swan_区号选择页"
     ],
     "digest/flows/flow_导航_四tab切换.md": [
       "swan_平台页",
@@ -317,36 +319,36 @@
       "swan_首页"
     ],
     "digest/flows/flow_导航_迷你播放器展开.md": [
-      "feature_导航框架",
+      "swan_搜索输入页",
       "swan_播放页",
       "swan_首页",
-      "swan_搜索输入页"
+      "feature_导航框架"
     ],
     "digest/flows/flow_搜索_关键词搜索全链路.md": [
       "swan_首页音乐Tab",
-      "swan_艺人页",
       "swan_搜索输入页",
       "swan_搜索结果页",
-      "swan_首页",
-      "feature_平台聚合"
+      "feature_平台聚合",
+      "swan_艺人页",
+      "swan_首页"
     ],
     "digest/flows/flow_收藏_查看分组空态.md": [
+      "swan_收藏分组详情页",
       "swan_收藏页",
-      "feature_收藏管理",
-      "swan_歌单详情页",
       "swan_我的页",
-      "swan_收藏分组详情页"
+      "swan_歌单详情页",
+      "feature_收藏管理"
     ],
     "digest/flows/flow_歌单_新建歌单弹窗开关.md": [
       "swan_歌单页",
-      "swan_首页",
-      "feature_收藏管理"
+      "feature_收藏管理",
+      "swan_首页"
     ],
     "digest/flows/flow_登录_验证码登录全链路.md": [
       "swan_验证码输入页",
-      "swan_首页",
       "feature_账号体系",
-      "swan_验证码登录页"
+      "swan_验证码登录页",
+      "swan_首页"
     ]
   },
   "backlinks": {
@@ -468,23 +470,6 @@
         "raw_link": "feature_导航框架"
       }
     ],
-    "swan_角色编辑页": [
-      {
-        "source": "pages/swan_AI平台管理页.md",
-        "source_id": "swan_AI平台管理页",
-        "raw_link": "swan_角色编辑页"
-      },
-      {
-        "source": "pages/swan_AI形象页.md",
-        "source_id": "swan_AI形象页",
-        "raw_link": "swan_角色编辑页"
-      },
-      {
-        "source": "pages/swan_所有角色页.md",
-        "source_id": "swan_所有角色页",
-        "raw_link": "swan_角色编辑页"
-      }
-    ],
     "swan_授权门禁弹层": [
       {
         "source": "pages/swan_AI平台管理页.md",
@@ -515,6 +500,23 @@
         "source": "pages/swan_视频分类页.md",
         "source_id": "swan_视频分类页",
         "raw_link": "swan_授权门禁弹层"
+      }
+    ],
+    "swan_角色编辑页": [
+      {
+        "source": "pages/swan_AI平台管理页.md",
+        "source_id": "swan_AI平台管理页",
+        "raw_link": "swan_角色编辑页"
+      },
+      {
+        "source": "pages/swan_AI形象页.md",
+        "source_id": "swan_AI形象页",
+        "raw_link": "swan_角色编辑页"
+      },
+      {
+        "source": "pages/swan_所有角色页.md",
+        "source_id": "swan_所有角色页",
+        "raw_link": "swan_角色编辑页"
       }
     ],
     "swan_DIY形象页": [
@@ -590,38 +592,6 @@
         "raw_link": "swan_首页可视音箱Tab"
       }
     ],
-    "swan_验证码登录页": [
-      {
-        "source": "pages/swan_个人信息页.md",
-        "source_id": "swan_个人信息页",
-        "raw_link": "swan_验证码登录页"
-      },
-      {
-        "source": "pages/swan_区号选择页.md",
-        "source_id": "swan_区号选择页",
-        "raw_link": "swan_验证码登录页"
-      },
-      {
-        "source": "pages/swan_密码登入页.md",
-        "source_id": "swan_密码登入页",
-        "raw_link": "swan_验证码登录页"
-      },
-      {
-        "source": "pages/swan_验证码输入页.md",
-        "source_id": "swan_验证码输入页",
-        "raw_link": "swan_验证码登录页"
-      },
-      {
-        "source": "digest/features/feature_账号体系.md",
-        "source_id": "feature_账号体系",
-        "raw_link": "swan_验证码登录页"
-      },
-      {
-        "source": "digest/flows/flow_登录_验证码登录全链路.md",
-        "source_id": "flow_登录_验证码登录全链路",
-        "raw_link": "swan_验证码登录页"
-      }
-    ],
     "swan_我的页": [
       {
         "source": "pages/swan_个人信息页.md",
@@ -689,6 +659,45 @@
         "raw_link": "swan_我的页"
       }
     ],
+    "swan_验证码登录页": [
+      {
+        "source": "pages/swan_个人信息页.md",
+        "source_id": "swan_个人信息页",
+        "raw_link": "swan_验证码登录页"
+      },
+      {
+        "source": "pages/swan_区号选择页.md",
+        "source_id": "swan_区号选择页",
+        "raw_link": "swan_验证码登录页"
+      },
+      {
+        "source": "pages/swan_密码登入页.md",
+        "source_id": "swan_密码登入页",
+        "raw_link": "swan_验证码登录页"
+      },
+      {
+        "source": "pages/swan_验证码输入页.md",
+        "source_id": "swan_验证码输入页",
+        "raw_link": "swan_验证码登录页"
+      },
+      {
+        "source": "digest/features/feature_账号体系.md",
+        "source_id": "feature_账号体系",
+        "raw_link": "swan_验证码登录页"
+      },
+      {
+        "source": "digest/flows/flow_登录_验证码登录全链路.md",
+        "source_id": "flow_登录_验证码登录全链路",
+        "raw_link": "swan_验证码登录页"
+      }
+    ],
+    "swan_城市选择页": [
+      {
+        "source": "pages/swan_全国电台页.md",
+        "source_id": "swan_全国电台页",
+        "raw_link": "swan_城市选择页"
+      }
+    ],
     "swan_首页电台Tab": [
       {
         "source": "pages/swan_全国电台页.md",
@@ -709,13 +718,6 @@
         "source": "digest/features/feature_导航框架.md",
         "source_id": "feature_导航框架",
         "raw_link": "swan_首页电台Tab"
-      }
-    ],
-    "swan_城市选择页": [
-      {
-        "source": "pages/swan_全国电台页.md",
-        "source_id": "swan_全国电台页",
-        "raw_link": "swan_城市选择页"
       }
     ],
     "feature_平台聚合": [
@@ -816,6 +818,11 @@
       {
         "source": "pages/swan_歌单页.md",
         "source_id": "swan_歌单页",
+        "raw_link": "swan_播放页"
+      },
+      {
+        "source": "pages/swan_艺人页.md",
+        "source_id": "swan_艺人页",
         "raw_link": "swan_播放页"
       },
       {
@@ -1005,6 +1012,70 @@
         "raw_link": "swan_首页"
       }
     ],
+    "swan_收藏分组详情页": [
+      {
+        "source": "pages/swan_我喜欢页.md",
+        "source_id": "swan_我喜欢页",
+        "raw_link": "swan_收藏分组详情页"
+      },
+      {
+        "source": "pages/swan_播放页.md",
+        "source_id": "swan_播放页",
+        "raw_link": "swan_收藏分组详情页"
+      },
+      {
+        "source": "pages/swan_收藏页.md",
+        "source_id": "swan_收藏页",
+        "raw_link": "swan_收藏分组详情页"
+      },
+      {
+        "source": "pages/swan_歌单详情页.md",
+        "source_id": "swan_歌单详情页",
+        "raw_link": "swan_收藏分组详情页"
+      },
+      {
+        "source": "digest/features/feature_收藏管理.md",
+        "source_id": "feature_收藏管理",
+        "raw_link": "swan_收藏分组详情页"
+      },
+      {
+        "source": "digest/flows/flow_收藏_查看分组空态.md",
+        "source_id": "flow_收藏_查看分组空态",
+        "raw_link": "swan_收藏分组详情页"
+      }
+    ],
+    "swan_歌单详情页": [
+      {
+        "source": "pages/swan_我喜欢页.md",
+        "source_id": "swan_我喜欢页",
+        "raw_link": "swan_歌单详情页"
+      },
+      {
+        "source": "pages/swan_播放页.md",
+        "source_id": "swan_播放页",
+        "raw_link": "swan_歌单详情页"
+      },
+      {
+        "source": "pages/swan_收藏分组详情页.md",
+        "source_id": "swan_收藏分组详情页",
+        "raw_link": "swan_歌单详情页"
+      },
+      {
+        "source": "pages/swan_歌单页.md",
+        "source_id": "swan_歌单页",
+        "raw_link": "swan_歌单详情页"
+      },
+      {
+        "source": "digest/features/feature_收藏管理.md",
+        "source_id": "feature_收藏管理",
+        "raw_link": "swan_歌单详情页"
+      },
+      {
+        "source": "digest/flows/flow_收藏_查看分组空态.md",
+        "source_id": "flow_收藏_查看分组空态",
+        "raw_link": "swan_歌单详情页"
+      }
+    ],
     "feature_收藏管理": [
       {
         "source": "pages/swan_我喜欢页.md",
@@ -1052,70 +1123,6 @@
         "raw_link": "feature_收藏管理"
       }
     ],
-    "swan_歌单详情页": [
-      {
-        "source": "pages/swan_我喜欢页.md",
-        "source_id": "swan_我喜欢页",
-        "raw_link": "swan_歌单详情页"
-      },
-      {
-        "source": "pages/swan_播放页.md",
-        "source_id": "swan_播放页",
-        "raw_link": "swan_歌单详情页"
-      },
-      {
-        "source": "pages/swan_收藏分组详情页.md",
-        "source_id": "swan_收藏分组详情页",
-        "raw_link": "swan_歌单详情页"
-      },
-      {
-        "source": "pages/swan_歌单页.md",
-        "source_id": "swan_歌单页",
-        "raw_link": "swan_歌单详情页"
-      },
-      {
-        "source": "digest/features/feature_收藏管理.md",
-        "source_id": "feature_收藏管理",
-        "raw_link": "swan_歌单详情页"
-      },
-      {
-        "source": "digest/flows/flow_收藏_查看分组空态.md",
-        "source_id": "flow_收藏_查看分组空态",
-        "raw_link": "swan_歌单详情页"
-      }
-    ],
-    "swan_收藏分组详情页": [
-      {
-        "source": "pages/swan_我喜欢页.md",
-        "source_id": "swan_我喜欢页",
-        "raw_link": "swan_收藏分组详情页"
-      },
-      {
-        "source": "pages/swan_播放页.md",
-        "source_id": "swan_播放页",
-        "raw_link": "swan_收藏分组详情页"
-      },
-      {
-        "source": "pages/swan_收藏页.md",
-        "source_id": "swan_收藏页",
-        "raw_link": "swan_收藏分组详情页"
-      },
-      {
-        "source": "pages/swan_歌单详情页.md",
-        "source_id": "swan_歌单详情页",
-        "raw_link": "swan_收藏分组详情页"
-      },
-      {
-        "source": "digest/features/feature_收藏管理.md",
-        "source_id": "feature_收藏管理",
-        "raw_link": "swan_收藏分组详情页"
-      },
-      {
-        "source": "digest/flows/flow_收藏_查看分组空态.md",
-        "source_id": "flow_收藏_查看分组空态",
-        "raw_link": "swan_收藏分组详情页"
-      }
-    ],
     "swan_扫一扫页": [
       {
         "source": "pages/swan_我的二维码页.md",
@@ -1126,23 +1133,6 @@
         "source": "digest/features/feature_账号体系.md",
         "source_id": "feature_账号体系",
         "raw_link": "swan_扫一扫页"
-      }
-    ],
-    "swan_个人信息页": [
-      {
-        "source": "pages/swan_我的页.md",
-        "source_id": "swan_我的页",
-        "raw_link": "swan_个人信息页"
-      },
-      {
-        "source": "pages/swan_资料编辑页.md",
-        "source_id": "swan_资料编辑页",
-        "raw_link": "swan_个人信息页"
-      },
-      {
-        "source": "digest/features/feature_账号体系.md",
-        "source_id": "feature_账号体系",
-        "raw_link": "swan_个人信息页"
       }
     ],
     "swan_收藏页": [
@@ -1172,42 +1162,6 @@
         "raw_link": "swan_收藏页"
       }
     ],
-    "swan_关于与升级页": [
-      {
-        "source": "pages/swan_我的页.md",
-        "source_id": "swan_我的页",
-        "raw_link": "swan_关于与升级页"
-      },
-      {
-        "source": "digest/features/feature_帮助与关于.md",
-        "source_id": "feature_帮助与关于",
-        "raw_link": "swan_关于与升级页"
-      }
-    ],
-    "swan_家庭管理页": [
-      {
-        "source": "pages/swan_我的页.md",
-        "source_id": "swan_我的页",
-        "raw_link": "swan_家庭管理页"
-      },
-      {
-        "source": "digest/features/feature_收藏管理.md",
-        "source_id": "feature_收藏管理",
-        "raw_link": "swan_家庭管理页"
-      }
-    ],
-    "swan_音质设置页": [
-      {
-        "source": "pages/swan_我的页.md",
-        "source_id": "swan_我的页",
-        "raw_link": "swan_音质设置页"
-      },
-      {
-        "source": "digest/features/feature_帮助与关于.md",
-        "source_id": "feature_帮助与关于",
-        "raw_link": "swan_音质设置页"
-      }
-    ],
     "swan_帮助与反馈页": [
       {
         "source": "pages/swan_我的页.md",
@@ -1223,6 +1177,59 @@
         "source": "digest/features/feature_帮助与关于.md",
         "source_id": "feature_帮助与关于",
         "raw_link": "swan_帮助与反馈页"
+      }
+    ],
+    "swan_关于与升级页": [
+      {
+        "source": "pages/swan_我的页.md",
+        "source_id": "swan_我的页",
+        "raw_link": "swan_关于与升级页"
+      },
+      {
+        "source": "digest/features/feature_帮助与关于.md",
+        "source_id": "feature_帮助与关于",
+        "raw_link": "swan_关于与升级页"
+      }
+    ],
+    "swan_音质设置页": [
+      {
+        "source": "pages/swan_我的页.md",
+        "source_id": "swan_我的页",
+        "raw_link": "swan_音质设置页"
+      },
+      {
+        "source": "digest/features/feature_帮助与关于.md",
+        "source_id": "feature_帮助与关于",
+        "raw_link": "swan_音质设置页"
+      }
+    ],
+    "swan_个人信息页": [
+      {
+        "source": "pages/swan_我的页.md",
+        "source_id": "swan_我的页",
+        "raw_link": "swan_个人信息页"
+      },
+      {
+        "source": "pages/swan_资料编辑页.md",
+        "source_id": "swan_资料编辑页",
+        "raw_link": "swan_个人信息页"
+      },
+      {
+        "source": "digest/features/feature_账号体系.md",
+        "source_id": "feature_账号体系",
+        "raw_link": "swan_个人信息页"
+      }
+    ],
+    "swan_家庭管理页": [
+      {
+        "source": "pages/swan_我的页.md",
+        "source_id": "swan_我的页",
+        "raw_link": "swan_家庭管理页"
+      },
+      {
+        "source": "digest/features/feature_收藏管理.md",
+        "source_id": "feature_收藏管理",
+        "raw_link": "swan_家庭管理页"
       }
     ],
     "swan_我的二维码页": [
@@ -1340,10 +1347,37 @@
         "raw_link": "swan_歌单页"
       }
     ],
+    "swan_播放历史页": [
+      {
+        "source": "pages/swan_搜索结果页.md",
+        "source_id": "swan_搜索结果页",
+        "raw_link": "swan_播放历史页"
+      },
+      {
+        "source": "pages/swan_艺人页.md",
+        "source_id": "swan_艺人页",
+        "raw_link": "swan_播放历史页"
+      },
+      {
+        "source": "pages/swan_首页.md",
+        "source_id": "swan_首页",
+        "raw_link": "swan_播放历史页"
+      },
+      {
+        "source": "digest/features/feature_收藏管理.md",
+        "source_id": "feature_收藏管理",
+        "raw_link": "swan_播放历史页"
+      }
+    ],
     "swan_搜索输入页": [
       {
         "source": "pages/swan_搜索结果页.md",
         "source_id": "swan_搜索结果页",
+        "raw_link": "swan_搜索输入页"
+      },
+      {
+        "source": "pages/swan_艺人页.md",
+        "source_id": "swan_艺人页",
         "raw_link": "swan_搜索输入页"
       },
       {
@@ -1369,28 +1403,6 @@
         "raw_link": "swan_艺人页"
       }
     ],
-    "swan_播放历史页": [
-      {
-        "source": "pages/swan_搜索结果页.md",
-        "source_id": "swan_搜索结果页",
-        "raw_link": "swan_播放历史页"
-      },
-      {
-        "source": "pages/swan_艺人页.md",
-        "source_id": "swan_艺人页",
-        "raw_link": "swan_播放历史页"
-      },
-      {
-        "source": "pages/swan_首页.md",
-        "source_id": "swan_首页",
-        "raw_link": "swan_播放历史页"
-      },
-      {
-        "source": "digest/features/feature_收藏管理.md",
-        "source_id": "feature_收藏管理",
-        "raw_link": "swan_播放历史页"
-      }
-    ],
     "swan_搜索结果页": [
       {
         "source": "pages/swan_搜索输入页.md",
@@ -1406,6 +1418,28 @@
         "source": "digest/flows/flow_搜索_关键词搜索全链路.md",
         "source_id": "flow_搜索_关键词搜索全链路",
         "raw_link": "swan_搜索结果页"
+      }
+    ],
+    "swan_我喜欢页": [
+      {
+        "source": "pages/swan_播放页.md",
+        "source_id": "swan_播放页",
+        "raw_link": "swan_我喜欢页"
+      },
+      {
+        "source": "pages/swan_歌单详情页.md",
+        "source_id": "swan_歌单详情页",
+        "raw_link": "swan_我喜欢页"
+      },
+      {
+        "source": "pages/swan_首页.md",
+        "source_id": "swan_首页",
+        "raw_link": "swan_我喜欢页"
+      },
+      {
+        "source": "digest/features/feature_收藏管理.md",
+        "source_id": "feature_收藏管理",
+        "raw_link": "swan_我喜欢页"
       }
     ],
     "swan_设备页": [
@@ -1433,28 +1467,6 @@
         "source": "digest/flows/flow_导航_四tab切换.md",
         "source_id": "flow_导航_四tab切换",
         "raw_link": "swan_设备页"
-      }
-    ],
-    "swan_我喜欢页": [
-      {
-        "source": "pages/swan_播放页.md",
-        "source_id": "swan_播放页",
-        "raw_link": "swan_我喜欢页"
-      },
-      {
-        "source": "pages/swan_歌单详情页.md",
-        "source_id": "swan_歌单详情页",
-        "raw_link": "swan_我喜欢页"
-      },
-      {
-        "source": "pages/swan_首页.md",
-        "source_id": "swan_首页",
-        "raw_link": "swan_我喜欢页"
-      },
-      {
-        "source": "digest/features/feature_收藏管理.md",
-        "source_id": "feature_收藏管理",
-        "raw_link": "swan_我喜欢页"
       }
     ],
     "swan_批量操作页": [
@@ -1522,13 +1534,6 @@
         "raw_link": "swan_密码登入页"
       }
     ],
-    "flow_登录_验证码登录全链路": [
-      {
-        "source": "digest/features/feature_账号体系.md",
-        "source_id": "feature_账号体系",
-        "raw_link": "flow_登录_验证码登录全链路"
-      }
-    ],
     "swan_资料编辑页": [
       {
         "source": "digest/features/feature_账号体系.md",
@@ -1536,18 +1541,25 @@
         "raw_link": "swan_资料编辑页"
       }
     ],
-    "swan_区号选择页": [
-      {
-        "source": "digest/features/feature_账号体系.md",
-        "source_id": "feature_账号体系",
-        "raw_link": "swan_区号选择页"
-      }
-    ],
     "swan_消息中心页": [
       {
         "source": "digest/features/feature_账号体系.md",
         "source_id": "feature_账号体系",
         "raw_link": "swan_消息中心页"
+      }
+    ],
+    "flow_登录_验证码登录全链路": [
+      {
+        "source": "digest/features/feature_账号体系.md",
+        "source_id": "feature_账号体系",
+        "raw_link": "flow_登录_验证码登录全链路"
+      }
+    ],
+    "swan_区号选择页": [
+      {
+        "source": "digest/features/feature_账号体系.md",
+        "source_id": "feature_账号体系",
+        "raw_link": "swan_区号选择页"
       }
     ]
   }

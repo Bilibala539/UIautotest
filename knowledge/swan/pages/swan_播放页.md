@@ -121,11 +121,12 @@ AI 点歌也被拒"音乐服务需要授权"，无法建立播放任务）。有
 | pages/swan_播放历史页.md | [[swan_播放历史页]] |
 | pages/swan_歌单详情页.md | [[swan_歌单详情页]] |
 | pages/swan_歌单页.md | [[swan_歌单页]] |
+| pages/swan_艺人页.md | [[swan_艺人页]] |
 | pages/swan_首页.md | [[swan_首页]] |
 | pages/swan_首页AITab.md | [[swan_首页AITab]] |
 | pages/swan_首页可视音箱Tab.md | [[swan_首页可视音箱Tab]] |
 | pages/swan_首页电台Tab.md | [[swan_首页电台Tab]] |
 | pages/swan_首页音乐Tab.md | [[swan_首页音乐Tab]] |
 
-_自动生成于 2026-09-14 13:38_
+_自动生成于 2026-09-14 15:41_
 <!-- backlinks:end -->

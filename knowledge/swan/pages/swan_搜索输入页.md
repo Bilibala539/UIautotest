@@ -84,6 +84,7 @@ orientation: portrait
 | digest/flows/flow_导航_迷你播放器展开.md | [[flow_导航_迷你播放器展开]] |
 | digest/flows/flow_搜索_关键词搜索全链路.md | [[flow_搜索_关键词搜索全链路]] |
 | pages/swan_搜索结果页.md | [[swan_搜索结果页]] |
+| pages/swan_艺人页.md | [[swan_艺人页]] |
 
-_自动生成于 2026-09-14 13:38_
+_自动生成于 2026-09-14 15:41_
 <!-- backlinks:end -->

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -389,6 +390,22 @@ class DashboardStore:
             ).fetchall()
         return [dict(row) for row in rows]
 
+    def search_case_ids(self, keyword: str, limit: int = 20) -> list[dict[str, Any]]:
+        """按关键词模糊搜用例(取最近出现的 case_id),供历史页选择。"""
+        limit = min(max(int(limit), 1), 100)
+        pattern = f"%{keyword}%"
+        with self.transaction() as connection:
+            rows = connection.execute(
+                """
+                SELECT c.case_id, MAX(c.name) AS name, COUNT(*) AS executions,
+                       MAX(c.started_at) AS last_seen
+                FROM cases c WHERE c.case_id LIKE ?
+                GROUP BY c.case_id ORDER BY last_seen DESC LIMIT ?
+                """,
+                (pattern, limit),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
 
 class DashboardHandler(BaseHTTPRequestHandler):
     store: DashboardStore
@@ -462,6 +479,25 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 return
             self.send_json({"items": self.store.get_case_history(case_id, limit=limit)})
             return
+        if parsed.path == "/api/cases/search":
+            query = parse_qs(parsed.query)
+            keyword = query.get("q", [""])[0].strip()
+            if not keyword:
+                self.send_error_json("q is required", HTTPStatus.BAD_REQUEST)
+                return
+            self.send_json({"items": self.store.search_case_ids(keyword)})
+            return
+        if parsed.path == "/api/gateway/health":
+            # 验证码工具页的健康卡片:平台侧代理 otp-gateway /healthz,避免浏览器跨域
+            import urllib.request as _urlreq
+            gateway = os.environ.get("OTP_GATEWAY_URL", "http://192.168.12.166:18080").rstrip("/")
+            try:
+                with _urlreq.urlopen(f"{gateway}/healthz", timeout=5) as response:
+                    body = response.read().decode("utf-8", "replace")
+                self.send_json({"ok": True, "gateway": gateway, "detail": body[:200]})
+            except Exception as error:  # noqa: BLE001 — 健康代理失败本身就是信息
+                self.send_json({"ok": False, "gateway": gateway, "detail": str(error)})
+            return
         if parsed.path.startswith("/api/runs/"):
             run_id = parsed.path.removeprefix("/api/runs/").strip("/")
             if not run_id:
@@ -521,66 +557,8 @@ def create_server(host: str = "127.0.0.1", port: int = 8080, database_path: str 
     return ThreadingHTTPServer((host, port), BoundDashboardHandler)
 
 
-DASHBOARD_HTML = r"""<!doctype html>
-<html lang="zh-CN">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>UIAutotest 测试历史</title>
-  <style>
-    :root { color-scheme: light; --ink:#172033; --muted:#667085; --line:#e6e9ef; --bg:#f5f7fb; --card:#fff; --brand:#405cf5; --good:#087f5b; --bad:#c92a2a; --warn:#ad6800; }
-    * { box-sizing:border-box; } body { margin:0; color:var(--ink); background:var(--bg); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif; }
-    header { background:linear-gradient(120deg,#172554,#405cf5); color:#fff; padding:28px max(24px,calc((100% - 1240px)/2)); }
-    header h1 { margin:0 0 5px; font-size:25px; } header p { margin:0; opacity:.78; }
-    main { max-width:1240px; margin:24px auto; padding:0 20px 48px; } .toolbar { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:18px; }
-    select,button { border:1px solid var(--line); border-radius:8px; background:#fff; padding:9px 12px; color:var(--ink); cursor:pointer; } button.primary { background:var(--brand); color:#fff; border-color:var(--brand); }
-    .stats { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:18px; } .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px; box-shadow:0 2px 10px rgba(23,32,51,.03); }
-    .stat-label { color:var(--muted); font-size:12px; } .stat-value { font-size:25px; font-weight:700; margin-top:4px; } .table-card { padding:0; overflow:hidden; }
-    table { border-collapse:collapse; width:100%; } th,td { padding:13px 15px; border-bottom:1px solid var(--line); text-align:left; white-space:nowrap; } th { color:var(--muted); background:#fafbfc; font-size:12px; font-weight:600; } tbody tr { cursor:pointer; } tbody tr:hover { background:#f8f9ff; }
-    .badge { border-radius:999px; padding:3px 9px; font-size:12px; font-weight:600; display:inline-block; } .passed { color:var(--good); background:#e6fcf5; } .failed,.error { color:var(--bad); background:#fff5f5; } .running { color:var(--brand); background:#edf2ff; } .skipped { color:var(--warn); background:#fff9db; }
-    .empty { padding:44px; text-align:center; color:var(--muted); } .detail { margin-top:18px; display:none; } .detail h2 { margin:0 0 14px; font-size:18px; } .detail-head { display:flex; justify-content:space-between; gap:12px; align-items:start; } .meta { color:var(--muted); font-size:13px; }
-    .case { border:1px solid var(--line); border-radius:10px; margin:10px 0; padding:13px 15px; background:#fff; } .case summary { cursor:pointer; list-style:none; } .case summary::-webkit-details-marker { display:none; } .case summary::before { content:"▸"; margin-right:8px; color:var(--muted); } .case[open] summary::before { content:"▾"; }
-    pre { white-space:pre-wrap; word-break:break-word; background:#f7f8fa; border-radius:8px; padding:12px; max-height:300px; overflow:auto; } .case-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:12px 0; color:var(--muted); font-size:12px; }
-    @media (max-width:800px) { .stats { grid-template-columns:repeat(2,1fr); } .toolbar,.detail-head { align-items:stretch; flex-direction:column; } .table-card { overflow-x:auto; } .case-grid { grid-template-columns:1fr; } }
-  </style>
-</head>
-<body>
-  <header><h1>UIAutotest 测试历史</h1><p>Android / iOS 自动化执行结果、用例日志与视觉断言证据</p></header>
-  <main>
-    <div class="toolbar"><div><label for="platform">平台：</label><select id="platform"><option value="">全部</option><option value="android">Android</option><option value="ios">iOS</option></select></div><button class="primary" id="refresh">刷新</button></div>
-    <section class="stats"><div class="card"><div class="stat-label">执行次数</div><div class="stat-value" id="run-count">-</div></div><div class="card"><div class="stat-label">平均通过率</div><div class="stat-value" id="pass-rate">-</div></div><div class="card"><div class="stat-label">最近一次状态</div><div class="stat-value" id="latest-status">-</div></div><div class="card"><div class="stat-label">最近一次耗时</div><div class="stat-value" id="latest-duration">-</div></div></section>
-    <section class="card table-card"><table><thead><tr><th>执行 ID</th><th>平台</th><th>状态</th><th>通过率</th><th>用例数</th><th>耗时</th><th>开始时间</th></tr></thead><tbody id="runs"><tr><td colspan="7" class="empty">加载中…</td></tr></tbody></table></section>
-    <section class="card detail" id="detail"><div class="detail-head"><div><h2 id="detail-title"></h2><div class="meta" id="detail-meta"></div></div><button id="close-detail">关闭</button></div><div id="cases"></div></section>
-  </main>
-  <script>
-    const $ = (id) => document.getElementById(id);
-    const statusText = {running:'执行中', passed:'通过', failed:'失败', skipped:'跳过', error:'错误'};
-    const safe = (value) => String(value ?? '').replace(/[&<>\"']/g, (character) => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[character]));
-    const formatDate = (value) => value ? new Date(value).toLocaleString('zh-CN') : '-';
-    const formatDuration = (seconds) => { seconds = Number(seconds || 0); if (seconds < 60) return `${seconds.toFixed(1)} 秒`; return `${Math.floor(seconds / 60)} 分 ${Math.round(seconds % 60)} 秒`; };
-    const badge = (status) => `<span class="badge ${status}">${statusText[status] || status}</span>`;
-    async function loadRuns() {
-      const platform = $('platform').value; const query = platform ? `?platform=${platform}` : '';
-      const response = await fetch(`/api/runs${query}`); const data = await response.json(); const runs = data.items || [];
-      $('run-count').textContent = runs.length;
-      const completed = runs.filter((run) => run.total_cases);
-      const average = completed.length ? completed.reduce((sum, run) => sum + run.pass_rate, 0) / completed.length : 0;
-      $('pass-rate').textContent = `${average.toFixed(1)}%`;
-      $('latest-status').innerHTML = runs.length ? badge(runs[0].status) : '-';
-      $('latest-duration').textContent = runs.length ? formatDuration(runs[0].duration_seconds) : '-';
-      const tbody = $('runs'); tbody.innerHTML = '';
-      if (!runs.length) { tbody.innerHTML = '<tr><td colspan="7" class="empty">暂无执行记录</td></tr>'; return; }
-      runs.forEach((run) => { const row = document.createElement('tr'); row.innerHTML = `<td>${safe(run.run_id)}</td><td>${safe(run.platform.toUpperCase())}</td><td>${badge(run.status)}</td><td>${run.pass_rate.toFixed(1)}%</td><td>${run.total_cases}</td><td>${formatDuration(run.duration_seconds)}</td><td>${safe(formatDate(run.started_at))}</td>`; row.onclick = () => showRun(run.run_id); tbody.appendChild(row); });
-    }
-    async function showRun(runId) {
-      const response = await fetch(`/api/runs/${encodeURIComponent(runId)}`); const run = await response.json(); $('detail').style.display = 'block'; $('detail-title').textContent = `${run.run_id} · ${run.platform.toUpperCase()} ${statusText[run.status] || run.status}`; $('detail-meta').textContent = `开始：${formatDate(run.started_at)}　结束：${formatDate(run.ended_at)}　耗时：${formatDuration(run.duration_seconds)}　通过率：${run.pass_rate.toFixed(1)}%`;
-      const cases = $('cases'); cases.innerHTML = ''; (run.cases || []).forEach((item) => { const box = document.createElement('details'); box.className = 'case'; const artifacts = JSON.stringify(item.artifacts || {}, null, 2); box.innerHTML = `<summary>${badge(item.status)}　${safe(item.name)} <span class="meta">${formatDuration(item.duration_seconds)}</span></summary><div class="case-grid"><span>开始：${safe(formatDate(item.started_at))}</span><span>结束：${safe(formatDate(item.ended_at))}</span><span>用例 ID：${safe(item.case_id)}</span></div>${item.error ? `<strong>错误</strong><pre>${safe(item.error)}</pre>` : ''}<strong>执行日志</strong><pre>${safe(item.log || '无日志')}</pre><strong>附件</strong><pre>${safe(artifacts)}</pre>`; cases.appendChild(box); });
-      $('detail').scrollIntoView({behavior:'smooth'});
-    }
-    $('refresh').onclick = loadRuns; $('platform').onchange = loadRuns; $('close-detail').onclick = () => $('detail').style.display = 'none'; loadRuns().catch((error) => { $('runs').innerHTML = `<tr><td colspan="7" class="empty">加载失败：${error}</td></tr>`; });
-  </script>
-</body>
-</html>"""
+# 页面独立维护在 dashboard/page.html(四页签:会话/包管理/用例历史/验证码工具)
+DASHBOARD_HTML = (Path(__file__).resolve().parent / "page.html").read_text(encoding="utf-8")
 
 
 def main() -> None:

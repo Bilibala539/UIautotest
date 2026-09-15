@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Swan 测试平台</title>
+  <style>
+    :root { color-scheme: light; --ink:#172033; --muted:#667085; --line:#e6e9ef; --bg:#f5f7fb; --card:#fff; --brand:#405cf5; --good:#087f5b; --bad:#c92a2a; --warn:#ad6800; }
+    * { box-sizing:border-box; } body { margin:0; color:var(--ink); background:var(--bg); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif; }
+    header { background:linear-gradient(120deg,#172554,#405cf5); color:#fff; padding:22px max(24px,calc((100% - 1240px)/2)) 0; }
+    header h1 { margin:0 0 4px; font-size:23px; } header p { margin:0 0 14px; opacity:.78; }
+    nav { display:flex; gap:4px; } nav button { border:none; border-radius:10px 10px 0 0; background:rgba(255,255,255,.12); color:#fff; padding:10px 22px; font-size:14px; cursor:pointer; }
+    nav button.active { background:var(--bg); color:var(--ink); font-weight:600; }
+    main { max-width:1240px; margin:0 auto; padding:22px 20px 48px; }
+    section.page { display:none; } section.page.active { display:block; }
+    .toolbar { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:16px; flex-wrap:wrap; }
+    select,input,button { border:1px solid var(--line); border-radius:8px; background:#fff; padding:9px 12px; color:var(--ink); font-size:14px; }
+    button { cursor:pointer; } button.primary { background:var(--brand); color:#fff; border-color:var(--brand); }
+    button.ghost { background:#fff; }
+    .stats { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:18px; } .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px; box-shadow:0 2px 10px rgba(23,32,51,.03); }
+    .stat-label { color:var(--muted); font-size:12px; } .stat-value { font-size:25px; font-weight:700; margin-top:4px; } .table-card { padding:0; overflow:hidden; }
+    table { border-collapse:collapse; width:100%; } th,td { padding:12px 15px; border-bottom:1px solid var(--line); text-align:left; white-space:nowrap; } th { color:var(--muted); background:#fafbfc; font-size:12px; font-weight:600; }
+    tbody tr.clickable { cursor:pointer; } tbody tr.clickable:hover { background:#f8f9ff; }
+    .badge { border-radius:999px; padding:3px 9px; font-size:12px; font-weight:600; display:inline-block; } .passed { color:var(--good); background:#e6fcf5; } .failed,.error { color:var(--bad); background:#fff5f5; } .running { color:var(--brand); background:#edf2ff; } .skipped { color:var(--warn); background:#fff9db; }
+    .empty { padding:44px; text-align:center; color:var(--muted); } .meta { color:var(--muted); font-size:13px; }
+    .detail { margin-top:18px; display:none; } .detail h2 { margin:0 0 14px; font-size:18px; } .detail-head { display:flex; justify-content:space-between; gap:12px; align-items:start; }
+    .case { border:1px solid var(--line); border-radius:10px; margin:10px 0; padding:13px 15px; background:#fff; } .case summary { cursor:pointer; list-style:none; } .case summary::-webkit-details-marker { display:none; } .case summary::before { content:"▸"; margin-right:8px; color:var(--muted); } .case[open] summary::before { content:"▾"; }
+    pre { white-space:pre-wrap; word-break:break-word; background:#f7f8fa; border-radius:8px; padding:12px; max-height:300px; overflow:auto; } .case-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:12px 0; color:var(--muted); font-size:12px; }
+    .form-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:10px; } .form-grid label { font-size:12px; color:var(--muted); display:block; margin-bottom:4px; } .form-grid input { width:100%; } .form-actions { grid-column:1/-1; display:flex; gap:10px; align-items:center; }
+    .timeline { position:relative; padding-left:18px; } .timeline::before { content:""; position:absolute; left:5px; top:6px; bottom:6px; width:2px; background:var(--line); } .tl-item { position:relative; padding:8px 0 8px 10px; } .tl-item::before { content:""; position:absolute; left:-17px; top:14px; width:8px; height:8px; border-radius:50%; background:var(--muted); } .tl-item.passed::before { background:var(--good); } .tl-item.failed::before,.tl-item.error::before { background:var(--bad); } .tl-item.skipped::before { background:var(--warn); }
+    .hint { color:var(--muted); font-size:12px; margin-top:6px; }
+    iframe { width:100%; height:640px; border:1px solid var(--line); border-radius:12px; background:#fff; }
+    .health { display:flex; gap:10px; align-items:center; padding:12px 16px; border-radius:12px; background:var(--card); border:1px solid var(--line); margin-bottom:14px; }
+    .dot { width:10px; height:10px; border-radius:50%; background:var(--muted); } .dot.ok { background:var(--good); } .dot.bad { background:var(--bad); }
+    @media (max-width:800px) { .stats,.form-grid { grid-template-columns:repeat(2,1fr); } .toolbar { align-items:stretch; flex-direction:column; } .table-card { overflow-x:auto; } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Swan 测试平台</h1><p>包体 · 执行会话 · 用例历史 · 证据 · 验证码工具</p>
+    <nav>
+      <button data-page="runs" class="active">执行会话</button>
+      <button data-page="apks">包管理</button>
+      <button data-page="cases">用例历史</button>
+      <button data-page="captcha">验证码工具</button>
+    </nav>
+  </header>
+  <main>
+    <section class="page active" id="page-runs">
+      <div class="toolbar">
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <label for="platform">平台：</label>
+          <select id="platform"><option value="">全部</option><option value="flutter">Flutter</option><option value="android">Android</option><option value="ios">iOS</option><option value="pc">PC</option></select>
+          <label for="filter-apk">包体：</label>
+          <select id="filter-apk"><option value="">全部</option></select>
+        </div>
+        <button class="primary" id="refresh">刷新</button>
+      </div>
+      <section class="stats">
+        <div class="card"><div class="stat-label">执行次数</div><div class="stat-value" id="run-count">-</div></div>
+        <div class="card"><div class="stat-label">平均通过率</div><div class="stat-value" id="pass-rate">-</div></div>
+        <div class="card"><div class="stat-label">最近一次状态</div><div class="stat-value" id="latest-status">-</div></div>
+        <div class="card"><div class="stat-label">最近一次耗时</div><div class="stat-value" id="latest-duration">-</div></div>
+      </section>
+      <section class="card table-card"><table><thead><tr><th>执行 ID</th><th>平台</th><th>包体</th><th>设备</th><th>状态</th><th>通过率</th><th>用例数</th><th>耗时</th><th>开始时间</th></tr></thead><tbody id="runs"><tr><td colspan="9" class="empty">加载中…</td></tr></tbody></table></section>
+      <section class="card detail" id="detail"><div class="detail-head"><div><h2 id="detail-title"></h2><div class="meta" id="detail-meta"></div></div><button id="close-detail">关闭</button></div><div id="cases"></div></section>
+    </section>
+    <section class="page" id="page-apks">
+      <div class="card" style="margin-bottom:18px">
+        <strong>登记安装包</strong>
+        <div class="form-grid">
+          <div><label for="apk-id">包 ID *</label><input id="apk-id" placeholder="swan-dev-4d1ed7b-20260915"></div>
+          <div><label for="apk-version">App 版本</label><input id="apk-version" placeholder="5.3.0"></div>
+          <div><label for="apk-flavor">Flavor</label><input id="apk-flavor" placeholder="test / debug / release"></div>
+          <div><label for="apk-branch">分支</label><input id="apk-branch" placeholder="dev"></div>
+          <div><label for="apk-commit">Commit</label><input id="apk-commit" placeholder="4d1ed7b"></div>
+          <div><label for="apk-notes">备注</label><input id="apk-notes" placeholder="谁构建的 / 用途"></div>
+          <div class="form-actions"><button class="primary" id="apk-register">登记</button><span class="meta" id="apk-msg"></span></div>
+        </div>
+      </div>
+      <section class="card table-card"><table><thead><tr><th>包 ID</th><th>版本</th><th>Flavor</th><th>分支</th><th>Commit</th><th>来源</th><th>执行次数</th><th>登记时间</th><th></th></tr></thead><tbody id="apk-rows"><tr><td colspan="9" class="empty">加载中…</td></tr></tbody></table></section>
+      <p class="hint">“查看执行”跳转到执行会话页并按该包过滤；执行次数按 runs 关联统计。</p>
+    </section>
+    <section class="page" id="page-cases">
+      <div class="toolbar">
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <input id="case-q" placeholder="搜用例(脚本路径或名称关键词)" style="min-width:280px">
+          <button class="ghost" id="case-search">搜索</button>
+          <input id="case-id" placeholder="用例完整 ID(nodeid)" style="min-width:340px">
+          <button class="primary" id="case-load">查历史</button>
+        </div>
+      </div>
+      <div id="case-search-result"></div>
+      <section class="card" id="case-history-card" style="display:none">
+        <h2 id="case-history-title" style="margin:0 0 12px;font-size:17px"></h2>
+        <div class="timeline" id="case-timeline"></div>
+      </section>
+      <p class="hint">先搜索关键词得到用例 ID，点选后查执行历史；从什么时候开始错的、近 20 次结果一目了然。</p>
+    </section>
+    <section class="page" id="page-captcha">
+      <div class="health"><span class="dot" id="gw-dot"></span><span id="gw-text">检测中…</span><span class="meta" id="gw-detail"></span></div>
+      <iframe id="gw-frame" src="about:blank" title="otp-gateway"></iframe>
+      <p class="hint">网关页面若未加载，点 <button class="ghost" id="gw-reload" style="padding:4px 10px">重新加载</button>；取码接口由用例自动调用，本页供人工查看最近验证码。</p>
+    </section>
+  </main>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const statusText = {running:'执行中', passed:'通过', failed:'失败', skipped:'跳过', error:'错误'};
+    const safe = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const formatDate = (v) => v ? new Date(v).toLocaleString('zh-CN') : '-';
+    const formatDuration = (s) => { s = Number(s||0); return s < 60 ? `${s.toFixed(1)} 秒` : `${Math.floor(s/60)} 分 ${Math.round(s%60)} 秒`; };
+    const badge = (s) => `<span class="badge ${s}">${statusText[s]||s}</span>`;
+    let gatewayUrl = '';
+
+    document.querySelectorAll('nav button').forEach(btn => btn.onclick = () => {
+      document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('section.page').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active'); $('page-' + btn.dataset.page).classList.add('active');
+      if (btn.dataset.page === 'apks') loadApks();
+      if (btn.dataset.page === 'captcha') loadGateway();
+    });
+
+    async function loadRuns() {
+      const platform = $('platform').value, apk = $('filter-apk').value;
+      const qs = new URLSearchParams(); if (platform) qs.set('platform', platform); if (apk) qs.set('apk_id', apk);
+      const data = await (await fetch('/api/runs?' + qs)).json(); const runs = data.items || [];
+      $('run-count').textContent = runs.length;
+      const done = runs.filter(r => r.total_cases);
+      $('pass-rate').textContent = done.length ? (done.reduce((s,r)=>s+r.pass_rate,0)/done.length).toFixed(1)+'%' : '-';
+      $('latest-status').innerHTML = runs.length ? badge(runs[0].status) : '-';
+      $('latest-duration').textContent = runs.length ? formatDuration(runs[0].duration_seconds) : '-';
+      const tbody = $('runs'); tbody.innerHTML = '';
+      if (!runs.length) { tbody.innerHTML = '<tr><td colspan="9" class="empty">暂无执行记录</td></tr>'; return; }
+      runs.forEach(r => { const row = document.createElement('tr'); row.className = 'clickable';
+        row.innerHTML = `<td>${safe(r.run_id)}</td><td>${safe(r.platform.toUpperCase())}</td><td>${safe(r.apk_id||'-')}</td><td>${safe(r.device||'-')}</td><td>${badge(r.status)}</td><td>${r.pass_rate.toFixed(1)}%</td><td>${r.total_cases}</td><td>${formatDuration(r.duration_seconds)}</td><td>${safe(formatDate(r.started_at))}</td>`;
+        row.onclick = () => showRun(r.run_id); tbody.appendChild(row); });
+    }
+    async function showRun(runId) {
+      const run = await (await fetch('/api/runs/' + encodeURIComponent(runId))).json();
+      $('detail').style.display = 'block';
+      $('detail-title').textContent = `${run.run_id} · ${run.platform.toUpperCase()} ${statusText[run.status]||run.status}`;
+      $('detail-meta').textContent = `开始：${formatDate(run.started_at)}　结束：${formatDate(run.ended_at)}　耗时：${formatDuration(run.duration_seconds)}　通过率：${run.pass_rate.toFixed(1)}%　包体：${run.apk_id||'-'}`;
+      const box = $('cases'); box.innerHTML = '';
+      (run.cases||[]).forEach(c => { const d = document.createElement('details'); d.className = 'case';
+        const art = JSON.stringify(c.artifacts||{}, null, 2);
+        const link = c.case_id ? `<a href="#" onclick="gotoHistory(decodeURIComponent('${encodeURIComponent(c.case_id)}'));return false">查该用例历史 →</a>` : '';
+        d.innerHTML = `<summary>${badge(c.status)}　${safe(c.name)} <span class="meta">${formatDuration(c.duration_seconds)}</span></summary>
+          <div class="case-grid"><span>开始：${safe(formatDate(c.started_at))}</span><span>结束：${safe(formatDate(c.ended_at))}</span><span>${link}</span></div>
+          ${c.error ? `<strong>错误</strong><pre>${safe(c.error)}</pre>` : ''}<strong>执行日志</strong><pre>${safe(c.log||'无日志')}</pre><strong>附件/证据</strong><pre>${safe(art)}</pre>`;
+        box.appendChild(d); });
+      $('detail').scrollIntoView({behavior:'smooth'});
+    }
+    function gotoHistory(caseId) { $('case-id').value = caseId; document.querySelector('nav button[data-page=cases]').click(); $('case-load').click(); }
+
+    async function loadApks() {
+      const data = await (await fetch('/api/apks?limit=100')).json(); const items = data.items||[];
+      const runs = await (await fetch('/api/runs?limit=200')).json(); const runItems = runs.items||[];
+      const counts = {}; runItems.forEach(r => { if (r.apk_id) counts[r.apk_id] = (counts[r.apk_id]||0)+1; });
+      const tbody = $('apk-rows'); tbody.innerHTML = '';
+      if (!items.length) { tbody.innerHTML = '<tr><td colspan="9" class="empty">还没有登记的包——登记后即可按包关联执行结果</td></tr>'; }
+      items.forEach(a => { const row = document.createElement('tr');
+        row.innerHTML = `<td>${safe(a.apk_id)}</td><td>${safe(a.app_version||'-')}</td><td>${safe(a.flavor||'-')}</td><td>${safe(a.branch||'-')}</td><td>${safe(a.commit_hash||'-')}</td><td>${safe(a.source)}</td><td>${counts[a.apk_id]||0}</td><td>${safe(formatDate(a.registered_at))}</td><td><button class="ghost" onclick="filterByApk(decodeURIComponent('${encodeURIComponent(a.apk_id)}'))">查看执行</button></td>`;
+        tbody.appendChild(row); });
+      const sel = $('filter-apk'); const current = sel.value;
+      sel.innerHTML = '<option value="">全部</option>' + items.map(a => `<option value="${safe(a.apk_id)}">${safe(a.apk_id)}</option>`).join('');
+      sel.value = current;
+    }
+    async function registerApk() {
+      const payload = { apk_id: $('apk-id').value.trim(), app_version: $('apk-version').value.trim(), flavor: $('apk-flavor').value.trim(), branch: $('apk-branch').value.trim(), commit_hash: $('apk-commit').value.trim(), notes: $('apk-notes').value.trim(), source: 'manual' };
+      if (!payload.apk_id) { $('apk-msg').textContent = '包 ID 必填'; return; }
+      const resp = await fetch('/api/apks', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+      $('apk-msg').textContent = resp.ok ? '✅ 已登记' : '❌ ' + (await resp.json()).error;
+      if (resp.ok) { ['apk-id','apk-version','apk-flavor','apk-branch','apk-commit','apk-notes'].forEach(id => $(id).value=''); loadApks(); }
+    }
+    function filterByApk(apkId) { $('filter-apk').value = apkId; document.querySelector('nav button[data-page=runs]').click(); loadRuns(); }
+
+    async function searchCases() {
+      const q = $('case-q').value.trim(); if (!q) return;
+      const data = await (await fetch('/api/cases/search?q=' + encodeURIComponent(q))).json(); const items = data.items||[];
+      $('case-search-result').innerHTML = items.length
+        ? `<section class="card table-card" style="margin-bottom:14px"><table><thead><tr><th>用例 ID</th><th>名称</th><th>执行次数</th><th>最近执行</th><th></th></tr></thead><tbody>${items.map(i => `<tr class="clickable" onclick="pickCase(decodeURIComponent('${encodeURIComponent(i.case_id)}'))"><td>${safe(i.case_id)}</td><td>${safe(i.name)}</td><td>${i.executions}</td><td>${safe(formatDate(i.last_seen))}</td><td><button class="ghost">选它</button></td></tr>`).join('')}</tbody></table></section>`
+        : `<p class="meta">没有匹配的用例</p>`;
+    }
+    function pickCase(caseId) { $('case-id').value = caseId; loadCaseHistory(); }
+    async function loadCaseHistory() {
+      const caseId = $('case-id').value.trim(); if (!caseId) return;
+      const data = await (await fetch('/api/cases/' + encodeURIComponent(caseId) + '/history?limit=20')).json();
+      const items = data.items||[];
+      $('case-history-card').style.display = 'block';
+      $('case-history-title').textContent = `近 ${items.length} 次执行 · ${caseId}`;
+      $('case-timeline').innerHTML = items.length ? items.map(h => `
+        <div class="tl-item ${h.status}">${badge(h.status)}
+          <span class="meta">${safe(formatDate(h.started_at))} · ${formatDuration(h.duration_seconds)} · 包 ${safe(h.apk_id||'-')} · 设备 ${safe(h.device||'-')} · 会话 ${safe(h.run_id)}</span>
+          ${h.error ? `<pre>${safe(h.error.slice(0,800))}</pre>` : ''}
+        </div>`).join('') : '<p class="empty">没有执行记录</p>';
+    }
+
+    async function loadGateway() {
+      try {
+        const h = await (await fetch('/api/gateway/health')).json();
+        gatewayUrl = h.gateway;
+        $('gw-dot').className = 'dot ' + (h.ok ? 'ok' : 'bad');
+        $('gw-text').textContent = h.ok ? '验证码网关正常' : '验证码网关异常';
+        $('gw-detail').textContent = `${h.gateway} · ${String(h.detail).slice(0,80)}`;
+        if (h.ok && !$('gw-frame').src.includes('18080')) $('gw-frame').src = h.gateway + '/';
+      } catch (e) { $('gw-dot').className = 'dot bad'; $('gw-text').textContent = '验证码网关检测失败'; }
+    }
+    $('gw-reload').onclick = () => { if (gatewayUrl) $('gw-frame').src = gatewayUrl + '/'; };
+
+    $('refresh').onclick = loadRuns; $('platform').onchange = loadRuns; $('filter-apk').onchange = loadRuns; $('close-detail').onclick = () => $('detail').style.display = 'none';
+    $('apk-register').onclick = registerApk;
+    $('case-search').onclick = searchCases; $('case-q').onkeydown = e => { if (e.key==='Enter') searchCases(); };
+    $('case-load').onclick = loadCaseHistory; $('case-id').onkeydown = e => { if (e.key==='Enter') loadCaseHistory(); };
+    loadRuns().catch(e => { $('runs').innerHTML = `<tr><td colspan="9" class="empty">加载失败：${e}</td></tr>`; });
+  </script>
+</body>
+</html>

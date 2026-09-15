@@ -72,7 +72,7 @@ def test_dashboard_run_lifecycle_and_history():
             status, content_type, body = request(base_url, "/")
             assert status == 200
             assert content_type == "text/html"
-            assert "UIAutotest 测试历史" in body.decode("utf-8")
+            assert "Swan 测试平台" in body.decode("utf-8")
         finally:
             server.shutdown()
             server.server_close()

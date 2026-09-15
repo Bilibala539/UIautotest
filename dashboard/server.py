@@ -52,6 +52,12 @@ def json_object(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False)
 
 
+def _stale_cutoff() -> str:
+    """busy 设备的自愈阈值:4 小时前(ISO 时间字符串可直接比较)。"""
+    from datetime import timedelta
+    return (datetime.now(timezone.utc) - timedelta(hours=4)).isoformat(timespec="seconds")
+
+
 class DashboardStore:
     def __init__(self, database_path: str | Path = DEFAULT_DATABASE):
         self.database_path = Path(database_path)
@@ -133,6 +139,24 @@ class DashboardStore:
                     registered_at TEXT NOT NULL
                 );
                 CREATE INDEX IF NOT EXISTS idx_apks_registered_at ON apks(registered_at DESC);
+                """
+            )
+            connection.executescript(
+                """
+                CREATE TABLE IF NOT EXISTS devices (
+                    device_id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL DEFAULT '',
+                    platform TEXT NOT NULL DEFAULT 'flutter',
+                    model TEXT NOT NULL DEFAULT '',
+                    status TEXT NOT NULL DEFAULT 'online_idle',
+                    current_run TEXT NOT NULL DEFAULT '',
+                    busy_since TEXT,
+                    last_assigned_at TEXT,
+                    last_heartbeat TEXT,
+                    registered_at TEXT NOT NULL,
+                    metadata_json TEXT NOT NULL DEFAULT '{}'
+                );
+                CREATE INDEX IF NOT EXISTS idx_devices_status ON devices(status);
                 """
             )
 
@@ -252,6 +276,156 @@ class DashboardStore:
                 (status, ended_at, duration, total, passed, failed, skipped, errors, run_id),
             )
         return self.get_run(run_id)
+
+    # ==================== 设备池 ====================
+
+    def register_device(self, payload: dict[str, Any]) -> dict[str, Any]:
+        device_id = str(payload.get("device_id") or "").strip()
+        if not device_id:
+            raise ValueError("device_id is required")
+        now = utc_now()
+        with self.transaction() as connection:
+            row = connection.execute(
+                "SELECT status FROM devices WHERE device_id=?", (device_id,)
+            ).fetchone()
+            # 心跳/注册刷新在线时间;busy/disabled 的设备注册(执行机自报)不覆盖其状态
+            if row is None:
+                connection.execute(
+                    """
+                    INSERT INTO devices (
+                        device_id, name, platform, model, status, last_heartbeat,
+                        registered_at, metadata_json
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        device_id,
+                        str(payload.get("name") or ""),
+                        str(payload.get("platform") or "flutter"),
+                        str(payload.get("model") or ""),
+                        str(payload.get("status") or "online_idle"),
+                        now, now,
+                        json_object(payload.get("metadata")),
+                    ),
+                )
+            else:
+                keep_status = row["status"] if row["status"] in {"busy", "disabled"} else "online_idle"
+                connection.execute(
+                    """
+                    UPDATE devices SET name=?, platform=?, model=?, status=?,
+                        last_heartbeat=?, metadata_json=?
+                    WHERE device_id=?
+                    """,
+                    (
+                        str(payload.get("name") or ""),
+                        str(payload.get("platform") or "flutter"),
+                        str(payload.get("model") or ""),
+                        keep_status,
+                        now,
+                        json_object(payload.get("metadata")),
+                        device_id,
+                    ),
+                )
+        return self.get_device(device_id)
+
+    def get_device(self, device_id: str) -> dict[str, Any]:
+        with self.transaction() as connection:
+            row = connection.execute("SELECT * FROM devices WHERE device_id=?", (device_id,)).fetchone()
+        if row is None:
+            raise KeyError(f"device not found: {device_id}")
+        return self._serialize_device(row)
+
+    @staticmethod
+    def _serialize_device(row: sqlite3.Row) -> dict[str, Any]:
+        item = dict(row)
+        item["metadata"] = json.loads(item.pop("metadata_json") or "{}")
+        return item
+
+    def list_devices(self) -> list[dict[str, Any]]:
+        with self.transaction() as connection:
+            rows = connection.execute("SELECT * FROM devices ORDER BY device_id").fetchall()
+        return [self._serialize_device(row) for row in rows]
+
+    def acquire_device(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """领取一台空闲设备:平台匹配 + 最久未用优先(平均分配)。"""
+        run_id = str(payload.get("run_id") or "").strip()
+        if not run_id:
+            raise ValueError("run_id is required")
+        platform = str(payload.get("platform") or "flutter").strip().lower()
+        prefer = [str(s) for s in (payload.get("prefer") or [])]
+        now = utc_now()
+        with self.transaction() as connection:
+            rows = connection.execute(
+                "SELECT * FROM devices WHERE status='online_idle' AND platform=?",
+                (platform,),
+            ).fetchall()
+            if not rows:
+                # 自愈:busy 超 4 小时且心跳停滞的设备视为 stale(执行机崩溃/拔线),回收重用
+                connection.execute(
+                    """
+                    UPDATE devices SET status='online_idle', current_run='', busy_since=NULL
+                    WHERE status='busy' AND platform=? AND busy_since < ?
+                    """,
+                    (platform, _stale_cutoff()),
+                )
+                rows = connection.execute(
+                    "SELECT * FROM devices WHERE status='online_idle' AND platform=?",
+                    (platform,),
+                ).fetchall()
+            if not rows:
+                raise LookupError(f"no idle device for platform={platform}")
+
+            def _rank(row: sqlite3.Row) -> tuple:
+                return (0 if row["device_id"] in prefer else 1,
+                        row["last_assigned_at"] or "")
+
+            chosen = sorted(rows, key=_rank)[0]
+            connection.execute(
+                """
+                UPDATE devices SET status='busy', current_run=?, busy_since=?,
+                    last_assigned_at=?, last_heartbeat=?
+                WHERE device_id=? AND status='online_idle'
+                """,
+                (run_id, now, now, now, chosen["device_id"]),
+            )
+        return self.get_device(chosen["device_id"])
+
+    def release_device(self, device_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        run_id = str(payload.get("run_id") or "")
+        with self.transaction() as connection:
+            row = connection.execute(
+                "SELECT current_run FROM devices WHERE device_id=?", (device_id,)
+            ).fetchone()
+            if row is None:
+                raise KeyError(f"device not found: {device_id}")
+            if row["current_run"] and run_id and row["current_run"] != run_id:
+                raise ValueError(f"device busy with another run: {row['current_run']}")
+            connection.execute(
+                """
+                UPDATE devices SET status='online_idle', current_run='', busy_since=NULL,
+                    last_heartbeat=?
+                WHERE device_id=?
+                """,
+                (utc_now(), device_id),
+            )
+        return self.get_device(device_id)
+
+    def set_device_status(self, device_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        status = str(payload.get("status") or "").strip()
+        if status not in {"online_idle", "offline", "disabled"}:
+            raise ValueError("status must be online_idle, offline or disabled")
+        with self.transaction() as connection:
+            row = connection.execute(
+                "SELECT status FROM devices WHERE device_id=?", (device_id,)
+            ).fetchone()
+            if row is None:
+                raise KeyError(f"device not found: {device_id}")
+            if row["status"] == "busy" and status != "disabled":
+                raise ValueError("device is busy, release it first")
+            connection.execute(
+                "UPDATE devices SET status=?, last_heartbeat=? WHERE device_id=?",
+                (status, utc_now(), device_id),
+            )
+        return self.get_device(device_id)
 
     @staticmethod
     def duration_between(started_at: str, ended_at: str) -> float:
@@ -498,6 +672,16 @@ class DashboardHandler(BaseHTTPRequestHandler):
             except Exception as error:  # noqa: BLE001 — 健康代理失败本身就是信息
                 self.send_json({"ok": False, "gateway": gateway, "detail": str(error)})
             return
+        if parsed.path == "/api/devices":
+            self.send_json({"items": self.store.list_devices()})
+            return
+        if parsed.path.startswith("/api/devices/"):
+            device_id = parsed.path.removeprefix("/api/devices/").strip("/")
+            try:
+                self.send_json(self.store.get_device(device_id))
+            except KeyError as error:
+                self.send_error_json(str(error), HTTPStatus.NOT_FOUND)
+            return
         if parsed.path.startswith("/api/runs/"):
             run_id = parsed.path.removeprefix("/api/runs/").strip("/")
             if not run_id:
@@ -529,6 +713,23 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 return
             if parsed.path == "/api/apks":
                 self.send_json(self.store.register_apk(payload), HTTPStatus.CREATED)
+                return
+            if parsed.path == "/api/devices/register":
+                self.send_json(self.store.register_device(payload), HTTPStatus.CREATED)
+                return
+            if parsed.path == "/api/devices/acquire":
+                try:
+                    self.send_json(self.store.acquire_device(payload), HTTPStatus.CREATED)
+                except LookupError as error:
+                    self.send_error_json(str(error), HTTPStatus.SERVICE_UNAVAILABLE)
+                return
+            if parsed.path.startswith("/api/devices/") and parsed.path.endswith("/release"):
+                device_id = parsed.path.removeprefix("/api/devices/").removesuffix("/release").strip("/")
+                self.send_json(self.store.release_device(device_id, payload))
+                return
+            if parsed.path.startswith("/api/devices/") and parsed.path.endswith("/status"):
+                device_id = parsed.path.removeprefix("/api/devices/").removesuffix("/status").strip("/")
+                self.send_json(self.store.set_device_status(device_id, payload))
                 return
             if parsed.path.startswith("/api/runs/") and parsed.path.endswith("/cases"):
                 run_id = parsed.path.removeprefix("/api/runs/").removesuffix("/cases").strip("/")

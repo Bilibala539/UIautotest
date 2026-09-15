@@ -4,6 +4,7 @@ import argparse
 import json
 import os
 import sqlite3
+import uuid
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from http import HTTPStatus
@@ -157,6 +158,22 @@ class DashboardStore:
                     metadata_json TEXT NOT NULL DEFAULT '{}'
                 );
                 CREATE INDEX IF NOT EXISTS idx_devices_status ON devices(status);
+                CREATE TABLE IF NOT EXISTS pipeline_jobs (
+                    job_id TEXT PRIMARY KEY,
+                    trigger_source TEXT NOT NULL DEFAULT 'manual',
+                    branch TEXT NOT NULL DEFAULT '',
+                    platform TEXT NOT NULL DEFAULT 'flutter',
+                    case_filter TEXT NOT NULL DEFAULT '',
+                    apk_id TEXT,
+                    status TEXT NOT NULL DEFAULT 'pending',
+                    claimed_by TEXT NOT NULL DEFAULT '',
+                    attempts INTEGER NOT NULL DEFAULT 0,
+                    created_at TEXT NOT NULL,
+                    claimed_at TEXT,
+                    finished_at TEXT,
+                    result_json TEXT NOT NULL DEFAULT '{}'
+                );
+                CREATE INDEX IF NOT EXISTS idx_pipeline_jobs_status ON pipeline_jobs(status);
                 """
             )
 
@@ -427,6 +444,107 @@ class DashboardStore:
             )
         return self.get_device(device_id)
 
+    # ---------- 流水线任务(P4):触发/认领/收尾 ----------
+
+    def create_pipeline_job(self, payload: dict[str, Any]) -> dict[str, Any]:
+        trigger_source = str(payload.get("trigger_source") or "manual").strip()
+        platform = str(payload.get("platform") or "flutter").strip().lower()
+        if platform not in VALID_PLATFORMS:
+            raise ValueError(f"platform must be one of {sorted(VALID_PLATFORMS)}")
+        job_id = str(payload.get("job_id") or "").strip() or (
+            f"job-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}-"
+            f"{uuid.uuid4().hex[:6]}"
+        )
+        with self.transaction() as connection:
+            connection.execute(
+                """
+                INSERT INTO pipeline_jobs (
+                    job_id, trigger_source, branch, platform, case_filter, apk_id,
+                    status, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)
+                """,
+                (
+                    job_id, trigger_source,
+                    str(payload.get("branch") or "").strip(),
+                    platform,
+                    str(payload.get("case_filter") or "").strip(),
+                    str(payload.get("apk_id") or "").strip() or None,
+                    utc_now(),
+                ),
+            )
+        return self.get_pipeline_job(job_id)
+
+    def get_pipeline_job(self, job_id: str) -> dict[str, Any]:
+        with self.connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM pipeline_jobs WHERE job_id=?", (job_id,)
+            ).fetchone()
+        if row is None:
+            raise KeyError(f"pipeline job not found: {job_id}")
+        return self._serialize_pipeline_job(row)
+
+    def list_pipeline_jobs(
+        self, status: str = "", limit: int = 30
+    ) -> list[dict[str, Any]]:
+        with self.connect() as connection:
+            if status:
+                rows = connection.execute(
+                    """SELECT * FROM pipeline_jobs WHERE status=?
+                       ORDER BY created_at DESC LIMIT ?""",
+                    (status, limit),
+                ).fetchall()
+            else:
+                rows = connection.execute(
+                    "SELECT * FROM pipeline_jobs ORDER BY created_at DESC LIMIT ?",
+                    (limit,),
+                ).fetchall()
+        return [self._serialize_pipeline_job(row) for row in rows]
+
+    @staticmethod
+    def _serialize_pipeline_job(row: sqlite3.Row) -> dict[str, Any]:
+        item = dict(row)
+        item["result"] = json.loads(item.pop("result_json") or "{}")
+        return item
+
+    def claim_pipeline_job(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """执行 agent 认领最早的 pending 任务(原子操作,防多机抢跑)。"""
+        claimed_by = str(payload.get("agent") or "").strip() or "unknown-agent"
+        now = utc_now()
+        with self.transaction() as connection:
+            row = connection.execute(
+                """SELECT job_id FROM pipeline_jobs WHERE status='pending'
+                   ORDER BY created_at LIMIT 1"""
+            ).fetchone()
+            if row is None:
+                raise LookupError("no pending pipeline job")
+            job_id = row["job_id"]
+            connection.execute(
+                """UPDATE pipeline_jobs SET status='running', claimed_by=?,
+                   claimed_at=?, attempts=attempts+1
+                   WHERE job_id=? AND status='pending'""",
+                (claimed_by, now, job_id),
+            )
+        return self.get_pipeline_job(job_id)
+
+    def finish_pipeline_job(self, job_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        status = str(payload.get("status") or "").strip()
+        valid = {"succeeded", "failed", "env_blocked", "error"}
+        if status not in valid:
+            raise ValueError(f"status must be one of {sorted(valid)}")
+        with self.transaction() as connection:
+            row = connection.execute(
+                "SELECT status FROM pipeline_jobs WHERE job_id=?", (job_id,)
+            ).fetchone()
+            if row is None:
+                raise KeyError(f"pipeline job not found: {job_id}")
+            connection.execute(
+                """UPDATE pipeline_jobs SET status=?, finished_at=?, result_json=?
+                   WHERE job_id=?""",
+                (status, utc_now(),
+                 json.dumps(payload.get("result") or {}, ensure_ascii=False), job_id),
+            )
+        return self.get_pipeline_job(job_id)
+
     @staticmethod
     def duration_between(started_at: str, ended_at: str) -> float:
         try:
@@ -675,10 +793,27 @@ class DashboardHandler(BaseHTTPRequestHandler):
         if parsed.path == "/api/devices":
             self.send_json({"items": self.store.list_devices()})
             return
+        if parsed.path == "/api/pipeline/jobs":
+            query = parse_qs(parsed.query)
+            status = query.get("status", [""])[0].strip()
+            try:
+                limit = int(query.get("limit", ["30"])[0])
+            except ValueError:
+                self.send_error_json("limit must be an integer", HTTPStatus.BAD_REQUEST)
+                return
+            self.send_json({"items": self.store.list_pipeline_jobs(status=status, limit=limit)})
+            return
         if parsed.path.startswith("/api/devices/"):
             device_id = parsed.path.removeprefix("/api/devices/").strip("/")
             try:
                 self.send_json(self.store.get_device(device_id))
+            except KeyError as error:
+                self.send_error_json(str(error), HTTPStatus.NOT_FOUND)
+            return
+        if parsed.path.startswith("/api/pipeline/jobs/"):
+            job_id = parsed.path.removeprefix("/api/pipeline/jobs/").strip("/")
+            try:
+                self.send_json(self.store.get_pipeline_job(job_id))
             except KeyError as error:
                 self.send_error_json(str(error), HTTPStatus.NOT_FOUND)
             return
@@ -722,6 +857,21 @@ class DashboardHandler(BaseHTTPRequestHandler):
                     self.send_json(self.store.acquire_device(payload), HTTPStatus.CREATED)
                 except LookupError as error:
                     self.send_error_json(str(error), HTTPStatus.SERVICE_UNAVAILABLE)
+                return
+            if parsed.path == "/api/pipeline/trigger":
+                self.send_json(
+                    self.store.create_pipeline_job(payload), HTTPStatus.CREATED
+                )
+                return
+            if parsed.path == "/api/pipeline/claim":
+                try:
+                    self.send_json(self.store.claim_pipeline_job(payload))
+                except LookupError as error:
+                    self.send_error_json(str(error), HTTPStatus.NOT_FOUND)
+                return
+            if parsed.path.startswith("/api/pipeline/jobs/") and parsed.path.endswith("/finish"):
+                job_id = parsed.path.removeprefix("/api/pipeline/jobs/").removesuffix("/finish").strip("/")
+                self.send_json(self.store.finish_pipeline_job(job_id, payload))
                 return
             if parsed.path.startswith("/api/devices/") and parsed.path.endswith("/release"):
                 device_id = parsed.path.removeprefix("/api/devices/").removesuffix("/release").strip("/")

@@ -1,0 +1,151 @@
+"""流水线执行 agent(P4 步骤 11-12):在本机轮询平台领取任务并执行。
+
+职责:
+  1. 向平台 claim 一个 pending 任务(没有就退出/等待)
+  2. 预检门禁:失败 → 任务标记 env_blocked(环境问题按 bug 处理,不计用例失败)
+  3. 执行 pytest(PREFLIGHT=1 + EVIDENCE=1 + 设备池自动领取)
+  4. 门禁重试(步骤 12):用例失败自动重跑一次(--lf 只跑失败项);
+     重跑通过视为通过;环境阻塞不重跑、不计失败
+  5. 把结果回报给平台(finish),运行记录/证据由 pytest_plugin 与证据体系落库
+
+触发双通道:
+  - webhook:平台 POST /api/pipeline/trigger(供 git.hivi.com webhook 调用)
+  - nightly:.166 计划任务每日凌晨 POST trigger(见 deploy 注释)
+
+用法:
+  python scripts/pipeline_agent.py --once      # 领一个任务执行完退出
+  python scripts/pipeline_agent.py --loop 60   # 常驻轮询(默认 60 秒)
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import subprocess
+import sys
+import time
+import urllib.error
+import urllib.request
+from datetime import datetime, timezone
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PLATFORM_URL = os.environ.get("DASHBOARD_URL", "http://192.168.12.166:8080").rstrip("/")
+# 平台未指定 case_filter 时的默认执行目标
+DEFAULT_PYTEST_TARGET = "tests/flutter/test_case_driver.py"
+
+
+def _post(path: str, payload: dict) -> dict:
+    request = urllib.request.Request(
+        f"{PLATFORM_URL}{path}",
+        data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+        headers={"Content-Type": "application/json; charset=utf-8"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=15) as response:
+            return json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as error:
+        detail = error.read().decode("utf-8", "replace")
+        raise RuntimeError(f"POST {path} -> HTTP {error.code}: {detail}") from error
+
+
+def _log(message: str) -> None:
+    print(f"[pipeline-agent {datetime.now(timezone.utc).isoformat(timespec='seconds')}] {message}", flush=True)
+
+
+def _run_pytest(job: dict, run_id: str, rerun: bool = False) -> int:
+    """跑一轮 pytest,返回 pytest 退出码(3=环境阻塞)。"""
+    env = os.environ.copy()
+    env.update({
+        "PLATFORM": job.get("platform") or "flutter",
+        "DASHBOARD_URL": PLATFORM_URL,
+        "DASHBOARD_RUN_ID": run_id,
+        "PREFLIGHT": "1",     # 门禁:环境阻塞 → pytest.exit(3)
+        "EVIDENCE": "1",      # 每步标注截图
+        "DEVICE_POOL": "1",   # 设备池自动领取/归还
+    })
+    command = [sys.executable, "-m", "pytest"]
+    target = job.get("case_filter") or DEFAULT_PYTEST_TARGET
+    command.extend(target.split())
+    if rerun:
+        command.append("--lf")  # 只重跑上一轮失败项(pytest cache 内置)
+    _log(f"job={job['job_id']} run={'rerun(--lf)' if rerun else 'first'} "
+         f"target={target} platform={env['PLATFORM']}")
+    result = subprocess.run(command, cwd=str(PROJECT_ROOT), env=env)
+    return result.returncode
+
+
+def execute_job(job: dict) -> dict:
+    """执行一个任务,返回 finish 载荷。门禁语义:
+    - pytest 退出码 3(ENV_BLOCKED)→ env_blocked,不重跑不计失败
+    - 退出码 1(有用例失败)→ 自动重跑一次(--lf);重跑通过=通过
+    - 其他非零(收集错误/用法错误)→ error,不重跑
+    """
+    run_id = f"pipe-{job['job_id']}"
+    first_rc = _run_pytest(job, run_id)
+    if first_rc == 3:
+        _log(f"job={job['job_id']} ENV_BLOCKED(环境门禁未过,按 bug 处理)")
+        return {"status": "env_blocked", "result": {"run_id": run_id, "exit_code": 3}}
+    if first_rc == 0:
+        _log(f"job={job['job_id']} succeeded")
+        return {"status": "succeeded", "result": {"run_id": run_id, "exit_code": 0}}
+    if first_rc == 1:
+        _log(f"job={job['job_id']} first run failed (rc=1), auto-rerun --lf")
+        rerun_rc = _run_pytest(job, run_id, rerun=True)
+        status = "succeeded" if rerun_rc == 0 else "failed"
+        _log(f"job={job['job_id']} rerun rc={rerun_rc} -> {status}")
+        return {"status": status, "result": {
+            "run_id": run_id, "exit_code": rerun_rc,
+            "rerun": True, "first_exit_code": 1,
+        }}
+    _log(f"job={job['job_id']} error (pytest rc={first_rc},收集/用法问题不重跑)")
+    return {"status": "error", "result": {"run_id": run_id, "exit_code": first_rc}}
+
+
+def process_once() -> bool:
+    """领取并执行至多一个任务。返回是否领到了任务。"""
+    agent = os.environ.get("COMPUTERNAME", "local-agent")
+    try:
+        job = _post("/api/pipeline/claim", {"agent": agent})
+    except RuntimeError as error:
+        if "404" in str(error):  # 平台无 pending 任务属正常
+            return False
+        raise
+    _log(f"claimed job={job['job_id']} source={job['trigger_source']} "
+         f"branch={job['branch'] or '-'}")
+    outcome = execute_job(job)
+    try:
+        _post(f"/api/pipeline/jobs/{job['job_id']}/finish", outcome)
+    except RuntimeError as error:
+        _log(f"WARNING 回报失败(任务结果留在本地日志): {error}")
+    return True
+
+
+def main() -> int:
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    parser = argparse.ArgumentParser(description="流水线执行 agent")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--once", action="store_true", help="领一个任务执行完退出")
+    mode.add_argument("--loop", type=int, metavar="SEC", help="常驻轮询,每 SEC 秒尝试领取")
+    args = parser.parse_args()
+
+    if args.once:
+        got = process_once()
+        return 0 if got else 0
+    if args.loop:
+        _log(f"daemon 启动,轮询间隔 {args.loop}s,平台 {PLATFORM_URL}")
+        while True:
+            try:
+                while process_once():
+                    pass  # 把队列清空
+            except Exception as error:  # noqa: BLE001 — 常驻进程单轮失败不退出
+                _log(f"WARNING 单轮异常: {error}")
+            time.sleep(args.loop)
+    parser.error("需要 --once 或 --loop <秒>")
+    return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main())

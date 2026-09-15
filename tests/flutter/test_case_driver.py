@@ -104,12 +104,35 @@ class TestCaseDriver(BaseTest):
 
     # ---------- 用例执行 ----------
 
+    def _normalize_login_state(self, timeout: float = 15.0) -> None:
+        """登录模块前置归一化(移植自登录试点 _ensure_fresh_sms_form)。
+
+        已登录 → 登出;停在脏表单(密码形态/错误提示/验证码步残留) →
+        重启重置(登录页无状态持久化)。结束态:全新验证码登录页。
+        """
+        K = SwanBusiness
+        if self.aw.accessibility_exists(K.KEY_TAB_ME):
+            self.user.logout_if_needed()
+        if (self.aw.accessibility_exists(K.KEY_PASSWORD_FIELD)
+                or self.aw.accessibility_exists(K.KEY_ERROR_TEXT)
+                or self.aw.accessibility_exists(K.KEY_CODE_FIELD)):
+            self.aw.relaunch_app(self.package)
+            assert self.aw.wait_accessibility(
+                K.KEY_LOGIN_PAGE, timeout=timeout
+            ), "重启 App 后未回到登录页"
+        assert self.aw.wait_accessibility(
+            K.KEY_USE_PASSWORD_BUTTON, timeout=timeout
+        ), "未停在验证码登录形态(login_use_password_button 未出现)"
+
     def _execute_case(self, case_path: Path) -> None:
         case = load_case(case_path)
         context = self._context()
         print(f"[case {case.case_id}] {case.title}(module={case.module}, priority={case.priority})")
         if case.source:
             print(f"[case {case.case_id}] 来源: {case.source}")
+        if case.module == "login":
+            print(f"[case {case.case_id}] 前置归一化: 登录态重置")
+            self._normalize_login_state()
         for index, step in enumerate(case.steps, 1):
             self._run_step(index, step, context)
         if case.expected:

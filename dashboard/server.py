@@ -17,6 +17,27 @@ from urllib.parse import parse_qs, urlparse
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_DATABASE = PROJECT_ROOT / "output" / "dashboard.sqlite3"
 
+
+def _load_dotenv_local() -> None:
+    """加载项目根 .env.local(部署机专属配置:禅道凭据等,不进 git)。
+
+    已存在的环境变量优先,文件值只作补充。
+    """
+    env_file = PROJECT_ROOT / ".env.local"
+    if not env_file.is_file():
+        return
+    for line in env_file.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key, value = key.strip(), value.strip().strip("'\"")
+        if key and key not in os.environ:
+            os.environ[key] = value
+
+
+_load_dotenv_local()
+
 # 平台取值集合：flutter = Flutter App(跑在 Android 设备上)，pc = 桌面端
 VALID_PLATFORMS = {"android", "ios", "flutter", "pc"}
 
@@ -803,6 +824,13 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 return
             self.send_json({"items": self.store.list_pipeline_jobs(status=status, limit=limit)})
             return
+        if parsed.path == "/api/zentao/config":
+            from dashboard.zentao_client import is_configured
+            self.send_json({
+                "configured": is_configured(),
+                "url": os.environ.get("ZENTAO_URL", ""),
+            })
+            return
         if parsed.path.startswith("/api/devices/"):
             device_id = parsed.path.removeprefix("/api/devices/").strip("/")
             try:
@@ -839,6 +867,44 @@ class DashboardHandler(BaseHTTPRequestHandler):
             raise ValueError("JSON body must be an object")
         return value
 
+    def zentao_draft(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """从失败用例生成禅道 bug 草稿(纯组装,不提交;提交走 /api/zentao/create)。"""
+        run_id = str(payload.get("run_id") or "").strip()
+        case_name = str(payload.get("case_name") or "").strip()
+        if not run_id or not case_name:
+            raise ValueError("run_id 和 case_name 必填")
+        try:
+            run = self.store.get_run(run_id)
+        except KeyError as error:
+            raise ValueError(str(error)) from error
+        case = next((c for c in run.get("cases") or [] if c.get("name") == case_name), None)
+        if case is None:
+            raise ValueError(f"会话 {run_id} 中找不到用例 {case_name}")
+        module = case_name.split(".py::")[0].rsplit("/", 1)[-1] if ".py::" in case_name else ""
+        title = f"[Swan][{module or run['platform']}] {case_name.split('::')[-1]} 自动化失败({run_id})"
+        steps_lines = [
+            "【自动化复现步骤】",
+            f"1. 执行会话 {run_id}(平台页可查,设备 {run.get('device') or '-'},包体 {run.get('apk_id') or '-'})",
+            f"2. 用例: {case_name}",
+            f"3. 实际结果: {case.get('status')} - {case.get('error') or '见执行日志'}",
+            "",
+            f"【执行日志摘要】",
+            (case.get("log") or "无")[-1500:],
+        ]
+        artifacts = case.get("artifacts") or {}
+        evidence_dir = artifacts.get("evidence_dir") or ""
+        if evidence_dir:
+            steps_lines.append(f"\n【逐步证据截图目录】{evidence_dir}")
+        return {
+            "title": title,
+            "steps": "\n".join(steps_lines),
+            "severity": 3,
+            "pri": 3,
+            "bug_type": "业务缺陷",
+            "run_id": run_id,
+            "case_name": case_name,
+        }
+
     def do_POST(self) -> None:
         try:
             payload = self.read_json()
@@ -857,6 +923,27 @@ class DashboardHandler(BaseHTTPRequestHandler):
                     self.send_json(self.store.acquire_device(payload), HTTPStatus.CREATED)
                 except LookupError as error:
                     self.send_error_json(str(error), HTTPStatus.SERVICE_UNAVAILABLE)
+                return
+            if parsed.path == "/api/zentao/draft":
+                self.send_json(self.zentao_draft(payload))
+                return
+            if parsed.path == "/api/zentao/create":
+                from dashboard.zentao_client import ZentaoError, create_bug
+                if not str(payload.get("confirm") or ""):
+                    self.send_error_json("提单需人工确认(confirm 字段)", HTTPStatus.BAD_REQUEST)
+                    return
+                try:
+                    result = create_bug(
+                        product_id=int(payload["product_id"]),
+                        title=str(payload["title"]),
+                        steps=str(payload["steps"]),
+                        severity=int(payload.get("severity") or 3),
+                        pri=int(payload.get("pri") or 3),
+                    )
+                except (ZentaoError, KeyError, ValueError) as error:
+                    self.send_error_json(str(error), HTTPStatus.BAD_GATEWAY)
+                    return
+                self.send_json(result, HTTPStatus.CREATED)
                 return
             if parsed.path == "/api/pipeline/trigger":
                 self.send_json(

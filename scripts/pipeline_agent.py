@@ -73,9 +73,13 @@ def _run_pytest(job: dict, run_id: str, rerun: bool = False) -> int:
     _log(f"job={job['job_id']} run={'rerun(--lf)' if rerun else 'first'} "
          f"target={target} platform={env['PLATFORM']}")
     # pythonw 常驻时无控制台,必须把子进程输出落文件,否则 pytest 崩溃(rc=1)
+    # 用追加模式:重跑(--lf)不覆盖第一轮现场(门禁重试的排查依据)
     log_path = PROJECT_ROOT / "output" / "logs" / f"pipeline_{run_id}.log"
     log_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(log_path, "w", encoding="utf-8") as log_file:
+    with open(log_path, "a", encoding="utf-8") as log_file:
+        log_file.write(f"\n===== attempt {1 if not rerun else 2} "
+                       f"({'--lf rerun' if rerun else 'first'}) "
+                       f"{datetime.now(timezone.utc).isoformat(timespec='seconds')} =====\n")
         result = subprocess.run(command, cwd=str(PROJECT_ROOT), env=env,
                                 stdout=log_file, stderr=subprocess.STDOUT)
     return result.returncode

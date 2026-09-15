@@ -103,6 +103,26 @@
       <p class="hint">网关页面若未加载，点 <button class="ghost" id="gw-reload" style="padding:4px 10px">重新加载</button>；取码接口由用例自动调用，本页供人工查看最近验证码。</p>
     </section>
   </main>
+  <div id="bug-modal" hidden style="position:fixed;inset:0;background:rgba(15,23,42,.45);display:flex;align-items:center;justify-content:center;z-index:50">
+    <div style="background:var(--bg,#fff);border-radius:12px;padding:20px 22px;width:min(680px,92vw);max-height:88vh;overflow:auto">
+      <h3 style="margin:0 0 10px">禅道建单（预填草稿 · 提交前请人工确认）</h3>
+      <p class="meta" id="bug-draft-meta" style="margin:0 0 10px"></p>
+      <label style="display:block;font-size:13px;margin:8px 0 4px">标题</label>
+      <input id="bug-title" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:8px">
+      <label style="display:block;font-size:13px;margin:8px 0 4px">严重程度 severity / 优先级 pri</label>
+      <span><select id="bug-severity"><option>1</option><option>2</option><option selected>3</option><option>4</option></select>
+      <select id="bug-pri" style="margin-left:8px"><option>1</option><option>2</option><option selected>3</option><option>4</option></select></span>
+      <label style="display:block;font-size:13px;margin:8px 0 4px">复现步骤与证据（steps，可改）</label>
+      <textarea id="bug-steps" rows="12" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;font-family:monospace"></textarea>
+      <label style="display:block;font-size:13px;margin:8px 0 4px">禅道产品 ID（预置在部署机配置）</label>
+      <input id="bug-product" placeholder="如 7" style="width:120px;padding:8px;border:1px solid var(--line);border-radius:8px">
+      <div style="display:flex;gap:10px;margin-top:14px;align-items:center">
+        <button class="ghost" id="bug-cancel" style="padding:8px 14px">取消</button>
+        <button id="bug-submit" style="padding:8px 14px;background:var(--bad,#c92a2a);color:#fff;border:0;border-radius:8px;cursor:pointer">确认提交到禅道</button>
+        <span class="meta" id="bug-status"></span>
+      </div>
+    </div>
+  </div>
   <script>
     const $ = (id) => document.getElementById(id);
     const statusText = {running:'执行中', passed:'通过', failed:'失败', skipped:'跳过', error:'错误'};
@@ -144,13 +164,52 @@
       (run.cases||[]).forEach(c => { const d = document.createElement('details'); d.className = 'case';
         const art = JSON.stringify(c.artifacts||{}, null, 2);
         const link = c.case_id ? `<a href="#" onclick="gotoHistory(decodeURIComponent('${encodeURIComponent(c.case_id)}'));return false">查该用例历史 →</a>` : '';
+        const bugBtn = (c.status==='failed'||c.status==='error')
+          ? ` <a href="#" onclick="openBugDraft(decodeURIComponent('${encodeURIComponent(run.run_id)}'),decodeURIComponent('${encodeURIComponent(c.name)}'));return false">建单 →</a>` : '';
         d.innerHTML = `<summary>${badge(c.status)}　${safe(c.name)} <span class="meta">${formatDuration(c.duration_seconds)}</span></summary>
-          <div class="case-grid"><span>开始：${safe(formatDate(c.started_at))}</span><span>结束：${safe(formatDate(c.ended_at))}</span><span>${link}</span></div>
+          <div class="case-grid"><span>开始：${safe(formatDate(c.started_at))}</span><span>结束：${safe(formatDate(c.ended_at))}</span><span>${link}${bugBtn}</span></div>
           ${c.error ? `<strong>错误</strong><pre>${safe(c.error)}</pre>` : ''}<strong>执行日志</strong><pre>${safe(c.log||'无日志')}</pre><strong>附件/证据</strong><pre>${safe(art)}</pre>`;
         box.appendChild(d); });
       $('detail').scrollIntoView({behavior:'smooth'});
     }
     function gotoHistory(caseId) { $('case-id').value = caseId; document.querySelector('nav button[data-page=cases]').click(); $('case-load').click(); }
+
+    // ---------- 禅道建单(步骤 13):失败用例 → 预填草稿 → 人工确认 → 提交 ----------
+    let zentaoConfigured = false;
+    async function openBugDraft(runId, caseName) {
+      if (!zentaoConfigured) {
+        const cfg = await (await fetch('/api/zentao/config')).json();
+        zentaoConfigured = cfg.configured;
+        if (!zentaoConfigured) { $('bug-status').textContent = ''; alert('禅道未配置(ZENTAO_URL/账号/密码 缺失,部署机 .env.local)'); return; }
+      }
+      const draft = await (await fetch('/api/zentao/draft', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({run_id: runId, case_name: caseName})})).json();
+      if (draft.error) { alert('草稿生成失败: ' + draft.error); return; }
+      $('bug-title').value = draft.title || '';
+      $('bug-steps').value = draft.steps || '';
+      $('bug-severity').value = String(draft.severity || 3);
+      $('bug-pri').value = String(draft.pri || 3);
+      $('bug-product').value = localStorage.getItem('bug-product') || '';
+      $('bug-draft-meta').textContent = `来源：${runId} · ${caseName}　分类：${draft.bug_type||'业务缺陷'}`;
+      $('bug-submit').disabled = false; $('bug-status').textContent = '';
+      $('bug-modal').hidden = false;
+      $('bug-modal').dataset.runId = runId; $('bug-modal').dataset.caseName = caseName;
+    }
+    $('bug-cancel').onclick = () => { $('bug-modal').hidden = true; };
+    $('bug-submit').onclick = async () => {
+      const productId = $('bug-product').value.trim();
+      if (!productId) { $('bug-status').textContent = '请填写产品 ID'; return; }
+      localStorage.setItem('bug-product', productId);
+      $('bug-submit').disabled = true; $('bug-status').textContent = '提交中…';
+      const payload = {
+        confirm: true, product_id: Number(productId),
+        title: $('bug-title').value, steps: $('bug-steps').value,
+        severity: Number($('bug-severity').value), pri: Number($('bug-pri').value),
+      };
+      const resp = await fetch('/api/zentao/create', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+      const data = await resp.json().catch(() => ({}));
+      if (resp.ok) { $('bug-status').textContent = '已创建禅道 bug #' + (data.id || ''); setTimeout(() => { $('bug-modal').hidden = true; }, 1500); }
+      else { $('bug-status').textContent = ''; alert('提交失败: ' + (data.error || resp.status)); $('bug-submit').disabled = false; }
+    };
 
     async function loadApks() {
       const data = await (await fetch('/api/apks?limit=100')).json(); const items = data.items||[];

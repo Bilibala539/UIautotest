@@ -61,6 +61,42 @@ SCAN_CONFIGS = [
         "chunk_size": 600,
         "overlap": 80,
     },
+    # P5 步骤 14:迁入知识库的 cases/bugs/registries + YAML 驱动用例纳入索引
+    {
+        "name": "swan_cases_md",
+        "path": KNOWLEDGE_DIR / "cases",
+        "glob": "**/*.md",
+        "chunk_size": 600,
+        "overlap": 80,
+    },
+    {
+        "name": "swan_cases_yaml",
+        "path": KNOWLEDGE_DIR / "cases",
+        "glob": "**/*.yaml",
+        "chunk_size": 500,
+        "overlap": 50,
+    },
+    {
+        "name": "swan_bugs",
+        "path": KNOWLEDGE_DIR / "bugs",
+        "glob": "**/*.md",
+        "chunk_size": 600,
+        "overlap": 80,
+    },
+    {
+        "name": "swan_registries",
+        "path": KNOWLEDGE_DIR / "registries",
+        "glob": "*.md",
+        "chunk_size": 600,
+        "overlap": 80,
+    },
+    {
+        "name": "swan_reports",
+        "path": KNOWLEDGE_DIR / "reports",
+        "glob": "*.md",
+        "chunk_size": 600,
+        "overlap": 80,
+    },
 ]
 
 
@@ -263,6 +299,15 @@ def main():
         STATE_FILE = CHROMA_DIR / "index_state.json"
     SCAN_CONFIGS[0]["path"] = KNOWLEDGE_DIR / "pages"
     SCAN_CONFIGS[1]["path"] = KNOWLEDGE_DIR / "digest"
+    # swan 扩展配置(cases/bugs/registries/reports)同样跟随 knowledge_dir
+    _swan_subdirs = {
+        "swan_cases_md": "cases", "swan_cases_yaml": "cases",
+        "swan_bugs": "bugs", "swan_registries": "registries",
+        "swan_reports": "reports",
+    }
+    for config in SCAN_CONFIGS:
+        if config["name"] in _swan_subdirs:
+            config["path"] = KNOWLEDGE_DIR / _swan_subdirs[config["name"]]
 
     if args.query:
         query_index(args.query)

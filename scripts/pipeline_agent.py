@@ -72,7 +72,12 @@ def _run_pytest(job: dict, run_id: str, rerun: bool = False) -> int:
         command.append("--lf")  # 只重跑上一轮失败项(pytest cache 内置)
     _log(f"job={job['job_id']} run={'rerun(--lf)' if rerun else 'first'} "
          f"target={target} platform={env['PLATFORM']}")
-    result = subprocess.run(command, cwd=str(PROJECT_ROOT), env=env)
+    # pythonw 常驻时无控制台,必须把子进程输出落文件,否则 pytest 崩溃(rc=1)
+    log_path = PROJECT_ROOT / "output" / "logs" / f"pipeline_{run_id}.log"
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(log_path, "w", encoding="utf-8") as log_file:
+        result = subprocess.run(command, cwd=str(PROJECT_ROOT), env=env,
+                                stdout=log_file, stderr=subprocess.STDOUT)
     return result.returncode
 
 
@@ -133,7 +138,7 @@ def main() -> int:
 
     if args.once:
         got = process_once()
-        return 0 if got else 0
+        return 0
     if args.loop:
         _log(f"daemon 启动,轮询间隔 {args.loop}s,平台 {PLATFORM_URL}")
         while True:

@@ -1,0 +1,23 @@
+case_id: POS-002
+title: 验证码登录主路径(输入正确验证码登录成功)
+module: login
+priority: P0
+source: knowledge/swan/cases/login/SWAN-20260907-002-login-positive-cases.yaml POS-002(文字用例)
+preconditions:
+  - 已归一化到全新验证码登录形态(driver 前置:登出或重启重置)
+  - 测试账号 SWAN_PHONE 可收验证码
+steps:
+  - action: enter_sms_code_step
+    args:
+      phone: "${phone}"
+    desc: 输入手机号,勾选协议,点击下一步,进入验证码输入页
+  - action: fill_sms_code
+    args:
+      code: "${otp}"
+    desc: 从验证码平台取码并输入(4 位自动提交)
+  - action: wait_accessibility
+    args:
+      resource_id: "tab_me"
+      timeout: 15.0
+    desc: 等待首页出现(tab_me),登录成功
+expected: 登录成功,停在首页(我的 tab 可见)

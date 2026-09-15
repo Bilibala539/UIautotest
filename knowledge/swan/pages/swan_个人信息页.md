@@ -13,11 +13,11 @@
 
 ## 关键元素（来源：uiautomator dump）
 
-| 无障碍键 | 文案/说明 | 可点击 | 备注 |
-|---|---|---|---|
-| `person_info_page` | 页面根节点 | ✅ | |
-| `person_info_cancel_account_button` | 注销账号 | ✅ | ⚠️ 危险操作，禁止在自动化中点击 |
-| `person_info_logout_button` | 退出登入 | ✅ | 登出清理用 |
+| 无障碍键                                | 文案/说明 | 可点击 | 备注                |
+| ----------------------------------- | ----- | --- | ----------------- |
+| `person_info_page`                  | 页面根节点 | ✅   |                   |
+| `person_info_cancel_account_button` | 注销账号  | ✅   | ⚠️ 危险操作，禁止在自动化中点击 |
+| `person_info_logout_button`         | 退出登入  | ✅   | 登出清理用             |
 
 无无障碍键：头像、昵称（惠威2b11）、密码（******）、手机号（13555555555）行。
 

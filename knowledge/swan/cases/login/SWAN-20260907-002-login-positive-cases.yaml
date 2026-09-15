@@ -1,0 +1,406 @@
+# ============================================================
+# 登录模块 L2 正向用例集（通道 A：验证该做的做了）
+# 任务卡: SWAN-20260907-002-login-case-positive
+# 数据标签: 全部用例数据均为虚构, data_label=TEST-SYNTHETIC
+# 互盲纪律: 本文件未读取/未参考任何逆向用例通道产物
+# 模板: docs/workflow/qa/templates-v2/02-L2功能.yaml (schema_version 1.1)
+# 定位符契约: Semantics ID (HiviTestIds, Appium ACCESSIBILITY_ID) + Widget ValueKey 双轨
+# ============================================================
+schema_version: "1.1"
+task_id: "SWAN-20260907-002-login-case-positive"
+data_label: "TEST-SYNTHETIC"
+module: login
+level: L2
+channel: positive
+baseline:
+  app: {repo: "E:\\SwanApp\\repos\\flutter\\HiVi-Network-FlutterApp", branch: dev, commit: "4d1ed7b1d727f12906d6ac9fa9ed195966e464b3"}
+  core: {repo: "E:\\SwanApp\\repos\\flutter\\hivi_network_flutter_core", branch: dev, commit: "402853ab964f026761ba63130f495b9d213ea8b5"}
+provenance:
+  module_card: "F:\\SwanApp-Toolchain\\docs\\qa-knowledge\\01-系统认知\\模块卡片-login.md"
+  archaeology_task: "SWAN-20260907-001-login-archaeology"
+environment_gate:
+  base_url_policy: "执行前必须确认实际 base URL：Debug/Profile 默认 http://8.129.106.82/api，Release 默认 https://network.hivi.com/api，可用 --dart-define=HIVI_API_BASE_URL 显式指定（模块卡片已知坑2）"
+  area_code_fallback: "区号列表为外部第三方依赖(mxnzp.com)，外网不通时回退内置热门区号，不阻断登录（已知坑1）"
+allure:
+  epic: "SwanAudio-App"
+  feature: "登录/会话"
+shared_precondition: "App 已安装并冷启动；测试账号为虚构账号（TEST-SYNTHETIC）；验证码依赖测试环境短信通道或服务端 mock"
+test_data_pool:
+  sms_account: {area: "86", tel: "13800000002", label: "TEST-SYNTHETIC"}
+  sms_account_alt: {area: "86", tel: "13900000003", label: "TEST-SYNTHETIC"}
+  password_account: {area: "86", tel: "13700000001", password: "SynthPass01", label: "TEST-SYNTHETIC"}
+  sms_code: "2468 (虚构, 实际以测试环境通道下发的码为准)"
+cases:
+
+  # ---------- 验收项1: 隐私弹窗同意 → 登录页 ----------
+  - case_id: LOGIN-L2-POS-001
+    name: "冷启动首启：隐私弹窗同意后进入登录页"
+    epic: "SwanAudio-App"; feature: "登录/会话"; story: "隐私授权与启动状态机"
+    tags: [smoke, L2]
+    channels: [assertion, visual]   # 隐私弹窗按 AppCompat AlertDialog 逐像素复刻, 加视觉通道
+    method_design:
+      state_transition:
+        - {from: "initializing", event: "启动完成且 is_first_launch 取反为 false(未同意过隐私)", to: "privacyRequired(登录页+隐私弹窗 overlay, PopScope(canPop:false))", guard: "storagePort 无同意标记"}
+        - {from: "privacyRequired", event: "点击同意按钮", to: "loginRequired(PureFlutterLoginPage 可见)", guard: "用户点击同意而非系统返回"}
+    ui_contract:
+      hivi_test_ids: [privacy_dialog, privacy_agree_button, privacy_disagree_button, login_page]
+      value_keys: []
+    precondition: "应用为首次安装或已清除应用数据（is_first_launch 无记录）"
+    steps:
+      - do: "冷启动 App"
+        expect: "stage=privacyRequired：登录页底图上覆盖隐私弹窗（Semantics id=privacy_dialog），弹窗不可通过系统返回关闭（canPop:false）"
+      - do: "点击「同意」按钮（privacy_agree_button）"
+        expect: "弹窗关闭，stage=loginRequired，登录页可见（Semantics id=login_page）；隐私同意标记落盘（is_first_launch 写入取反语义成立）"
+      - do: "再次冷启动 App"
+        expect: "不再弹隐私弹窗，直接进入登录页（同意标记持久化生效）"
+    device: android-emulator
+
+  # ---------- 验收项2: 短信两步登录主路径 ----------
+  - case_id: LOGIN-L2-POS-002
+    name: "短信两步登录主路径：手机号+协议→验证码→登录成功进 AppShell"
+    epic: "SwanAudio-App"; feature: "登录/会话"; story: "短信验证码登录"
+    tags: [smoke, L2]
+    channels: [assertion]
+    method_design:
+      equivalence_classes:
+        - {class: "合法手机号", input: "86/13800000002 (TEST-SYNTHETIC)", expected: "第一步通过, 发送验证码成功"}
+      state_transition:
+        - {from: "loginRequired(手机号步)", event: "勾选协议+点击主按钮且/captcha success", to: "验证码步(login_code_field 可见, 60s 倒计时启动)", guard: "协议已勾选且号码合法"}
+        - {from: "验证码步", event: "输入4位验证码触发自动提交且/user/login success", to: "authenticated(AppShell)", guard: "data.token 非空"}
+      decision_table:
+        - conditions: ["协议未勾选", "主按钮点击"], actions: ["不发起请求(按钮不可点/无响应)"]
+        - conditions: ["协议已勾选", "号码合法", "/captcha success==true && code==200"], actions: ["切验证码步"]
+    ui_contract:
+      hivi_test_ids: [login_page, login_phone_field, login_area_code_button, login_agreement_checkbox, login_submit_button, login_code_field, me_page]
+      value_keys: ["login-phone-field", "login-area-code-button", "login-agreement-checkbox", "login-submit-button", "login-code-field"]
+    api_contract:
+      captcha_request: "POST {base}/user/captcha body={area:'86', tel:'13800000002'} (area 去+, tel trim)"
+      login_request: "POST {base}/user/login body={area:'86', tel:'13800000002', code:'2468', loginType:'0', password:''} — 断言冗余字段 password:'' 存在（已知坑6为契约行为非缺陷）"
+      success_criteria: "success==true && code==200 && data.token 非空"
+    precondition: "隐私已同意，stage=loginRequired；测试环境短信通道可用或服务端可回读下发验证码"
+    steps:
+      - do: "在 login_phone_field 输入 13800000002（TEST-SYNTHETIC），确认区号为 86（如需经 login_area_code_button 选择）"
+        expect: "输入回显正常，无 login_error_text"
+      - do: "勾选协议（login_agreement_checkbox），点击主按钮（login_submit_button）"
+        expect: "POST /user/captcha 返回 success==true&&code==200；页面切到验证码步（login_code_field 出现），60s 倒计时开始"
+      - do: "输入测试环境下发的 4 位验证码"
+        expect: "满 4 位自动触发登录，POST /user/login body 含 loginType:'0'、password:''、code=4位码"
+      - do: "观察登录收口"
+        expect: "data.token 非空 → token 加 Bearer 前缀写入 SharedPreferences(key=auth_token) + 内存 fallback + Dio header 三处同步；stage=authenticated，AppShell 首页可见（me_page 可达）；登录请求成功后触发日活上报 POST /user/loginLog body={type:1}"
+    device: android-emulator
+
+  # ---------- 验收项3: 密码登录主路径 ----------
+  - case_id: LOGIN-L2-POS-003
+    name: "密码登录主路径：手机号+密码一次提交成功"
+    epic: "SwanAudio-App"; feature: "登录/会话"; story: "密码登录"
+    tags: [smoke, L2]
+    channels: [assertion]
+    method_design:
+      equivalence_classes:
+        - {class: "合法密码(1-16位)", input: "SynthPass01 (TEST-SYNTHETIC)", expected: "/user/login success, token 下发"}
+      boundary_values:
+        - {field: "密码长度 maxLength", value: "16 位合法密码 (TEST-SYNTHETIC)", expected: "可完整输入并提交成功"}
+        - {field: "密码可见性切换", value: "明文/密文切换", expected: "图标切换后密文⇄明文正确回显"}
+      state_transition:
+        - {from: "loginRequired(密码模式)", event: "勾选协议+点击主按钮且/user/login success", to: "authenticated(AppShell)", guard: "协议已勾选且凭据正确"}
+    ui_contract:
+      hivi_test_ids: [login_page, login_phone_field, login_agreement_checkbox, login_password_field, login_submit_button, me_page]
+      value_keys: ["login-phone-field", "login-agreement-checkbox", "login-password-field", "login-submit-button"]
+    api_contract:
+      login_request: "POST {base}/user/login body={area:'86', tel:'13700000001', code:'', loginType:'1', password:'SynthPass01'} — 断言冗余字段 code:'' 存在（已知坑6为契约行为非缺陷）"
+    precondition: "隐私已同意；测试环境存在密码账号 13700000001/SynthPass01（TEST-SYNTHETIC）"
+    steps:
+      - do: "切到密码模式（login_use_password_button），输入手机号 13700000001 与密码 SynthPass01"
+        expect: "login_password_field 回显（密文）；密码输入上限 maxLength:16"
+      - do: "点击密码可见性切换图标"
+        expect: "密码明文显示，再点恢复密文"
+      - do: "勾选协议，点击主按钮"
+        expect: "POST /user/login body 含 loginType:'1'、code:''；success 后 token 三处同步写入，stage=authenticated，AppShell 可见"
+    device: android-emulator
+
+  # ---------- 验收项4: 模式切换 ----------
+  - case_id: LOGIN-L2-POS-004
+    name: "短信⇄密码模式互切：入口互逆、字段区正确切换"
+    epic: "SwanAudio-App"; feature: "登录/会话"; story: "登录模式切换"
+    tags: [L2]
+    channels: [assertion]
+    method_design:
+      state_transition:
+        - {from: "smsCode 模式", event: "点击 login_use_password_button", to: "password 模式", guard: "无"}
+        - {from: "password 模式", event: "点击 login_use_sms_button", to: "smsCode 模式(手机号步)", guard: "无"}
+      error_guessing: "切换时机覆盖：已输入内容时切换、有 login_error_text 时切换——切换后旧错误被清且不再残留旧模式字段（正向预期：输入变化即清错误的收敛行为）"
+    ui_contract:
+      hivi_test_ids: [login_page, login_phone_field, login_password_field, login_code_field, login_use_password_button, login_use_sms_button, login_error_text]
+      value_keys: ["login-phone-field", "login-password-field", "login-code-field"]
+    precondition: "stage=loginRequired，默认短信模式"
+    steps:
+      - do: "在短信模式输入手机号（不提交），点击 login_use_password_button"
+        expect: "出现 login_password_field，login_code_field 不存在；login_error_text 无残留"
+      - do: "点击 login_use_sms_button 切回"
+        expect: "回到短信手机号步；若此前处于验证码步倒计时中，切模式后倒计时清零重置（卡片：切模式才清倒计时）"
+    device: android-emulator
+
+  # ---------- 验收项5: 协议勾选联动 ----------
+  - case_id: LOGIN-L2-POS-005
+    name: "协议勾选联动：短信主按钮/密码主按钮/第三方图标三处联动"
+    epic: "SwanAudio-App"; feature: "登录/会话"; story: "用户协议联动"
+    tags: [L2]
+    channels: [assertion]
+    method_design:
+      decision_table:
+        - {conditions: ["_agreementAccepted=false", "第三方图标在本平台可见"], actions: ["短信/密码主按钮不可提交", "第三方图标不可点(可见性由平台决定, 可点性仅由协议决定)"]}
+        - {conditions: ["_agreementAccepted=true"], actions: ["短信/密码主按钮可提交", "第三方图标可点"]}
+        - {conditions: ["第三方授权进行中"], actions: ["图标不置灰（避免微信中途返回后永久卡死，设计行为）"]}
+    ui_contract:
+      hivi_test_ids: [login_agreement_checkbox, login_submit_button, login_third_party_wechat_button, login_third_party_weibo_button, login_third_party_apple_button]
+      value_keys: ["login-agreement-checkbox"]
+    precondition: "stage=loginRequired；Android 真机/模拟器（第三方图标可见性受平台与 OhosRuntimeUiPolicy.hideThirdPartyLogin 影响）"
+    steps:
+      - do: "不勾选协议，观察三个提交入口"
+        expect: "短信主按钮与密码主按钮均不可提交；第三方图标（本平台可见者）点击无授权发起"
+      - do: "勾选协议"
+        expect: "短信/密码主按钮均变为可提交；第三方图标可点（不发真实授权，仅验证可点性）"
+    device: android-emulator
+
+  # ---------- 验收项6: 60s 倒计时与同号复用 ----------
+  - case_id: LOGIN-L2-POS-006
+    name: "验证码倒计时：60s 递减、同号返回复用冷却、改号重新发码"
+    epic: "SwanAudio-App"; feature: "登录/会话"; story: "短信验证码倒计时"
+    tags: [L2]
+    channels: [assertion]
+    method_design:
+      boundary_values:
+        - {field: "倒计时初值", value: "发送成功瞬间", expected: "60s"}
+        - {field: "倒计时终值", value: "计至 0", expected: "重发按钮恢复可点(login-resend-code-button)"}
+      state_transition:
+        - {from: "验证码步(冷却中)", event: "返回手机号步并再次提交同一号码", to: "直接切回验证码步", guard: "同号且冷却未结束——不再发码(不调 /captcha)"}
+        - {from: "验证码步(冷却中)", event: "返回手机号步改为新号码提交", to: "调 /captcha 重新发码并重置 60s", guard: "号码已变更"}
+    ui_contract:
+      hivi_test_ids: [login_phone_field, login_agreement_checkbox, login_submit_button, login_code_field]
+      value_keys: ["login-resend-code-button", "login-phone-field", "login-code-field"]
+    api_contract:
+      reuse_assertion: "同号冷却期内二次提交不产生新的 /user/captcha 请求（抓包/日志断言请求次数=1）"
+    precondition: "短信通道可用；已知倒计时仅内存不落盘（杀进程丢冷却属已知坑4，正向用例不断言该分支）"
+    steps:
+      - do: "输入 13800000002（TEST-SYNTHETIC），勾选协议，点击主按钮"
+        expect: "进入验证码步，倒计时从 60 递减，重发不可点"
+      - do: "返回手机号步，不改号码再次点击主按钮"
+        expect: "直接切回验证码步，倒计时显示剩余时间，/user/captcha 未被再次调用"
+      - do: "再返回手机号步，改为 13900000003（TEST-SYNTHETIC）提交"
+        expect: "调 /captcha 发码成功，倒计时重置为 60"
+    device: android-emulator
+
+  # ---------- 验收项7: 验证码满4位自动提交 ----------
+  - case_id: LOGIN-L2-POS-007
+    name: "验证码输入：满 4 位自动提交，3 位不提交"
+    epic: "SwanAudio-App"; feature: "登录/会话"; story: "验证码自动提交"
+    tags: [L2]
+    channels: [assertion]
+    method_design:
+      boundary_values:
+        - {field: "验证码长度", value: "3 位", expected: "不触发登录请求"}
+        - {field: "验证码长度", value: "第 4 位输入完成", expected: "立即触发 /user/login 自动提交"}
+      state_transition:
+        - {from: "验证码步(3位)", event: "输入第4位", to: "自动提交登录(_smsLoginInFlight 置位防并发)", guard: "码与 _lastFailedSmsCode 不同或输入已变化"}
+    ui_contract:
+      hivi_test_ids: [login_code_field, login_page]
+      value_keys: ["login-code-field"]
+    api_contract:
+      trigger_assertion: "3 位时 /user/login 请求数=0；第 4 位输入后请求数=1（自动提交，无需点按钮）"
+    precondition: "已进入验证码步；验证码为测试环境真实下发码（以码为准，本用例关注触发时机而非正确性）"
+    steps:
+      - do: "输入验证码前 3 位"
+        expect: "无登录请求发出"
+      - do: "输入第 4 位"
+        expect: "立即自动发起 /user/login（body loginType:'0'）；请求在途期间重复输入不产生并发第二个请求（_smsLoginInFlight）"
+    device: android-emulator
+
+  # ---------- 验收项8: 第三方登录入口与授权成功路径 ----------
+  - case_id: LOGIN-L2-POS-008
+    name: "第三方登录：入口可见性正确，授权成功后走统一登录收口"
+    epic: "SwanAudio-App"; feature: "登录/会话"; story: "第三方账号登录"
+    tags: [L2, experimental]
+    channels: [assertion]
+    third_party_dependency:
+      requires: "设备安装微信/微博客户端或 Apple 登录可用；真实第三方授权 SDK 回调"
+      execution_risk: "预期执行阶段可能 BLOCKED（依赖第三方真实授权环境）"
+      scope_note: "仅验证入口与授权成功正向收口；授权中途取消/超时等破坏性场景不在本通道范围"
+    method_design:
+      equivalence_classes:
+        - {class: "第三方渠道", input: "wechat / weibo / apple", expected: "SwanThirdPartyLogin.authorize 取得 credential → loginWithThirdParty 与短信共用收口"}
+      state_transition:
+        - {from: "loginRequired(协议已勾选)", event: "点击第三方图标且授权成功", to: "authenticated(AppShell)", guard: "/user/login 返回 code!=50015 且 token 非空"}
+    ui_contract:
+      hivi_test_ids: [login_page, login_agreement_checkbox, login_third_party_wechat_button, login_third_party_weibo_button, login_third_party_apple_button, me_page]
+      value_keys: []
+    api_contract:
+      login_request: "POST {base}/user/login body={loginType, thirdPartyId, thirdPartyName?} — Android 微信/微博含昵称；iOS Apple 首登 includeThirdPartyName=false（请求体不含 thirdPartyName）"
+      inflight_guard: "授权中防重入（_thirdPartyLoginInFlight），重复点击不发起第二次授权"
+    precondition: "协议已勾选；第三方依赖就绪（见 third_party_dependency）；平台可见性预期：Android=微信/微博，iOS=微信/微博/Apple，OHOS=整块隐藏（OhosRuntimeUiPolicy.hideThirdPartyLogin）"
+    steps:
+      - do: "勾选协议后观察本平台可见的第三方图标"
+        expect: "图标可见性与平台策略一致（OHOS 上三者均不出现）"
+      - do: "点击可见的第三方图标（如微信）并完成真实授权"
+        expect: "授权 credential 回传后 POST /user/login（第三方 body），success → token 三处同步，stage=authenticated，AppShell 可见；授权进行中重复点击图标不重入"
+    device: physical-device
+    execution_status_note: "BLOCKED-risk: third-party-required"
+
+  # ---------- 验收项9: 50015 → bind-phone 正向路径 ----------
+  - case_id: LOGIN-L2-POS-009
+    name: "第三方登录 50015 未绑定 → 绑定手机号成功后复用同一 token 进 AppShell"
+    epic: "SwanAudio-App"; feature: "登录/会话"; story: "第三方绑定手机号"
+    tags: [L2, experimental]
+    channels: [assertion]
+    third_party_dependency:
+      requires: "一个已注册但未绑定手机号的第三方账号（TEST-SYNTHETIC，测试环境预置）；第三方真实授权环境"
+      execution_risk: "预期执行阶段可能 BLOCKED（依赖第三方真实授权 + 服务端预置数据）"
+    method_design:
+      state_transition:
+        - {from: "第三方授权成功但服务端返回 code=50015", event: "页面识别 50015", to: "push /login/bind-phone 携 BindPhoneRouteArgs(loginType, thirdPartyId, thirdPartyName)", guard: "code==50015"}
+        - {from: "/login/bind-phone", event: "短信绑定成功(绑定 body = 短信 body + thirdPartyId/thirdPartyName, fallback loginType:'2')", to: "authenticated(AppShell)", guard: "绑定接口返回同一 token 非空"}
+    ui_contract:
+      hivi_test_ids: [login_page, login_third_party_wechat_button, login_phone_field, login_code_field]
+      value_keys: []
+      route: "/login/bind-phone (深链别名同可达)"
+    api_contract:
+      bind_request: "POST {base}/user/login body={area, tel, code, loginType:'2'(fallback), password:'', thirdPartyId, thirdPartyName}"
+    precondition: "第三方依赖就绪；测试环境存在未绑定手机号的第三方账号"
+    steps:
+      - do: "协议勾选后点击第三方图标完成授权"
+        expect: "服务端返回 code=50015，页面识别后 push 绑定手机号页（/login/bind-phone）"
+      - do: "在绑定页完成手机号+验证码提交"
+        expect: "绑定请求携带 thirdPartyId/thirdPartyName；成功后复用同一 token 收口，stage=authenticated，AppShell 可见"
+    device: physical-device
+    execution_status_note: "BLOCKED-risk: third-party-required"
+
+  # ---------- 验收项10: 登录成功进 AppShell ----------
+  - case_id: LOGIN-L2-POS-010
+    name: "登录成功后进入 AppShell 且 token 恢复链路完整（冷启动免登）"
+    epic: "SwanApp-Audio"; feature: "登录/会话"; story: "会话恢复与 AppShell"
+    tags: [smoke, L2]
+    channels: [assertion]
+    method_design:
+      state_transition:
+        - {from: "authenticated(上轮会话, token 已落盘)", event: "冷启动", to: "直接 authenticated(AppShell)，不弹隐私/登录页", guard: "storagePort.readAuthToken() 非空 → adoptToken（注意：不校验 token 有效性，首屏不发校验请求，属设计行为）"}
+    ui_contract:
+      hivi_test_ids: [me_page, me_user_profile_entry]
+      value_keys: []
+    data_flow_assertions:
+      token_restore: "冷启动后首个业务请求 header 含 Authorization: Bearer <token>（内存 fallback → NetworkConfigPortScope.getHttpToken 注入）"
+      daily_active: "登录态下冷启动触发日活上报 POST {base}/user/loginLog body={type:1}，按 HVDailyActiveLastReportDate 自然日节流（同日二次冷启动不再上报）"
+    precondition: "已通过 LOGIN-L2-POS-002 完成一次真实登录（token 已写入 SharedPreferences key=auth_token）"
+    steps:
+      - do: "登录成功后杀进程，冷启动"
+        expect: "跳过隐私弹窗与登录页，直接进入 AppShell；验证 me_page / me_user_profile_entry 可达"
+      - do: "抓包观察首屏业务请求"
+        expect: "请求头带 Authorization: Bearer 前缀 token；无前置 token 校验请求（设计行为）"
+      - do: "同日再次冷启动"
+        expect: "/user/loginLog 当日仅上报一次（自然日节流，先落盘再请求）"
+    device: android-emulator
+
+  # ---------- 验收项11: 登出 4 触发点（正向清理） ----------
+  - case_id: LOGIN-L2-POS-011
+    name: "登出触发点1：个人信息页「退出登入」成功清理并回登录页"
+    epic: "SwanApp-Audio"; feature: "登录/会话"; story: "手动登出-个人信息页"
+    tags: [smoke, L2]
+    channels: [assertion]
+    method_design:
+      state_transition:
+        - {from: "authenticated", event: "Me→个人信息页→退出登入 且 /user/logout success", to: "loginRequired", guard: "MeUserActionResult.success；无二次确认弹窗(设计行为)"}
+    ui_contract:
+      hivi_test_ids: [me_page, me_user_profile_entry, person_info_page, person_info_logout_button, login_page]
+      value_keys: []
+    cleanup_assertions:
+      - "POST {base}/user/logout 返回 success"
+      - "SharedPreferences key=auth_token 被清除（storagePort.clearAuthToken）"
+      - "内存 fallback token 清空，后续请求无 Authorization header"
+      - "kvStorage 'lastUserInfoResponeBean' 移除"
+      - "SessionCollectionStateStore.qobuz.clearAll()（Qobuz 星标缓存清除，防下个用户看到旧星标）"
+      - "路由栈清空 + PlatformCatalogNotifier.reset()（_clearRouteStackOnLogout）"
+    precondition: "已登录（authenticated）；可先 push 至任一二级页以验证清栈"
+    steps:
+      - do: "进入 me_page → me_user_profile_entry → person_info_page，先 push 一个二级页"
+        expect: "二级页正常展示"
+      - do: "返回 person_info_page 点击 person_info_logout_button"
+        expect: "无二次确认直接登出：/user/logout success → 上述 6 项清理断言全部成立 → 回到登录页（即使停留在二级页也被 popUntil 清回根）"
+    device: android-emulator
+
+  - case_id: LOGIN-L2-POS-012
+    name: "登出触发点2：取消账号成功后触发登出清理"
+    epic: "SwanApp-Audio"; feature: "登录/会话"; story: "注销账号登出"
+    tags: [L2]
+    channels: [assertion]
+    method_design:
+      state_transition:
+        - {from: "authenticated(person_info)", event: "requestAccountUnbind() success", to: "logout 清理链 → loginRequired", guard: "解绑接口返回成功"}
+    ui_contract:
+      hivi_test_ids: [me_page, me_user_profile_entry, person_info_page, person_info_cancel_account_button, login_page]
+      value_keys: []
+    precondition: "已登录；测试环境存在可安全注销的 TEST-SYNTHETIC 账号（注销不可逆，须使用一次性虚构账号）"
+    steps:
+      - do: "person_info_page 点击 person_info_cancel_account_button，确认注销"
+        expect: "requestAccountUnbind 成功 → 走统一 _clearSessionState 清理（token 三处清除 + 用户缓存 + Qobuz 星标缓存）→ 回登录页"
+    device: android-emulator
+
+  - case_id: LOGIN-L2-POS-013
+    name: "登出触发点3：服务端会话失效(30003)全局登出清栈并 Toast"
+    epic: "SwanApp-Audio"; feature: "登录/会话"; story: "会话失效登出"
+    tags: [L2]
+    channels: [assertion]
+    method_design:
+      equivalence_classes:
+        - {class: "会话失效业务码", input: "{30003, 30001, 40006} 任一（如 30003 loginTimeout）", expected: "统一触发 logoutDueToSessionInvalidation"}
+      state_transition:
+        - {from: "authenticated(停留二级页)", event: "在途业务响应带回失效码", to: "loginRequired + Toast loginStatusObsolete(登录状态过时)", guard: "isAuthenticated==true 且该 code 2s 窗口内首次"}
+    ui_contract:
+      hivi_test_ids: [me_page, login_page]
+      value_keys: []
+    data_flow_assertions:
+      - "AppSessionInvalidationCoordinator 已在 runApp() 前订阅（首帧前回包也能登出）"
+      - "HTTP 401/403 不走 Dio error（validateStatus<500），业务码可从 body 解析触发"
+      - "同 code 2s 内重复事件去重；登出后 isAuthenticated=false，后续在途失效码不误报"
+    precondition: "已登录并进入一个会发业务请求的页面；测试环境可控使某接口返回 30003（或等待服务端会话过期）"
+    steps:
+      - do: "在二级页触发一个返回业务码 30003 的请求"
+        expect: "全局登出：token 三处清除 + 二级页被清栈回登录页 + PlatformCatalogNotifier.reset()；Toast 显示本地化「登录状态过时」"
+      - do: "2 秒内再触发同 code 事件"
+        expect: "被去重吞掉，无第二次登出动作/Toast（且登出后 isAuthenticated=false 拦截后续在途失效码）"
+    device: android-emulator
+
+  - case_id: LOGIN-L2-POS-014
+    name: "登出触发点4：切换服务器直接清本地 token 回登录页"
+    epic: "SwanApp-Audio"; feature: "登录/会话"; story: "切服登出"
+    tags: [L2]
+    channels: [assertion]
+    method_design:
+      state_transition:
+        - {from: "authenticated(关于我们页)", event: "确认切换服务器", to: "清本地 token → loginRequired", guard: "不请求旧服 /user/logout（对齐 iOS，服务端会话残留属预期，已知坑7）"}
+    ui_contract:
+      hivi_test_ids: [me_page, login_page]
+      value_keys: []
+    data_flow_assertions:
+      - "切服后抓包：无对旧环境的 /user/logout 请求"
+      - "PureFlutterAuthApi._baseUrl 动态读 fallback：登录页不重建即命中新环境地址"
+      - "「关于我们」切服一次性写入 API/AI HTTP/AI WebSocket 三地址"
+    precondition: "已登录；测试环境至少两个可达 server 地址（均为测试环境，禁止切线上）"
+    steps:
+      - do: "进入「关于我们」详情页，选择另一测试环境服务器并确认"
+        expect: "不调旧服 logout，本地 token（三处）被直接清除，回登录页；随后登录请求自动发往新 base URL"
+    device: android-emulator
+
+coverage_summary:
+  acceptance_items:
+    - {item: "隐私弹窗同意→登录页", cases: [LOGIN-L2-POS-001]}
+    - {item: "短信两步登录主路径", cases: [LOGIN-L2-POS-002]}
+    - {item: "密码登录主路径", cases: [LOGIN-L2-POS-003]}
+    - {item: "模式切换", cases: [LOGIN-L2-POS-004]}
+    - {item: "协议勾选联动", cases: [LOGIN-L2-POS-005]}
+    - {item: "60s 倒计时与同号复用", cases: [LOGIN-L2-POS-006]}
+    - {item: "验证码满4位自动提交", cases: [LOGIN-L2-POS-007]}
+    - {item: "第三方登录入口与授权成功", cases: [LOGIN-L2-POS-008]}
+    - {item: "50015→bind-phone 正向路径", cases: [LOGIN-L2-POS-009]}
+    - {item: "登出4触发点正向清理", cases: [LOGIN-L2-POS-011, LOGIN-L2-POS-012, LOGIN-L2-POS-013, LOGIN-L2-POS-014]}
+    - {item: "登录成功进 AppShell(含冷启动 token 恢复/日活)", cases: [LOGIN-L2-POS-010]}
+  out_of_scope: ["扫码登录(pad)确认页 /login/scan/pad-login-confirm", "平台授权(QQ/网易/酷狗/Qobuz)绑定", "一切破坏性输入场景（逆向通道职责）"]
+  locator_dual_track: "全部 UI 用例同时给出 HiviTestIds(Semantics) 与 ValueKey（存在的键），黑盒与 widget test 双轨可用"
+  blocked_risk: [LOGIN-L2-POS-008, LOGIN-L2-POS-009]

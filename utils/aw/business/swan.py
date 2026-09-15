@@ -138,6 +138,43 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         self.input_text(code)
         assert self.wait_accessibility(self.KEY_TAB_ME, timeout=20), "登录后未进入首页"
 
+    def enter_sms_code_step(self, phone: str, timeout: float = 15.0) -> None:
+        """验证码登录第一步：填手机号 → 勾协议 → 点"下一步"，停在验证码输入页。
+
+        前提：全新验证码登录形态（协议未勾选）；"下一步"自动发送验证码
+        （无独立"获取验证码"按钮），之后网关才能取到本次验证码。
+        分步封装，供需要断言中间状态的用例使用；一步到位用 login_by_sms。
+        """
+        self.click_accessibility(self.KEY_PHONE_FIELD)
+        self.clear_input()  # 防表单残留：先清空再输入
+        self.input_text(phone)
+        self.click_accessibility(self.KEY_AGREEMENT)
+        self.click_accessibility(self.KEY_SUBMIT)
+        assert self.wait_accessibility(
+            self.KEY_CODE_FIELD, timeout=timeout
+        ), "点击下一步后未进入验证码输入页（login_code_field 未出现）"
+
+    def fill_sms_code(self, code: str) -> None:
+        """向验证码输入框追加输入（adb input text 为追加语义），不主动提交。
+
+        满 4 位由 App 自动提交（设计行为，见模块卡片已知坑5）；
+        分段输入（如先 3 位断言不提交、再补第 4 位断言自动提交）即依赖追加语义。
+        """
+        self.click_accessibility(self.KEY_CODE_FIELD)
+        self.input_text(code)
+
+    def relaunch_app(self, package: str, timeout: float = 30.0) -> None:
+        """杀进程后冷启动，等待冷启动落地页出现（已登录→首页 tab_me，未登录→登录页）。
+
+        用途：登录页表单残留重置（登录页无状态持久化）、冷启动 token 恢复链路用例。
+        落地页断言由调用方按登录态选择（tab_me 或 login_page）。
+        """
+        self.driver.stop_app(package)
+        self.driver.start_app(package)
+        landed = self.wait_accessibility(self.KEY_TAB_ME, timeout=timeout) or \
+            self.wait_accessibility(self.KEY_LOGIN_PAGE, timeout=5)
+        assert landed, "冷启动后既未到首页也未到登录页"
+
     def logout_if_needed(self) -> None:
         """若已登录则登出，回到登录页（G3/G4 清理约定）。
 

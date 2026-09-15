@@ -1,0 +1,274 @@
+<title>Swan 测试知识融合总览</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700&family=Noto+Sans+SC:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap');
+
+  :root {
+    --ground: #F5F6F3;
+    --surface: #FFFFFF;
+    --ink: #1C2320;
+    --muted: #5A6660;
+    --hairline: #DDE2DD;
+    --local: #0B7A63;        /* 绿 = UIAutotest 原有 */
+    --local-wash: #E5F2EE;
+    --shared: #3D5BC4;       /* 蓝 = swan-qa-share 快照 */
+    --shared-wash: #E8EDFA;
+    --fused: #7440B8;        /* 紫 = 本次融合新增 */
+    --fused-wash: #F0E9F9;
+    --warn: #A8681B;
+    --code: #EDF0EC;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --ground: #171B19;
+    --surface: #1F2522;
+    --ink: #E6EAE7;
+    --muted: #9AA6A0;
+    --hairline: #333B37;
+    --local: #4FC7A4;  --local-wash: #17332B;
+    --shared: #8AA2F0; --shared-wash: #222B44;
+    --fused: #B98EE8;  --fused-wash: #2E2342;
+    --warn: #D9A05B;
+    --code: #232A27;
+  }}
+  :root[data-theme="dark"] {
+    --ground: #171B19;
+    --surface: #1F2522;
+    --ink: #E6EAE7;
+    --muted: #9AA6A0;
+    --hairline: #333B37;
+    --local: #4FC7A4;  --local-wash: #17332B;
+    --shared: #8AA2F0; --shared-wash: #222B44;
+    --fused: #B98EE8;  --fused-wash: #2E2342;
+    --warn: #D9A05B;
+    --code: #232A27;
+  }
+
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font: 15px/1.75 "Noto Sans SC", "Microsoft YaHei", sans-serif;
+    padding: 40px 20px 80px;
+  }
+  .page { max-width: 760px; margin: 0 auto; }
+
+  header h1 {
+    font: 700 30px/1.35 "Noto Serif SC", serif;
+    text-wrap: balance;
+  }
+  header .lede { color: var(--muted); margin-top: 10px; max-width: 62ch; }
+  .meta { margin-top: 14px; color: var(--muted); font-size: 13px; }
+
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 10px 22px;
+    margin: 26px 0 8px; padding: 14px 18px;
+    background: var(--surface); border: 1px solid var(--hairline); border-radius: 8px;
+    font-size: 13.5px;
+  }
+  .legend b { font-weight: 500; }
+  .tag {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; font-weight: 500; line-height: 1;
+    padding: 4px 9px; border-radius: 99px; white-space: nowrap;
+    vertical-align: 1px;
+  }
+  .tag::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .t-local  { color: var(--local);  background: var(--local-wash); }
+  .t-shared { color: var(--shared); background: var(--shared-wash); }
+  .t-fused  { color: var(--fused);  background: var(--fused-wash); }
+  .t-warn   { color: var(--warn);   background: none; border: 1px solid currentColor; }
+
+  h2 {
+    font: 700 20px/1.4 "Noto Serif SC", serif;
+    margin: 44px 0 6px; text-wrap: balance;
+  }
+  h2 + p.sub { color: var(--muted); font-size: 13.5px; margin-bottom: 14px; }
+
+  /* ===== 分层架构图 ===== */
+  .stack { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+  .band {
+    background: var(--surface); border: 1px solid var(--hairline);
+    border-radius: 8px; padding: 14px 16px;
+  }
+  .band > .band-name {
+    font-size: 12px; letter-spacing: .12em; color: var(--muted);
+    margin-bottom: 10px;
+  }
+  .band-items { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    display: flex; flex-direction: column; gap: 2px;
+    border: 1px solid var(--hairline); border-radius: 6px;
+    padding: 7px 11px; min-width: 0;
+  }
+  .chip .n { font-size: 13.5px; font-weight: 500; line-height: 1.4; }
+  .chip .d { font-size: 12px; color: var(--muted); line-height: 1.5; }
+  .chip .d code, code, .mono {
+    font-family: "JetBrains Mono", Consolas, monospace; font-size: .92em;
+  }
+  .chip.c-local  { border-left: 3px solid var(--local); }
+  .chip.c-shared { border-left: 3px solid var(--shared); }
+  .chip.c-fused  { border-left: 3px solid var(--fused); }
+  .arrow {
+    text-align: center; color: var(--muted); font-size: 14px; margin: -2px 0;
+  }
+
+  /* ===== 清单表 ===== */
+  table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 13.5px; }
+  th {
+    text-align: left; font-weight: 500; color: var(--muted); font-size: 12.5px;
+    padding: 8px 10px; border-bottom: 1px solid var(--hairline);
+  }
+  td { padding: 9px 10px; border-bottom: 1px solid var(--hairline); vertical-align: top; }
+  td code { color: var(--ink); word-break: break-all; }
+  .tbl-wrap { overflow-x: auto; }
+  .dim { color: var(--muted); }
+
+  /* ===== 试点状态 ===== */
+  .stats { display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0 18px; }
+  .stat {
+    flex: 1 1 120px; background: var(--surface); border: 1px solid var(--hairline);
+    border-radius: 8px; padding: 12px 14px;
+  }
+  .stat .num { font: 600 26px/1.2 "Noto Serif SC", serif; font-variant-numeric: tabular-nums; }
+  .stat .lab { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+
+  .flow {
+    background: var(--surface); border: 1px solid var(--hairline); border-radius: 8px;
+    padding: 16px 18px; margin-top: 14px;
+  }
+  .flow ol { margin: 0; padding-left: 20px; }
+  .flow li { margin-bottom: 8px; }
+  .flow li:last-child { margin-bottom: 0; }
+
+  .note {
+    border-left: 3px solid var(--hairline); padding: 2px 0 2px 14px;
+    color: var(--muted); font-size: 13.5px; margin-top: 16px;
+  }
+
+  footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--hairline); color: var(--muted); font-size: 12.5px; }
+</style>
+
+<div class="page">
+
+<header>
+  <h1>Swan 测试知识融合总览</h1>
+  <p class="lede">2026-09-15 起,<code>swan-qa-share</code> 知识库分享包(源:F:\SwanApp-Toolchain,基线 App dev@4d1ed7b / core dev@402853ab)已并入本机 <code>UIAutotest</code> 工程,形成一套"知识 + 执行"一体的 Swan 测试体系。本页说明现状:东西都在哪、谁贡献了什么、接下来怎么跑。</p>
+  <p class="meta">E:\UIAutotest · 知识库正本:knowledge/swan/ · 唯一入口:knowledge/swan/INDEX.md</p>
+</header>
+
+<div class="legend">
+  <span class="tag t-shared">来自 swan-qa-share(分享包快照)</span>
+  <span class="tag t-local">来自 UIAutotest(本地原有)</span>
+  <span class="tag t-fused">本次融合新增</span>
+</div>
+
+<h2>整体结构:四层体系</h2>
+<p class="sub">一句话分工:分享包出「考卷和质检档案」,本地工程出「工厂和执行能力」,融合层把两者接起来。</p>
+
+<div class="stack">
+  <div class="band">
+    <div class="band-name">① 知识层 — knowledge/swan/</div>
+    <div class="band-items">
+      <div class="chip c-local"><span class="n">pages/ 43 个页面</span><span class="d">元素 key·坑·真机实测</span></div>
+      <div class="chip c-local"><span class="n">digest/ + 向量库</span><span class="d">链路摘要 · Chroma 检索</span></div>
+      <div class="chip c-shared"><span class="n">系统认知/</span><span class="d">功能地图·4 张模块卡片</span></div>
+      <div class="chip c-shared"><span class="n">cases/ 94 条用例</span><span class="d">login 47 + 搜索 14 + 全回归</span></div>
+      <div class="chip c-shared"><span class="n">bugs/</span><span class="d">6 份 BUG 报告 + 模式库</span></div>
+      <div class="chip c-shared"><span class="n">reports/ + registries/</span><span class="d">会话日志·设备池·审计</span></div>
+      <div class="chip c-fused"><span class="n">INDEX.md</span><span class="d">双方索引合并的唯一入口</span></div>
+      <div class="chip c-fused"><span class="n">TRANSLATION-NOTES.md</span><span class="d">用例逐条可执行度评级</span></div>
+    </div>
+  </div>
+  <div class="arrow">▼</div>
+  <div class="band">
+    <div class="band-name">② 封装层 — utils/aw/(用户意图级业务方法)</div>
+    <div class="band-items">
+      <div class="chip c-local"><span class="n">driver / base</span><span class="d">adb·语义树定位·截图</span></div>
+      <div class="chip c-local"><span class="n">SwanBusiness 已有</span><span class="d">login_by_sms·login_with_password·logout</span></div>
+      <div class="chip c-fused"><span class="n">SwanBusiness 新增</span><span class="d">enter_sms_code_step·fill_sms_code·relaunch_app</span></div>
+    </div>
+  </div>
+  <div class="arrow">▼</div>
+  <div class="band">
+    <div class="band-name">③ 用例层 — tests/flutter/(pytest,真机可跑)</div>
+    <div class="band-items">
+      <div class="chip c-local"><span class="n">login_logout / password_login / readonly / otp</span><span class="d">本地原有 4 个文件</span></div>
+      <div class="chip c-fused"><span class="n">test_swan_login_positive.py</span><span class="d">翻译自分享包 YAML,5 条已落地</span></div>
+    </div>
+  </div>
+  <div class="arrow">▼</div>
+  <div class="band">
+    <div class="band-name">④ 执行与支撑</div>
+    <div class="band-items">
+      <div class="chip c-local"><span class="n">真机 OPPO c0614b6a</span><span class="d">Android 11 · 720×1600</span></div>
+      <div class="chip c-local"><span class="n">otp-gateway(.166:18080)</span><span class="d">验证码自动取码</span></div>
+      <div class="chip c-local"><span class="n">.claude/agents 5 个 agent</span><span class="d">探索·截元素·写码·验证·规范</span></div>
+      <div class="chip c-local"><span class="n">.env.local 测试账号</span><span class="d">用例不硬编码凭据</span></div>
+    </div>
+  </div>
+</div>
+
+<h2>融合怎么工作:用例的旅程</h2>
+<p class="sub">分享包的 YAML 用例本身跑不了(没有元素信息);翻译管线把它变成真机可执行的 pytest。</p>
+<div class="flow">
+  <ol>
+    <li><b>读用例</b> — <code>cases/login/*.yaml</code>(<span class="tag t-shared" style="margin-left:2px">分享包</span>)定义每条用例的步骤与预期,并给出元素 key 清单(ui_contract)。</li>
+    <li><b>对知识</b> — 步骤引用的页面/元素到 <code>pages/</code> 核对;缺页缺元素 → 派探索 agent 补(这正是下次探索的任务单来源)。</li>
+    <li><b>封装 AW</b> — 步骤抽象成 <code>SwanBusiness</code> 业务方法(<span class="tag t-local">本地</span>),用例只调方法、不碰元素细节。</li>
+    <li><b>产 pytest</b> — 按 G1-G5 门禁生成测试文件(<span class="tag t-fused">融合</span>);每条用例的可执行度评级登记进 TRANSLATION-NOTES。</li>
+    <li><b>真机跑 + 回写</b> — 结果回写 BUG 库 / session-state / 看板,新发现反馈给源头机器。</li>
+  </ol>
+</div>
+
+<h2>登录试点:47 条用例的翻译现状</h2>
+<p class="sub">正向 14 条逐条评级(逆向 33 条待铺开),评级全文见 knowledge/swan/cases/login/TRANSLATION-NOTES.md。</p>
+
+<div class="stats">
+  <div class="stat"><div class="num" style="color:var(--local)">9</div><div class="lab">全自动<br>(2 条融合前已有,7 条本次)</div></div>
+  <div class="stat"><div class="num" style="color:var(--warn)">3</div><div class="lab">受限<br>需 OCR / 服务端配合 / 人工环境</div></div>
+  <div class="stat"><div class="num" style="color:var(--shared)">2</div><div class="lab">BLOCKED<br>依赖第三方真实授权</div></div>
+  <div class="stat"><div class="num">1</div><div class="lab">禁止<br>注销账号不可逆,永不自动化</div></div>
+</div>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>已落地(pytest)</th><th>对应用例</th><th>文件</th></tr>
+  <tr><td>短信两步登录主路径</td><td><code>POS-002</code></td><td class="mono">test_swan_login_positive.py</td></tr>
+  <tr><td>协议勾选联动</td><td><code>POS-005</code></td><td class="mono">test_swan_login_positive.py</td></tr>
+  <tr><td>验证码满 4 位自动提交边界</td><td><code>POS-007</code></td><td class="mono">test_swan_login_positive.py</td></tr>
+  <tr><td>冷启动 token 恢复免登</td><td><code>POS-010</code></td><td class="mono">test_swan_login_positive.py</td></tr>
+  <tr><td>登出(个人信息页退出)</td><td><code>POS-011</code></td><td class="mono">test_swan_login_positive.py</td></tr>
+  <tr><td>密码登录 / 模式互切 / 错误密码拒绝</td><td><code>POS-003/004</code> + 逆向 1 条</td><td class="mono">test_swan_password_login.py(原有)</td></tr>
+</table>
+</div>
+
+<h2>纪律沿用自分享包宪法</h2>
+<div class="flow">
+  <ol>
+    <li><b>证据纪律</b> — 没有截图/日志证据的"通过"不成立;环境阻塞记 BLOCKED,不算业务失败。</li>
+    <li><b>三类停机</b> — BUG 定级争议、测试范围取舍、不可逆动作(提单/删知识库),必须停下问人。</li>
+    <li><b>危险操作黑名单</b> — 注销账号、添加设备、平台授权、设备同步/删除等 key 在封装层标注 ⛔,用例禁止触碰。</li>
+    <li><b>BUG 查重</b> — 报新 BUG 前先查 <code>bugs/</code>(6 份已知 + 模式库 P-001~P-004);负向用例设计先看模式库。</li>
+  </ol>
+</div>
+
+<h2>接下来</h2>
+<div class="tbl-wrap">
+<table>
+  <tr><th>事项</th><th>状态</th><th>说明</th></tr>
+  <tr><td>登录正向 5 条真机执行</td><td><span class="tag t-fused">待跑</span></td><td class="dim">PLATFORM=flutter pytest tests/flutter/test_swan_login_positive.py</td></tr>
+  <tr><td>逆向 33 条翻译</td><td><span class="tag t-warn">待做</span></td><td class="dim">正向试点跑通后铺开</td></tr>
+  <tr><td>搜索 14 条 + 全回归翻译</td><td><span class="tag t-warn">待做</span></td><td class="dim">搜索模块尚未考古到元素层</td></tr>
+  <tr><td>受限项解锁</td><td><span class="tag t-warn">待做</span></td><td class="dim">OCR 视觉通道(倒计时/隐私弹窗)、服务端配合(30003)</td></tr>
+  <tr><td>执行结果回写看板/BUG 库</td><td><span class="tag t-warn">待做</span></td><td class="dim">分享包 board.html 接活数据</td></tr>
+  <tr><td>反馈包回传源头机器</td><td><span class="tag t-warn">待做</span></td><td class="dim">确认结论/新发现定期同步 F 盘机器</td></tr>
+</table>
+</div>
+
+<div class="note">基线提示:分享包用例基于 App dev@4d1ed7b,本机安装包版本尚未核对——大规模跑之前先对齐版本,否则结果不可信。</div>
+
+<footer>
+  打包快照留底于 E:\swan-qa-share(只读);知识库正本与后续更新一律以 E:\UIAutotest\knowledge\swan 为准 ·
+  入口:knowledge/swan/INDEX.md · 生成:2026-09-15
+</footer>
+
+</div>

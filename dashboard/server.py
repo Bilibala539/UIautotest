@@ -15,6 +15,9 @@ from urllib.parse import parse_qs, urlparse
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_DATABASE = PROJECT_ROOT / "output" / "dashboard.sqlite3"
 
+# 平台取值集合：flutter = Flutter App(跑在 Android 设备上)，pc = 桌面端
+VALID_PLATFORMS = {"android", "ios", "flutter", "pc"}
+
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -107,6 +110,28 @@ class DashboardStore:
                 );
                 CREATE INDEX IF NOT EXISTS idx_runs_started_at ON runs(started_at DESC);
                 CREATE INDEX IF NOT EXISTS idx_cases_run_id ON cases(run_id);
+                CREATE INDEX IF NOT EXISTS idx_cases_case_id ON cases(case_id);
+                """
+            )
+            # 轻量迁移：老库补列（runs.apk_id）
+            run_columns = {row["name"] for row in connection.execute("PRAGMA table_info(runs)")}
+            if "apk_id" not in run_columns:
+                connection.execute("ALTER TABLE runs ADD COLUMN apk_id TEXT NOT NULL DEFAULT ''")
+            connection.executescript(
+                """
+                CREATE TABLE IF NOT EXISTS apks (
+                    apk_id TEXT PRIMARY KEY,
+                    app_version TEXT NOT NULL DEFAULT '',
+                    branch TEXT NOT NULL DEFAULT '',
+                    commit_hash TEXT NOT NULL DEFAULT '',
+                    flavor TEXT NOT NULL DEFAULT '',
+                    source TEXT NOT NULL DEFAULT 'manual',
+                    file_path TEXT NOT NULL DEFAULT '',
+                    file_hash TEXT NOT NULL DEFAULT '',
+                    notes TEXT NOT NULL DEFAULT '',
+                    registered_at TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_apks_registered_at ON apks(registered_at DESC);
                 """
             )
 
@@ -115,21 +140,22 @@ class DashboardStore:
         platform = str(payload.get("platform") or "").strip().lower()
         if not run_id:
             raise ValueError("run_id is required")
-        if platform not in {"android", "ios"}:
-            raise ValueError("platform must be android or ios")
+        if platform not in VALID_PLATFORMS:
+            raise ValueError(f"platform must be one of {sorted(VALID_PLATFORMS)}")
         started_at = str(payload.get("started_at") or utc_now())
         with self.transaction() as connection:
             connection.execute(
                 """
                 INSERT INTO runs (
                     run_id, platform, status, app_version, device, jenkins_build,
-                    started_at, metadata_json
-                ) VALUES (?, ?, 'running', ?, ?, ?, ?, ?)
+                    apk_id, started_at, metadata_json
+                ) VALUES (?, ?, 'running', ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(run_id) DO UPDATE SET
                     platform=excluded.platform,
                     app_version=excluded.app_version,
                     device=excluded.device,
                     jenkins_build=excluded.jenkins_build,
+                    apk_id=excluded.apk_id,
                     metadata_json=excluded.metadata_json
                 """,
                 (
@@ -138,6 +164,7 @@ class DashboardStore:
                     str(payload.get("app_version") or ""),
                     str(payload.get("device") or ""),
                     str(payload.get("jenkins_build") or ""),
+                    str(payload.get("apk_id") or ""),
                     started_at,
                     json_object(payload.get("metadata")),
                 ),
@@ -270,18 +297,97 @@ class DashboardStore:
         result["cases"] = [self.serialize_case(case) for case in cases]
         return result
 
-    def list_runs(self, platform: str = "", limit: int = 50) -> list[dict[str, Any]]:
+    def list_runs(self, platform: str = "", limit: int = 50, apk_id: str = "") -> list[dict[str, Any]]:
         limit = min(max(int(limit), 1), 200)
         query = "SELECT * FROM runs"
+        conditions: list[str] = []
         parameters: list[Any] = []
-        if platform in {"android", "ios"}:
-            query += " WHERE platform=?"
+        if platform in VALID_PLATFORMS:
+            conditions.append("platform=?")
             parameters.append(platform)
+        if apk_id:
+            conditions.append("apk_id=?")
+            parameters.append(apk_id)
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
         query += " ORDER BY started_at DESC LIMIT ?"
         parameters.append(limit)
         with self.transaction() as connection:
             rows = connection.execute(query, parameters).fetchall()
         return [self.serialize_run(row) for row in rows]
+
+    # ==================== 安装包管理 ====================
+
+    def register_apk(self, payload: dict[str, Any]) -> dict[str, Any]:
+        apk_id = str(payload.get("apk_id") or "").strip()
+        if not apk_id:
+            raise ValueError("apk_id is required")
+        registered_at = str(payload.get("registered_at") or utc_now())
+        with self.transaction() as connection:
+            connection.execute(
+                """
+                INSERT INTO apks (
+                    apk_id, app_version, branch, commit_hash, flavor, source,
+                    file_path, file_hash, notes, registered_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(apk_id) DO UPDATE SET
+                    app_version=excluded.app_version,
+                    branch=excluded.branch,
+                    commit_hash=excluded.commit_hash,
+                    flavor=excluded.flavor,
+                    source=excluded.source,
+                    file_path=excluded.file_path,
+                    file_hash=excluded.file_hash,
+                    notes=excluded.notes
+                """,
+                (
+                    apk_id,
+                    str(payload.get("app_version") or ""),
+                    str(payload.get("branch") or ""),
+                    str(payload.get("commit_hash") or ""),
+                    str(payload.get("flavor") or ""),
+                    str(payload.get("source") or "manual"),
+                    str(payload.get("file_path") or ""),
+                    str(payload.get("file_hash") or ""),
+                    str(payload.get("notes") or ""),
+                    registered_at,
+                ),
+            )
+        return self.get_apk(apk_id)
+
+    def get_apk(self, apk_id: str) -> dict[str, Any]:
+        with self.transaction() as connection:
+            row = connection.execute("SELECT * FROM apks WHERE apk_id=?", (apk_id,)).fetchone()
+        if row is None:
+            raise KeyError(f"apk not found: {apk_id}")
+        return dict(row)
+
+    def list_apks(self, limit: int = 50) -> list[dict[str, Any]]:
+        limit = min(max(int(limit), 1), 200)
+        with self.transaction() as connection:
+            rows = connection.execute(
+                "SELECT * FROM apks ORDER BY registered_at DESC LIMIT ?", (limit,)
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    # ==================== 用例执行历史（三视角之"某用例"） ====================
+
+    def get_case_history(self, case_id: str, limit: int = 20) -> list[dict[str, Any]]:
+        limit = min(max(int(limit), 1), 100)
+        with self.transaction() as connection:
+            rows = connection.execute(
+                """
+                SELECT c.case_id, c.name, c.status, c.started_at, c.ended_at,
+                       c.duration_seconds, c.error,
+                       r.run_id, r.platform, r.status AS run_status,
+                       r.apk_id, r.app_version, r.device, r.started_at AS run_started_at
+                FROM cases c JOIN runs r ON c.run_id = r.run_id
+                WHERE c.case_id = ?
+                ORDER BY c.started_at DESC LIMIT ?
+                """,
+                (case_id, limit),
+            ).fetchall()
+        return [dict(row) for row in rows]
 
 
 class DashboardHandler(BaseHTTPRequestHandler):
@@ -325,13 +431,36 @@ class DashboardHandler(BaseHTTPRequestHandler):
         if parsed.path == "/api/runs":
             query = parse_qs(parsed.query)
             platform = query.get("platform", [""])[0].lower()
+            apk_id = query.get("apk_id", [""])[0]
             limit = query.get("limit", ["50"])[0]
             try:
-                runs = self.store.list_runs(platform=platform, limit=int(limit))
+                runs = self.store.list_runs(platform=platform, limit=int(limit), apk_id=apk_id)
             except (TypeError, ValueError):
                 self.send_error_json("limit must be an integer", HTTPStatus.BAD_REQUEST)
                 return
             self.send_json({"items": runs})
+            return
+        if parsed.path == "/api/apks":
+            query = parse_qs(parsed.query)
+            try:
+                limit = int(query.get("limit", ["50"])[0])
+            except ValueError:
+                self.send_error_json("limit must be an integer", HTTPStatus.BAD_REQUEST)
+                return
+            self.send_json({"items": self.store.list_apks(limit=limit)})
+            return
+        if parsed.path.startswith("/api/cases/") and parsed.path.endswith("/history"):
+            case_id = parsed.path.removeprefix("/api/cases/").removesuffix("/history").strip("/")
+            if not case_id:
+                self.send_error_json("case_id is required", HTTPStatus.BAD_REQUEST)
+                return
+            query = parse_qs(parsed.query)
+            try:
+                limit = int(query.get("limit", ["20"])[0])
+            except ValueError:
+                self.send_error_json("limit must be an integer", HTTPStatus.BAD_REQUEST)
+                return
+            self.send_json({"items": self.store.get_case_history(case_id, limit=limit)})
             return
         if parsed.path.startswith("/api/runs/"):
             run_id = parsed.path.removeprefix("/api/runs/").strip("/")
@@ -361,6 +490,9 @@ class DashboardHandler(BaseHTTPRequestHandler):
             parsed = urlparse(self.path)
             if parsed.path == "/api/runs":
                 self.send_json(self.store.create_run(payload), HTTPStatus.CREATED)
+                return
+            if parsed.path == "/api/apks":
+                self.send_json(self.store.register_apk(payload), HTTPStatus.CREATED)
                 return
             if parsed.path.startswith("/api/runs/") and parsed.path.endswith("/cases"):
                 run_id = parsed.path.removeprefix("/api/runs/").removesuffix("/cases").strip("/")

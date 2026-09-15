@@ -1,0 +1,833 @@
+# 登录模块 L2 逆向用例集（通道 B：破坏者立场）
+# 任务卡: SWAN-20260907-003-login-case-negative | data_label: TEST-SYNTHETIC
+# 与正向通道互盲：本文件未读取、未参考任何正向用例产物
+# 维度框架: templates-v2/02k-逆向对抗矩阵.yaml（空值/超长/非法格式/断网/超时/中断/并发/重复提交/权限缺失/状态跳跃/服务降级/回退）
+# 字段兼容: templates-v2/02-L2功能.yaml（method_design/channels/tags）
+# expected_type 约定: expected=与模块卡片契约一致的设计行为 | suspected-defect=疑似缺陷，供报告从甄别（本通道不提单）
+schema_version: "1.1"
+task_id: "SWAN-20260907-003-login-case-negative"
+module: login
+level: L2
+case_count: 33
+data_label: TEST-SYNTHETIC
+source: 逆向
+revision_note: "用户纠错 2026-09-07：token 失效/超时重现类用例强制有效会话前置——先真实登录成功并验证 token 三处落盘非空，再做注入/篡改；空 token 态只能证明 loginRequired 兜底，不能证明失效链路/暴露时点，前置不满足记 BLOCKED 禁止降级执行"
+baseline:
+  - {repo: "HiVi-Network-FlutterApp", commit: "4d1ed7b1d727f12906d6ac9fa9ed195966e464b3"}
+  - {repo: "hivi_network_flutter_core", commit: "402853ab964f026761ba63130f495b9d213ea8b5"}
+inputs:
+  module_card: "F:\\SwanApp-Toolchain\\docs\\qa-knowledge\\01-系统认知\\模块卡片-login.md"
+  pattern_library: "F:\\SwanApp-Toolchain\\docs\\qa-knowledge\\03-BUG库\\模式库.md"
+dimension_coverage:
+  - {dimension: 空值, cases: [NEG-SMS-006, NEG-BIND-001]}
+  - {dimension: 超长, cases: [NEG-PWD-001, NEG-BIND-001]}
+  - {dimension: 非法格式, cases: [NEG-SMS-001, NEG-SMS-006, NEG-PWD-002, NEG-TOKEN-002]}
+  - {dimension: 断网, cases: [NEG-NET-001, NEG-NET-003, NEG-OUT-001]}
+  - {dimension: 超时, cases: [NEG-NET-002, NEG-NET-003]}
+  - {dimension: 中断, cases: [NEG-SMS-003, NEG-CONC-002, NEG-PRIV-001]}
+  - {dimension: 并发, cases: [NEG-SESS-004, NEG-CONC-001, NEG-CONC-002, NEG-CONC-003, NEG-ANR-001]}
+  - {dimension: 重复提交, cases: [NEG-SMS-001, NEG-SMS-005, NEG-CONC-001, NEG-CONC-003]}
+  - {dimension: 权限缺失, cases: [NEG-PERM-001, NEG-PERM-002]}
+  - {dimension: 状态跳跃, cases: [NEG-SESS-001, NEG-SESS-002, NEG-SESS-003, NEG-SESS-005, NEG-TOKEN-001, NEG-TOKEN-002, NEG-TOKEN-003, NEG-BIND-002, NEG-BIND-003]}
+  - {dimension: 服务降级, cases: [NEG-NET-004, NEG-OUT-002]}
+  - {dimension: 回退, cases: [NEG-NET-003, NEG-SMS-004, NEG-TOKEN-001]}
+pattern_feedback:
+  - pattern: P-003
+    case: NEG-ANR-001
+    note: 模式库命中一次（启动 ANR，登录页为恢复验证第一落点，卡片明确 60s Timer/autofill 自动提交/第三方回调为主线程敏感点），按反哺规则新增针对性破坏用例
+cases:
+  # ============ 会话失效（30003/30001/40006）============
+  - case_id: NEG-SESS-001
+    dimension: 状态跳跃
+    name: 会话失效码 30003 触发全局登出清栈回登录页
+    expected_type: expected
+    method_design:
+      error_guessing: "在 authenticated 态注入业务码 30003 响应（代理/Mock 任一业务接口）"
+    precondition: "硬前置：有效登录态已建立且经抓包验证 token 三处落盘非空（SharedPreferences auth_token / NetworkConfigFallbackStore._httpToken / Dio Authorization header），authenticated（AppShell 可达）；代理工具可拦截业务响应。前置不满足（空 token 态）→BLOCKED：空态只会走 loginRequired 兜底，无法重现失效链路，禁止降级执行"
+    steps:
+      - do: "登录成功后进入任一业务页，代理返回业务码 30003"
+        expect: "AppSessionInvalidationCoordinator 登出；_clearSessionState 清 lastUserInfoResponeBean/Qobuz 星标缓存/auth_token/fallback token；Toast「登录状态过时」(loginStatusObsolete)"
+      - do: "观察当前页面与路由栈"
+        expect: "落 loginRequired 登录页；PlatformCatalogNotifier.reset() 已执行；原二级页不留存"
+    locators:
+      hivi_test_ids: ["login_page"]
+      value_keys: ["login-phone-field"]
+    test_data: "TEST-SYNTHETIC: 代理注入 {code:30003}"
+    repro_points: "必须在 runApp 前已订阅 Coordinator（首帧前 30003 也应生效）；断言 token 三处存储（SharedPreferences auth_token / NetworkConfigFallbackStore._httpToken / Dio header）全空；开跑前核对硬前置：token 三处落盘非空方可执行（空 token 态本条无效，记 BLOCKED）"
+    recovery: "重新登录"
+    tags: [L2, negative]
+    channels: [assertion]
+
+  - case_id: NEG-SESS-002
+    dimension: 状态跳跃
+    name: 会话失效码 30001/40006 等价类：与 30003 同集合同行为
+    expected_type: expected
+    method_design:
+      equivalence_classes:
+        - {class: "失效码 30001(tokenInvalid)", input: "{code:30001}", expected: "登出清栈回登录页"}
+        - {class: "失效码 40006(tokenInvalid)", input: "{code:40006}", expected: "登出清栈回登录页"}
+    precondition: "硬前置：有效登录态已建立且经抓包验证 token 三处落盘非空；代理可注入业务码。前置不满足→BLOCKED（空态无会话可失效，重现无效）"
+    steps:
+      - do: "分别注入 30001、40006"
+        expect: "两码均命中失效集合 {30003,30001,40006}，行为与 30003 完全一致（登出+Toast+清栈）"
+      - do: "注入非失效业务码（如 50017 之外的业务失败码）作对照"
+        expect: "不触发登出，仅按该码自身语义处理"
+    locators:
+      hivi_test_ids: ["login_page"]
+      value_keys: []
+    test_data: "TEST-SYNTHETIC: {code:30001} / {code:40006}"
+    repro_points: "40006 出处源码仅有 Android 对齐注释，实际触发接口待接口侧确认（卡片未决问题），若代理无法构造走 Mock 层；开跑前核对硬前置：token 三处落盘非空（空 token 态记 BLOCKED）"
+    recovery: "重新登录"
+    tags: [L2, negative]
+    channels: [assertion]
+
+  - case_id: NEG-SESS-003
+    dimension: 状态跳跃
+    name: 同失效码 2s 内重复事件去重，仅一次登出一次 Toast
+    expected_type: expected
+    method_design:
+      boundary_values:
+        - {field: "同码事件间隔", value: "<2s", expected: "第二次被吞（去重窗口）"}
+        - {field: "同码事件间隔", value: ">2s", expected: "第二次在 isAuthenticated=false 时被拦（非去重）"}
+    precondition: "硬前置：有效登录态已建立且经抓包验证 token 三处落盘非空；可让同一接口在 2s 内返回两次 30003（如页面并发发两个请求）。前置不满足→BLOCKED（空态无会话可失效，重现无效）"
+    steps:
+      - do: "2s 内触发两次同码 30003 响应"
+        expect: "仅一次登出流程、一次 loginStatusObsolete Toast；无重复清栈/连续弹 Toast"
+      - do: "间隔 >2s 再次注入 30003"
+        expect: "此时已非 authenticated，仍不产生第二次登出副作用（isAuthenticated 门禁）"
+    locators:
+      hivi_test_ids: ["login_page"]
+      value_keys: []
+    test_data: "TEST-SYNTHETIC: {code:30003} x2 within 2s"
+    repro_points: "去重键为 code 本身（非全码集合）；验证 Toast 只出现一次是本条核心断言；开跑前核对硬前置：token 三处落盘非空（空 token 态记 BLOCKED）"
+    recovery: "重新登录"
+    tags: [L2, negative]
+    channels: [assertion]
+
+  - case_id: NEG-SESS-004
+    dimension: 并发
+    name: 手动登出后在途请求带回失效码，不误报登出 Toast
+    expected_type: expected
+    method_design:
+      error_guessing: "登出瞬间故意留一个在途业务请求，其响应稍后带回 30003"
+    precondition: "硬前置：有效登录态已建立且经抓包验证 token 三处落盘非空；某业务页有慢请求在途。前置不满足→BLOCKED（空态无会话可失效，重现无效）"
+    steps:
+      - do: "慢请求在途时到个人信息页点「退出登入」登出成功"
+        expect: "正常登出落登录页"
+      - do: "在途请求响应返回 30003"
+        expect: "Coordinator 因 isAuthenticated=false 拦截：无二次 Toast、无重复清栈、登录页状态不被扰动"
+    locators:
+      hivi_test_ids: ["person_info_page", "person_info_logout_button", "login_page"]
+      value_keys: []
+    test_data: "TEST-SYNTHETIC: 延迟 3s 返回 {code:30003} 的在途响应"
+    repro_points: "对照场景：登出失败（见 NEG-OUT-001）时 token 保留、仍 authenticated，此时在途 30003 应正常触发登出——两条共用同一在途构造手法；开跑前核对硬前置：token 三处落盘非空（空 token 态记 BLOCKED）"
+    recovery: "重新登录"
+    tags: [L2, negative]
+    channels: [assertion]
+
+  - case_id: NEG-SESS-005
+    dimension: 状态跳跃
+    name: 深层二级页（绑定页/搜索页）收到失效码：popUntil(isFirst) 清栈无残留
+    expected_type: expected
+    method_design:
+      state_transition:
+        - {from: "authenticated(二级页)", event: "业务码 30003", to: "loginRequired", guard: "isAuthenticated==true"}
+    precondition: "硬前置：有效登录态已建立且经抓包验证 token 三处落盘非空，并 push 到二级页（/login/bind-phone 或任一 push 页）。前置不满足→BLOCKED（空态无会话可失效，重现无效）"
+    steps:
+      - do: "停留在二级页时注入 30003"
+        expect: "根 Navigator popUntil(isFirst) 清空全部 push 页 + PlatformCatalogNotifier.reset()；最终只见登录页"
+      - do: "检查二级页状态（如绑定页已输入内容、平台目录列表）"
+        expect: "平台目录已 reset（无旧用户平台残留）；回登录页重新登录后无上一用户会话痕迹"
+    locators:
+      hivi_test_ids: ["login_page", "login_bind_phone_page(如已注册 testId；否则用 ValueKey)"]
+      value_keys: ["login-phone-field", "login-code-field"]
+    test_data: "TEST-SYNTHETIC: {code:30003}"
+    repro_points: "反面断言：若清栈缺失，用户重新登录后会落在原二级页（考古明确该坑是 _clearRouteStackOnLogout 修复目标），执行时重点看有没有回归；开跑前核对硬前置：token 三处落盘非空（空 token 态记 BLOCKED）"
+    recovery: "重新登录"
+    tags: [L2, negative]
+    channels: [assertion]
+
+  # ============ token 明文 + 启动不校验 ============
+  - case_id: NEG-TOKEN-001
+    dimension: 状态跳跃
+    name: 篡改 auth_token 后冷启动直进 authenticated，暴露时点后置到首个业务请求
+    expected_type: suspected-defect
+    method_design:
+      error_guessing: "启动恢复路径注入垃圾 token，观察暴露时点"
+    precondition: "步骤 0（硬前置）：先真实登录成功并验证 token 三处落盘非空（参照 POS-002 主路径），再做注入/篡改操作与冷启动——本条断言的暴露时点/失效链路只有从有效会话态出发才有意义，空 token 态只能证明 loginRequired 兜底，不能证明失效链路，未建立有效会话禁止进入注入步。可修改设备 SharedPreferences（debug 包 / adb）"
+    steps:
+      - do: "向 SharedPreferences 写 auth_token='Bearer tampered-invalid-token'，冷启动"
+        expect: "AppStartupGate 不发校验请求，adoptToken 直接进 authenticated（暴露时点=首个业务请求返回失效码时）"
+      - do: "进任一业务页触发首个业务请求"
+        expect: "业务码 30003/30001 回来 → 全局登出落登录页，中间态期间 UI 不崩溃"
+    locators:
+      hivi_test_ids: ["me_page", "login_page"]
+      value_keys: []
+    test_data: "TEST-SYNTHETIC: auth_token='Bearer tampered-invalid-token'"
+    repro_points: "疑点记录（不提单）：token 明文存储+启动零校验，攻击面=root 设备直接伪造登录态；断言点1 启动到 authenticated 的耗时（无网络请求）；断言点2 暴露前是否有任何越权 UI 可操作（如个人信息页读到空用户缓存 lastUserInfoResponeBean 被删后的表现）；未执行步骤 0（无有效会话基线）即注入=无效重现，结果记 BLOCKED"
+    recovery: "登出或清除应用数据"
+    tags: [L2, negative, security-recon]
+    channels: [assertion]
+
+  - case_id: NEG-TOKEN-002
+    dimension: 非法格式
+    name: auth_token 无 Bearer 前缀/空串/纯空白 的恢复边界
+    expected_type: expected
+    method_design:
+      equivalence_classes:
+        - {class: "无 Bearer 前缀", input: "raw-token-no-prefix", expected: "观察是否按原样 adopt（_normalizeBearerToken 仅写路径）"}
+        - {class: "空串", input: "\"\"", expected: "按无 token 处理，落 loginRequired"}
+        - {class: "纯空白", input: "'   '", expected: "观察 isEmpty 判定是否把空白当有效 token（疑似缺陷信号）"}
+    precondition: "步骤 0（硬前置）：先真实登录成功并验证 token 三处落盘非空（参照 POS-002 主路径）建立有效会话基线，再分别注入三类值后冷启动——恢复链路差异只有从有效会话态出发才有意义，空 token 态只能证明 loginRequired 兜底。可修改设备存储"
+    steps:
+      - do: "注入空串冷启动"
+        expect: "落登录页（token 存在性判定应排除空串）"
+      - do: "注入纯空白串冷启动"
+        expect: "若进 authenticated 则记 suspected-defect 信号（空白 token 被当有效）；无崩溃"
+      - do: "注入无 Bearer 前缀 token 冷启动"
+        expect: "记录实际行为（读路径是否有归一化，对照 OHOS OhosPreferencesStoragePort 的回写分支——卡片标注该分支未逐行确认）"
+    locators:
+      hivi_test_ids: ["login_page", "me_page"]
+      value_keys: []
+    test_data: "TEST-SYNTHETIC: ['' , '   ', 'raw-token-no-prefix']"
+    repro_points: "三组值逐次冷启动、逐次记录启动 stage；OHOS 平台另行用 OhosPreferencesStoragePort 路径复测（待设备在环，先登记）；未执行步骤 0（无有效会话基线）即注入=无效重现，结果记 BLOCKED"
+    recovery: "清除应用数据"
+    tags: [L2, negative]
+    channels: [assertion]
+
+  # ============ 验证码链路 ============
+  - case_id: NEG-SMS-001
+    dimension: 非法格式
+    name: 错误验证码失败后 autofill 回填同码：无反应是设计行为，修改后才重提交
+    expected_type: expected
+    method_design:
+      error_guessing: "利用 _lastFailedSmsCode 防重逻辑构造 autofill 重复提交"
+    precondition: "登录页短信模式；已收到真实验证码（服务端测试号 TEST-SYNTHETIC）"
+    steps:
+      - do: "输入错误 4 位码（如 9999），满 4 位自动提交"
+        expect: "登录失败，login_error_text 显示收敛后文案；_lastFailedSmsCode='9999'"
+      - do: "让 autofill/剪贴板再次回填同一码 9999（_onSmsCodeChanged 再收到相同 4 位）"
+        expect: "无网络请求、页面无反应——设计行为（防 autofill 死循环），非卡死；无 loading"
+      - do: "手动修改一位（如 9998）"
+        expect: "立即恢复自动提交，正常发登录请求"
+    locators:
+      hivi_test_ids: ["login_code_field", "login_error_text"]
+      value_keys: ["login-code-field"]
+    test_data: "TEST-SYNTHETIC: tel=13800000001, 错误码 9999→9998"
+    repro_points: "自动化重试脚本若原样重放同码会被防重逻辑吞掉——执行从脚本必须知道这是设计行为，失败重试需先改输入；断言网络层（代理）第二次无 /user/login 请求"
+    recovery: "输入新码"
+    tags: [L2, negative]
+    channels: [assertion]
+
+  - case_id: NEG-SMS-002
+    dimension: 非法格式
+    name: 过期验证码登录失败，错误文案收敛且输入变化即清错
+    expected_type: expected
+    method_design:
+      equivalence_classes:
+        - {class: "过期码", input: "服务端已过期的 4 位码", expected: "业务失败，inline error 本地化文案"}
+        - {class: "未请求过码的随机码", input: "1234(未发码)", expected: "业务失败，同收敛文案路径"}
+    precondition: "短信模式；能拿到过期码（发码后等待过期或服务端固定过期码）"
+    steps:
+      - do: "输入过期码自动提交"
+        expect: "登录失败，login_error_text 展示 HttpUserMessageResolver 转换后的本地化文案，不透出服务端英文原文/堆栈"
+      - do: "点击手机号输入框任意修改字符"
+        expect: "旧错误立即被 clearLoginError/_clearInlineError 清除（输入变化即清错）"
+    locators:
+      hivi_test_ids: ["login_code_field", "login_error_text", "login_phone_field"]
+      value_keys: ["login-code-field", "login-phone-field"]
+    test_data: "TEST-SYNTHETIC: tel=13800000001"
+    repro_points: "Selector 只重建 _LoginInlineError 不重建整页——顺带断言倒计时/输入内容在错误展示时不受影响"
+    recovery: "重新发码"
+    tags: [L2, negative]
+    channels: [assertion]
+
+  - case_id: NEG-SMS-003
+    dimension: 中断
+    name: 冷却倒计时不落盘：杀进程重进冷却丢失，可立即再发码
+    expected_type: suspected-defect
+    method_design:
+      state_transition:
+        - {from: "冷却中(剩 45s)", event: "杀进程重启", to: "无冷却(可立即发码)", guard: "倒计时仅内存 ValueNotifier"}
+    precondition: "短信模式，已发码一次，倒计时进行中"
+    steps:
+      - do: "发码后等约 15s（剩 ~45s），杀进程后冷启动到登录页"
+        expect: "倒计时丢失，重新输入同号可直接发码——设计上必然（卡片已知坑 4），但构成服务端「获取短信频繁」的触发路径，故标 suspected-defect 供报告从评估风险"
+      - do: "立即再次发码"
+        expect: "观察服务端是否返回频繁限制及文案是否本地化收敛"
+    locators:
+      hivi_test_ids: ["login_phone_field", "login_submit_button", "login_resend_code_button(对应 ValueKey)"]
+      value_keys: ["login-phone-field", "login-submit-button", "login-resend-code-button"]
+    test_data: "TEST-SYNTHETIC: tel=13800000001"
+    repro_points: "对照组：不发杀进程，返回手机号步再进验证码页，剩余时间应复用（NEG-SMS-004）；本条断言的是跨进程生命周期冷却丢失"
+    recovery: "等待服务端频繁窗口过期"
+    tags: [L2, negative, flaky?]
+    channels: [assertion]
+
+  - case_id: NEG-SMS-004
+    dimension: 回退
+    name: 同号返回复用剩余冷却 vs 改号立即清零
+    expected_type: expected
+    method_design:
+      decision_table:
+        - {conditions: ["同号返回验证码页"], actions: ["复用剩余倒计时，不发码"]}
+        - {conditions: ["切换为新号进入验证码页"], actions: ["冷却清零，可立即发码"]}
+    precondition: "短信模式；号 A=13800000001 冷却中（剩 ~40s）"
+    steps:
+      - do: "冷却中返回手机号步，原号再次提交"
+        expect: "直接切验证码页，不重新发码，剩余时间延续"
+      - do: "返回后改号 B=13800000002 提交"
+        expect: "倒计时清零，正常发码——设计行为；风险面：客户端冷却可被改号绕过，服务端频繁限制是唯一防线（记录观察）"
+    locators:
+      hivi_test_ids: ["login_phone_field", "login_submit_button", "login_code_field"]
+      value_keys: ["login-phone-field", "login-submit-button"]
+    test_data: "TEST-SYNTHETIC: A=13800000001, B=13800000002"
+    repro_points: "切模式（短信↔密码）才清倒计时——可加一步验证切到密码再切回短信后冷却归零，属同一 ValueNotifier 生命周期的边界"
+    recovery: "自然过期"
+    tags: [L2, negative]
+    channels: [assertion]
+
+  - case_id: NEG-SMS-005
+    dimension: 重复提交
+    name: 冷却中重复触发发码：客户端拦截 + 绕过 UI 后服务端频繁文案
+    expected_type: expected
+    method_design:
+      boundary_values:
+        - {field: "发码间隔", value: "冷却内(60s)", expected: "同号不发码，直接切验证码页"}
+        - {field: "发码间隔", value: "清数据/重装后 <60s", expected: "客户端无冷却记录，请求发出，依赖服务端频繁限制"}
+    precondition: "短信模式"
+    steps:
+      - do: "发码后 10s 内再次点主按钮（同号）"
+        expect: "不发 /user/captcha 请求（代理断言零请求），直接进验证码页"
+      - do: "清除应用数据后 60s 内重新走同号发码"
+        expect: "请求发出，观察服务端频繁限制响应文案是否经 resolve 收敛为本地化提示（不透出原文）"
+    locators:
+      hivi_test_ids: ["login_phone_field", "login_submit_button", "login_error_text"]
+      value_keys: ["login-phone-field", "login-submit-button"]
+    test_data: "TEST-SYNTHETIC: tel=13800000001"
+    repro_points: "代理层断言 /user/captcha 请求次数是本条硬证据；清数据动作同时会清隐私标记（is_first_launch 取反语义），需先重过隐私弹窗"
+    recovery: "等待窗口"
+    tags: [L2, negative]
+    channels: [assertion]
+
+  - case_id: NEG-SMS-006
+    dimension: 空值
+    name: 验证码空值/不足 4 位/非数字字符的输入边界
+    expected_type: expected
+    method_design:
+      boundary_values:
+        - {field: "验证码长度", value: "0(空)", expected: "不触发自动提交，主按钮路径不可用"}
+        - {field: "验证码长度", value: "3 位", expected: "不触发自动提交"}
+        - {field: "验证码长度", value: "4 位", expected: "触发自动提交（边界）"}
+        - {field: "验证码字符", value: "非数字(字母/emoji/中文)", expected: "记录输入过滤行为，无崩溃"}
+    precondition: "短信模式已到验证码页"
+    steps:
+      - do: "分别输入空/3 位/非数字内容"
+        expect: "不足 4 位绝不触发提交请求（代理断言）；非数字输入观察是否被过滤或提交后由服务端拒绝，两种均可但无崩溃"
+      - do: "在第 3 位基础上粘贴 1 位凑满 4"
+        expect: "触发自动提交（autofill 路径与键入路径行为一致）"
+    locators:
+      hivi_test_ids: ["login_code_field", "login_error_text"]
+      value_keys: ["login-code-field"]
+    test_data: "TEST-SYNTHETIC: ['', '123', 'abcd', '🎉🎉🎉🎉']"
+    repro_points: "autofill 粘贴路径与逐字键入路径都可能触发 _onSmsCodeChanged，两条输入路径都要过"
+    recovery: "清空重输"
+    tags: [L2, negative]
+    channels: [assertion]
+
+  # ============ 密码链路 ============
+  - case_id: NEG-PWD-001
+    dimension: 超长
+    name: 密码 maxLength 16 边界：16 可输、17 截断
+    expected_type: expected
+    method_design:
+      boundary_values:
+        - {field: "密码长度", value: "15", expected: "正常输入"}
+        - {field: "密码长度", value: "16", expected: "正常输入（上界）"}
+        - {field: "密码长度", value: "17", expected: "第 17 位被截断，实际仍 16 位"}
+    precondition: "登录页切密码模式（login_use_password_button）"
+    steps:
+      - do: "粘贴 20 位字符串进 login_password_field"
+        expect: "输入框最终仅 16 位（maxLength 硬截断），上送请求体 password 为 16 位（代理断言）"
+      - do: "提交该 16 位密码（服务端若上限小于 16）"
+        expect: "记录服务端真实上限行为与文案收敛——若客户端 16 上界与服务端不一致，记 suspected-defect 信号"
+    locators:
+      hivi_test_ids: ["login_use_password_button", "login_password_field", "login_error_text"]
+      value_keys: ["login-password-field"]
+    test_data: "TEST-SYNTHETIC: 20 位字符串 'Aa1!Aa1!Aa1!Aa1!zzzz'"
+    repro_points: "粘贴路径（clipboard autofill）与逐字键入路径分别验证 maxLength；明文切换眼睛图标不影响长度限制"
+    recovery: "清空"
+    tags: [L2, negative]
+    channels: [assertion]
+
+  - case_id: NEG-PWD-002
+    dimension: 非法格式
+    name: 密码非法字符（emoji/中文/前后空格）与错误密码
+    expected_type: expected
+    method_design:
+      equivalence_classes:
+        - {class: "emoji 密码", input: "🎉🎉🎉🎉🎉🎉🎉🎉", expected: "记录是否可输入/上送，无崩溃"}
+        - {class: "中文密码", input: "测试密码测试密码测试", expected: "同上"}
+        - {class: "前后空格密码", input: "  pass1234  ", expected: "观察是否 trim（对照短信流程 tel trim 的处理惯例）"}
+        - {class: "错误密码", input: "合法格式但错误", expected: "业务失败，inline error 收敛文案"}
+    precondition: "密码模式；已有 TEST-SYNTHETIC 账号"
+    steps:
+      - do: "依次输入各类非法字符密码提交"
+        expect: "无崩溃；错误密码失败文案本地化收敛（经 HttpUserMessageResolver），不透出英文原文"
+      - do: "失败后修改密码任意一位"
+        expect: "旧错误立即清除（clearLoginError 路径）"
+    locators:
+      hivi_test_ids: ["login_password_field", "login_error_text", "login_submit_button"]
+      value_keys: ["login-password-field", "login-submit-button"]
+    test_data: "TEST-SYNTHETIC: 见各等价类"
+    repro_points: "密码登录 loginType:'1' 与旧原生服务端行为差异是卡片未决问题——本条只断言客户端表现，服务端差异记录不判定"
+    recovery: "清空重输"
+    tags: [L2, negative]
+    channels: [assertion]
+
+  - case_id: NEG-PWD-003
+    dimension: 空值
+    name: 密码模式空手机号/空密码提交
+    expected_type: expected
+    method_design:
+      decision_table:
+        - {conditions: ["空手机号", "空密码"], actions: ["不可提交或本地校验拦截，无网络请求"]}
+        - {conditions: ["合法手机号", "空密码"], actions: ["记录客户端是否拦截；若发请求观察服务端响应与文案"]}
+    precondition: "密码模式"
+    steps:
+      - do: "手机号与密码均空，点主按钮"
+        expect: "代理断言零 /user/login 请求；有本地提示或按钮无效"
+      - do: "仅填手机号不填密码提交"
+        expect: "记录实际行为（客户端拦截 or 服务端拒绝），文案收敛，无崩溃"
+    locators:
+      hivi_test_ids: ["login_phone_field", "login_password_field", "login_submit_button", "login_error_text"]
+      value_keys: ["login-phone-field", "login-password-field", "login-submit-button"]
+    test_data: "TEST-SYNTHETIC: tel=''/13800000001, pwd=''"
+    repro_points: "请求体契约：密码登录固定上送 code:''——若空密码走到请求，代理核对 body 形态 {area, tel, code:'', loginType:'1', password:''}"
+    recovery: "填写后重试"
+    tags: [L2, negative]
+    channels: [assertion]
+
+  # ============ 断网/超时/服务降级/回退 ============
+  - case_id: NEG-NET-001
+    dimension: 断网
+    name: 断网点登录：Dio 连接类错误文案收敛，不透出英文原文
+    expected_type: expected
+    method_design:
+      error_guessing: "飞行模式/断代理触发 SocketException 类 DioException"
+    precondition: "登录页任一模式，输入合法 TEST-SYNTHETIC 数据；设备可开关飞行模式"
+    steps:
+      - do: "开启飞行模式，点登录主按钮"
+        expect: "_post 捕获 DioException → sanitizeApiFailureMessage → login_error_text 显示 networkNotConnected 本地化文案；无英文堆栈/原始异常串"
+      - do: "关闭飞行模式，修改任一输入字符"
+        expect: "错误清除；重新提交走正常链路"
+    locators:
+      hivi_test_ids: ["login_submit_button", "login_error_text"]
+      value_keys: ["login-submit-button"]
+    test_data: "TEST-SYNTHETIC: tel=13800000001, code=1234"
+    repro_points: "短信/密码/第三方三条入口分别断网一次（第三方断网另有 SDK 自身超时，行为可能不同，分别记录）；响应体为非 Map 的 DioException 走包装分支 {success:false,message:sanitized,code:statusCode}——可用代理返回 HTML 错误页触发"
+    recovery: "恢复网络"
+    tags: [L2, negative]
+    channels: [assertion]
+
+  - case_id: NEG-NET-002
+    dimension: 超时
+    name: 登录请求挂起超时：busy 态必须解除，按钮可恢复操作
+    expected_type: expected
+    method_design:
+      boundary_values:
+        - {field: "服务端响应", value: "挂起至客户端超时", expected: "Dio 超时异常 → 文案收敛，busy 复位"}
+    precondition: "代理可将 /user/login 挂起不响应"
+    steps:
+      - do: "提交登录，代理挂起响应直至客户端超时"
+        expect: "超时后 errorMessage 置收敛文案；_setBusy 解除，主按钮不再禁用，可再次提交"
+      - do: "超时后立即再次提交"
+        expect: "新请求正常发出（无 in-flight 残留卡死）"
+    locators:
+      hivi_test_ids: ["login_submit_button", "login_error_text"]
+      value_keys: ["login-submit-button"]
+    test_data: "TEST-SYNTHETIC: tel=13800000001"
+    repro_points: "对照 MXNZP 区号接口固定 8s 超时（NEG-NET-003）；本条验证登录主链路超时的 busy 复位——若超时后按钮永久禁用记 suspected-defect"
+    recovery: "恢复代理直连"
+    tags: [L2, negative]
+    channels: [assertion]
+
+  - case_id: NEG-NET-003
+    dimension: 服务降级
+    name: MXNZP 外部区号接口失败（断网/8s 超时/返回异常）回退内置热门区号
+    expected_type: expected
+    method_design:
+      decision_table:
+        - {conditions: ["断网", "进区号选择页"], actions: ["回退内置热门区号(中港澳台)，登录不被阻断"]}
+        - {conditions: ["MXNZP 响应 >8s 超时"], actions: ["同上，8s 内区号页呈加载/降级态"]}
+        - {conditions: ["MXNZP 返回非预期结构"], actions: ["按失败处理回退内置列表"]}
+    precondition: "可控制设备网络与代理（屏蔽 mxnzp.com）"
+    steps:
+      - do: "屏蔽 mxnzp.com 后进区号选择页（login_area_code_button）"
+        expect: "展示内置热门区号（中国/香港/澳门/台湾），页面可用，返回后登录流程完全不受影响"
+      - do: "代理延迟 mxnzp 响应至 >8s"
+        expect: "8s 超时触发回退，同样不阻断登录"
+    locators:
+      hivi_test_ids: ["login_area_code_button"]
+      value_keys: ["login-area-code-button"]
+    test_data: "TEST-SYNTHETIC: 无真实请求断言，仅可用性"
+    repro_points: "该外部接口硬编码 app_id/app_secret（area_code_service.dart:29-32）——secret 泄露面属安全注记，非本用例断言项；回退期间登录主链路零依赖外部接口是核心断言"
+    recovery: "解除屏蔽后重新进区号页，记录外部列表恢复"
+    tags: [L2, negative]
+    channels: [assertion]
+
+  - case_id: NEG-NET-004
+    dimension: 服务降级
+    name: HTTP 401/403 不走 Dio error：业务码语义必须从 body 保留解析
+    expected_type: expected
+    method_design:
+      equivalence_classes:
+        - {class: "401 + body 含 30003", input: "HTTP 401, body {code:30003}", expected: "按会话失效处理（非通用错误）"}
+        - {class: "403 + body 含非失效码", input: "HTTP 403, body {code:xxx}", expected: "按业务码语义处理，不误登出"}
+        - {class: "5xx + body 非 Map", input: "HTTP 502, body HTML", expected: "包装 {success:false, message:sanitized, code:502}，文案收敛"}
+    precondition: "代理可改写状态码与响应体"
+    steps:
+      - do: "代理返回 401 + body {code:30003}"
+        expect: "validateStatus<500 保证进 body 解析分支，触发全局登出而非显示通用网络错误"
+      - do: "代理返回 502 + HTML body"
+        expect: "login_error_text 收敛文案（sanitize），无英文原文、无崩溃"
+    locators:
+      hivi_test_ids: ["login_error_text", "login_page"]
+      value_keys: []
+    test_data: "TEST-SYNTHETIC: 代理注入见等价类"
+    repro_points: "http_client.dart validateStatus<500 是 401/403 能携带业务码的前提——若代码变更丢失该配置，本条首当其冲失败"
+    recovery: "解除代理改写"
+    tags: [L2, negative]
+    channels: [assertion]
+
+  # ============ 并发/重复提交 ============
+  - case_id: NEG-CONC-001
+    dimension: 并发
+    name: 验证码自动提交在途时重复触发：_smsLoginInFlight 拦截第二次
+    expected_type: expected
+    method_design:
+      error_guessing: "在途窗口内喂入第二次满 4 位事件（autofill/键入）"
+    precondition: "代理延迟 /user/login 约 2-3s 构造在途窗口"
+    steps:
+      - do: "输入 4 位码触发自动提交，请求在途时再次喂入同/异 4 位码"
+        expect: "_smsLoginInFlight 拦截：代理断言仅一次 /user/login 请求；无第二次提交、无崩溃"
+      - do: "首个请求返回后再次输入"
+        expect: "恢复可提交（in-flight 标志正确复位）"
+    locators:
+      hivi_test_ids: ["login_code_field"]
+      value_keys: ["login-code-field"]
+    test_data: "TEST-SYNTHETIC: 1234 与 5678"
+    repro_points: "在途窗口内输入异码 5678 后，请求返回失败时 _lastFailedSmsCode 记录的是首发码——随后 autofill 回填 5678 应可提交（与 NEG-SMS-001 防重逻辑的交叉边界，两标志交互要分别断言）"
+    recovery: "正常流程"
+    tags: [L2, negative]
+    channels: [assertion]
+
+  - case_id: NEG-CONC-002
+    dimension: 并发
+    name: 第三方授权在途重入与取消：isInProgress 提示 / isCancelled 静默
+    expected_type: expected
+    method_design:
+      decision_table:
+        - {conditions: ["授权在途", "再次点击图标"], actions: ["_thirdPartyLoginInFlight 拦截，提示稍候"]}
+        - {conditions: ["用户在第三方 SDK 取消授权"], actions: ["ThirdPartyLoginException.isCancelled → 静默返回，无错误 Toast"]}
+        - {conditions: ["授权在途", "切后台再回前台"], actions: ["无重复授权请求、无状态错乱"]}
+    precondition: "协议已勾选；微信/微博 SDK 环境可用（或 Mock SDK 回调）"
+    steps:
+      - do: "点微信图标，SDK 拉起期间返回 App 再点同图标"
+        expect: "第二次被 in-flight 拦截，提示稍候（不置灰但不可重入）"
+      - do: "在第三方 SDK 侧取消授权"
+        expect: "静默回登录页，无 errorMessage、无 Toast——isCancelled 分支"
+      - do: "SDK 返回异常（非取消非在途）"
+        expect: "有收敛的本地化错误提示"
+    locators:
+      hivi_test_ids: ["login_third_party_wechat_button", "login_third_party_weibo_button", "login_third_party_apple_button", "login_page"]
+      value_keys: []
+    test_data: "TEST-SYNTHETIC: 无真实第三方账号"
+    repro_points: "「授权中不置灰」是防止微信中途返回后永久卡死的设计决策——本条反面断言：取消后图标必须立即可再点（若永久禁用记 suspected-defect）；OHOS 平台第三方整块隐藏（OhosRuntimeUiPolicy），OHOS 真机另行验证待设备在环"
+    recovery: "重新发起授权"
+    tags: [L2, negative, flaky?]
+    channels: [assertion]
+
+  - case_id: NEG-CONC-003
+    dimension: 重复提交
+    name: 主按钮双击/连点：busy 态防重，单请求
+    expected_type: expected
+    method_design:
+      boundary_values:
+        - {field: "点击间隔", value: "<300ms 双击", expected: "仅一次登录请求"}
+        - {field: "点击间隔", value: "请求在途中再点", expected: "被 busy 拦截"}
+    precondition: "代理可观察请求计数；短信步/密码登录/第三方绑定的主按钮分别测"
+    steps:
+      - do: "快速双击短信手机号步主按钮"
+        expect: "代理断言 /user/captcha 仅一次（首次冷启动同号场景）"
+      - do: "密码登录提交在途时再点主按钮"
+        expect: "busy 拦截，零新增请求；请求返回后按钮恢复"
+    locators:
+      hivi_test_ids: ["login_submit_button"]
+      value_keys: ["login-submit-button"]
+    test_data: "TEST-SYNTHETIC: tel=13800000001"
+    repro_points: "手机号步双击在「同号冷却中」与「首次发码」两种前置下行为不同（冷却中是切页不发码）——两种前置都要过"
+    recovery: "正常流程"
+    tags: [L2, negative]
+    channels: [assertion]
+
+  # ============ 隐私弹窗 ============
+  - case_id: NEG-PRIV-001
+    dimension: 中断
+    name: 隐私弹窗不同意 → exitApp 中断链路
+    expected_type: expected
+    method_design:
+      error_guessing: "首装首次启动，直接走不同意分支"
+    precondition: "清除应用数据保证首装态（is_first_launch 未写）"
+    steps:
+      - do: "首装冷启动，隐私弹窗点「不同意」（privacy_disagree_button）"
+        expect: "AppSystemPort.exitApp() 触发，应用退出；不进入登录页"
+      - do: "重新启动"
+        expect: "隐私弹窗再次出现（未同意不落盘），仍停在 privacyRequired"
+    locators:
+      hivi_test_ids: ["privacy_dialog", "privacy_disagree_button", "privacy_agree_button"]
+      value_keys: []
+    test_data: "TEST-SYNTHETIC: 无账号参与"
+    repro_points: "同意标记复用 is_first_launch 取反语义（已知坑 9）——断言不同意后该 key 未被写 true；OHOS 平台托管声明时 Flutter 侧直接写 true 的分支属平台差异，另行记录"
+    recovery: "重新启动"
+    tags: [L2, negative]
+    channels: [assertion]
+
+  - case_id: NEG-PRIV-002
+    dimension: 状态跳跃
+    name: 隐私弹窗 PopScope(canPop:false)：系统返回无法跳过
+    expected_type: expected
+    method_design:
+      state_transition:
+        - {from: "privacyRequired", event: "系统返回键/返回手势", to: "privacyRequired(不变)", guard: "canPop:false"}
+    precondition: "首装态，隐私弹窗可见"
+    steps:
+      - do: "弹窗可见时按系统返回键/侧滑返回手势"
+        expect: "弹窗不消失、不落入登录页、App 不退出到桌面后跳过隐私（记录平台实际表现：留在弹窗 or exitApp）"
+      - do: "弹窗可见时尝试深链 /login"
+        expect: "启动状态机拦在 privacyRequired，深链无法绕过弹窗直达登录页（命名路由只是别名，home 由 stage 决定）"
+    locators:
+      hivi_test_ids: ["privacy_dialog", "login_page"]
+      value_keys: []
+    test_data: "TEST-SYNTHETIC: 深链 adb shell am start -d scheme:///login"
+    repro_points: "深链绕过是本条核心破坏点：AppStartupGate.home 覆盖命名路由——若深链能进登录页并提交登录，记 suspected-defect（隐私未同意即建立会话）"
+    recovery: "正常同意或不同意"
+    tags: [L2, negative]
+    channels: [assertion]
+
+  # ============ 登出路径 ============
+  - case_id: NEG-OUT-001
+    dimension: 断网
+    name: 服务端登出失败：token 保留、停留原页、仅 Toast
+    expected_type: expected
+    method_design:
+      decision_table:
+        - {conditions: ["断网点退出登入"], actions: ["/user/logout 失败，仅 Toast，不清本地 token，停留 person_info"]}
+        - {conditions: ["服务端 5xx 点退出登入"], actions: ["同上"]}
+    precondition: "已登录进个人信息页；可断网或代理 5xx"
+    steps:
+      - do: "断网后点 person_info_logout_button"
+        expect: "失败仅 Toast（无二次确认弹窗——设计如此）；不跳登录页；auth_token 仍在（三处存储均未清）"
+      - do: "恢复网络后刷新页面"
+        expect: "用户仍为登录态（token 有效），数据正常"
+    locators:
+      hivi_test_ids: ["person_info_page", "person_info_logout_button", "me_page"]
+      value_keys: []
+    test_data: "TEST-SYNTHETIC: 已登录会话"
+    repro_points: "反面确认：登出失败后手动杀进程重进，token 仍恢复进 authenticated——「失败不清本地」的持久化后果；无二次确认直接登出成功路径的用户误触风险记 UX 注记非本条断言"
+    recovery: "恢复网络重试登出"
+    tags: [L2, negative]
+    channels: [assertion]
+
+  - case_id: NEG-OUT-002
+    dimension: 服务降级
+    name: 切服登出不请求旧服 logout：服务端会话残留
+    expected_type: expected
+    method_design:
+      error_guessing: "切服路径的清理范围核查"
+    precondition: "已登录（服 A）；「关于我们」页可达服 B 切换入口"
+    steps:
+      - do: "在「关于我们」切到服 B"
+        expect: "客户端直接清本地 token 回登录页，全程零 /user/logout 请求（代理断言，对齐 iOS 设计行为）"
+      - do: "用抓包/服务端视角核对服 A"
+        expect: "服 A 会话未注销（残留）——设计行为但记安全注记：共享设备场景旧会话在服务端仍有效，报告从可评估"
+      - do: "在服 B 登录页重新登录"
+        expect: "登录页无需重建即命中新 base（_baseUrl 动态读 fallback），登录成功进服 B 会话"
+    locators:
+      hivi_test_ids: ["login_page", "me_page"]
+      value_keys: []
+    test_data: "TEST-SYNTHETIC: Debug 服 http://8.129.106.82/api ↔ 显式 HIVI_API_BASE_URL 覆盖地址（禁止使用生产 base）"
+    repro_points: "切服一次性写 API/AI HTTP/AI WebSocket 三地址——断言三地址都切换（WebSocket 残留旧地址是潜在破坏点）；切服后 Qobuz 星标缓存等 _clearSessionState 清理是否同样执行需核对（切服走的是清 token 还是完整 _clearSessionState，卡片未逐行确认，记录观察）"
+    recovery: "切回原服"
+    tags: [L2, negative, security-recon]
+    channels: [assertion]
+
+  # ============ 50015 绑定页 ============
+  - case_id: NEG-BIND-001
+    dimension: 超长
+    name: 绑定页异常输入：超长手机号/空验证码/非法区号
+    expected_type: expected
+    method_design:
+      equivalence_classes:
+        - {class: "超长手机号(>11 位)", input: "1380000000100000", expected: "输入限制或提交后服务端拒绝，文案收敛"}
+        - {class: "空验证码", input: "code=''", expected: "记录客户端拦截 or 服务端拒绝"}
+        - {class: "非法区号", input: "area='++++'/'abc'", expected: "area 去 + 后上送形态核对"}
+    precondition: "第三方登录返回 50015 进入 /login/bind-phone（Mock 第三方 credential + 服务端 50015 响应）"
+    steps:
+      - do: "绑定页依次输入各异常等价类并提交"
+        expect: "无崩溃；请求体形态符合契约：短信 body + thirdPartyId/thirdPartyName，loginType fallback '2'，固定冗余 code/password 字段（代理断言）"
+      - do: "非法区号（含多个 +）提交"
+        expect: "area 去 '+' 处理后上送，观察服务端响应与文案收敛"
+    locators:
+      hivi_test_ids: ["login_phone_field", "login_code_field", "login_error_text"]
+      value_keys: ["login-phone-field", "login-code-field"]
+    test_data: "TEST-SYNTHETIC: thirdPartyId='mock-third-party-001', tel=13800000001"
+    repro_points: "绑定成功复用同一 token 收口——若绑定接口返回新 token 而客户端仍用旧 token，属状态跳跃破坏点（代理对比前后 token 值）"
+    recovery: "修正输入"
+    tags: [L2, negative]
+    channels: [assertion]
+
+  - case_id: NEG-BIND-002
+    dimension: 状态跳跃
+    name: 绑定页深链直入无参数：BindPhoneRouteArgs 缺失时 fallback 行为
+    expected_type: suspected-defect
+    method_design:
+      state_transition:
+        - {from: "任意 stage", event: "深链 /login/bind-phone 无 args", to: "观察 fallback", guard: "命名路由别名可达"}
+    precondition: "App 可响应深链（adb am start -d）"
+    steps:
+      - do: "未登录/未触发 50015 的情况下深链直达 /login/bind-phone"
+        expect: "启动状态机应拦在 loginRequired/privacyRequired；若可达绑定页，记录 args 缺失时的 fallback（thirdPartyId 为空、loginType:'2'）实际表现"
+      - do: "若绑定页可达，直接提交空 thirdPartyId"
+        expect: "观察服务端响应与客户端文案；无崩溃即记录，任何异常状态记 suspected-defect 信号"
+    locators:
+      hivi_test_ids: ["login_page"]
+      value_keys: ["login-phone-field", "login-code-field"]
+    test_data: "TEST-SYNTHETIC: 深链 scheme:///login/bind-phone"
+    repro_points: "卡片未决问题：绑定页参数 fallback loginType:'2' 的实际触发路径未逐行确认——本条目的就是把「深链无参」这条路径实际跑出来定性；登录请求体冗余字段（password:''/code:''）在绑定请求中的形态一并代理核对"
+    recovery: "返回登录页"
+    tags: [L2, negative, experimental?]
+    channels: [assertion]
+
+  - case_id: NEG-BIND-003
+    dimension: 状态跳跃
+    name: 绑定页内会话失效/返回中断：清栈与 token 收口的交叉
+    expected_type: expected
+    method_design:
+      error_guessing: "绑定请求在途时注入失效码 / 用户中途返回"
+    precondition: "已进入绑定页（50015 路径）"
+    steps:
+      - do: "绑定提交在途时代理注入 30003"
+        expect: "全局失效链优先：清栈回登录页，绑定流程中止，无半绑定状态"
+      - do: "绑定页点返回（未提交）"
+        expect: "返回登录页，第三方 credential 丢弃，再次第三方登录重新走 50015 流程，无状态残留"
+    locators:
+      hivi_test_ids: ["login_page"]
+      value_keys: ["login-phone-field", "login-code-field"]
+    test_data: "TEST-SYNTHETIC: thirdPartyId='mock-third-party-002'"
+    repro_points: "绑定成功复用同一 token——若失效码在绑定响应后瞬间到达，验证 token 收口与登出清理的时序竞争（adoptToken 与 logout 顺序）无脏状态"
+    recovery: "重新登录"
+    tags: [L2, negative, flaky?]
+    channels: [assertion]
+
+  # ============ 权限缺失 ============
+  - case_id: NEG-PERM-001
+    dimension: 权限缺失
+    name: 协议未勾选：主按钮与第三方图标的可点性边界
+    expected_type: expected
+    method_design:
+      decision_table:
+        - {conditions: ["协议未勾选", "点短信主按钮"], actions: ["不提交，协议区域提示/抖动（记录实际表现），零请求"]}
+        - {conditions: ["协议未勾选", "点第三方图标"], actions: ["不拉起 SDK（可点仅由协议决定），零授权"]}
+        - {conditions: ["协议勾选", "第三方授权中"], actions: ["图标不置灰（防微信中途返回卡死）"]}
+    precondition: "登录页首进，协议默认未勾选"
+    steps:
+      - do: "未勾选协议，分别点短信主按钮/密码主按钮/第三方图标"
+        expect: "代理断言零 /user/captcha、/user/login、SDK 拉起；记录未勾选时的 UI 反馈形态"
+      - do: "勾选协议后重复上述操作"
+        expect: "全部恢复正常链路"
+    locators:
+      hivi_test_ids: ["login_agreement_checkbox", "login_submit_button", "login_third_party_wechat_button"]
+      value_keys: ["login-agreement-checkbox", "login-submit-button"]
+    test_data: "TEST-SYNTHETIC: tel=13800000001"
+    repro_points: "「可见由平台决定、可点由协议决定」——OHOS 平台第三方隐藏时勾选协议也不出现图标（平台差异断言，待 OHOS 设备在环）"
+    recovery: "勾选协议"
+    tags: [L2, negative]
+    channels: [assertion]
+
+  - case_id: NEG-PERM-002
+    dimension: 权限缺失
+    name: 第三方 SDK 环境缺失：目标 App 未安装/SDK 初始化失败
+    expected_type: expected
+    method_design:
+      equivalence_classes:
+        - {class: "微信未安装", input: "点微信图标", expected: "SDK 异常 → 非 isCancelled/isInProgress 分支 → 收敛错误提示，无崩溃"}
+        - {class: "SDK 回调超时/无响应", input: "拉起后无回调", expected: "记录是否可恢复（图标可再点）或需杀进程"}
+    precondition: "设备卸载微信（保留微博/Apple 环境作对照）；协议已勾选"
+    steps:
+      - do: "未安装微信时点微信图标"
+        expect: "ThirdPartyLoginException 走「其它」分支：本地化错误提示，登录页状态正常可重试"
+      - do: "对比点微博图标（已安装）"
+        expect: "正常拉起授权（或按测试环境 Mock），两分支行为差异清晰"
+    locators:
+      hivi_test_ids: ["login_third_party_wechat_button", "login_third_party_weibo_button", "login_error_text"]
+      value_keys: []
+    test_data: "TEST-SYNTHETIC: 无真实第三方账号"
+    repro_points: "Apple 登录仅 iOS 平台可见（平台差异）；OHOS 整块隐藏——本条在 Android 模拟器/真机执行，其它平台待设备在环"
+    recovery: "安装对应 App 或放弃第三方路径"
+    tags: [L2, negative]
+    channels: [assertion]
+
+  # ============ 模式库反哺（P-003 启动 ANR）============
+  - case_id: NEG-ANR-001
+    dimension: 并发
+    name: [P-003 反哺] 登录页主线程敏感点叠加：60s Timer + autofill 自动提交 + 第三方回调并发窗口
+    expected_type: suspected-defect
+    method_design:
+      error_guessing: "三个已知主线程敏感点在最坏窗口叠加，做 hierarchy 可达性探针"
+    precondition: "执行从先做启动 ANR 探针（模式库 P-003 反哺动作：hierarchy 可达性检查通过才进业务断言）"
+    steps:
+      - do: "短信发码后倒计时运行中（Timer 活跃），立即粘贴 4 位码触发自动提交，同时第三方授权回调到达（Mock 并发）"
+        expect: "UI 不冻结；1s 内 hierarchy 仍可达（登录页 locator 可查询）；登录请求正常收口"
+      - do: "若出现 'isn't responding' ANR 对话框"
+        expect: "按 P-003 流程：捕捉 hierarchy/截图证据，登记 ANR 候选，不进业务断言、不提单（未稳定复现前）"
+    locators:
+      hivi_test_ids: ["login_page", "login_code_field"]
+      value_keys: ["login-code-field"]
+    test_data: "TEST-SYNTHETIC: tel=13800000001, code=1234"
+    repro_points: "P-003 已有一次候选（SWAN-BUG-20260904-004）且 SWAN-20260904-005 复核时登录页是 ANR 后第一可达页面——本条把登录页三个敏感点主动叠加压测；任何一次 ANR 即升级反哺动作"
+    recovery: "杀进程重启"
+    tags: [L2, negative, flaky?, experimental?]
+    channels: [assertion]
+
+  # ============ token 有效期策略（变更单 G3 追加）============
+  - case_id: NEG-TOKEN-003
+    dimension: 状态跳跃
+    name: token 有效期 TTL 维度：过期 JWT 冷启动仍直进 authenticated，暴露时点后置到首个业务请求
+    expected_type: suspected-defect
+    method_design:
+      error_guessing: "注入 exp 已过的合法格式 JWT，专断言 TTL 维度（与 NEG-TOKEN-001 同手法、不同变量：NEG-TOKEN-001 断言垃圾 token 的暴露时点，本条断言过期时间不被校验）"
+    precondition: "步骤 0（硬前置）：先真实登录成功并验证 token 三处落盘非空（参照 POS-002 主路径）作为有效会话基线，再注入过期 JWT 并冷启动——TTL 维度断言（过期不被校验+暴露时点后置）只有从有效会话态出发才有意义，空 token 态只能证明 loginRequired 兜底，未建立有效会话禁止进入注入步。可修改设备 SharedPreferences（debug 包 / adb）。已知事实（SWAN-20260907-000 环境验证）：测试服签发 JWT 有效期整 10 年（exp=iat+315360000s）"
+    steps:
+      - do: "构造 exp 已过期的合法格式 JWT（header.payload.signature 三段齐全、payload.exp 为过去时间戳，全字段 TEST-SYNTHETIC 自造，非真实签发），写入 SharedPreferences auth_token（带 Bearer 前缀），冷启动"
+        expect: "客户端启动恢复不校验 exp：adoptToken 直进 authenticated，启动阶段零校验请求（断言启动网络层无 token 校验调用）"
+      - do: "进任一业务页触发首个业务请求"
+        expect: "服务端返回失效业务码（30003/30001）→ 全局登出落登录页；暴露窗口=冷启动到首个业务请求之间，此期间客户端认为会话有效"
+      - do: "记录 token 生命周期事实（非断言，供报告从定级）：exp-iat 差值=315360000s（10 年）；客户端源码无任何过期校验路径（依据 storage_port.dart 读写分支 / app_startup_controller.dart adoptToken 与 initialize 流程）；无 refresh 机制"
+        expect: "事实链完整：服务端 10 年 TTL + 客户端不校验 exp + 无续期/登出兜底 → 泄露 token 在最长 10 年内可离线复用至首次失效码命中"
+    locators:
+      hivi_test_ids: ["me_page", "login_page"]
+      value_keys: []
+    test_data: "TEST-SYNTHETIC: 自造过期 JWT，如 exp=1700000000（2023-11，已过期）、iat=1690000000、payload.sub=test-synthetic-user；严禁使用测试服真实签发 token 参与断言"
+    repro_points: "三段式 JWT 缺一不可（畸形 token 走 NEG-TOKEN-002 的非法格式路径，不命中本条 TTL 语义）；对照点：若未来客户端加入 exp 预校验，本条冷启动应落 loginRequired——当前预期是直进 authenticated；10 年 TTL 属服务端签发策略，客户端未防护是本条记录点，报告从甄别定级；未执行步骤 0（无有效会话基线）即注入=无效重现，结果记 BLOCKED"
+    recovery: "登出或清除应用数据"
+    tags: [L2, negative, security-recon]
+    channels: [assertion]
+
+execution_boundary:
+  allowed_next_operation: "执行从消费本用例集需设备在环 + 环境门禁（Debug 包确认 base URL=测试服）批准后进行"
+  prohibited: [production_data, real_credentials, source_modification, positive_channel_artifact_reads, bug_filing]
+  notes:
+    - "全部测试数据 TEST-SYNTHETIC；禁止触达生产 base（network.hivi.com）"
+    - "Debug 包默认 http://8.129.106.82/api，Release 默认线上——执行前必须核对实际 base URL（卡片已知坑 2）"
+    - "HiviTestIds 与 ValueKey 双轨：黑盒用 Semantics id，widget test 用 ValueKey（已知坑 11）"

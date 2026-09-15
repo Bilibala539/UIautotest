@@ -1,0 +1,839 @@
+# ============================================================
+# Swan Audio 全量回归 · 正向用例集（通道 A：验证该做的做了）
+# 任务卡: SWAN-20260911-001-fullregression（B线全量回归）
+# 范围: 功能地图 v2 的 18 功能域 + 已知 BUG 复验（F-1/F-2 正向部分）
+# 性质: 已测绘 App 的回归（非首次测绘）——主路径 + states-matrix 已知关键状态组合
+# 数据标签: 全部用例数据均为虚构, data_label=TEST-SYNTHETIC
+# 互盲纪律: 本文件未读取/未参考逆向用例通道产物（states-matrix 为 executor 域采证，非逆向中间产物）
+# 模板: docs/workflow/qa/templates-v2/02-L2功能.yaml (automation_guidance v1.1)
+# 基线: 快照 snapshot-20260911（App 5.3.0 build 32 debug, emulator-5554, 升级安装保留 userdata）
+#       对比基准: App dev@4d1ed7b / Core dev@402853ab
+# ============================================================
+schema_version: "1.1"
+task_id: "SWAN-20260911-001-fullregression"
+data_label: "TEST-SYNTHETIC"
+module: fullregression (18 功能域)
+level: [L2, L3]
+channel: positive
+baseline:
+  snapshot: "snapshot-20260911"
+  app: {version: "5.3.0 (build 32) debug", repo: "E:\\SwanApp\\repos\\flutter\\hivi-network-snapshot-20260911\\HiVi-Network-FlutterApp"}
+  compare_baseline: {app: "dev@4d1ed7b", core: "dev@402853ab"}
+  device: emulator-5554 (1080x1920@420dpi)
+provenance:
+  feature_map: "F:\\SwanApp-Toolchain\\docs\\qa-knowledge\\01-系统认知\\功能地图.md (v2)"
+  states_matrix: "F:\\SwanApp-Toolchain\\results\\SWAN-20260910-001-feature-boundary\\executor\\states-matrix.md (§1-33)"
+  module_cards: ["模块卡片-login.md", "模块卡片-app.md", "模块卡片-core.md", "模块卡片-search.md"]
+allure:
+  epic: "SwanAudio-App"
+  feature: "全量回归-18域"
+
+# ------------------------------------------------------------
+# 全局禁区（严禁写入任何步骤，执行层同样受约）
+# ------------------------------------------------------------
+forbidden_zones:
+  - "person_info_page 末位两按钮：注销账号(person_info_cancel_account_button)/退出登入(person_info_logout_button)——仅语义树核对文案，零点击"
+  - "平台页已授权行 − 钮（取消授权）——零点击"
+  - "关于页/帮助页「软件升级·检查更新」——零点击（仅定位）"
+  - "切服/服务端环境切换（本基线无 UI 入口，若出现入口同样禁点）"
+  - "电台行体与 → 钮（P-9-1 实证：任何点击=自动播放）——禁点击类操作"
+  - "推送类断言严禁依赖真推送（推送 Port 为 no-op 空实现，到达链路不存在）"
+  - "共享设备存储禁通配删除（T-4 教训）"
+
+# ------------------------------------------------------------
+# 环境限制（涉音响实体/蓝牙/相机的用例标注 device-divergence 或 BLOCKED(env)）
+# ------------------------------------------------------------
+env_constraints:
+  - "模拟器无蓝牙/真实音频硬件：实配网、蓝牙发现、音频客观指标 = BLOCKED(env)"
+  - "虚拟相机无视频流：扫一扫止步于『相机不可用』错误态（非缺陷），真机预期出预览 = device-divergence"
+  - "adb input text 中文 NPE（CJK 输入限制）：搜索/输入类用例一律用 ASCII 关键词"
+  - "电台流在无实体扬声器下必失败并自动切台：任何播放触发都会污染状态——播放域用例只断言结构与状态，不触发播放"
+  - "账号绑定管理页未裁决（疑含解绑写操作）：只定位不进入"
+
+automation_guidance:   # 全局规范（02-L2功能.yaml v1.1，逐 case 只写差异项）
+  selector_priority: "稳定文本 text > resource-id > 关系选择器(below/childOf) > 状态条件(enabled) > index 兜底；禁用坐标"
+  waiting: "轮询断言代替 sleep：assertVisible/assertNotVisible 自带等待；登录发码跳转实测 3~60s（states-matrix O-7），必须 extendedWaitUntil 设真实超时，禁止 sleep"
+  animation: "底部弹层（音质设置/Spotify 引导）与 Tab 切换前 waitForAnimationToEnd"
+  ghost_tap: "tapOn 加 retryTapIfNoChange: true"
+  evidence_convention: "截图命名 <页面>__<功能区>__<状态>.png 三段式（对齐 states-matrix 颗粒度）；证据根 F:\\SwanApp-Toolchain\\results\\SWAN-20260911-001-fullregression\\evidence\\"
+
+# 前置分类约定 precondition_class:
+#   免登录            = 无需任何账号，清数据冷启动即可执行
+#   需登录态          = 依赖 userdata 保留的既有登录态（升级安装后直接可用）
+#   credential-required = 需真实凭据/短信码（任务卡人工中断点：经主对话向用户收集）
+
+shared_precondition: "emulator-5554 已装 snapshot-20260911（adb install -r 保留 userdata）；swan-qa 设备池占用规则生效"
+
+# ============================================================
+# 用例分布总览（43 条，含 2 条登记条目）
+# ============================================================
+# | 功能域                          | 用例数 | 备注                     |
+# |---------------------------------|--------|--------------------------|
+# | D1 启动与隐私                   | 2      | 含快照升级验收           |
+# | D2 会话与登录（高风险·加密）    | 7      | 含 F-1/F-2 复验          |
+# | D3 主框架与导航                 | 2      |                          |
+# | D4 首页                         | 3      |                          |
+# | D5 搜索                         | 1      | 主链路（14 条旧用例复用）|
+# | D6 播放器（高风险·加密）        | 3      | 零播放触发               |
+# | D7 音乐平台聚合（高风险·加密）  | 4      | 禁 − 钮                  |
+# | D8 电台/播客                    | 1      | 全行禁点击               |
+# | D9 AI 助手                      | 2      |                          |
+# | D10 可视音箱 Vision             | 1      | 空态                     |
+# | D11 设备管理与配网（高风险·加密）| 3     | 1 条 BLOCKED(env)        |
+# | D12 收藏与曲库                  | 2      |                          |
+# | D13 个人中心（高风险·加密）     | 4      | 双禁区零点击             |
+# | D14 支付与会员                  | 2      | 财务只读                 |
+# | D15 帮助/关于/反馈              | 2      | 升级行禁点               |
+# | D16 推送/日活/版本              | 2      | 日活 1 + 推送 no-op 登记 1（无正向用例可设计）|
+# | D17 设置/切服/平台通道          | 1      | 无 UI 挂载回归断言       |
+# | D18 视频与投屏                  | 1      | 条件执行+BLOCKED(env)    |
+# ============================================================
+cases:
+
+  # ================= D1 启动与隐私 =================
+  - case_id: FR-L2-POS-001
+    name: "快照升级安装后冷启动：登录态保留直进主界面（snapshot 验收项）"
+    domain: "启动与隐私"
+    tags: [smoke, L2, snapshot-acceptance]
+    precondition_class: 需登录态
+    precondition: "emulator-5554 已有旧版登录态 userdata；snapshot-20260911 经 adb install -r 升级安装（不卸载）"
+    automation:
+      maestro: "可行（纯可见性断言）"
+      notes: "冷启动用 adb shell am force-stop + monkey/am start；assertVisible 轮询 AppShell 首屏锚点（跨平台搜索音乐），禁 sleep（splash 瞬态 2-3s）"
+    evidence: ["startup__appshell__direct-login.png", "startup__version__about-check.png（版本标识交叉核对见 FR-L2-POS-038）"]
+    steps:
+      - do: "force-stop 后冷启动 App"
+        expect: "不弹隐私弹窗、不停留登录页：splash 瞬态（SWAN logo）后直达 AppShell 首页（断言『跨平台搜索音乐』搜索栏 + 底部四 Tab 可见）——token 恢复直进主界面行为在快照上保持（模块卡片-login：token 恢复不校验有效性）"
+      - do: "切到我的 Tab（tab_me）确认会话数据渲染"
+        expect: "我的页用户昵称与手机号行渲染（既有账号），非登录页、非空壳——升级安装未丢登录态"
+    device: android-emulator
+
+  - case_id: FR-L2-POS-002
+    name: "清数据首启：隐私弹窗同意 → 登录页（privacy→login 状态机）"
+    domain: "启动与隐私"
+    tags: [smoke, L2]
+    precondition_class: 免登录
+    precondition: "执行后需 pm clear 或重装恢复 userdata 登录态——**放在整轮回归最后执行**（清数据破坏 FR-POS-001 的前置）"
+    automation:
+      maestro: "可行"
+      notes: "隐私弹窗 PopScope(canPop:false)，禁用 back 键逃逸路径；文本定位『同意』"
+    evidence: ["privacy__dialog__initial.png", "privacy__agree__login_page.png"]
+    steps:
+      - do: "pm clear com.swan.network 后冷启动"
+        expect: "登录页底图上覆盖隐私弹窗，系统返回键无法关闭弹窗（canPop:false 契约保持）"
+      - do: "点击『同意』"
+        expect: "弹窗关闭进入登录页（login_page 可见）；二次冷启动不再弹隐私（is_first_launch 取反语义落盘）"
+    device: android-emulator
+
+  # ================= D2 会话与登录（高风险·加密） =================
+  - case_id: FR-L2-POS-010
+    name: "短信两步登录主链路：手机号+协议→发码→4 格验证码自动提交→AppShell"
+    domain: "会话与登录"
+    tags: [smoke, L2]
+    precondition_class: credential-required
+    precondition: "stage=loginRequired；测试短信号码可用（任务卡人工中断点：短信验证码经主对话向用户收集）；当前登录态用例执行前须先登出场景由主对话编排（本通道禁触登出双钮——用清数据/备用设备达成免登录态）"
+    automation:
+      maestro: "半自动（验证码需人工投喂：runScript 暂停或分段执行）"
+      notes: "发码跳转 3~60s（O-7 实测）必须 extendedWaitUntil timeout≥60s 断言 login_code_field；验证码渲染为 4 个独立输入格，第 4 位输入后自动提交（禁再点提交键）；输入值 13800000002=TEST-SYNTHETIC"
+    evidence: ["login__phone_field__filled_ready_submit.png", "codepage__initial.png", "appshell__home__loaded.png", "logcat-loginLog-once.png"]
+    steps:
+      - do: "login_phone_field 输入 13800000002，确认区号 +86"
+        expect: "输入回显，无 login_error_text；下一步按钮由灰变黑启用"
+      - do: "勾选 login_agreement_checkbox，点击 login_submit_button"
+        expect: "extendedWaitUntil（≤60s）切到验证码页：提示『验证码已经发送至 +86 …』，login_code_field 可见"
+      - do: "输入用户提供的 4 位验证码"
+        expect: "满 4 位自动提交登录，无需再点击；extendedWaitUntil（≤15s）AppShell 首页渲染（『跨平台搜索音乐』+四 Tab）"
+      - do: "adb logcat 过滤 /user/loginLog"
+        expect: "登录收口后日活上报请求发出（type:1，自然日一次）——详断言见 FR-L2-POS-039"
+    device: android-emulator
+
+  - case_id: FR-L2-POS-011
+    name: "密码登录主链路：合法凭据一次提交成功"
+    domain: "会话与登录"
+    tags: [smoke, L2]
+    precondition_class: credential-required
+    precondition: "stage=loginRequired；测试环境存在密码账号（凭据见 05g-凭据清单，TEST-SYNTHETIC）"
+    automation:
+      maestro: "可行"
+      notes: "密码框键盘遮挡『登录』按钮上沿（states-matrix §4）——inputText 后先收键盘/pressKey BACK 再 tapOn，避免 ghost tap；maxLength:16 契约保持"
+    evidence: ["loginpwd__password_field__filled_masked_settled.png", "loginpwd__filled_visible.png", "appshell__home__loaded.png"]
+    steps:
+      - do: "点击 login_use_password_button 切密码模式，输入手机号与合法密码"
+        expect: "login_password_field 密文回显；输入超 16 位被截断（maxLength 契约）"
+      - do: "点击可见性切换图标"
+        expect: "明文⇄密文正确切换（切换前后各一帧证据）"
+      - do: "勾选协议，点击『登录』（login_submit_button，desc=登录）"
+        expect: "登录成功进 AppShell；密码模式无第三方图标区（states-matrix §11#8 契约保持）"
+    device: android-emulator
+
+  - case_id: FR-L2-POS-012
+    name: "协议勾选三处联动：主按钮 + 第三方图标灰置（快照契约回归）"
+    domain: "会话与登录"
+    tags: [L2, contract-regression]
+    precondition_class: 免登录
+    precondition: "stage=loginRequired，短信模式（清数据冷启动或等价状态）"
+    automation:
+      maestro: "可行"
+      notes: "断言 enabled 状态用 tapOn {text: 下一步, enabled: true} 组合 assertVisible；联动结论对齐 states-matrix §2（unchecked → 主按钮禁用 + 微信/微博图标同步变灰）"
+    evidence: ["login__agreement__unchecked__submit_disabled.png", "login__agreement__checked__submit_enabled.png"]
+    steps:
+      - do: "输入合法手机号 13800000002（TEST-SYNTHETIC），协议保持未勾选"
+        expect: "下一步置灰禁用；微信/微博第三方图标同步灰色禁用（协议框同时控制两处入口——快照契约）"
+      - do: "勾选协议"
+        expect: "下一步变黑启用，第三方图标恢复可点态"
+      - do: "改输入为非法 '123'"
+        expect: "协议已勾选但下一步仍置灰（号码有效性优先于协议状态，states-matrix §2#3）"
+    device: android-emulator
+
+  - case_id: FR-L2-POS-013
+    name: "模式互切与字段生命周期：密码值不跨模式保留、手机号保留、进程重启模式重置"
+    domain: "会话与登录"
+    tags: [L2, state-regression]
+    precondition_class: 免登录
+    precondition: "stage=loginRequired，默认验证码模式"
+    automation:
+      maestro: "半自动（进程重启环节用 force-stop + am start 编排）"
+      notes: "对齐 states-matrix §4/§8/§11#12：切回验证码模式时密码值被清、手机号保留；进程重启后模式重置为验证码模式"
+    evidence: ["login__use_sms_button__back_to_sms.png", "login__mode__after-relaunch.png"]
+    steps:
+      - do: "验证码模式输入手机号 → 切密码模式输入密码（均不提交）"
+        expect: "密码模式出现 login_password_field 与『登录』按钮，无第三方图标区"
+      - do: "点 login_use_sms_button 切回验证码模式"
+        expect: "回到手机号步，手机号值保留，密码值不残留（已清除）"
+      - do: "在密码模式停驻时 force-stop 重启 App"
+        expect: "重启后默认验证码模式（模式不持久化）"
+    device: android-emulator
+
+  - case_id: FR-L2-POS-014
+    name: "区号选择页：热门区 + A-Z 索引 + 行选中回带区号"
+    domain: "会话与登录"
+    tags: [L2]
+    precondition_class: 免登录
+    precondition: "stage=loginRequired"
+    automation:
+      maestro: "半自动（列表行无 text/id，靠 content-desc=国家名+换行+区号 定位——O-4 终结论；索引拖拽单字母点击会穿透到行，自动化禁用索引点击，用 swipeScroll 到目标段）"
+      notes: "对齐 states-matrix §10：235 国实测、无 X 段（25 字母）"
+    evidence: ["area__list__p0_top.png", "ui-login-after-area.xml（区号回带后语义树）"]
+    steps:
+      - do: "点击 login_area_code_button"
+        expect: "进入新页『选择归属地』（非弹窗）：热门分组（+86/+852/+853/+886）+ 右侧 A-Z 索引条"
+      - do: "滚动到任一国家行并点击（content-desc 定位）"
+        expect: "行点击=选中并返回登录页，区号按钮 content-desc 回带所选区号"
+    device: android-emulator
+
+  - case_id: FR-L2-POS-015
+    name: "已知 BUG F-1 复验（正向）：微博登录点击是否仍崩溃（libwind.so）"
+    domain: "会话与登录 / BUG回归"
+    tags: [L2, bug-regression, SWAN-BUG-20260910-001, F-1]
+    precondition_class: 免登录
+    precondition: "stage=loginRequired，协议已勾选（第三方图标可点态）；模拟器未装微博客户端为既有环境事实"
+    automation:
+      maestro: "半自动（崩溃判定依赖 adb logcat 侧写：开后台 logcat 抓 FATAL/UnsatisfiedLinkError 后再点击）"
+      notes: "基线行为（dev@4d1ed7b）：点击微博图标 → WeiboSsoSdk 类初始化 System.loadLibrary('wind') → UnsatisfiedLinkError → FATAL 进程死亡退桌面，疑确定性复现（states-matrix §12#1）。复验判据：若快照已修复 → 无崩溃，出现行内提示或正常授权流；若未修复 → 复现（进程死亡本身无数据破坏，允许执行）"
+    evidence: ["login__third_party_weibo__tapped_recheck.png", "logcat-app-death-timestamp.txt", "logcat-weibo-stack.txt（若复现）"]
+    steps:
+      - do: "启动后台 logcat 抓取（filter FATAL EXCEPTION/UnsatisfiedLinkError/SwanThirdPartyLogin）"
+        expect: "logcat 会话就绪"
+      - do: "点击微博图标（协议已勾选）"
+        expect: "【修复通过判据】无进程死亡：App 保持前台，出现行内提示（复用 login_error_text 槽位）或拉起授权流。【复现判据】FATAL UnsatisfiedLinkError: dlopen failed: library 'libwind.so' not found，进程退桌面——将结论连同 logcat 落 BUG 库（F-1 复现确认）"
+      - do: "若 App 存活：冷启动确认可恢复登录页"
+        expect: "无残留损坏状态"
+    device: android-emulator
+
+  - case_id: FR-L2-POS-016
+    name: "已知 BUG F-2 复验（正向）：密码登录长度校验是否补齐（短密码 + 点击 ANR 候选）"
+    domain: "会话与登录 / BUG回归"
+    tags: [L2, bug-regression, SWAN-BUG-20260910-002, F-2]
+    precondition_class: 免登录
+    precondition: "stage=loginRequired，切密码模式；测试环境密码账号存在与否不影响本用例（不依赖登录成功）"
+    automation:
+      maestro: "半自动（ANR 判定依赖 logcat/ANR dump 侧写）；**风险标注：基线行为是点击即主线程 ANR 循环——执行时若 5s 无响应立即终止并采 ANR 证据，严禁反复重试点击**"
+      notes: "基线行为（dev@4d1ed7b）：6 位短密码『下一步』即启用（无前端长度校验，states-matrix §11#10），点击登录触发 ANR（ErrorId 57f0fd98）。正向复验判据：快照若修复 → 短密码提交被前端拦截（行内红字）或服务端返回明确业务码错误文案，无 ANR"
+    evidence: ["loginpwd__submit__ready_shortpwd.png", "anr-dialog-timestamp.png（若复现）", "logcat-login-tap.txt"]
+    steps:
+      - do: "输入合法手机号 + 6 位短密码（如 '123456'，TEST-SYNTHETIC），勾选协议"
+        expect: "记录『登录』按钮是否启用（若快照已补长度校验 → 按钮对短密码置灰，F-2 前半修复确认）"
+      - do: "按钮若启用：点击一次『登录』并计时"
+        expect: "【修复通过判据】≤5s 内出现行内错误文案（密码过短/密码错误类）且页面可继续交互。【复现判据】无响应 ≥5s 且输入事件无回显 → 采 ANR trace（dumpsys dropbox / data_app_anr），立即停止点击，结论落 BUG 库（F-2 复现确认）"
+    device: android-emulator
+
+  # ================= D3 主框架与导航 =================
+  - case_id: FR-L2-POS-020
+    name: "底部四 Tab 切换与状态保持（含频道状态跨 Tab 保持契约）"
+    domain: "主框架与导航"
+    tags: [smoke, L2, L3]
+    precondition_class: 需登录态
+    precondition: "AppShell 已渲染（FR-POS-001 通过后的常态）"
+    automation:
+      maestro: "可行"
+      notes: "Tab testId=tabRecommend/tabPlatform/tabDevice/tabMe（routeName homeMain/platform/device/me）；Tab 切换有动画 → waitForAnimationToEnd；断言每 Tab 页根锚点（platform_page/device_page/me_page）"
+    evidence: ["tabs__recommend__selected.png", "tabs__platform__selected.png", "tabs__device__selected.png", "tabs__me__selected.png"]
+    steps:
+      - do: "依次点击 平台 → 设备 → 我的 Tab，再回首页 Tab"
+        expect: "每 Tab 页根锚点可见（platform_page/device_page/me_page/首页搜索栏）；选中态视觉随点击切换"
+      - do: "在首页切到电台频道后切去『我的』再回首页"
+        expect: "回首页时仍停留在电台频道（频道选中状态跨 Tab 保持——states-matrix §25 契约）；底部播放条与四 Tab 状态恒定不受切换影响"
+    device: android-emulator
+
+  - case_id: FR-L2-POS-021
+    name: "底部播放条常驻回归：可播放集合页显示、播放无关页行为一致"
+    domain: "主框架与导航 / 播放条"
+    tags: [L2]
+    precondition_class: 需登录态
+    precondition: "AppShell 已渲染"
+    automation:
+      maestro: "可行（纯可见性断言，零播放触发）"
+      notes: "bottom_player 锚点 [0,1571][1080,1742]（states-matrix §15）；禁点击播放/投屏按钮本体——仅断言存在与文案"
+    evidence: ["playerbar__home__visible.png", "playerbar__me__visible.png"]
+    steps:
+      - do: "在首页与我的页分别断言底部播放条"
+        expect: "bottom_player 区域恒驻于两 Tab（含播放/列表/投屏控件占位），文案区渲染无异常占位"
+      - do: "进入搜索结果页再返回"
+        expect: "返回后播放条仍在（搜索结果页在 _bottomPlayerRouteNames 集合——模块卡片-search 契约保持）"
+    device: android-emulator
+
+  # ================= D4 首页 =================
+  - case_id: FR-L2-POS-030
+    name: "首页频道条五频道切换三重联动（内容区/搜索 placeholder/背景色）"
+    domain: "首页"
+    tags: [L2, L3]
+    precondition_class: 需登录态
+    precondition: "AppShell 已渲染，首页频道条可见"
+    automation:
+      maestro: "可行"
+      notes: "对齐 states-matrix §25：三重联动=内容区+搜索栏 placeholder+（AI 频道）整页背景色；频道切换有动画 → waitForAnimationToEnd"
+    evidence: ["home__channel_music.png", "home__channel_ai.png", "home__channel_speaker.png", "home__channel_radio.png"]
+    steps:
+      - do: "依次切换 音乐 → AI → 可视音箱 → 电台 频道，各断言首屏"
+        expect: "音乐=平台分组歌单流；AI=浅蓝底+角色轮播+历史记录；可视音箱=不可用空态（『暂未添加可视音箱，此功能不可使用』）；电台=搜索栏变『搜索电台』+全国电台列表"
+      - do: "回推荐频道"
+        expect: "推荐首屏=平台捷径（QQ/网易/酷狗带✓角标、Apple/Qobuz）+ 我喜欢/歌单/小薇卡 + 最近播放区；搜索栏 placeholder 回默认"
+    device: android-emulator
+
+  - case_id: FR-L2-POS-031
+    name: "首页音乐 Tab Spotify 过滤契约回归（首页无 Spotify、平台页有）"
+    domain: "首页 / 音乐平台聚合"
+    tags: [L2, contract-regression]
+    precondition_class: 需登录态
+    precondition: "AppShell 已渲染"
+    automation:
+      maestro: "可行（assertNotVisible Spotify + assertVisible Spotify 组合）"
+      notes: "对齐功能地图 O-14/Spotify 入口裁决：catalog_mapper 明确过滤"
+    evidence: ["home__music__no-spotify.png", "platform__spotify__present.png"]
+    steps:
+      - do: "首页切音乐频道，检索 Spotify"
+        expect: "首页音乐 Tab 平台区块不含 Spotify 卡（assertNotVisible）"
+      - do: "切平台 Tab 检索 Spotify"
+        expect: "平台页存在 Spotify 行（未授权态白底 + 号）——首页过滤/平台页保留的双侧契约同时成立"
+    device: android-emulator
+
+  - case_id: FR-L2-POS-032
+    name: "音乐权益初始化一次性弹窗（清数据首装路径）"
+    domain: "首页"
+    tags: [L2, conditional]
+    precondition_class: credential-required
+    precondition: "**条件执行**：仅清数据首装（privacy 同意→登录成功）后的首次进首页可触发；init_music_right_shown 标记已写的常态环境下跳过。与 FR-POS-002 同批次执行"
+    automation:
+      maestro: "可行（触发时机受 AppShell IndexedStack 预构建约束，弹窗走 root Navigator——断言顶层弹层可见即可）"
+      notes: "功能地图 ⚠：可引导平台为空时不弹也不写标记——若测试账号无可引导平台，记『不触发（契约内）』而非失败"
+    evidence: ["home__init-music-right__prompt.png（若触发）"]
+    steps:
+      - do: "清数据→同意隐私→登录成功→首次落首页"
+        expect: "出现音乐权益初始化引导弹层（一次性）"
+      - do: "关闭引导后再次冷启动进首页"
+        expect: "不再弹出（init_music_right_shown 标记持久化生效）"
+    device: android-emulator
+
+  # ================= D5 搜索 =================
+  - case_id: FR-L2-POS-040
+    name: "搜索主链路回归：入口→ASCII 关键词→结果页 6 Tab/平台分组→清空→返回"
+    domain: "搜索"
+    tags: [smoke, L2, L3]
+    precondition_class: 需登录态
+    precondition: "AppShell 已渲染；复用 02-用例库/module-17-search 既有 14 条 L2 的主路径子集做回归（本轮只跑主链路，全量复验归执行层）"
+    automation:
+      maestro: "可行（有关键限制）"
+      notes: "CJK 输入 NPE → 关键词用 ASCII 'hivi'（TEST-SYNTHETIC 虚拟词）；逐字符输入可能被并入空格（'hi vi'，states-matrix §31 已知行为）——断言放宽为『结果页可达且六 Tab 存在』，不绑定精确命中数；返回栈无根防护（O-23）为已知行为：断言只到『回到首页』为止，**严禁再按一次返回验证退出**"
+    evidence: ["search__page__initial.png", "search__results_hivi.png（六 Tab+平台分组）", "search__cleared.png"]
+    steps:
+      - do: "点击首页搜索栏（跨平台搜索音乐）"
+        expect: "搜索页打开，输入框自动聚焦，placeholder=搜索歌曲或艺术家等"
+      - do: "输入 'hivi' 并提交"
+        expect: "结果页出现：六结果 Tab（单曲/艺人/专辑/歌单/电台/播客，单曲默认选中）+ 平台分组结构（网易云音乐组/QQ音乐组含懒加载渐显）"
+      - do: "切到电台 Tab 再切回单曲"
+        expect: "Tab 切换正常（PageView keep-alive 契约）"
+      - do: "清空关键词（× 钮）后返回"
+        expect: "回搜索页空态；再返回回首页；播放条断言见 FR-POS-021（结果页属可播放集合）"
+    device: android-emulator
+
+  # ================= D6 播放器（高风险·加密，零播放触发） =================
+  - case_id: FR-L2-POS-050
+    name: "迷你播放器重启保留回归（暂停态断言，零播放触发）"
+    domain: "播放器 / 播放条"
+    tags: [L2, L3, contract-regression]
+    precondition_class: 需登录态
+    precondition: "上一轮 states-matrix §32 止损后 mini-player 保留『石家庄交通广播（暂停态 ▶）』——若该状态已被清（新装），本用例降级为『播放条空态渲染』（bottom_player=扬声器- -），两种结果均记入红绿灯"
+    automation:
+      maestro: "可行（纯可见性断言）"
+      notes: "**严禁点击播放键**（无实体扬声器，播放必失败并自动切台，污染状态）；force-stop 重启属安全操作"
+    evidence: ["playerbar__after-relaunch__paused.png", "playerbar__empty_state.png（若空态路径）"]
+    steps:
+      - do: "force-stop 后冷启动（登录态保留）"
+        expect: "mini-player 保留最近播放内容为暂停态（▶ 可见，标题为上次电台）——状态恢复契约保持；若为空态则 bottom_player=『扬声器- -』渲染正常"
+      - do: "切 Tab 数次"
+        expect: "mini-player 状态跨 Tab 恒定不变"
+    device: android-emulator
+
+  - case_id: FR-L2-POS-051
+    name: "全屏播放页结构断言（自暂停态进入，不触播放控件）"
+    domain: "播放器"
+    tags: [L2]
+    precondition_class: 需登录态
+    precondition: "mini-player 为暂停态（FR-POS-050 后）；若空态则本用例 BLOCKED(env)（无播放内容无法进入全屏页）"
+    automation:
+      maestro: "可行（进入后只读断言）；音频客观指标（实际发声）= device-divergence 不在断言范围"
+      notes: "禁点暂停键（暂停态点击=恢复播放→流失败切台）；禁点切台/上一首下一首"
+    evidence: ["player__page__structure.png（暂停键+唱片+进度条）"]
+    steps:
+      - do: "点击 mini-player 非播放区进入全屏播放页 /player"
+        expect: "全屏页渲染：标题+电台 logo 唱片+暂停键（当前态）+进度条；返回后 mini-player 状态不变"
+    device: android-emulator
+
+  - case_id: FR-L2-POS-052
+    name: "播放队列 sheet 打开与关闭"
+    domain: "播放器"
+    tags: [L2, experimental]
+    precondition_class: 需登录态
+    precondition: "mini-player 存在（暂停态）"
+    automation:
+      maestro: "可行；若点击列表钮引发非预期播放行为立即止损（force-stop）并升级为缺陷候选"
+      notes: "current_queue_bottom_sheet 为只读列表组件，预期无播放副作用——标记 experimental 首跑验证"
+    evidence: ["player__queue_sheet__opened.png"]
+    steps:
+      - do: "点击 mini-player 列表（队列）按钮"
+        expect: "播放队列 bottom sheet 打开，渲染队列列表；关闭后回原页无状态变化"
+    device: android-emulator
+
+  # ================= D7 音乐平台聚合（高风险·加密，禁 − 钮） =================
+  - case_id: FR-L2-POS-060
+    name: "平台页授权状态联动回归：6 行样式与账号名（禁 − 钮）"
+    domain: "音乐平台聚合 / 平台授权联动"
+    tags: [smoke, L2, L3, high-risk]
+    precondition_class: 需登录态
+    precondition: "AppShell 已渲染；测试账号三音乐平台+AI 段+电台段为既有授权态（states-matrix §20 基准）"
+    automation:
+      maestro: "可行（文本与可见性断言）；**− 钮零点击**——断言其可见即止；列表滚动后waitForAnimationToEnd"
+    evidence: ["platform__rows__authorized.png", "platform__rows__unauthorized.png", "platform__list__scrolled_bottom.png（到底标识）"]
+    steps:
+      - do: "平台 Tab 逐行断言音乐段 6 行"
+        expect: "QQ/网易/酷狗=已授权态（底色+账号名+− 钮；网易金底+VIP 角标为账号既有维度）；Spotify/Apple/Qobuz=未授权白底+未授权文案+ + 钮；**所有 − 钮仅断言可见，不点击**"
+      - do: "左轨点击 电台 段锚点滚动"
+        expect: "滚动定位到电台段（全国/90 年代/80 年代电台已授权行）；列表末尾『已经到底啦～』到底标识可见"
+      - do: "未授权行（Spotify/Apple）行体点击"
+        expect: "无响应（行体点击仅对已授权平台生效——states-matrix §20 联动结论）"
+    device: android-emulator
+
+  - case_id: FR-L2-POS-061
+    name: "三平台详情首屏结构差异回归（QQ/网易/酷狗非统一模板）"
+    domain: "音乐平台聚合 / 平台授权联动"
+    tags: [L2, L3, high-risk]
+    precondition_class: 需登录态
+    precondition: "三音乐平台已授权（既有态）"
+    automation:
+      maestro: "可行；详情页内容列表**全部只读**——禁点任何歌曲/播放/投放执行钮（投放钮仅断言可见）"
+    evidence: ["platform__qq_detail__opened.png", "platform__netease_detail__opened.png", "platform__kugou_detail__opened.png"]
+    steps:
+      - do: "点 QQ 音乐行体进详情"
+        expect: "标题+右上投放钮+搜索+私人推荐+用户收藏+排行榜结构在位"
+      - do: "返回后点网易云行体进详情"
+        expect: "搜索+私人漫游 banner+用户收藏 4 项（含我的播客）+每日推荐；无投放钮（差异契约保持）"
+      - do: "返回后点酷狗行体进详情"
+        expect: "搜索+排行榜+歌手推荐+推荐歌单；无投放钮无私人推荐（差异契约保持）"
+    device: android-emulator
+
+  - case_id: FR-L2-POS-062
+    name: "未授权平台 + 钮引导分支回归（Spotify 下载引导 vs Apple 授权弹窗，不真授权）"
+    domain: "音乐平台聚合 / 平台授权联动"
+    tags: [L2, high-risk]
+    precondition_class: 需登录态
+    precondition: "Spotify/Apple Music 为未授权态（既有）；模拟器未装 Spotify 客户端为环境事实"
+    automation:
+      maestro: "可行；**边界：断言弹层出现即关闭，严禁点击『授权登录』/『免费下载』实质按钮**（真授权=写操作、下载引导会跳出 App）"
+    evidence: ["platform__spotify_plus__download_sheet.png", "platform__apple_plus__auth_dialog.png"]
+    steps:
+      - do: "点击 Spotify 行 + 钮"
+        expect: "底部弹层：Spotify logo+『准备播放一些音乐』+下载引导（因本机未装，走下载拦截分支而非授权）——关闭弹层"
+      - do: "点击 Apple Music 行 + 钮"
+        expect: "居中弹窗『请先登录 Apple Music…』+授权登录钮可见——**不点授权钮**，关闭弹窗后行恢复未授权态"
+    device: android-emulator
+
+  - case_id: FR-L2-POS-063
+    name: "平台二级页族可达性抽样（统一入口降级机制回归）"
+    domain: "音乐平台聚合"
+    tags: [L2, L3]
+    precondition_class: 需登录态
+    precondition: "三音乐平台+Qobuz 已授权/可达；抽样代表：网易云 daily-recommend、QQ playlist-classify、Qobuz home、AppleMusic 榜单"
+    automation:
+      maestro: "可行；二级页为内容列表——只读断言，禁点内容项"
+      notes: "覆盖 pushNamed 失败降级 rootNavigator.pushNamed 的统一入口机制（platform_page.dart:522）；AppleMusic 详情 6 路由收敛 AppleMusicDetailRoutePage 按 pageType 分型——抽 1 型验证"
+    evidence: ["secondary__netease_daily.png", "secondary__qobuz_home.png", "secondary__apple_chart.png"]
+    steps:
+      - do: "网易云详情 → 每日推荐二级页"
+        expect: "二级页可达渲染，返回路径完好"
+      - do: "平台页进 Qobuz 首页（首页/流派/奖榜/曲库四区块）"
+        expect: "Qobuz home 渲染（Qobuz 走 /main/search 别名搜索入口——路由不统一已知行为，不判失败）"
+      - do: "AppleMusic 榜单 → 任一 detail 型页"
+        expect: "收敛详情页按 pageType 渲染，返回完好"
+    device: android-emulator
+
+  # ================= D8 电台/播客 =================
+  - case_id: FR-L2-POS-070
+    name: "电台频道列表渲染回归（全行禁点击——P-9-1 红线）"
+    domain: "电台/播客"
+    tags: [L2, contract-regression, danger-line]
+    precondition_class: 需登录态
+    precondition: "AppShell 已渲染"
+    automation:
+      maestro: "可行（纯可见性断言）；**红线：电台行体与 → 钮任何点击=自动播放（P-9-1 实证），本用例全部步骤为断言，无一个 tapOn 落在行上**"
+      notes: "对齐 states-matrix §25/§32：搜索栏 placeholder=搜索电台、4 行全国电台、行带 → 跳转钮仅断言可见"
+    evidence: ["home__radio_list.png（4 行+placeholder）", "radio__rows__no_tap.png"]
+    steps:
+      - do: "首页切电台频道"
+        expect: "搜索栏 placeholder=『搜索电台』；全国电台分组 4 行渲染（北京交通广播1039/河北交通广播FM99.2/怀旧金曲964/石家庄交通广播946），行右 → 跳转钮可见——**不点击**"
+      - do: "滚动列表"
+        expect: "列表滚动正常，无缺行/重叠渲染"
+    device: android-emulator
+
+  # ================= D9 AI 助手 =================
+  - case_id: FR-L2-POS-080
+    name: "AI 频道与角色主页结构回归（轮播/历史/添加入口）"
+    domain: "AI 助手"
+    tags: [L2]
+    precondition_class: 需登录态
+    precondition: "AppShell 已渲染；账号既有 AI 对话 2 条、角色若干（states-matrix §25 基准）"
+    automation:
+      maestro: "可行（结构断言）；发消息=写操作不在本轮——AI 网关保持未考古，只验 UI 边界"
+    evidence: ["home__channel_ai.png", "ai__roles__carousel.png"]
+    steps:
+      - do: "首页 AI 频道"
+        expect: "整页浅蓝底（背景色联动契约）；AI 角色轮播（6 页圆点）+问候气泡+『添加更多AI角色』+历史对话记录区（既有 2 条渲染）"
+      - do: "轮播滑动一页"
+        expect: "圆点指示随滑动更新"
+    device: android-emulator
+
+  - case_id: FR-L2-POS-081
+    name: "小薇独立全屏聊天页形态断言（不发送消息）"
+    domain: "AI 助手"
+    tags: [L2]
+    precondition_class: 需登录态
+    precondition: "首页推荐频道可见小薇卡"
+    automation:
+      maestro: "可行；**禁发送**（发送=写对话记录，且 AI 网关行为未考古）"
+    evidence: ["home__xiaowei_entry__opened2.png（头部三 icon+欢迎语+输入框+AI 生成脚注）"]
+    steps:
+      - do: "点首页小薇卡"
+        expect: "进入独立全屏聊天页（非弹层/悬浮窗）：返回+头像+名称小薇+副标题+电话/文字/语音播报三 icon；中部欢迎语；底部输入框+语音钮+『内容由AI生成』脚注"
+      - do: "返回"
+        expect: "回首页推荐频道，Swan 悬浮球仍在"
+    device: android-emulator
+
+  # ================= D10 可视音箱 Vision =================
+  - case_id: FR-L2-POS-090
+    name: "可视音箱频道功能不可用空态回归"
+    domain: "可视音箱 Vision"
+    tags: [L2]
+    precondition_class: 需登录态
+    precondition: "AppShell 已渲染；未绑定可视音箱实体（既有环境）"
+    automation:
+      maestro: "可行（空态断言）"
+      notes: "Vision 其余子页（壁纸/唤醒词/语音包/高级设置）入口位于绑定后的设备语境，空态下 UI 不可达——不产出不可达用例，登记覆盖边界"
+    evidence: ["home__channel_speaker__empty_state.png"]
+    steps:
+      - do: "首页切可视音箱频道"
+        expect: "空态渲染：添加可视音响引导卡+『暂未添加可视音箱，此功能不可使用』文案（空态样板契约保持，非崩溃非白屏）"
+    device: android-emulator
+
+  # ================= D11 设备管理与配网（高风险·加密） =================
+  - case_id: FR-L2-POS-100
+    name: "设备页五分区渲染与空态样板回归"
+    domain: "设备管理与配网"
+    tags: [smoke, L2, L3, high-risk]
+    precondition_class: 需登录态
+    precondition: "AppShell 已渲染；无已绑定实体设备（既有环境）"
+    automation:
+      maestro: "可行（滚动断言需 waitForAnimationToEnd——分区轨随滚动自动选中）"
+      notes: "对齐 states-matrix §22；WIFI 段占位文案复用音乐域（暂无歌曲/暂无艺术家）为已知观察 O-16，登记不判定"
+    evidence: ["device__page__initial.png", "device__page__dsp_section.png（到底标识）"]
+    steps:
+      - do: "设备 Tab 逐段滚动断言"
+        expect: "分区轨 WIFI/本机/Apple/低音炮/DSP 五段齐：WIFI=『暂无WIFI设备』空态；本机=占位设备卡（扬声器 --:--）；Apple=连接引导卡；低音炮=空态+『添加低音炮』钮；DSP=空态+『添加DSP』钮+『已经到底啦～』"
+      - do: "点分区轨 WIFI"
+        expect: "锚点滚动回 WIFI 段（滚动定位非独立页机制保持）"
+    device: android-emulator
+
+  - case_id: FR-L2-POS-101
+    name: "添加设备权限链路与配网入口双卡片回归（不进配网流程）"
+    domain: "设备管理与配网"
+    tags: [L2, L3, high-risk]
+    precondition_class: 需登录态
+    precondition: "设备页可达；若权限已在先前授予（userdata 保留），弹窗步骤自动跳过——按实际状态分支断言"
+    automation:
+      maestro: "可行（系统权限弹窗为原生控件，文本定位『仅在使用该应用时允许』等）；**边界：『如何配网？』『前往设备』定位不点击**（不深入配网）"
+    evidence: ["device__add_page__final.png（双卡片+帮助链接）", "permission__location.png / permission__nearby.png（若触发）"]
+    steps:
+      - do: "点右上 ⊕ 添加设备"
+        expect: "首次执行：依次弹位置权限（含精确度选项）→ 附近设备（蓝牙）权限弹窗，允许后进添加设备页；非首次：直达添加设备页"
+      - do: "断言添加设备页结构"
+        expect: "蓝牙配网卡（持续自动搜索中…/正在检查蓝牙权限）+ Wifi配网卡 + 右上『如何配网？』链接可见（不点击）+ 底部『前往设备』钮可见（不点击）"
+      - do: "返回设备页"
+        expect: "返回路径完好（device_page 锚点）"
+    device: android-emulator
+
+  - case_id: FR-L2-POS-102
+    name: "实配网/蓝牙发现全链路（BLE/WiFi 热点）"
+    domain: "设备管理与配网"
+    tags: [BLOCKED-env, device-divergence, registration-only]
+    precondition_class: 需登录态
+    precondition: "——本条为登记条目，无执行步骤——"
+    automation:
+      maestro: "不可行：模拟器无蓝牙适配器/无真实热点，BLE 扫描与 hotspot 配网物理不可达"
+      notes: "判 BLOCKED(env) + device-divergence（真机人工 checklist 由主对话裁决排期）；软件层可回归部分已由 FR-POS-101 覆盖（入口/权限/页面结构）"
+    evidence: ["（登记）设备池真机需求条目"]
+    steps:
+      - do: "（登记）"
+        expect: "BLE 配网执行、WiFi 热点配网执行、蓝牙设备发现——待真机 checklist"
+    device: real-device-pending
+
+  # ================= D12 收藏与曲库 =================
+  - case_id: FR-L2-POS-110
+    name: "SWAN 收藏歌单列表渲染回归（添加入口定位不新增）"
+    domain: "收藏与曲库"
+    tags: [L2]
+    precondition_class: 需登录态
+    precondition: "我的页可达；账号既有歌单若干（states-matrix §17#2 基准）"
+    automation:
+      maestro: "半自动（**子页语义树 null-root 通病**——dump 常为空，Maestro 靠文本断言兜底；若文本断言也失败改截图人工核对，登记 automation 降级）"
+      notes: "『添加新的收藏歌单+』仅定位不点击（新增=写操作，且属专项四态结构范围）"
+    evidence: ["collects__playlist__list.png", "collects__add_entry__located.png"]
+    steps:
+      - do: "我的页 → SWAN收藏"
+        expect: "歌单列表渲染既有条目（数量以执行时实际为准）+底部『添加新的收藏歌单+』入口可见"
+      - do: "返回"
+        expect: "回我的页完好"
+    device: android-emulator
+
+  - case_id: FR-L2-POS-111
+    name: "我喜欢/最近播放既有数据只读断言"
+    domain: "收藏与曲库 / 首页"
+    tags: [L2, L3]
+    precondition_class: 需登录态
+    precondition: "AppShell 已渲染；账号既有收藏与播放历史数据"
+    automation:
+      maestro: "可行（可见性断言）；卡片内容数据为账号既有真实数据——断言『非空渲染』不绑定具体数值（数值随账号状态漂移，防 flaky）"
+    evidence: ["home__myfavorites_card.png", "home__recent_play_section.png"]
+    steps:
+      - do: "断言首页推荐频道『我喜欢』卡"
+        expect: "『我喜欢\\nN首』格式渲染且 N 为非负数值（既有数据维度回归）"
+      - do: "断言最近播放区"
+        expect: "『最近播放』区渲染（已播歌曲/歌手/专辑统计行 + 横向封面流非空）"
+    device: android-emulator
+
+  # ================= D13 个人中心（高风险·加密） =================
+  - case_id: FR-L2-POS-120
+    name: "我的页 9 个一级入口到达遍历回归"
+    domain: "个人中心"
+    tags: [L2, L3, high-risk]
+    precondition_class: 需登录态
+    precondition: "我的 Tab 可达"
+    automation:
+      maestro: "可行（列表行 text 定位；音质设置是底部弹层非跳页，关闭后继续）；扫一扫断言止于错误态（env 限制）"
+      notes: "到达即断言即返回（对齐 states-matrix §17 采证规程）；**账号绑定管理入口只在 FR-POS-121 语义树定位，本用例不进入**"
+    evidence: ["tabme__entry__<各入口>__opened.png ×9", "ui-tabme.xml"]
+    steps:
+      - do: "依次点击：用户信息入口/充值与消费记录/家庭管理/SWAN收藏/设备管理/音质设置/帮助与反馈/关于与升级"
+        expect: "前 7 项到达对应页（person_info/recharge 流水/family/收藏列表/device_page 空态/帮助页/about 页）；音质设置=底部弹层四选项"
+      - do: "点击扫一扫"
+        expect: "相机权限（若已授权则直达）→ 扫码页渲染，模拟器显示『相机不可用』错误态=预期（device-divergence，虚拟相机无视频流，非缺陷）"
+    device: android-emulator
+
+  - case_id: FR-L2-POS-121
+    name: "person_info 页结构回归 + 双禁区按钮语义树核对（零点击）"
+    domain: "个人中心"
+    tags: [L2, high-risk, danger-line]
+    precondition_class: 需登录态
+    precondition: "我的页可达；**本用例全程零危险点击**——注销/退出两钮仅语义树核对"
+    automation:
+      maestro: "可行（可见性断言）；红线：person_info_cancel_account_button / person_info_logout_button 只允许 assertVisible，任何 tapOn 指向这两钮=违规"
+      notes: "对齐 states-matrix §18/§28；头像/昵称/密码/账号绑定管理为写链路或待裁决——不进入"
+    evidence: ["personinfo__page__full.png", "ui-personinfo-full.xml（双钮 resource-id 语义核对）"]
+    steps:
+      - do: "我的页 → 用户信息入口进 person_info"
+        expect: "标题『个人信息修改』；头像/昵称(现值)/密码(******)/手机号(明文行，无箭头=只读契约)四行渲染"
+      - do: "语义树核对末位两行"
+        expect: "注销账号(person_info_cancel_account_button)与退出登入(person_info_logout_button)以既有 resource-id 存在且位于列表末位——**仅断言存在，零点击**；账号绑定管理行可见（不进入）"
+      - do: "返回我的页"
+        expect: "返回路径完好，会话状态无变化（仍在登录态）"
+    device: android-emulator
+
+  - case_id: FR-L2-POS-122
+    name: "资料编辑族页面可达回归（进入不提交）"
+    domain: "个人中心"
+    tags: [L2]
+    precondition_class: 需登录态
+    precondition: "person_info 页可达"
+    automation:
+      maestro: "可行；**边界：编辑页只断言结构与既有值回显，禁提交/禁清空既有值**（提交=账号数据写）"
+    evidence: ["edit__nickname__page.png", "edit__password__page.png", "edit__phone__page.png", "edit__email__page.png"]
+    steps:
+      - do: "依次进入 编辑昵称/编辑密码/编辑手机号/编辑邮箱（各返即回）"
+        expect: "各编辑页可达，既有值正确回显（昵称=Miao 等）；输入框可聚焦；全部不提交直接返回，返回后 person_info 数据无变化"
+    device: android-emulator
+
+  - case_id: FR-L2-POS-123
+    name: "音质设置底部弹层四选项回归（不改选择）"
+    domain: "个人中心"
+    tags: [L2]
+    precondition_class: 需登录态
+    precondition: "我的页可达"
+    automation:
+      maestro: "可行（弹层动画 → waitForAnimationToEnd）；**只断言选中态，不点其它选项**（改音质=偏好写操作，留专项）"
+    evidence: ["soundquality__sheet__four_options.png"]
+    steps:
+      - do: "我的页 → 音质设置"
+        expect: "底部弹层渲染：流畅/标准/HQ高品质/SQ无损 四单选项 + 红字『完成』；当前选中态可见（基线为标准，以执行时实际为准）"
+      - do: "点『完成』关闭弹层"
+        expect: "弹层关闭，选中项未变更"
+    device: android-emulator
+
+  # ================= D14 支付与会员 =================
+  - case_id: FR-L2-POS-130
+    name: "充值消费记录页只读回归（Tab/筛选/流水渲染）"
+    domain: "支付与会员"
+    tags: [L2, finance-readonly]
+    precondition_class: 需登录态
+    precondition: "我的页可达；账号既有流水数据（基线 ¥10-30 苹果/微信/支付宝若干笔）"
+    automation:
+      maestro: "可行（只读断言）；**财务域红线：充值按钮/任何支付入口零点击**"
+    evidence: ["recharge__record__tabs.png", "recharge__record__list.png"]
+    steps:
+      - do: "我的页 → 充值与消费记录"
+        expect: "充值/消费 双 Tab + 筛选控件 + 流水列表渲染（既有笔目，断言非空不绑定金额）"
+      - do: "切换充值⇄消费 Tab"
+        expect: "两 Tab 数据区各自渲染，切换无崩溃无白屏"
+    device: android-emulator
+
+  - case_id: FR-L2-POS-131
+    name: "退款/发票/订单权益/充值记录页可达抽样（只读）+ 平台页 VIP 资产卡"
+    domain: "支付与会员"
+    tags: [L2, finance-readonly]
+    precondition_class: 需登录态
+    precondition: "我的页与平台页可达"
+    automation:
+      maestro: "可行；全部只读，断言即返"
+      notes: "真实支付/退款结算链路 BLOCKED（需支付通道，超本轮范围——主对话裁决）"
+    evidence: ["finance__refund__opened.png", "finance__invoice__opened.png", "finance__order_equity__opened.png", "platform__vip_card.png"]
+    steps:
+      - do: "到达 退款/发票/订单权益/充值记录 页（经各自入口，逐返）"
+        expect: "四页可达渲染（若某页需既有单据才出内容，记实际态不判失败）"
+      - do: "平台 Tab 断言 VIP 资产卡"
+        expect: "总资产（惠币）数值渲染且格式合法（非负小数）+『充值』按钮可见——**不点击**"
+    device: android-emulator
+
+  # ================= D15 帮助/关于/反馈 =================
+  - case_id: FR-L2-POS-140
+    name: "帮助与反馈 4 子项到达回归"
+    domain: "帮助/关于/反馈"
+    tags: [L2]
+    precondition_class: 需登录态
+    precondition: "我的页 → 帮助与反馈可达"
+    automation:
+      maestro: "可行；可适配音箱型号为远程内容页加载慢（O-19）→ assertVisible 轮询放宽超时，加载圈不判失败；用户反馈 ⊕ 新建入口定位不点击（新建表单=写操作，属模拟器待裁决项）"
+    evidence: ["help__models__loading.png", "help__manual__opened.png", "help__userfeedback__opened.png", "help__faq__opened.png"]
+    steps:
+      - do: "依次进入 可适配音箱型号/使用说明/用户反馈/常见问题（各返即回）"
+        expect: "使用说明=8 主题列表；用户反馈=历史反馈列表+右上 ⊕ 定位；常见问题=设备连接/音乐播放两分类+右上 EN 切换钮可见（不切）"
+    device: android-emulator
+
+  - case_id: FR-L2-POS-141
+    name: "关于页快照版本标识核对 + 四协议入口 + 升级行定位禁点"
+    domain: "帮助/关于/反馈 / 版本"
+    tags: [smoke, L2, snapshot-acceptance, danger-line]
+    precondition_class: 需登录态
+    precondition: "我的页 → 关于与升级可达"
+    automation:
+      maestro: "可行（文本断言）；**红线：『软件升级』行零点击（检查更新禁区）——仅语义树/截图核对其存在与版本文案**；协议链接会外跳 Chrome（含首启向导摩擦），本轮只做 about 页内断言，外跳验证标 experimental 可选步骤"
+    evidence: ["about__version__5.3.0-build32.png", "about__rows__3entries.png", "about__software_upgrade_row__located_not_tapped.png"]
+    steps:
+      - do: "进入关于与升级页"
+        expect: "**快照标识核对（任务卡验收项）：版本文案=5.3.0 (build 32) debug**（与快照基线一致，非 debug-test 混淆）"
+      - do: "断言三行入口+第四行"
+        expect: "关于我们/使用政策/隐私政策协议三行可见；软件升级行可见（语义树可能不入树——以截图+坐标区核对存在性，不点击）"
+      - do: "（可选·experimental）点击《使用政策》"
+        expect: "外跳 Chrome URL=network.hivi.com/privacy（O-12 四入口同 URL 契约）——若 Chrome 首启向导挡路，采证后返回，不深究 Web 域"
+    device: android-emulator
+
+  # ================= D16 推送/日活/版本 =================
+  - case_id: FR-L2-POS-150
+    name: "日活上报自然日节流回归（adb logcat 半自动）"
+    domain: "推送/日活/版本"
+    tags: [L2, adb-assisted]
+    precondition_class: 需登录态
+    precondition: "登录态有效；当日尚未上报（若当日已上报，预期为不发——两种结果判据不同，执行前核对）"
+    automation:
+      maestro: "半自动（logcat 侧写非 Maestro 能力）：Maestro 负责冷启动编排，断言经 adb logcat 过滤完成"
+      notes: "DailyActiveReporter 按 HVDailyActiveLastReportDate 自然日节流、先落盘再请求（daily_active_reporter.dart:14）"
+    evidence: ["logcat-loginLog-once.png", "daily-active__throttle__second-launch.png"]
+    steps:
+      - do: "冷启动 App，logcat 过滤 user/loginLog"
+        expect: "当日首次启动出现恰一次 POST /user/loginLog body={type:1}"
+      - do: "force-stop 再次冷启动"
+        expect: "第二次启动无 loginLog 请求（自然日节流契约保持）"
+    device: android-emulator
+
+  - case_id: FR-L2-POS-151
+    name: "推送到达链路——登记条目：no-op 空实现，无正向用例可设计"
+    domain: "推送/日活/版本"
+    tags: [BLOCKED-struct, registration-only]
+    precondition_class: 需登录态
+    precondition: "——本条为结构性登记，无执行步骤——"
+    automation:
+      maestro: "不可行：推送 Port 纯 Flutter 端为 no-op 空实现（register() 空体、inboundStream 永不发事件）——推送到达链路在本基线不存在，推送类断言严禁依赖真推送（任务卡红线）"
+      notes: "消息中心红点/角标不来自真推送（功能地图 v2 裁决）——若回归中发现红点行为异常，按消息中心本地逻辑归因，不归因推送"
+    evidence: ["（登记）功能地图推送节 ⚠ + pure_flutter_push_notification_port.dart:8"]
+    steps:
+      - do: "（登记）"
+        expect: "推送 SDK 接入为待测绘清单项；任何『推送到达』类正向断言在本基线 = 设计无效"
+    device: android-emulator
+
+  # ================= D17 设置/切服/平台通道 =================
+  - case_id: FR-L2-POS-160
+    name: "设置/切服 UI 无挂载回归断言（全 dump 文本检索）"
+    domain: "设置/切服/平台通道"
+    tags: [L2, contract-regression]
+    precondition_class: 需登录态
+    precondition: "登录态 AppShell；对齐 states-matrix §33：本基线『设置/切服/平台通道』无 UI 入口"
+    automation:
+      maestro: "半自动（需 adb uiautomator dump 或 Maestro 层级导出后文本检索；切服若意外出现入口=**禁点**，只上报）"
+      notes: "回归语义：若快照新增了 UI 入口 → 按新入口登记用例缺口并上报主对话（严禁直接操作切服）；若仍无入口 → 契约保持绿"
+    evidence: ["settings-sweep__me-page__dump.xml", "settings-sweep__personinfo__dump.xml"]
+    steps:
+      - do: "我的页与 person_info 页各做全量 dump，检索『设置』『切服』『通道』关键词"
+        expect: "仅命中『音质设置』（既有），无独立设置页/切服/平台通道 UI 入口（无挂载契约保持）"
+    device: android-emulator
+
+  # ================= D18 视频与投屏 =================
+  - case_id: FR-L2-POS-170
+    name: "视频分类/播放页入口可达抽样（条件执行）+ 投屏 BLOCKED(env) 登记"
+    domain: "视频与投屏"
+    tags: [L2, conditional, BLOCKED-env]
+    precondition_class: 需登录态
+    precondition: "入口未在 states-matrix 单独实测（/music_platform/qq/video-classify 经 QQ 详情域推断）——**执行时先定位真实入口，找不到入口记『入口未达（登记）』不判失败**"
+    automation:
+      maestro: "半自动；视频播放页若打开：**断言播放器控件渲染即止，禁触发实际播放**（无音频硬件 device-divergence）；投屏浮窗/设备选择 sheet 无实体设备可达 = BLOCKED(env)"
+    evidence: ["video__classify__opened.png（若入口可达）", "（登记）投屏真机需求条目"]
+    steps:
+      - do: "在 QQ 音乐详情域定位视频分类入口并进入（若存在）"
+        expect: "视频分类页可达渲染"
+      - do: "进入任一视频播放页（若可达）"
+        expect: "播放页控件结构渲染；实际播放/投屏断言 BLOCKED(env) 登记"
+    device: android-emulator

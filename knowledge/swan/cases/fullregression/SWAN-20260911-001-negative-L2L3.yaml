@@ -1,0 +1,1451 @@
+# 全量回归 L2/L3 逆向用例集（通道 B：破坏者立场）
+# 任务卡: SWAN-20260911-001-fullregression | data_label: TEST-SYNTHETIC
+# 范围: 功能地图 v2 全 18 功能域 + 已知 BUG 回归（SWAN-BUG-20260910-001/002）
+# 维度框架: templates-v2/02k-逆向对抗矩阵.yaml（空值/超长/非法格式/断网/超时/中断/并发/重复提交/权限缺失/状态跳跃/服务降级/回退）
+# 字段兼容: templates-v2/02-L2功能.yaml（method_design/channels/tags）
+# expected_type 约定: expected=与模块卡片/功能地图契约一致的设计行为 | suspected-defect=疑似缺陷，供报告从甄别（本通道不提单）
+# 与正向通道互盲：本文件未读取、未参考任何正向用例中间产物
+schema_version: "1.1"
+task_id: "SWAN-20260911-001-fullregression"
+module: fullregression-18domains
+level: L2/L3（逐 case tags 标注）
+case_count: 64
+data_label: TEST-SYNTHETIC
+source: 逆向
+baseline:
+  - {repo: "HiVi-Network-FlutterApp（快照）", commit: "snapshot-20260911（5.3.0 build 32 debug）", device: "emulator-5554"}
+  - {repo: "hivi_network_flutter_core（快照）", commit: "snapshot-20260911"}
+  - {diff基准: "App dev@4d1ed7b / Core dev@402853ab"}
+global_discipline:
+  anr_playbook: "ANR 预案（全文件统一，任何交互用例适用）：出现 isn't responding 对话框 → 等待x1（不超过10s）→ 无恢复即 adb shell am force-stop com.swan.network → 冷重启 → 归档 dropbox ANR trace 后继续；不允许反复点等待"
+  input_discipline: "输入法/文本输入 ANR 触发点纪律（P-003 嫌疑链路，对齐 SWAN-BUG-20260910-002）：文本输入期间一律不挂录屏；逐字符注入间隔 >=0.5s；优先 adb/Maestro 整串文本注入而非逐键 tap"
+  forbidden_zones: "禁区（任何用例步骤不得触达）：个人信息页末位两按钮（person_info_logout_button 退出登入 / person_info_cancel_account_button 注销账号）、平台授权管理页取消授权（-钮）、检查更新入口（app_update_coordinator）、切服（server_environment_manager 入口）。真推送不可依赖（推送 Port 为 no-op 空实现）"
+  token_hard_precondition: "token/会话类用例硬前置：先真实登录建立有效会话并验证 token 三处落盘非空（SharedPreferences auth_token / NetworkConfigFallbackStore._httpToken / Dio Authorization header），方可注入/篡改；前置不满足一律标 BLOCKED(credential-required)，禁止降级为空 token 态执行（空态只证明 loginRequired 兜底，不证明失效链路）"
+  concurrency_decision: "并发冲突判定沿用 SWAN-20260904-003-DEC-001（NEG-CONCURRENCY-001）固化的 latest-wins：并发同资源操作以最后一次为准，先前在途结果被丢弃且不产生额外副作用"
+  blocked_env: "模拟器能力边界（非缺陷，标 BLOCKED(env)）：蓝牙/真实音频客观指标、扫一扫相机预览（虚拟相机无视频流）、真推送到达链路"
+  synthetic_data: "所有测试数据 data_label=TEST-SYNTHETIC；短信验证码属人工中断点（凭据 acct-swan-mobile），执行中经主对话向用户收集（优先短信回读）"
+dimension_coverage:
+  - {dimension: 边界值, cases: [FR-NEG-LOGIN-003, FR-NEG-LOGIN-005, FR-NEG-SEARCH-003, FR-NEG-LIB-001, FR-NEG-DEV-004, FR-NEG-SET-002, FR-NEG-PUSH-002]}
+  - {dimension: 空值, cases: [FR-NEG-LOGIN-005, FR-NEG-SEARCH-001, FR-NEG-AI-001, FR-NEG-AI-002, FR-NEG-VISION-002, FR-NEG-DEV-002, FR-NEG-LIB-001, FR-NEG-ME-002, FR-NEG-HELP-002, FR-NEG-VIDEO-001]}
+  - {dimension: 非法格式, cases: [FR-NEG-LOGIN-001, FR-NEG-LOGIN-004, FR-NEG-LOGIN-006, FR-NEG-NAV-001, FR-NEG-SEARCH-001, FR-NEG-RADIO-002, FR-NEG-VISION-002, FR-NEG-ME-001]}
+  - {dimension: 断网, cases: [FR-NEG-LOGIN-010, FR-NEG-SEARCH-002, FR-NEG-RADIO-001, FR-NEG-AI-002, FR-NEG-LIB-003, FR-NEG-PAY-002, FR-NEG-VIDEO-002, FR-NEG-PUSH-002]}
+  - {dimension: 超时, cases: [FR-NEG-SEARCH-002, FR-NEG-X-004]}
+  - {dimension: 中断, cases: [FR-NEG-START-001, FR-NEG-LOGIN-004, FR-NEG-LOGIN-008, FR-NEG-AI-003, FR-NEG-DEV-003, FR-NEG-HELP-003, FR-NEG-VIDEO-002, FR-NEG-X-003]}
+  - {dimension: 并发, cases: [FR-NEG-NAV-002, FR-NEG-HOME-002, FR-NEG-LOGIN-009, FR-NEG-PLAT-003, FR-NEG-LIB-002, FR-NEG-SET-002, FR-NEG-X-004]}
+  - {dimension: 重复提交, cases: [FR-NEG-LOGIN-001, FR-NEG-PLAT-003]}
+  - {dimension: 权限缺失, cases: [FR-NEG-LOGIN-007, FR-NEG-PLAT-004, FR-NEG-DEV-001]}
+  - {dimension: 状态跳跃, cases: [FR-NEG-START-002, FR-NEG-START-003, FR-NEG-LOGIN-002, FR-NEG-LOGIN-011, FR-NEG-LOGIN-013, FR-NEG-NAV-001, FR-NEG-NAV-003, FR-NEG-SEARCH-004, FR-NEG-SEARCH-005, FR-NEG-PLAYER-001, FR-NEG-PLAYER-002, FR-NEG-PLAT-001, FR-NEG-ME-002, FR-NEG-SET-001]}
+  - {dimension: 服务降级, cases: [FR-NEG-LOGIN-008, FR-NEG-LOGIN-012, FR-NEG-SEARCH-002, FR-NEG-PLAT-002, FR-NEG-PUSH-001]}
+  - {dimension: 回退, cases: [FR-NEG-LOGIN-012, FR-NEG-PAY-002, FR-NEG-X-001, FR-NEG-X-002, FR-NEG-X-003]}
+  - {dimension: 状态残留, cases: [FR-NEG-HOME-001, FR-NEG-LOGIN-003, FR-NEG-DEV-003, FR-NEG-HELP-003]}
+pattern_feedback:
+  - pattern: P-001（契约不同步类，出现2次）
+    case: FR-NEG-X-001
+    note: 快照全量回归前置——平台端口 Port 演进后测试替身（_Fake*）契约同步检查，analyze 0 error 门禁
+  - pattern: P-002（嵌套包依赖边界类，出现1次）
+    case: FR-NEG-X-002
+    note: 快照构建验收前置——packages/ 13 包独立解析与依赖声明检查（flavor=general debug build apk）
+  - pattern: P-003（启动时序 ANR 类，出现2次，嫌疑链路扩展至输入链路+录屏放大）
+    cases: [FR-NEG-START-001, FR-NEG-X-003]
+    note: 启动 ANR 探针（业务用例前必过）+ ANR 预案标准化演练（等待x1→force-stop 冷重启恢复链）
+  - pattern: P-004（第三方 SDK 原生库缺失类，出现1次）
+    case: FR-NEG-LOGIN-008
+    note: F-1 微博登录崩溃回归——先查包内 .so 存在性再决定是否点击，含对照组（微信未装行内报错）
+blocked_prelabel:
+  - {case: FR-NEG-LOGIN-003, reason: "需真实短信验证码（人工中断点 acct-swan-mobile），未收集到即 BLOCKED(credential-required)"}
+  - {case: FR-NEG-LOGIN-013, reason: "50015 分支依赖真实第三方凭据，模拟器微信/微博/Apple 均不可达即 BLOCKED(env)+BLOCKED(credential-required)"}
+  - {case: FR-NEG-NAV-001, reason: "死路由需深链/路由注入通道，A 线确认深链 scheme 前保持 BLOCKED(archaeology-required)"}
+  - {case: FR-NEG-PLAYER-001, reason: "音频客观表现 BLOCKED(env)；本条仅守门+空态 UI 断言部分可执行"}
+  - {case: FR-NEG-AI-003, reason: "实时通话音频 BLOCKED(env)；仅中断返回链路可执行"}
+  - {case: FR-NEG-DEV-001, reason: "BLE/蓝牙 BLOCKED(env)；仅设备发现空结果边界可执行"}
+  - {case: FR-NEG-ME-003, reason: "相机预览 BLOCKED(env)；仅守门断言"}
+  - {case: FR-NEG-VIDEO-001, reason: "真实投屏 BLOCKED(env)；仅空态断言"}
+  - {case: FR-NEG-ME-001, reason: "改绑手机号/修改密码若触发短信验证码 → BLOCKED(credential-required)"}
+cases:
+  # ============ 域1 启动与隐私 ============
+  - case_id: FR-NEG-START-001
+    epic: 启动与隐私
+    dimension: 中断
+    name: 启动 ANR 探针（P-003 反哺）：冷启动层级可达性门禁
+    expected_type: expected
+    method_design:
+      error_guessing: "冷启动后 10s 内 UI 层级可达性检查；ANR 症状即触发预案"
+    precondition: "快照 APK 已安装（adb install -r 升级安装保留 userdata）；设备空闲"
+    steps:
+      - do: "force-stop 后冷启动 com.swan.network，10s 内 dump UI hierarchy"
+        expect: "层级可达（隐私弹窗/登录页/AppShell 任一），无 isn't responding 对话框"
+      - do: "若 ANR 对话框出现：等待x1（不超过10s）→ 无恢复即 force-stop → 冷重启，归档 dropbox trace"
+        expect: "冷重启后层级可达；ANR 复现记 suspected-defect（对齐 BUG-20260904-004/BUG-20260910-002 嫌疑链）"
+    locators: {hivi_test_ids: ["privacy_dialog", "login_page"], value_keys: []}
+    test_data: "TEST-SYNTHETIC: 无业务数据"
+    repro_points: "本条是全文件所有业务用例的执行前置门禁（P-003 执行从纪律）；ANR 复现先挂起后续交互用例并通知主对话"
+    recovery: "force-stop 冷重启"
+    tags: [L2, negative, gate]
+    channels: [assertion]
+
+  - case_id: FR-NEG-START-002
+    epic: 启动与隐私
+    dimension: 状态跳跃
+    name: 隐私弹窗 PopScope 禁返回 + 拒绝即 exitApp 边界
+    expected_type: expected
+    method_design:
+      state_transition: [{from: privacyRequired, event: back_press, to: privacyRequired(原地), guard: "PopScope canPop:false"}, {from: privacyRequired, event: tap_disagree, to: exitApp}]
+    precondition: "清除应用数据后首启（隐私态）；注意本条会真实退出进程，放每轮可执行用例组首位"
+    steps:
+      - do: "隐私弹窗上按系统返回键"
+        expect: "弹窗不关闭、不退出、不进登录页（canPop:false 生效），无崩溃"
+      - do: "点不同意按钮"
+        expect: "AppSystemPort.exitApp() 触发，进程退出桌面（设计行为）；冷重启后弹窗重现"
+    locators: {hivi_test_ids: ["privacy_dialog", "privacy_disagree_button"], value_keys: []}
+    test_data: "TEST-SYNTHETIC: 清除 app data 后执行"
+    repro_points: "重启后为 privacyRequired 态——后续用例若依赖已同意态需重新点同意；确认不同意不产生半写状态（is_first_launch 取反语义，卡片已知坑9）"
+    recovery: "冷重启 → 点同意"
+    tags: [L3, negative]
+    channels: [assertion]
+
+  - case_id: FR-NEG-START-003
+    epic: 启动与隐私
+    dimension: 状态跳跃
+    name: auth_token 篡改冷启动：直进 authenticated 后首请求暴露失效（卡片已知坑3）
+    expected_type: expected
+    method_design:
+      error_guessing: "token 恢复不校验有效性的破坏验证：注入垃圾 token 冷启动"
+    precondition: "硬前置：真实登录建立有效会话且验证 token 三处落盘非空（先登录成功）；adb 可写 SharedPreferences（run-as 不可用 debug 包可直接 adb shell）。前置不满足 → BLOCKED(credential-required)"
+    steps:
+      - do: "登录成功后将 auth_token 值篡改为 Bearer invalid-token-frneg003"
+        expect: "写入成功（明文可改即坐实卡片已知坑3 的存储事实）"
+      - do: "force-stop 冷启动"
+        expect: "直进 authenticated（AppShell 可达），首屏不发校验请求"
+      - do: "触发任一业务请求（如进入搜索发一次查询）"
+        expect: "服务端回失效业务码（30003/30001/40006 之一）→ 全局登出清栈落登录页，Toast 登录状态过时；全程无白屏/崩溃"
+    locators: {hivi_test_ids: ["login_page", "me_page"], value_keys: []}
+    test_data: "TEST-SYNTHETIC: {auth_token: Bearer invalid-token-frneg003}"
+    repro_points: "启动直进 authenticated 的瞬间断言不发网络校验（logcat 过滤 HTTP）；失效码回包落登录页耗一次有效会话，排在此域用例组末位"
+    recovery: "重新登录"
+    tags: [L3, negative]
+    channels: [assertion]
+
+  # ============ 域2 会话与登录 ============
+  - case_id: FR-NEG-LOGIN-001
+    epic: 会话与登录
+    dimension: 重复提交
+    name: 错误验证码 4 位自动提交 + 同码防重（_lastFailedSmsCode 设计行为边界）
+    expected_type: expected
+    method_design:
+      error_guessing: "4 位即自动提交；同错误码重试被防重钩子跳过——自动化视角的『无反应』边界"
+    precondition: "登录页验证码步已到达（手机号步成功发码）；验证码可从主对话获取（人工中断点）或注入失败响应"
+    steps:
+      - do: "输入 4 位错误验证码（逐字符 >=0.5s 间隔，不挂录屏）"
+        expect: "满 4 位即自动提交，行内 login_error_text 出现失败文案，不崩溃"
+      - do: "原样重输同一错误码（先清空再输入）"
+        expect: "首次重试提交后若再次失败，_lastFailedSmsCode 生效：同一码第三次重复提交被跳过（页面无新请求），属设计行为非卡死——用 logcat 确认无重复 /user/login 请求"
+      - do: "修改其中一位再提交"
+        expect: "恢复提交（防重仅对同一失败码）"
+    locators: {hivi_test_ids: ["login_code_field", "login_error_text"], value_keys: ["login-code-field"]}
+    test_data: "TEST-SYNTHETIC: 错误码 0000 / 0001（任意非真值4位）"
+    repro_points: "输入纪律：不挂录屏、逐字符 >=0.5s；自动提交与防重并发由 _smsLoginInFlight 兜底，观察 busy 态期间输入不被吞出双请求"
+    recovery: "返回手机号步重进"
+    tags: [L3, negative]
+    channels: [assertion]
+
+  - case_id: FR-NEG-LOGIN-002
+    epic: 会话与登录
+    dimension: 状态跳跃
+    name: 验证码过期/失效响应注入：行内错误收敛不崩溃
+    expected_type: expected
+    method_design:
+      equivalence_classes:
+        - {class: 服务端验证码过期业务码, input: "代理注入过期码响应", expected: "行内错误文案，停留验证码步"}
+        - {class: 非法响应体（非 Map）, input: "代理注入非 JSON/空体", expected: "_post 包装 success:false + sanitized message，不透出英文异常原文"}
+    precondition: "验证码步已到达；代理工具可拦截 /user/login 响应"
+    steps:
+      - do: "代理将 /user/login 响应改写为验证码过期/错误业务码"
+        expect: "login_error_text 出现本地化文案；输入变化即清旧错误（clearLoginError 语义）"
+      - do: "代理返回 500/非 Map 响应体"
+        expect: "sanitizeApiFailureMessage 收敛为 networkNotConnected 类文案，无堆栈/英文原文透出，页面可继续操作"
+    locators: {hivi_test_ids: ["login_code_field", "login_error_text"], value_keys: []}
+    test_data: "TEST-SYNTHETIC: 代理注入 {code: 验证码失效业务码} / 非 JSON body"
+    repro_points: "断言错误文案与输入框联动清除；DioException 响应体为 Map 时业务码语义保留（卡片错误处理路径契约）"
+    recovery: "关闭代理重新发码"
+    tags: [L2, negative]
+    channels: [assertion]
+
+  - case_id: FR-NEG-LOGIN-003
+    epic: 会话与登录
+    dimension: 边界值
+    name: 60s 倒计时内存态三边界：杀进程冷却丢失/同号复用/改号清零（卡片已知坑4）
+    expected_type: expected
+    method_design:
+      boundary_values:
+        - {field: 冷却剩余时间, value: "杀进程重进", expected: "冷却丢失，可立即再发码（服务端获取短信频繁限制兜底）"}
+        - {field: 冷却剩余时间, value: "同号返回手机号步再进验证码步", expected: "复用剩余时间，不重发"}
+        - {field: 冷却剩余时间, value: "改手机号", expected: "清零重发"}
+    precondition: "需真实短信验证码（人工中断点 acct-swan-mobile）；未收集到即 BLOCKED(credential-required)"
+    steps:
+      - do: "发码进入验证码步，等待约 30s 后杀进程冷重启，同号重进验证码步"
+        expect: "倒计时从头开始（内存态不落盘），可立即点重发；若服务端回『获取短信频繁』类文案，行内收敛展示"
+      - do: "返回手机号步（保留号码）再进验证码步"
+        expect: "倒计时复用剩余时间，无新发码请求（logcat 无第二次 /user/captcha）"
+      - do: "改手机号再进"
+        expect: "倒计时清零并正常发码"
+    locators: {hivi_test_ids: ["login_phone_field", "login_code_field"], value_keys: ["login-resend-code-button"]}
+    test_data: "TEST-SYNTHETIC: 双测试手机号（TEST-SYNTHETIC 标记）"
+    repro_points: "验证码消耗短信资源，一轮内合并三步连续执行；服务端频繁限制文案属预期兜底非缺陷"
+    recovery: "等待冷却结束"
+    tags: [L3, negative, flaky]
+    channels: [assertion]
+
+  - case_id: FR-NEG-LOGIN-004
+    epic: 会话与登录
+    dimension: 非法格式
+    name: F-2 回归：密码 6 位假值点亮登录键 + 点击 ANR（SWAN-BUG-20260910-002）
+    expected_type: suspected-defect
+    method_design:
+      error_guessing: "已知缺陷回归：前端无长度校验，6 位假密码提交触发主线程 ANR 循环"
+    precondition: "登录页密码模式（login_use_password_button 切换）；ANR 预案待命；文本输入期间不挂录屏"
+    steps:
+      - do: "逐字符输入 6 位 123456（间隔 >=0.5s）"
+        expect: "记录登录键是否点亮（BUG-002 现象：无长度校验即点亮）"
+      - do: "点击登录键"
+        expect: "若快照已修复：行内错误文案（密码校验/服务端错误），无 ANR；若未修复：5s 内 ANR 对话框 → 触发 ANR 预案（等待x1→force-stop→冷重启）并记 suspected-defect（F-2 未修复）"
+      - do: "ANR 后核对服务端到达（可选，留报告从定级）：测试服查 13800138000/123456 登录到达记录"
+        expect: "到达与否仅作证据补充，不影响本条判定"
+    locators: {hivi_test_ids: ["login_password_field", "login_submit_button", "login_error_text"], value_keys: ["login-password-field"]}
+    test_data: "TEST-SYNTHETIC: {password: 123456, tel: 13800138000}"
+    repro_points: "与 BUG-002 证据链对齐（states-matrix §11-12）；ANR 复现时归档 dropbox trace 与录屏（ANR 确认后再录，输入期间禁录）；对照组见 FR-NEG-LOGIN-006（验证码模式非法号段有行内校验）"
+    recovery: "ANR 预案：等待x1 → force-stop → 冷重启"
+    tags: [L3, negative, regression]
+    channels: [assertion, visual]
+
+  - case_id: FR-NEG-LOGIN-005
+    epic: 会话与登录
+    dimension: 边界值
+    name: 密码框 maxLength 16 / 空值 / 明文切换边界
+    expected_type: expected
+    method_design:
+      boundary_values:
+        - {field: 密码长度, value: "16 位", expected: "可输入满（maxLength 上界）"}
+        - {field: 密码长度, value: "17 位尝试", expected: "截断为 16 位"}
+        - {field: 密码内容, value: "空/全空格", expected: "登录键不点亮或点击行内报错，不发请求"}
+    precondition: "登录页密码模式；不挂录屏"
+    steps:
+      - do: "输入 17 位字符"
+        expect: "实际落 16 位（maxLength:16 契约）"
+      - do: "清空后输入全空格，点登录"
+        expect: "无请求发出或行内错误；无崩溃"
+      - do: "明文/密文切换往返 3 次"
+        expect: "内容不变、光标位置合理、无重建丢字（输入纪律：整串注入后切换）"
+    locators: {hivi_test_ids: ["login_password_field"], value_keys: ["login-password-field"]}
+    test_data: "TEST-SYNTHETIC: 16 位 TEST-SYNTHETIC 假密码"
+    repro_points: "对照 F-2：若 6 位即可点亮而空值不点亮，校验语义仅为非空——差异记录供报告从定级参考"
+    recovery: "清空输入"
+    tags: [L2, negative]
+    channels: [assertion]
+
+  - case_id: FR-NEG-LOGIN-006
+    epic: 会话与登录
+    dimension: 非法格式
+    name: 手机号非法号段等价类（验证码模式有校验对照组）
+    expected_type: expected
+    method_design:
+      equivalence_classes:
+        - {class: 不足11位, input: "1380013800", expected: "不点亮/点击行内提示，不发码"}
+        - {class: 恰11位非法号段, input: "00000000000 / 19999999999 类 TEST-SYNTHETIC 假号", expected: "行内红字 login_error_text，不发码（BUG-002 对照组行为）"}
+        - {class: 含字母/符号, input: "138abc00138", expected: "拦截或行内错误，不发码"}
+        - {class: 超11位, input: "138001380001", expected: "截断 11 位或行内错误"}
+    precondition: "登录页短信模式手机号步"
+    steps:
+      - do: "逐类输入并点击获取验证码（logcat 监控 /user/captcha）"
+        expect: "所有非法类均不发码（无 /user/captcha 请求）且行内错误收敛展示；输入变化清旧错误"
+    locators: {hivi_test_ids: ["login_phone_field", "login_error_text", "login_submit_button"], value_keys: ["login-phone-field", "login-submit-button"]}
+    test_data: "TEST-SYNTHETIC: 上述等价类假号"
+    repro_points: "本条同时是 F-2 的对照组证据：验证码模式只校验位数不校验号段（BUG-002 记录），回归确认快照行为一致"
+    recovery: "清空输入"
+    tags: [L3, negative, regression]
+    channels: [assertion]
+
+  - case_id: FR-NEG-LOGIN-007
+    epic: 会话与登录
+    dimension: 权限缺失
+    name: 协议未勾选：三主按钮 + 第三方图标全入口拦截
+    expected_type: expected
+    method_design:
+      decision_table:
+        - {conditions: ["协议未勾选", "点短信主按钮"], actions: "不发码，协议拦截提示"}
+        - {conditions: ["协议未勾选", "点密码主按钮"], actions: "不提交，协议拦截提示"}
+        - {conditions: ["协议未勾选", "点第三方图标"], actions: "不拉起授权（可点仅由协议决定）"}
+        - {conditions: ["协议勾选", "点第三方图标"], actions: "授权中不置灰（防微信中途返回永久卡死的设计）"}
+    precondition: "登录页首屏；模拟器无微信/微博宿主（对照组环境已知）"
+    steps:
+      - do: "不勾选协议依次点短信/密码主按钮与第三方图标"
+        expect: "全部被拦截，无网络请求、无授权拉起、无崩溃"
+      - do: "勾选协议后点第三方图标，授权未完成期间观察图标状态"
+        expect: "授权中不置灰（可再次点击触发 isInProgress 稍候提示，见 FR-NEG-LOGIN-009）"
+    locators: {hivi_test_ids: ["login_agreement_checkbox", "login_submit_button", "login_third_party_wechat_button", "login_third_party_weibo_button"], value_keys: ["login-agreement-checkbox"]}
+    test_data: "TEST-SYNTHETIC: 无"
+    repro_points: "第三方图标可见性与可点性是两套门禁（可见由平台决定、可点仅由协议决定）——OHOS 隐藏逻辑不在本模拟器范围"
+    recovery: "无"
+    tags: [L3, negative]
+    channels: [assertion]
+
+  - case_id: FR-NEG-LOGIN-008
+    epic: 会话与登录
+    dimension: 服务降级
+    name: F-1/P-004 回归：微博 SDK libwind.so 缺失容错（先查库再点击）
+    expected_type: suspected-defect
+    method_design:
+      error_guessing: "P-004 执行纪律：第三方入口先查包内 .so 存在性再点击；缺失时点击预期 UnsatisfiedLinkError 崩溃（BUG-20260910-001 未修复回归）"
+    precondition: "协议已勾选；快照 APK 路径可知（adb shell pm path com.swan.network）"
+    steps:
+      - do: "拉取 APK 并检查 lib/<abi>/libwind.so 是否存在"
+        expect: "记录存在性——若已修复出包含库新包则转正常授权路径（模拟器无微博宿主，预期行内报错不崩）；若缺失继续下一步"
+      - do: "库缺失时点微博图标"
+        expect: "若崩溃退桌面（UnsatisfiedLinkError: libwind.so not found）→ suspected-defect，F-1 未修复，归档 logcat 完整栈 + dropbox data_app_crash；若不崩（已容错）→ 记改进证据"
+      - do: "对照组：点微信图标（未装微信）"
+        expect: "仅行内报错『未安装微信客户端』类文案，不崩溃（BUG-001 对照组行为保持）"
+    locators: {hivi_test_ids: ["login_third_party_weibo_button", "login_third_party_wechat_button"], value_keys: []}
+    test_data: "TEST-SYNTHETIC: 无"
+    repro_points: "崩溃后进程消失即本条证据闭环，无需 ANR 预案；崩溃证据与 BUG-001 crash-weibo-fatal-stack.txt 链路（SwanThirdPartyLoginPlugin.startWeiboAuthorization:119 → UMShareAPI → WeiboSsoSdk → System.loadLibrary）比对是否同一栈"
+    recovery: "冷重启（崩溃无 ANR 预案需求）"
+    tags: [L2, negative, regression]
+    channels: [assertion, visual]
+
+  - case_id: FR-NEG-LOGIN-009
+    epic: 会话与登录
+    dimension: 并发
+    name: 第三方登录连点防重入（_thirdPartyLoginInFlight + isInProgress 语义）
+    expected_type: expected
+    method_design:
+      boundary_values:
+        - {field: 授权进行中重复点击, value: "连点同图标x3", expected: "仅一次授权拉起，后续 isInProgress 提示稍候"}
+        - {field: 授权进行中切图标, value: "授权中点另一第三方图标", expected: "同 isInProgress 拦截或排队，无双授权页"}
+    precondition: "协议已勾选；模拟器无微信/微博宿主——拉起即行内报错场景下验证重入门禁仍然生效"
+    steps:
+      - do: "快速连点微信图标 3 次"
+        expect: "行内报错最多一次拉起语义、无重复弹层/无崩溃；inFlight 门禁期间点击被吞"
+      - do: "授权中切点 Apple 图标"
+        expect: "无并发双授权流程（isInProgress 或静默吞并）；isCancelled 静默分支不产生错误 Toast（模拟器上以行内报错等效观察）"
+    locators: {hivi_test_ids: ["login_third_party_wechat_button", "login_third_party_apple_button"], value_keys: []}
+    test_data: "TEST-SYNTHETIC: 无"
+    repro_points: "ghost_tap 纪律：Maestro tapOn 带 retryTapIfNoChange:false（本条故意制造连点，反向使用防 flaky 参数）"
+    recovery: "返回重进登录页"
+    tags: [L3, negative]
+    channels: [assertion]
+
+  - case_id: FR-NEG-LOGIN-010
+    epic: 会话与登录
+    dimension: 断网
+    name: 断网登录双模式：文案收敛为 networkNotConnected，无英文原文透出
+    expected_type: expected
+    method_design:
+      equivalence_classes:
+        - {class: 断网+短信发码, input: "断网点获取验证码", expected: "行内 networkNotConnected 本地化文案"}
+        - {class: 断网+密码提交, input: "断网点密码登录", expected: "同上，无英文异常"}
+        - {class: 弱网超时, input: "代理延迟 >8s", expected: "超时收敛同断网文案，可重试"}
+    precondition: "登录页可达；可切模拟器飞行模式或代理断流"
+    steps:
+      - do: "飞行模式开启，短信模式输入 TEST-SYNTHETIC 手机号点发码"
+        expect: "行内错误文案为本地化『网络未连接』类，无 Dio/Socket 英文原文"
+      - do: "切密码模式输入 TEST-SYNTHETIC 手机号+16 位假密码点登录"
+        expect: "同文案收敛；关闭飞行模式后输入变化清错误，可正常重试"
+    locators: {hivi_test_ids: ["login_error_text", "login_phone_field", "login_password_field"], value_keys: []}
+    test_data: "TEST-SYNTHETIC: {tel: 13800138000, password: TestSynthetic12345}"
+    repro_points: "sanitizeApiFailureMessage 契约：连接类错误不透出英文原文；断网期间不挂录屏（密码输入纪律）"
+    recovery: "关闭飞行模式"
+    tags: [L3, negative]
+    channels: [assertion]
+
+  - case_id: FR-NEG-LOGIN-011
+    epic: 会话与登录
+    dimension: 状态跳跃
+    name: 会话失效码注入回归：30003/30001/40006 等价类 + 2s 去重（硬前置）
+    expected_type: expected
+    method_design:
+      equivalence_classes:
+        - {class: 失效码 30003, input: "{code:30003}", expected: "登出+清栈+Toast 登录状态过时"}
+        - {class: 失效码 30001, input: "{code:30001}", expected: "同 30003"}
+        - {class: 失效码 40006, input: "{code:40006}", expected: "同 30003"}
+        - {class: 同码 2s 内重复, input: "{code:30003} x2 within 2s", expected: "去重，仅一次登出一次 Toast"}
+    precondition: "硬前置：真实登录建立有效会话且 token 三处落盘非空；代理可注入业务响应。前置不满足 → BLOCKED(credential-required)"
+    steps:
+      - do: "authenticated 态注入 30003/30001/40006 各一次（每码前重新登录）"
+        expect: "三码均触发 AppSessionInvalidationCoordinator 登出清栈落登录页；_clearSessionState 清 lastUserInfoResponeBean/Qobuz 星标缓存/auth_token/fallback token/Dio header"
+      - do: "重新登录后 2s 内注入两次 30003"
+        expect: "去重窗口生效：仅一次登出一次 Toast，无重复清栈"
+    locators: {hivi_test_ids: ["login_page", "me_page"], value_keys: []}
+    test_data: "TEST-SYNTHETIC: 代理注入 {code:30003|30001|40006}"
+    repro_points: "Coordinator 必须在 runApp 前订阅（首帧前失效码也应生效）；断言 token 三处存储全空；登出为服务端失效注入非手动登出，不触禁区按钮"
+    recovery: "重新登录"
+    tags: [L2, negative, regression]
+    channels: [assertion]
+
+  - case_id: FR-NEG-LOGIN-012
+    epic: 会话与登录
+    dimension: 服务降级
+    name: 区号列表外部服务（MXNZP）降级回退内置热门区号（卡片已知坑1）
+    expected_type: expected
+    method_design:
+      error_guessing: "外部硬编码 app_id/app_secret 的第三方接口不可达 → 8s 超时 → 内置热门区号（中港澳门台）兜底，不阻断登录"
+    precondition: "可代理拦截 https://www.mxnzp.com/api/phone_code/list 或全局断外网（保持测试服可达）"
+    steps:
+      - do: "代理对 MXNZP 域名返回超时/404"
+        expect: "区号选择页仍可进（内置热门区号渲染），无崩溃无白屏"
+      - do: "选中内置区号继续短信流程"
+        expect: "登录链路不因区号源降级而阻断"
+    locators: {hivi_test_ids: ["login_area_code_button"], value_keys: ["login-area-code-button"]}
+    test_data: "TEST-SYNTHETIC: 无"
+    repro_points: "8s 超时期间页面不得死等卡死（观察 loading 收敛）；仅测试服环境（debug 包默认 base http://8.129.106.82/api，开跑前核对实际 base URL，卡片已知坑2）"
+    recovery: "关闭代理"
+    tags: [L2, negative]
+    channels: [assertion]
+
+  - case_id: FR-NEG-LOGIN-013
+    epic: 会话与登录
+    dimension: 状态跳跃
+    name: 50015 未绑定手机号分支 → /login/bind-phone（环境预标 BLOCKED）
+    expected_type: expected
+    method_design:
+      state_transition: [{from: 第三方登录响应, event: "code==50015", to: "/login/bind-phone（携 BindPhoneRouteArgs）", guard: "真实第三方凭据"}]
+    precondition: "需真实第三方登录凭据（微信/微博/Apple 任一）+ 服务端未绑定态测试账号；模拟器上不可达即 BLOCKED(env)+BLOCKED(credential-required)，禁止伪造绕过"
+    steps:
+      - do: "（可执行时）第三方授权返回 50015"
+        expect: "push /login/bind-phone 携 loginType/thirdPartyId/thirdPartyName；绑定成功复用同一 token 收口进 authenticated"
+      - do: "绑定页参数边界"
+        expect: "fallback loginType:'2'（卡片已知坑6）；Android 微信/微博请求体含昵称"
+    locators: {hivi_test_ids: ["login_page"], value_keys: []}
+    test_data: "TEST-SYNTHETIC: 第三方 TEST-SYNTHETIC 账号"
+    repro_points: "本条保留定义作全量回归覆盖对照，执行依赖主对话协调真实第三方凭据；勿用已绑定账号（服务端状态不可控）"
+    recovery: "重新登录"
+    tags: [L2, negative]
+    channels: [assertion]
+
+  # ============ 域3 主框架与导航 ============
+  - case_id: FR-NEG-NAV-001
+    epic: 主框架与导航
+    dimension: 非法格式
+    name: 5 条死路由运行时表现（pushNamed → buildPage default null）
+    expected_type: suspected-defect
+    method_design:
+      error_guessing: "死路由 /main、/main/home、/music_platform/vip、/music_platform/vip/pay、/music_platform/manage-one 逐条注入"
+    precondition: "深链/路由注入通道可用（A 线确认深链 scheme 与 pushNamed 可达性后执行）；通道未确认 → BLOCKED(archaeology-required)，禁止为执行而改代码"
+    steps:
+      - do: "逐条 push 死路由"
+        expect: "记录实际表现：预期无崩溃；若白屏/黑屏/导航死锁/空指针崩溃 → suspected-defect（功能地图 ⚠：buildPage default 返回 null 运行时表现未考古）"
+      - do: "死路由页上按返回"
+        expect: "能正常返回来源页（若可达）"
+    locators: {hivi_test_ids: [], value_keys: []}
+    test_data: "TEST-SYNTHETIC: 5 条死路由名"
+    repro_points: "与 A 线差异考古结论联动：若快照已删死路由则本条转 expected（常量不存在）并回报功能地图"
+    recovery: "返回/冷重启"
+    tags: [L2, negative, experimental]
+    channels: [assertion]
+
+  - case_id: FR-NEG-NAV-002
+    epic: 主框架与导航
+    dimension: 并发
+    name: 四 Tab 快速连点：IndexedStack 缓存与可见性暂停无副作用
+    expected_type: expected
+    method_design:
+      boundary_values:
+        - {field: Tab 切换频率, value: "1s 内连点 8 次（推荐/音乐/设备/我的循环）", expected: "最终停在最后一次点击 Tab（latest-wins），无重复初始化/无崩溃"}
+    precondition: "authenticated 态（真实登录）；ANR 预案待命"
+    steps:
+      - do: "底部四 Tab 快速连点循环 2 轮"
+        expect: "无 ANR、无白屏、Tab 高亮与内容一致（latest-wins 判定）；返回各 Tab 内容状态保留（缓存语义）"
+      - do: "连点后立即返回键"
+        expect: "返回行为确定（退出确认或回根），不崩溃"
+    locators: {hivi_test_ids: ["me_page"], value_keys: []}
+    test_data: "TEST-SYNTHETIC: 无"
+    repro_points: "routeName=homeMain/platform/device/me；Tab 缓存 keep-alive 与可见性暂停（app_shell.dart:569）是状态残留观察点"
+    recovery: "无"
+    tags: [L3, negative]
+    channels: [assertion]
+
+  - case_id: FR-NEG-NAV-003
+    epic: 主框架与导航
+    dimension: 状态跳跃
+    name: 根页（splash/recommend 同 case）返回键边界
+    expected_type: expected
+    method_design:
+      state_transition: [{from: 根页, event: back_press, to: "退出或无操作", guard: "无上层路由"}]
+    precondition: "authenticated 态停留根页"
+    steps:
+      - do: "根页连按返回键 2 次"
+        expect: "行为确定（退出或二次确认），无越级清栈到登录页、无崩溃"
+    locators: {hivi_test_ids: [], value_keys: []}
+    test_data: "TEST-SYNTHETIC: 无"
+    repro_points: "对照 O-23（搜索返回栈无根防护，见 FR-NEG-SEARCH-004）：根页返回不应意外触发登出"
+    recovery: "冷重启"
+    tags: [L3, negative]
+    channels: [assertion]
+
+  # ============ 域4 首页 ============
+  - case_id: FR-NEG-HOME-001
+    epic: 首页
+    dimension: 状态残留
+    name: 音乐权益初始化页一次性标记边界（init_music_right_shown）
+    expected_type: expected
+    method_design:
+      boundary_values:
+        - {field: 一次性标记, value: "已弹出后杀进程重启", expected: "不重复弹（标记已落盘）"}
+        - {field: 一次性标记, value: "可引导平台为空时", expected: "不弹也不写标记（卡片 ⚠ 契约）"}
+    precondition: "authenticated 态；可清应用数据复位首启态（会同时复位隐私态，连带执行 FR-NEG-START-002 成本合并）"
+    steps:
+      - do: "首启触发权益初始化弹窗（蒙层走 root Navigator）"
+        expect: "弹窗可关闭、关闭后不阻塞主界面；杀进程重启不再弹"
+      - do: "无任何可引导平台账号态下复位标记重启"
+        expect: "不弹窗且 init_music_right_shown 未写入（下次满足条件仍可弹）"
+    locators: {hivi_test_ids: [], value_keys: []}
+    test_data: "TEST-SYNTHETIC: 无"
+    repro_points: "AppShell IndexedStack 预构建隐藏 Tab 是触发时机约束（功能地图 ⚠）——弹窗出现时机本身即回归观察点；清数据复位成本高，与 START-002 合并为同一复位序列"
+    recovery: "无"
+    tags: [L3, negative]
+    channels: [assertion, visual]
+
+  - case_id: FR-NEG-HOME-002
+    epic: 首页
+    dimension: 并发
+    name: 五顶 Tab 连点 + 音乐/电台搜索入口 Hero tag 并发
+    expected_type: expected
+    method_design:
+      boundary_values:
+        - {field: 顶 Tab 连点, value: "1s 内 10 次五 Tab 循环", expected: "latest-wins 停最后 Tab；Hero tag 无冲突崩溃"}
+    precondition: "authenticated 态"
+    steps:
+      - do: "五顶 Tab（推荐/音乐/电台/AI/可视音箱）快速连点 2 轮"
+        expect: "无 ANR/无 Hero 冲突异常/页面与 Tab 高亮一致"
+      - do: "音乐 Tab 与电台 Tab 快速交替点搜索入口"
+        expect: "搜索页最多入栈一次（防双 push），返回栈深度一致"
+    locators: {hivi_test_ids: [], value_keys: []}
+    test_data: "TEST-SYNTHETIC: 无"
+    repro_points: "音乐 Tab 平台区块过滤 Spotify（catalog_mapper 注释）——回归断言首页不出现 Spotify 区块"
+    recovery: "无"
+    tags: [L3, negative]
+    channels: [assertion]
+
+  # ============ 域5 搜索 ============
+  - case_id: FR-NEG-SEARCH-001
+    epic: 搜索
+    dimension: 空值
+    name: 关键词空值/超长/特殊字符等价类（含不发空请求契约）
+    expected_type: expected
+    method_design:
+      equivalence_classes:
+        - {class: 空关键词, input: "仅空格", expected: "trim 后为空 → 空快照直接返回，不发请求"}
+        - {class: 超长, input: "500 字符", expected: "可提交则服务端收敛空态，或客户端截断——无崩溃"}
+        - {class: 特殊字符, input: "emoji/引号/SQL 串 TEST-SYNTHETIC", expected: "原样透传或安全转义，无崩溃"}
+    precondition: "authenticated 态搜索页可达（启动探针已过）"
+    steps:
+      - do: "输入空格提交（logcat 监控 music/search）"
+        expect: "无 /music/search 请求（空关键词不发请求，卡片契约）"
+      - do: "输入 500 字符与特殊字符串提交"
+        expect: "结果页空态或正常结果，无崩溃；历史写入经 trim/去重"
+    locators: {hivi_test_ids: [], value_keys: []}
+    test_data: "TEST-SYNTHETIC: 500x'a' / \"' OR 1=1--\" / emoji 串"
+    repro_points: "输入纪律：整串注入不逐键；结果页在底部播放器集合而输入页不在（返回栈行为差异见 SEARCH-004）"
+    recovery: "清空历史"
+    tags: [L3, negative]
+    channels: [assertion]
+
+  - case_id: FR-NEG-SEARCH-002
+    epic: 搜索
+    dimension: 断网
+    name: 搜索后端异常收敛空态：断网/500/超时三分类
+    expected_type: expected
+    method_design:
+      equivalence_classes:
+        - {class: 断网, input: "飞行模式搜索", expected: "结果页空态，无崩溃（卡片：后端异常收敛空态）"}
+        - {class: 服务端 500, input: "代理注入 500", expected: "空态收敛，不透出原始错误"}
+        - {class: 超时, input: "代理延迟 8s+", expected: "loading 收敛为空态，可重试"}
+    precondition: "authenticated 态；代理/飞行模式可用"
+    steps:
+      - do: "三分类逐一执行搜索"
+        expect: "均收敛空态且页面可返回/重试；注意不能仅凭空列表判断无数据（卡片边界）——断言需含触发条件记录"
+      - do: "恢复网络重搜"
+        expect: "结果正常返回（回退可用）"
+    locators: {hivi_test_ids: [], value_keys: []}
+    test_data: "TEST-SYNTHETIC: keyword=TEST-SYNTHETIC"
+    repro_points: "六 Tab 仅活动 Tab 首次请求 + keep-alive——异常态下切 Tab 回来是否复请求是回归观察点；搜索在途失效码联动见 SEARCH-005"
+    recovery: "恢复网络"
+    tags: [L3, negative]
+    channels: [assertion]
+
+  - case_id: FR-NEG-SEARCH-003
+    epic: 搜索
+    dimension: 边界值
+    name: 搜索历史上限 20 条边界：trim/去重/挤出最旧
+    expected_type: expected
+    method_design:
+      boundary_values:
+        - {field: 历史条数, value: "第 20 条", expected: "全部保留"}
+        - {field: 历史条数, value: "第 21 条", expected: "最旧一条被挤出"}
+        - {field: 重复关键词, value: "再搜已有词", expected: "去重置顶，不新增"}
+    precondition: "authenticated 态；可清 search_history 起点干净"
+    steps:
+      - do: "连续搜索 20 个不同 TEST-SYNTHETIC 关键词"
+        expect: "历史恰 20 条按时间倒序"
+      - do: "搜第 21 个新词，再重搜其中一个旧词"
+        expect: "21 条时保持 20 条上限；重搜词置顶不重复"
+    locators: {hivi_test_ids: [], value_keys: []}
+    test_data: "TEST-SYNTHETIC: kw-frneg-001..021"
+    repro_points: "历史 key=search_history 落 SharedPreferences；清空历史走 SearchPort（断言清空后不可恢复）"
+    recovery: "清空历史"
+    tags: [L2, negative]
+    channels: [assertion]
+
+  - case_id: FR-NEG-SEARCH-004
+    epic: 搜索
+    dimension: 状态跳跃
+    name: O-23 回归：搜索返回栈无根防护（连续返回是否越出 AppShell）
+    expected_type: suspected-defect
+    method_design:
+      error_guessing: "v2 探索发现：搜索返回栈无根防护——多级搜索入口反复进出后连续返回"
+    precondition: "authenticated 态"
+    steps:
+      - do: "经 3 个不同入口（音乐 Tab/电台 Tab/平台内容页）各进搜索一次并返回"
+        expect: "每次返回均落回正确来源页，栈深一致"
+      - do: "结果页连续按返回 5 次"
+        expect: "若越过 AppShell 直接退出/落登录页 → suspected-defect（O-23 未修复）；预期应止于根页"
+    locators: {hivi_test_ids: [], value_keys: []}
+    test_data: "TEST-SYNTHETIC: keyword=TEST-SYNTHETIC"
+    repro_points: "结果页在 _bottomPlayerRouteNames（pure_flutter_router.dart:406）而输入页不在——底栏播放器有无随栈变化的视觉回归一并用 visual 通道记录"
+    recovery: "冷重启"
+    tags: [L3, negative, regression]
+    channels: [assertion, visual]
+
+  - case_id: FR-NEG-SEARCH-005
+    epic: 搜索
+    dimension: 状态跳跃
+    name: 搜索在途回包携失效码：全局登出清栈触发（硬前置）
+    expected_type: expected
+    method_design:
+      error_guessing: "搜索走 AuthApi.get 同一业务码分发链——在途搜索响应带回 30003 应触发全局登出（suppressGlobalPlatformAuthPrompt 只抑制平台授权 Toast 不抑制会话失效）"
+    precondition: "硬前置：真实登录建立有效会话（token 三处落盘非空）+ 代理可延迟/改写 music/search 响应。前置不满足 → BLOCKED(credential-required)"
+    steps:
+      - do: "代理延迟 music/search 5s 并改写响应体注入 30003；发起搜索后立即返回首页"
+        expect: "回包到达时仍触发登出清栈落登录页 + Toast（不因离开搜索页而丢失）"
+      - do: "观察是否误现平台授权提示"
+        expect: "无平台授权 Toast（抑制语义保持）；会话失效 Toast 恰一次"
+    locators: {hivi_test_ids: ["login_page"], value_keys: []}
+    test_data: "TEST-SYNTHETIC: 代理注入 {code:30003}"
+    repro_points: "断言 token 三处清空；单平台 vs 全平台搜索的授权提示抑制差异是本条隐藏断言面（卡片：全平台/电台搜索抑制全局授权提示）"
+    recovery: "重新登录"
+    tags: [L2, negative]
+    channels: [assertion]
+
+  # ============ 域6 播放器 ============
+  - case_id: FR-NEG-PLAYER-001
+    epic: 播放器
+    dimension: 状态跳跃
+    name: 播放越界规范守门（P-9-1 止损先例）+ 无会话队列/歌词空态
+    expected_type: expected
+    method_design:
+      error_guessing: "P-9-1：电台行体点击=自动播放已实证——播放类 UI 一律禁点；本条固化守门断言并验证无播放会话时的空态边界"
+    precondition: "authenticated 态；执行从已读 P-9-1 越界规范（播放/行体/播放键全禁点）"
+    steps:
+      - do: "无播放会话状态打开播放队列 sheet 与歌词视图（经 UI 入口，不点任何播放控件）"
+        expect: "空态渲染不崩溃；队列空文案/歌词空文案正常"
+      - do: "守门断言：全用例执行期间无任何播放触发（logcat 无播放相关方法通道调用）"
+        expect: "零播放副作用；音频客观表现 BLOCKED(env) 不在本模拟器判定"
+    locators: {hivi_test_ids: [], value_keys: []}
+    test_data: "TEST-SYNTHETIC: 无"
+    repro_points: "任何步骤产生声音/播放会话即视为越界事故，立即记录并中止本域执行（P-9-1 止损先例）；播放会话状态机 9 文件未深考古——异常表现只记 notes 不深挖"
+    recovery: "无"
+    tags: [L3, negative, gate]
+    channels: [assertion, visual]
+
+  - case_id: FR-NEG-PLAYER-002
+    epic: 播放器
+    dimension: 状态跳跃
+    name: /player 深链无播放会话状态跳跃
+    expected_type: expected
+    method_design:
+      state_transition: [{from: "无播放会话", event: "push /player", to: "空态播放页", guard: "深链通道可用"}]
+    precondition: "深链/路由注入通道可用（同 NAV-001 前置，未确认则 BLOCKED(archaeology-required)）；播放类控件仍全禁点"
+    steps:
+      - do: "无播放会话直接 push /player"
+        expect: "页面可达且为空态/兜底态，不崩溃；迷你底栏与全屏页状态一致（无幽灵播放条）"
+      - do: "播放页按返回"
+        expect: "正常返回来源页，栈无残留"
+    locators: {hivi_test_ids: [], value_keys: []}
+    test_data: "TEST-SYNTHETIC: 无"
+    repro_points: "路由工厂底部播放器包裹规则（pure_flutter_router.dart:339）——/player 是否被底栏包裹是观察点"
+    recovery: "返回"
+    tags: [L2, negative]
+    channels: [assertion]
+
+  # ============ 域7 音乐平台聚合 ============
+  - case_id: FR-NEG-PLAT-001
+    epic: 音乐平台聚合
+    dimension: 状态跳跃
+    name: 50017 unboundAllPlatforms 注入：平台目录联动重置（硬前置）
+    expected_type: expected
+    method_design:
+      state_transition: [{from: authenticated, event: "业务码 50017", to: "平台全部解绑态（UI 联动）", guard: "BusinessCodeDispatcher 分发"}]
+    precondition: "硬前置：真实登录建立有效会话 + 代理可注入业务码。前置不满足 → BLOCKED(credential-required)。严禁用平台授权页取消授权−钮达成同态（禁区）"
+    steps:
+      - do: "平台页停留时代理注入 {code:50017}"
+        expect: "平台授权状态全清（PlatformCatalogNotifier 联动重置），平台页各平台回到未授权态，Toast 按语义收敛，无崩溃"
+      - do: "注入后进入平台内容页"
+        expect: "未授权空态/授权引导态，不出现幽灵已授权数据（状态残留检查）"
+    locators: {hivi_test_ids: [], value_keys: []}
+    test_data: "TEST-SYNTHETIC: 代理注入 {code:50017}"
+    repro_points: "50015/50017 为第三方/平台业务码对；首页音乐 Tab 平台区块随目录重置的过滤行为（Spotify 过滤保持）一并断言"
+    recovery: "重新登录（50017 可能连带会话处理，观察是否叠加登出——叠加则按 30003 语义合并判定）"
+    tags: [L2, negative]
+    channels: [assertion]
+
+  - case_id: FR-NEG-PLAT-002
+    epic: 音乐平台聚合
+    dimension: 服务降级
+    name: Spotify 未安装：下载引导拦截，不进入绑定
+    expected_type: expected
+    method_design:
+      error_guessing: "授权前检测本机安装——模拟器必然未装 Spotify，验证拦截分支"
+    precondition: "authenticated 态平台页可达"
+    steps:
+      - do: "点平台页 Spotify 卡片"
+        expect: "仅弹下载引导拦截，不发起授权/绑定，无崩溃（spotify_authorize_install_gate 契约）"
+      - do: "回归对照：首页音乐 Tab 不出现 Spotify 区块"
+        expect: "首页过滤保持（O-14 闭合结论回归）"
+    locators: {hivi_test_ids: [], value_keys: []}
+    test_data: "TEST-SYNTHETIC: 无"
+    repro_points: "Spotify 无独立路由（v2 裁决）——任何深链 Spotify 路由尝试应落死路由处理（联动 NAV-001）"
+    recovery: "关闭引导弹窗"
+    tags: [L3, negative, regression]
+    channels: [assertion]
+
+  - case_id: FR-NEG-PLAT-003
+    epic: 音乐平台聚合
+    dimension: 并发
+    name: 平台卡片/二级页连点防双 push（pushNamed 失败降级 rootNavigator 链路）
+    expected_type: expected
+    method_design:
+      boundary_values:
+        - {field: 卡片连点, value: "1s 内同卡片连点 3 次", expected: "目标页入栈一次（防双 push），latest-wins"}
+    precondition: "authenticated 态平台页"
+    steps:
+      - do: "快速连点 QQ/网易云/酷狗/Qobuz 卡片各 3 次"
+        expect: "每卡片目标页栈深 +1 而非 +3；pushNamed 失败降级 rootNavigator.pushNamed 分支（platform_page.dart:522）无异常日志"
+      - do: "二级页族快速进退（QQ 私荐/新歌/分类 3 页循环）"
+        expect: "返回栈一致，无重复页面残留"
+    locators: {hivi_test_ids: [], value_keys: []}
+    test_data: "TEST-SYNTHETIC: 无"
+    repro_points: "未授权平台进入内容页可能触发授权 Toast（pendingAuthEvent）——与本条并发观察时区分 Toast 来源，禁触授权/取消按钮"
+    recovery: "连续返回复位"
+    tags: [L3, negative]
+    channels: [assertion]
+
+  - case_id: FR-NEG-PLAT-004
+    epic: 音乐平台聚合
+    dimension: 权限缺失
+    name: 未授权平台内容页授权提示边界（不触授权/取消入口）
+    expected_type: expected
+    method_design:
+      equivalence_classes:
+        - {class: 未授权平台内容页, input: "进入任一未授权平台内容页", expected: "授权引导 Toast/提示收敛，内容空态不崩溃"}
+        - {class: 断网+未授权, input: "断网进内容页", expected: "双重缺失收敛，无崩溃"}
+    precondition: "authenticated 态且该平台未授权（不得通过取消授权−钮制造未授权态，用全新未授权账号或既有未授权平台）"
+    steps:
+      - do: "进入未授权平台内容页，观察授权提示"
+        expect: "提示可关闭、不阻塞返回、无重复轰炸（pendingAuthEvent 单次语义）"
+      - do: "断网再进"
+        expect: "空态/网络态收敛，无崩溃"
+    locators: {hivi_test_ids: [], value_keys: []}
+    test_data: "TEST-SYNTHETIC: 无"
+    repro_points: "本条全程不点击任何授权/去授权按钮——只观察提示语义；平台 VIP 播放提示（platform_vip_playback_hint）因播放禁点仅做存在性观察"
+    recovery: "返回"
+    tags: [L3, negative]
+    channels: [assertion]
+
+  # ============ 域8 电台/播客 ============
+  - case_id: FR-NEG-RADIO-001
+    epic: 电台/播客
+    dimension: 断网
+    name: FM 数据断网/城市列表空态收敛
+    expected_type: expected
+    method_design:
+      equivalence_classes:
+        - {class: 断网进全国电台, input: "飞行模式", expected: "空态/错误态收敛，无崩溃"}
+        - {class: 城市选择空数据, input: "断网进城市选择", expected: "空列表兜底，可返回"}
+    precondition: "authenticated 态；播放行体禁点（P-9-1）"
+    steps:
+      - do: "断网依次进 /music_platform/radio/country 与 /music_platform/radio/select-city"
+        expect: "空态收敛、可返回；恢复网络后数据正常加载"
+      - do: "80s/90s 页（FmHarmonyRadioPage kind 分型）断网进入"
+        expect: "同收敛语义，两 kind 行为一致"
+    locators: {hivi_test_ids: [], value_keys: []}
+    test_data: "TEST-SYNTHETIC: 无"
+    repro_points: "fm_radio_http_service 失败路径未深考古——异常表现记 notes；播客收藏态 store 为持久层，断言不误写收藏"
+    recovery: "恢复网络"
+    tags: [L3, negative]
+    channels: [assertion]
+
+  - case_id: FR-NEG-RADIO-002
+    epic: 电台/播客
+    dimension: 非法格式
+    name: stationTerraceType 分型边界：非法 kind 注入（深链通道前置同 NAV-001）
+    expected_type: expected
+    method_design:
+      boundary_values:
+        - {field: stationTerraceType, value: "合法 0/5/6", expected: "分组过滤正确（全国/90s/80er）"}
+        - {field: stationTerraceType, value: "非法 99/-1/空", expected: "空分组或全量兜底，不崩溃（未传时保留全部 FM 分组为对照）"}
+    precondition: "深链/路由注入通道可用；未确认 → BLOCKED(archaeology-required)"
+    steps:
+      - do: "以非法 kind 注入电台页参数"
+        expect: "页面空态/兜底渲染，无越界崩溃；对照合法 kind 过滤正确性"
+    locators: {hivi_test_ids: [], value_keys: []}
+    test_data: "TEST-SYNTHETIC: kind=99 / -1 / 空"
+    repro_points: "未传 kind 的首页电台搜索保留全部分组（卡片契约）作对照组"
+    recovery: "返回"
+    tags: [L2, negative]
+    channels: [assertion]
+
+  # ============ 域9 AI 助手 ============
+  - case_id: FR-NEG-AI-001
+    epic: AI 助手
+    dimension: 空值
+    name: AI 对话空输入/超长输入边界（输入链路 ANR 纪律）
+    expected_type: expected
+    method_design:
+      boundary_values:
+        - {field: 输入, value: "空/纯空格", expected: "发送禁用或点击无请求"}
+        - {field: 输入, value: "2000 字超长", expected: "截断或服务端收敛，无 ANR/崩溃"}
+    precondition: "authenticated 态 /ai/chat 可达；文本输入不挂录屏、逐字符 >=0.5s（P-003 输入链路嫌疑纪律）"
+    steps:
+      - do: "空输入点发送"
+        expect: "无请求发出（AI 网关零调用）"
+      - do: "整串注入 2000 字 TEST-SYNTHETIC 文本发送"
+        expect: "流式响应或错误收敛均不崩溃；ANR 症状即触发预案并记 suspected-defect（输入链路佐证）"
+    locators: {hivi_test_ids: [], value_keys: []}
+    test_data: "TEST-SYNTHETIC: 2000x'测'"
+    repro_points: "AI 网关/仓库保持未考古——流式中断表现只记 notes；历史页与角色编辑边界见 AI-002"
+    recovery: "清空输入"
+    tags: [L3, negative]
+    channels: [assertion]
+
+  - case_id: FR-NEG-AI-002
+    epic: AI 助手
+    dimension: 断网
+    name: AI 网关断网收敛 + 角色编辑空名/超长名保存拦截
+    expected_type: expected
+    method_design:
+      equivalence_classes:
+        - {class: 断网发消息, input: "飞行模式", expected: "错误收敛文案，对话页可返回重试"}
+        - {class: 角色空名, input: "名字为空保存", expected: "拦截提示，不产生脏数据"}
+        - {class: 角色超长名, input: "100 字名", expected: "截断或拦截"}
+    precondition: "authenticated 态"
+    steps:
+      - do: "断网在 /ai/chat 发送 TEST-SYNTHETIC 消息"
+        expect: "错误收敛非英文原文；恢复网络可重发"
+      - do: "/ai/role/create 空名与超长名保存"
+        expect: "空名拦截不落库；超长名按上限处理；/ai/history 与 /ai/role/manage 列表无脏条目"
+    locators: {hivi_test_ids: [], value_keys: []}
+    test_data: "TEST-SYNTHETIC: 空串 / 100x'名'"
+    repro_points: "写操作仅限 AI 角色域（低风险测试数据），支付/反馈写操作另有守门条目"
+    recovery: "删除测试角色（若产生）"
+    tags: [L3, negative]
+    channels: [assertion]
+
+  - case_id: FR-NEG-AI-003
+    epic: AI 助手
+    dimension: 中断
+    name: 实时通话中途退出：会话中断无残留（音频部分 BLOCKED(env)）
+    expected_type: expected
+    method_design:
+      error_guessing: "进入实时通话后立即返回——中断链路无崩溃、无残留通话态"
+    precondition: "authenticated 态；通话语音部分 BLOCKED(env)（模拟器无真实音频），仅验证页面进出与状态清理"
+    steps:
+      - do: "进入 /ai/realtime-call 后 2s 内直接返回"
+        expect: "无崩溃、返回后 AI 页状态正常、无残留通话浮层/计时器（logcat 无持续音频心跳）"
+      - do: "再次进入并重复 3 次"
+        expect: "重复进出无状态累积（每次干净初始化）"
+    locators: {hivi_test_ids: [], value_keys: []}
+    test_data: "TEST-SYNTHETIC: 无"
+    repro_points: "swan_ai_audio 包边界（L1）——音频通道异常记 notes 不深挖"
+    recovery: "返回/冷重启"
+    tags: [L3, negative]
+    channels: [assertion]
+
+  # ============ 域10 可视音箱 Vision ============
+  - case_id: FR-NEG-VISION-001
+    epic: 可视音箱 Vision
+    dimension: 状态跳跃
+    name: 未绑定设备态进入 Vision 各页：允许预览与空态边界
+    expected_type: expected
+    method_design:
+      equivalence_classes:
+        - {class: 未绑定设备+壁纸页, input: "进入 /vision/wallpaper", expected: "允许未绑定预览（地图契约），无崩溃"}
+        - {class: 未绑定设备+其余页, input: "唤醒词/语音包/高级设置", expected: "空态/引导态收敛"}
+    precondition: "authenticated 态且无绑定设备（不得用注销/解绑制造该态）"
+    steps:
+      - do: "逐页进入 /vision/wallpaper、/vision/wake-words、/vision/voice-pack、/vision/advanced-settings"
+        expect: "壁纸预览可用；其余页空态/引导态，可返回，无崩溃"
+      - do: "/vision/ai-roles 空态进入"
+        expect: "空列表渲染正常"
+    locators: {hivi_test_ids: [], value_keys: []}
+    test_data: "TEST-SYNTHETIC: 无"
+    repro_points: "Vision 数据层保持未考古——空态异常只记 notes"
+    recovery: "无"
+    tags: [L3, negative]
+    channels: [assertion]
+
+  - case_id: FR-NEG-VISION-002
+    epic: 可视音箱 Vision
+    dimension: 非法格式
+    name: Vision 配置空值/非法输入保存拦截（唤醒词/高级设置）
+    expected_type: expected
+    method_design:
+      equivalence_classes:
+        - {class: 唤醒词空/纯符号, input: "空串 / @@@", expected: "拦截或服务端校验错误收敛"}
+        - {class: 方案编辑空配置, input: "scheme-editor 空保存", expected: "拦截，不落脏方案"}
+    precondition: "authenticated 态；Vision 页可达（无设备时空配置入口可能不可达——不可达即记 SKIP(env-state) 非缺陷）"
+    steps:
+      - do: "唤醒词输入空串与纯符号保存"
+        expect: "拦截或错误收敛，无崩溃"
+      - do: "高级设置方案编辑器空配置保存"
+        expect: "同上；再次进入无残留半成品配置"
+    locators: {hivi_test_ids: [], value_keys: []}
+    test_data: "TEST-SYNTHETIC: 空串/@@@"
+    repro_points: "三页同文件（vision_advanced_pages.dart）——一致性回归"
+    recovery: "无"
+    tags: [L3, negative]
+    channels: [assertion]
+
+  # ============ 域11 设备管理与配网 ============
+  - case_id: FR-NEG-DEV-001
+    epic: 设备管理与配网
+    dimension: 权限缺失
+    name: BLE/蓝牙 BLOCKED(env) 守门 + 设备发现空结果边界
+    expected_type: expected
+    method_design:
+      error_guessing: "模拟器无蓝牙——发现服务应空结果收敛而非崩溃；定位权限拒绝场景等效观察"
+    precondition: "authenticated 态设备页；蓝牙客观指标 BLOCKED(env)（真机人工 checklist 另行安排）"
+    steps:
+      - do: "进入 /device/add 触发设备发现（BLE/mDNS/UPnP）"
+        expect: "模拟器上空结果或能力不可用提示，无崩溃；扫描可停止可退出"
+      - do: "发现期间直接返回"
+        expect: "扫描终止无残留（无持续扫描心跳）"
+    locators: {hivi_test_ids: [], value_keys: []}
+    test_data: "TEST-SYNTHETIC: 无"
+    repro_points: "swan_ble_transport/swan_bluetooth_discovery_ohos 为 L1 边界——原生层异常记 notes；本条同时是 P-003 观察面（扫描回调链路）"
+    recovery: "返回"
+    tags: [L3, negative]
+    channels: [assertion]
+
+  - case_id: FR-NEG-DEV-002
+    epic: 设备管理与配网
+    dimension: 空值
+    name: 配网 WiFi 密码空值/超长/特殊字符（ble_wifi_password_store 边界）
+    expected_type: expected
+    method_design:
+      equivalence_classes:
+        - {class: 空密码, input: "空串", expected: "拦截，不进入配网流程"}
+        - {class: 超长密码, input: "64+ 字符", expected: "截断或拦截"}
+        - {class: 特殊字符密码, input: "中文/emoji/引号", expected: "原样透传或明确报错，无崩溃"}
+    precondition: "authenticated 态配网页可达；无真实设备时流程止于密码校验层（无设备提交即空转收敛——记录实际表现）"
+    steps:
+      - do: "WiFi 配网页逐类输入密码（输入纪律：不挂录屏、整串注入）"
+        expect: "前端拦截/服务端收敛，无崩溃无 ANR"
+      - do: "BLE 配网页同样三分类"
+        expect: "同收敛语义（模拟器无蓝牙则记 SKIP(env-state)）"
+    locators: {hivi_test_ids: [], value_keys: []}
+    test_data: "TEST-SYNTHETIC: 空/64x'p'/带 emoji 串"
+    repro_points: "热点配网策略（hotspot_provisioning_policy）行为未深考古——异常记 notes"
+    recovery: "清空输入返回"
+    tags: [L3, negative]
+    channels: [assertion]
+
+  - case_id: FR-NEG-DEV-003
+    epic: 设备管理与配网
+    dimension: 中断
+    name: 配网中途取消/断网重试：无状态残留可重来
+    expected_type: expected
+    method_design:
+      state_transition: [{from: 配网进行中, event: back_press_or_断网, to: "流程终止+状态清理", guard: "无设备完成写入"}]
+    precondition: "authenticated 态；模拟器无真实设备——验证取消/断网分支即达目的（成功路径属正向通道与真机 checklist）"
+    steps:
+      - do: "配网流程进行中（密码已提交等待连接）直接返回"
+        expect: "流程终止、无残留 loading/浮层，可重新进入"
+      - do: "配网中断网"
+        expect: "超时收敛错误态，重试入口可用；无半写设备数据（设备页无幽灵设备）"
+    locators: {hivi_test_ids: [], value_keys: []}
+    test_data: "TEST-SYNTHETIC: 无"
+    repro_points: "断网重试幂等：重复取消/重试 3 轮无状态累积；幽灵设备残留是本条核心断言"
+    recovery: "返回/冷重启"
+    tags: [L3, negative]
+    channels: [assertion]
+
+  - case_id: FR-NEG-DEV-004
+    epic: 设备管理与配网
+    dimension: 超长
+    name: 设备名称编辑边界：空/超长/emoji（/device/name-edit）
+    expected_type: expected
+    method_design:
+      boundary_values:
+        - {field: 设备名, value: "空/纯空格", expected: "拦截，保留原名"}
+        - {field: 设备名, value: "超长 100 字", expected: "截断或拦截"}
+        - {field: 设备名, value: "emoji+中文混合", expected: "正常保存或明确报错"}
+    precondition: "authenticated 态；无设备时改名入口不可达 → 记 SKIP(env-state)（无设备可造，禁止伪造设备数据）"
+    steps:
+      - do: "（有入口时）逐类输入并保存"
+        expect: "边界拦截生效；保存后列表/详情名称一致（latest-wins）"
+    locators: {hivi_test_ids: [], value_keys: []}
+    test_data: "TEST-SYNTHETIC: 空/100x'名'/emoji 串"
+    repro_points: "写操作仅限名称（可复原），不触设备删除/解绑"
+    recovery: "改回原名"
+    tags: [L3, negative]
+    channels: [assertion]
+
+  # ============ 域12 收藏与曲库 ============
+  - case_id: FR-NEG-LIB-001
+    epic: 收藏与曲库
+    dimension: 空值
+    name: 批量操作空选边界（0 选中 / 全选后清空）
+    expected_type: expected
+    method_design:
+      boundary_values:
+        - {field: 选中数, value: "0", expected: "批量操作入口禁用或空选拦截"}
+        - {field: 选中数, value: "全选后逐一取消至 0", expected: "计数归零、入口回到禁用态"}
+    precondition: "authenticated 态统一音乐库/批量操作页可达（/player/bulk-operate）"
+    steps:
+      - do: "0 选中状态尝试触发批量操作"
+        expect: "拦截，无空集请求发出"
+      - do: "全选→全取消循环 2 次"
+        expect: "计数准确、无崩溃、无残留选中态"
+    locators: {hivi_test_ids: [], value_keys: []}
+    test_data: "TEST-SYNTHETIC: 无"
+    repro_points: "统一音乐库 4875 行（v2 实测）——大页内存表现随行观察 ANR 症状"
+    recovery: "退出批量模式"
+    tags: [L3, negative]
+    channels: [assertion]
+
+  - case_id: FR-NEG-LIB-002
+    epic: 收藏与曲库
+    dimension: 并发
+    name: 收藏星标快速连点：latest-wins 决策回归（DEC-001）
+    expected_type: expected
+    method_design:
+      boundary_values:
+        - {field: 星标连点, value: "1s 内同条目连点 3 次", expected: "终态=最后一次点击（latest-wins），收藏变更分发恰一次终态事件"}
+    precondition: "authenticated 态且有可收藏条目（搜索/歌单页可达条目；不点播放）"
+    steps:
+      - do: "对同一条目收藏星标快速连点 3 次"
+        expect: "终态与最后一次点击一致（latest-wins，NEG-CONCURRENCY-001 决策回归）；无重复收藏/无脏分发"
+      - do: "两个不同条目交替连点"
+        expect: "两条目状态各自正确互不串扰（pure_flutter_favorite_change_dispatcher 分发隔离）"
+    locators: {hivi_test_ids: [], value_keys: []}
+    test_data: "TEST-SYNTHETIC: 无"
+    repro_points: "收藏变更属服务端写操作（TEST-SYNTHETIC 数据可复原）；Qobuz 星标持久缓存（qobuz.detail_collection_state.v1）与服务端终态一致性是隐藏断言"
+    recovery: "恢复原收藏态"
+    tags: [L3, negative]
+    channels: [assertion]
+
+  - case_id: FR-NEG-LIB-003
+    epic: 收藏与曲库
+    dimension: 断网
+    name: 离线打开收藏/播放历史：缓存态与空态边界
+    expected_type: expected
+    method_design:
+      equivalence_classes:
+        - {class: 断网+有历史缓存, input: "飞行模式进 /me/play-history", expected: "缓存渲染或空态，无崩溃"}
+        - {class: 断网+我的收藏, input: "飞行模式进 /me/my-collects", expected: "同上"}
+    precondition: "authenticated 态；先联网确认两页有数据（无数据则记数据态）"
+    steps:
+      - do: "飞行模式分别打开两页"
+        expect: "缓存/空态收敛，可返回；恢复网络刷新即回正常"
+      - do: "断网下尝试刷新下拉"
+        expect: "刷新失败收敛，不破坏已渲染缓存"
+    locators: {hivi_test_ids: [], value_keys: []}
+    test_data: "TEST-SYNTHETIC: 无"
+    repro_points: "播放类条目仍禁点（P-9-1）；歌单详情页（/player/playlist-detail）断网空态一并覆盖"
+    recovery: "恢复网络"
+    tags: [L3, negative]
+    channels: [assertion]
+
+  # ============ 域13 个人中心 ============
+  - case_id: FR-NEG-ME-001
+    epic: 个人中心
+    dimension: 非法格式
+    name: 资料编辑族边界：昵称/邮箱非法输入拦截（密码/手机号编辑预标 BLOCKED）
+    expected_type: expected
+    method_design:
+      equivalence_classes:
+        - {class: 昵称空/超长/emoji, input: "空串 / 100x'名' / emoji", expected: "拦截或截断"}
+        - {class: 邮箱非法格式, input: "abc / a@b / 中文@x.com", expected: "格式校验拦截"}
+    precondition: "authenticated 态 /me/person-info 及编辑族可达；硬禁区：person_info 末位两按钮（退出登入/注销账号）全程禁触"
+    steps:
+      - do: "/me/edit-nickname 逐类输入保存"
+        expect: "边界拦截；非法输入不落库（返回再进核对）"
+      - do: "/me/edit-email 非法格式保存"
+        expect: "格式校验拦截，无请求或服务端错误收敛"
+      - do: "/me/edit-password、/me/edit-phone 触达性确认"
+        expect: "若涉及短信验证码流程 → BLOCKED(credential-required) 终止，不执行提交"
+    locators: {hivi_test_ids: ["person_info_page"], value_keys: []}
+    test_data: "TEST-SYNTHETIC: 上述等价类"
+    repro_points: "写操作可复原（保存前记录原值，测后还原）；testId person_info_page 可用而末位两按钮 testId 仅作禁区坐标警戒不操作"
+    recovery: "还原原值"
+    tags: [L3, negative]
+    channels: [assertion]
+
+  - case_id: FR-NEG-ME-002
+    epic: 个人中心
+    dimension: 空值
+    name: 消息中心空态 + detail 无 id 状态跳跃
+    expected_type: expected
+    method_design:
+      equivalence_classes:
+        - {class: 空消息列表, input: "无消息账号进入 /me/messages", expected: "空态渲染，无崩溃"}
+        - {class: detail 缺参, input: "无 id 进 /me/messages/detail", expected: "兜底/返回，不崩溃（深链通道前置同 NAV-001）"}
+    precondition: "authenticated 态"
+    steps:
+      - do: "进入 /me/messages 观察列表态"
+        expect: "空态或列表正常；红点语义与推送 no-op 一致（非真推送驱动，联动 PUSH-001）"
+      - do: "缺参进 detail（通道可用时）"
+        expect: "兜底空态或自动返回，无空指针崩溃"
+    locators: {hivi_test_ids: [], value_keys: []}
+    test_data: "TEST-SYNTHETIC: 无"
+    repro_points: "消息中心红点/角标不来自真推送（功能地图 ⚠ 重大边界事实）——本条断言含『无真推送依赖』确认"
+    recovery: "返回"
+    tags: [L3, negative]
+    channels: [assertion]
+
+  - case_id: FR-NEG-ME-003
+    epic: 个人中心
+    dimension: 状态跳跃
+    name: 扫码页虚拟相机 BLOCKED(env) 守门 + 二维码/家庭页空态
+    expected_type: expected
+    method_design:
+      error_guessing: "虚拟相机无视频流——扫码页应能力不足提示/黑屏兜底而非崩溃"
+    precondition: "authenticated 态；相机预览 BLOCKED(env)（模拟器限制非缺陷）"
+    steps:
+      - do: "进入 /me/scan-qr-code"
+        expect: "页面打开无崩溃；预览区黑屏/提示属预期（记 BLOCKED(env) 证据），返回正常"
+      - do: "/me/my-qrcode 与 /me/family 空态进入"
+        expect: "二维码正常渲染；家庭页空态收敛，无崩溃"
+    locators: {hivi_test_ids: [], value_keys: []}
+    test_data: "TEST-SYNTHETIC: 无"
+    repro_points: "pad 扫码登录确认页（/me/scan/pad-login-confirm）仅可达性确认，不构造登录码（扫码域深挖待主对话裁决）"
+    recovery: "返回"
+    tags: [L3, negative]
+    channels: [assertion]
+
+  # ============ 域14 支付与会员 ============
+  - case_id: FR-NEG-PAY-001
+    epic: 支付与会员
+    dimension: 边界
+    name: 充值页写操作守门：不下单仅空态/页面边界（待裁决项从简）
+    expected_type: expected
+    method_design:
+      error_guessing: "功能地图待裁决项：消费明细/新建表单写操作——本卡裁决：模拟器不产生真实订单，只验证页面可达与守门"
+    precondition: "authenticated 态；真实支付/下单严禁触发"
+    steps:
+      - do: "进入 /me/recharge 与 /me/recharge-record"
+        expect: "页面可达、商品目录或记录列表渲染正常，不点击任何支付按钮"
+      - do: "进入 /me/refund、/me/invoice、/me/order-equity"
+        expect: "空态/列表收敛，无崩溃；财务页异常只记 notes"
+    locators: {hivi_test_ids: [], value_keys: []}
+    test_data: "TEST-SYNTHETIC: 无"
+    repro_points: "支付协调器（payment_network_recovery_coordinator/payment_settlement_notifier）行为未深考古——本条只做 UI 边界；支付包 swan_payment L1 边界"
+    recovery: "返回"
+    tags: [L3, negative, gate]
+    channels: [assertion]
+
+  - case_id: FR-NEG-PAY-002
+    epic: 支付与会员
+    dimension: 断网
+    name: 商品目录断网加载失败与恢复（回退可用）
+    expected_type: expected
+    method_design:
+      equivalence_classes:
+        - {class: 断网进充值页, input: "飞行模式", expected: "目录加载失败空态/重试入口，无崩溃"}
+        - {class: 恢复网络, input: "关闭飞行模式刷新", expected: "目录恢复（payment_network_recovery 语义）"}
+    precondition: "authenticated 态；不触发下单"
+    steps:
+      - do: "断网进入充值页"
+        expect: "失败收敛非白屏；重试入口可用"
+      - do: "恢复网络点重试"
+        expect: "目录正常加载，无重复请求轰炸（幂等）"
+    locators: {hivi_test_ids: [], value_keys: []}
+    test_data: "TEST-SYNTHETIC: 无"
+    repro_points: "本条不验证结算/回调（服务端链路超范围）"
+    recovery: "恢复网络"
+    tags: [L3, negative]
+    channels: [assertion]
+
+  # ============ 域15 帮助/关于/反馈 ============
+  - case_id: FR-NEG-HELP-001
+    epic: 帮助/关于/反馈
+    dimension: 服务降级
+    name: O-12 回归：协议 4 入口同指未部署 URL 的降级表现
+    expected_type: suspected-defect
+    method_design:
+      error_guessing: "v2 发现：协议 4 入口同指未部署 URL——点击后 WebView/浏览器 404/超时表现"
+    precondition: "authenticated 态；协议入口可达（登录页/关于页等 4 处）"
+    steps:
+      - do: "逐一点击 4 处协议入口"
+        expect: "记录每处表现：404 页/超时/空白 WebView 均记 suspected-defect 候选（O-12 未修复）；App 自身不崩溃、可返回"
+      - do: "断网点击协议入口"
+        expect: "失败收敛，无崩溃（WebView 异常不拖垮宿主）"
+    locators: {hivi_test_ids: ["login_agreement_checkbox"], value_keys: []}
+    test_data: "TEST-SYNTHETIC: 无"
+    repro_points: "关于页与登录页协议 URL 一致性核对（O-12 同指事实回归）；常见问题 EN 切换（O-20）归 HELP-003"
+    recovery: "返回"
+    tags: [L3, negative, regression]
+    channels: [assertion, visual]
+
+  - case_id: FR-NEG-HELP-002
+    epic: 帮助/关于/反馈
+    dimension: 空值
+    name: 意见反馈空表单提交拦截（不产生写操作）
+    expected_type: expected
+    method_design:
+      boundary_values:
+        - {field: 反馈内容, value: "空/纯空格", expected: "提交拦截，服务端零写入"}
+        - {field: 反馈内容, value: "超长 5000 字", expected: "截断或拦截"}
+    precondition: "authenticated 态 /me/feedback 可达；功能地图待裁决项（新建表单写操作）——本卡裁决：仅验证拦截分支，合法提交不执行"
+    steps:
+      - do: "空内容点提交"
+        expect: "拦截提示，logcat 无提交请求"
+      - do: "超长内容观察输入框行为"
+        expect: "截断/计数限制生效；不提交"
+    locators: {hivi_test_ids: [], value_keys: []}
+    test_data: "TEST-SYNTHETIC: 空/500x'馈'"
+    repro_points: "反馈未读红点（pure_flutter_user_feedback_unread_port）不因空提交误亮"
+    recovery: "无"
+    tags: [L3, negative]
+    channels: [assertion]
+
+  - case_id: FR-NEG-HELP-003
+    epic: 帮助/关于/反馈
+    dimension: 状态残留
+    name: 三语切换（zh/zh_Hant/en）中断与状态残留（含 O-20 常见问题 EN）
+    expected_type: expected
+    method_design:
+      state_transition: [{from: 语言A, event: "切换语言B后立即返回", to: "语言落盘一致或回滚一致", guard: "无半切状态"}]
+    precondition: "authenticated 态；系统语言切换入口可达（模拟器设置或应用内）"
+    steps:
+      - do: "zh → en → zh_Hant 循环切换各停留 3s"
+        expect: "全 UI 文案跟随、无混排残留；冷重启后语言保持（落盘验证）"
+      - do: "切到 en 查看常见问题页（O-20）"
+        expect: "EN 文案正常（O-12 关联事实回归）；无缺翻译 key 字面量"
+      - do: "切换动画中立即返回再进"
+        expect: "无半切状态/无崩溃"
+    locators: {hivi_test_ids: [], value_keys: []}
+    test_data: "TEST-SYNTHETIC: 无"
+    repro_points: "l10n 三语实测（功能地图）——缺 key 崩溃是本条破坏目标"
+    recovery: "切回 zh"
+    tags: [L3, negative]
+    channels: [assertion, visual]
+
+  # ============ 域16 推送/日活/版本 ============
+  - case_id: FR-NEG-PUSH-001
+    epic: 推送/日活/版本
+    dimension: 服务降级
+    name: 推送 no-op 边界回归守门：消息中心不依赖真推送（真推送禁依赖确认）
+    expected_type: expected
+    method_design:
+      error_guessing: "推送 Port 为 no-op 空实现（register 空体、inboundStream 永不发事件）——回归断言该边界在快照未变化"
+    precondition: "authenticated 态；A 线差异考古结论可对照"
+    steps:
+      - do: "检查消息中心红点/角标来源（UI 观察 + A 线结论对照）"
+        expect: "红点变化仅来自应用内数据源，无真推送等待逻辑（本域全部用例不设计任何真推送依赖步骤）"
+      - do: "A 线差异考古联动"
+        expect: "若快照引入真推送 SDK → 本条转差异上报（重大边界变化），通知主对话重估该域用例"
+    locators: {hivi_test_ids: [], value_keys: []}
+    test_data: "TEST-SYNTHETIC: 无"
+    repro_points: "检查更新入口严禁点击（禁区）——app_update_coordinator 行为不在本卡执行范围"
+    recovery: "无"
+    tags: [L2, negative, gate]
+    channels: [assertion]
+
+  - case_id: FR-NEG-PUSH-002
+    epic: 推送/日活/版本
+    dimension: 边界值
+    name: 日活上报边界：断网先落盘再请求 + 自然日节流
+    expected_type: expected
+    method_design:
+      boundary_values:
+        - {field: 上报时网络, value: "断网启动", expected: "落盘成功请求失败仅记日志（HVDailyActiveLastReportDate 契约）"}
+        - {field: 节流, value: "同日二次冷启动", expected: "不再上报（自然日节流）"}
+    precondition: "authenticated 态；logcat 可观察 /user/loginLog 请求"
+    steps:
+      - do: "断网冷启动 App 登录"
+        expect: "无崩溃；loginLog 失败静默（仅日志）"
+      - do: "恢复网络同日再次冷启动"
+        expect: "是否补报记录实际表现（先落盘语义下同日不应重复上报——差异记 notes）"
+    locators: {hivi_test_ids: [], value_keys: []}
+    test_data: "TEST-SYNTHETIC: 无"
+    repro_points: "daily_active_reporter.dart:14 锚点；上报失败不阻断登录链路是核心断言"
+    recovery: "无"
+    tags: [L2, negative]
+    channels: [assertion]
+
+  # ============ 域17 设置/切服/平台通道 ============
+  - case_id: FR-NEG-SET-001
+    epic: 设置/切服/平台通道
+    dimension: 状态跳跃
+    name: 切服/平台通道 UI 无挂载守门：入口浮现即差异上报（严禁点击）
+    expected_type: expected
+    method_design:
+      error_guessing: "v2 结论：切服/平台通道在本基线无 UI 入口（全量 dump 检索仅命中『音质设置』）——回归该边界，入口浮现即回归差异"
+    precondition: "authenticated 态；A 线差异考古结论可对照"
+    steps:
+      - do: "全量 UI dump 检索切服/平台通道/服务器切换类文案"
+        expect: "无入口命中（若命中 → suspected-defect/回归差异上报，且该入口保持禁点不验证）"
+      - do: "音质设置入口存在性核对"
+        expect: "唯一命中项行为正常，与 v2 记录一致"
+    locators: {hivi_test_ids: [], value_keys: []}
+    test_data: "TEST-SYNTHETIC: 无"
+    repro_points: "切服一次写三地址（API/AI HTTP/AI WebSocket）的逻辑严禁触达；Release 禁切分支不在 debug 包验证范围"
+    recovery: "无"
+    tags: [L2, negative, gate]
+    channels: [assertion]
+
+  - case_id: FR-NEG-SET-002
+    epic: 设置/切服/平台通道
+    dimension: 并发
+    name: 音量键连按接管边界（volume_key_bootstrap + swan_system_volume）
+    expected_type: expected
+    method_design:
+      boundary_values:
+        - {field: 音量键, value: "1s 内连按 8 次", expected: "接管语义一致（App 内接管/系统音量）无崩溃无 ANR"}
+    precondition: "authenticated 态；音量键接管 bootstrap 已生效（功能地图 L1）"
+    steps:
+      - do: "App 内音量键连按 8 次，观察 UI 音量反馈"
+        expect: "行为确定且一致，无卡顿累积；对比 App 外（桌面）音量键走系统语义"
+    locators: {hivi_test_ids: [], value_keys: []}
+    test_data: "TEST-SYNTHETIC: 无"
+    repro_points: "方法通道 volume_key 在 13 条实测通道之列；无音频输出下音量 UI 反馈即全部证据（音频 BLOCKED(env)）"
+    recovery: "无"
+    tags: [L3, negative]
+    channels: [assertion]
+
+  # ============ 域18 视频与投屏 ============
+  - case_id: FR-NEG-VIDEO-001
+    epic: 视频与投屏
+    dimension: 空值
+    name: 投屏设备选择空列表兜底（真实投屏 BLOCKED(env)）
+    expected_type: expected
+    method_design:
+      equivalence_classes:
+        - {class: 无投屏设备, input: "模拟器局域网无目标设备", expected: "选择 sheet 空列表/扫描中收敛，无崩溃"}
+    precondition: "authenticated 态；真实投屏/视频播放 BLOCKED(env)（仅 UI 边界断言；视频页若有播放键遵循 P-9-1 禁点）"
+    steps:
+      - do: "进入视频投屏设备选择 sheet（经 UI 入口，不点播放）"
+        expect: "空列表或扫描态收敛；取消可退出；upnp/UPnP 扫描无残留进程"
+      - do: "重复开关 sheet 3 次"
+        expect: "扫描正常启停，无状态累积"
+    locators: {hivi_test_ids: [], value_keys: []}
+    test_data: "TEST-SYNTHETIC: 无"
+    repro_points: "upnp_scan 通道属 13 条实测方法通道；扫描中途退出（操作中断）是 P-003 观察面"
+    recovery: "关闭 sheet"
+    tags: [L3, negative]
+    channels: [assertion]
+
+  - case_id: FR-NEG-VIDEO-002
+    epic: 视频与投屏
+    dimension: 断网
+    name: 视频分类页断网空态 + 浮窗中途关闭（操作中断）
+    expected_type: expected
+    method_design:
+      equivalence_classes:
+        - {class: 断网进视频分类, input: "飞行模式进 /music_platform/qq/video-classify", expected: "空态收敛"}
+        - {class: 浮窗中断, input: "投屏浮窗出现即关闭", expected: "无残留浮窗/无崩溃"}
+    precondition: "authenticated 态；视频播放本体禁点（P-9-1）"
+    steps:
+      - do: "断网进视频分类页"
+        expect: "空态/错误态收敛，可返回；恢复网络正常"
+      - do: "浮窗出现后立即关闭/返回"
+        expect: "浮窗销毁干净（platform_video_cast_floating 无残留 view），无崩溃"
+    locators: {hivi_test_ids: [], value_keys: []}
+    test_data: "TEST-SYNTHETIC: 无"
+    repro_points: "浮窗走 root overlay 的残留是本条核心断言（对照权益初始化蒙层同类风险）"
+    recovery: "返回/冷重启"
+    tags: [L3, negative]
+    channels: [assertion]
+
+  # ============ 横切/代码级 ============
+  - case_id: FR-NEG-X-001
+    epic: 横切-代码级
+    dimension: 回退
+    name: P-001 反哺：端口演进后替身契约同步检查（analyze 0 error 门禁）
+    expected_type: expected
+    method_design:
+      error_guessing: "P-001 出现 2 次（BUG-20260904-002/003）：Port 新增方法后 _Fake* 未同步实现级联报错——快照回归先过此门禁"
+    precondition: "快照 Core 仓可本地执行 flutter 命令（E:/SwanApp/repos/flutter/hivi-network-snapshot-20260911 内操作，禁改 dev 检出）"
+    steps:
+      - do: "Core 快照仓 flutter pub get + flutter analyze"
+        expect: "0 error（warning/info 单列记录）；任何 missing override / 抽象方法未实现类 error 即 P-001 复现 → suspected-defect"
+      - do: "grep 平台端口 Port 抽象类与 _Fake 实现类对照"
+        expect: "core/platform_ports/ 各 Port 与测试替身方法集一致；差异清单回报考古从补卡片"
+    locators: {hivi_test_ids: [], value_keys: []}
+    test_data: "TEST-SYNTHETIC: 无"
+    repro_points: "本条是 L2 仓库级测试可执行的准入门禁；对齐任务卡 allowed_operations（快照目录内 pub get/build 允许）"
+    recovery: "无（只读检查）"
+    tags: [L2, negative, gate]
+    channels: [assertion]
+
+  - case_id: FR-NEG-X-002
+    epic: 横切-代码级
+    dimension: 回退
+    name: P-002 反哺：嵌套包独立构建与依赖声明检查（packages/ 13 包）
+    expected_type: expected
+    method_design:
+      boundary_values:
+        - {field: 嵌套包解析, value: "packages/ 13 包逐一 pub get", expected: "全部解析成功（dev 依赖声明齐全）"}
+        - {field: 全量构建, value: "App 快照 build apk（flavor=general, debug）", expected: "构建成功（任务卡验收前置）"}
+    precondition: "快照目录内操作（allowed_operations）；禁改 dev@4d1ed7b/core@402853ab 检出"
+    steps:
+      - do: "逐一检查 13 包（hivi_upnp_core/hivi_upnp_flutter/swan_ai_audio/swan_app_system/swan_apple_music_auth/swan_ble_transport/swan_bluetooth_discovery_ohos/swan_local_audio/swan_music_platform_sdk/swan_payment/swan_system_volume/swan_third_party_login/upnp2）pubspec 解析"
+        expect: "无依赖未声明/解析失败（P-002 符号级联缺失特征）；失败包清单回报"
+      - do: "App 快照构建 debug APK 并 adb install -r 到 emulator-5554"
+        expect: "构建安装成功，关于页版本标识 5.3.0 build 32 快照标识核对通过（任务卡验收项）"
+    locators: {hivi_test_ids: [], value_keys: []}
+    test_data: "TEST-SYNTHETIC: 无"
+    repro_points: "P-002 出现第二次即升级独立排查任务（模式库规则）——本轮结果决定是否触发升级"
+    recovery: "无"
+    tags: [L2, negative, gate]
+    channels: [assertion]
+
+  - case_id: FR-NEG-X-003
+    epic: 横切-代码级
+    dimension: 中断
+    name: ANR 预案标准化演练：等待x1 → force-stop 冷重启恢复链（P-003 反哺第二例）
+    expected_type: expected
+    method_design:
+      state_transition: [{from: ANR 状态, event: "预案执行", to: "冷重启恢复", guard: "恢复到 loginRequired 或 authenticated"}]
+    precondition: "以 FR-NEG-LOGIN-004 或 START-001 实际触发的 ANR 为演练对象（未触发则本条以人为慢速注入等效演练）；登录凭据可用（冷重启后可能需重登）"
+    steps:
+      - do: "ANR 出现后严格执行预案：等待x1（不超过10s）→ force-stop com.swan.network → 冷启动"
+        expect: "冷重启后 UI 层级可达（登录页/AppShell），无二次 ANR、无启动死循环"
+      - do: "预案全过程证据归档"
+        expect: "dropbox ANR trace、force-stop 前后 hierarchy、重启后截图齐备；预案耗时记录供轮次报告"
+    locators: {hivi_test_ids: ["login_page"], value_keys: []}
+    test_data: "TEST-SYNTHETIC: 无"
+    repro_points: "预案与登录页第一落点契约（卡片：登录页是 ANR 后验证恢复的第一落点）对齐；反复点『等待』属违规操作"
+    recovery: "预案本身"
+    tags: [L3, negative]
+    channels: [assertion, visual]
+
+  - case_id: FR-NEG-X-004
+    epic: 横切-代码级
+    dimension: 并发
+    name: 弱网在途回包落已退页面：延迟注入 + 快速返回（latest-wins 联动）
+    expected_type: expected
+    method_design:
+      boundary_values:
+        - {field: 回包时页面状态, value: "延迟 5s 回包 vs 页面已销毁", expected: "回包被安全丢弃，无对已退页面渲染、无崩溃"}
+        - {field: 重复请求, value: "同接口 2 连发", expected: "latest-wins：后者结果生效，前者丢弃无副作用"}
+    precondition: "authenticated 态 + 代理可加延迟（登录/搜索/平台列表三类接口各选一）"
+    steps:
+      - do: "代理对搜索/平台列表加 5s 延迟，发起请求后立即返回上一页"
+        expect: "回包到达无 crash（安全丢弃或状态守卫生效）；logcat 无对已销毁页 setState 类异常"
+      - do: "同接口连续发起两次（间隔 1s）"
+        expect: "最终展示与第二次请求一致（latest-wins，DEC-001 回归）"
+    locators: {hivi_test_ids: [], value_keys: []}
+    test_data: "TEST-SYNTHETIC: keyword=TEST-SYNTHETIC"
+    repro_points: "超时上限契约（validateStatus <500 保证业务码可解析）——注入 5xx 时确认仍走业务码分发而非 Dio error"
+    recovery: "关闭代理"
+    tags: [L2, negative]
+    channels: [assertion]

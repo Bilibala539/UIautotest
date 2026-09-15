@@ -33,6 +33,7 @@ from paddleocr import PaddleOCR
 
 from image.image_name_mapping import get_image_dir
 from utils.aw.driver.base_driver import BasePlatformDriver
+from utils.aw.evidence import step_evidence
 
 logger = logging.getLogger(__name__)
 
@@ -291,6 +292,7 @@ class AWBase:
 
         self.driver.tap(screen_coords[0], screen_coords[1])
         logger.info(f"👆 点击坐标 ({target_x}, {target_y})")
+        step_evidence.record(self, "tap", point=(target_x, target_y))
         self.sleep(0.3)
         return True
 
@@ -315,6 +317,7 @@ class AWBase:
 
         self.driver.long_press(screen_coords[0], screen_coords[1], duration)
         logger.info(f"👆 长按坐标 ({target_x}, {target_y}), 时长={duration}s")
+        step_evidence.record(self, "long_press", point=(target_x, target_y))
         self.sleep(0.5)
         return True
 
@@ -374,6 +377,7 @@ class AWBase:
             bool: 是否成功
         """
         result = self.driver.input_text(text)
+        step_evidence.record(self, "input", detail=f"input: {text}")
         self.sleep(0.3)
         return result
 
@@ -677,6 +681,7 @@ class AWBase:
         result = self.driver.swipe(start_coords[0], start_coords[1],
                                    end_coords[0], end_coords[1], duration)
         logger.info(f"👆 滑动 ({start_x},{start_y}) → ({end_x},{end_y})")
+        step_evidence.record(self, "swipe", start=(start_x, start_y), end=(end_x, end_y))
         self.sleep(0.3)
         return result
 

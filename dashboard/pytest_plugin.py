@@ -29,15 +29,16 @@ class DashboardReporter:
         if not self.enabled:
             return
         platform = os.environ.get("PLATFORM", "android").lower()
-        if platform not in {"android", "ios"}:
+        if platform not in {"android", "ios", "flutter", "pc"}:
             self.enabled = False
             return
         self.client.post(
             "/api/runs",
             {
                 "run_id": self.run_id,
-                "platform": os.environ.get("PLATFORM", "android").lower(),
+                "platform": platform,
                 "app_version": os.environ.get("APP_VERSION", ""),
+                "apk_id": os.environ.get("SWAN_APK_ID", ""),
                 "device": os.environ.get("ANDROID_DEVICE_SERIAL", socket.gethostname()),
                 "jenkins_build": os.environ.get("BUILD_TAG", os.environ.get("BUILD_NUMBER", "")),
                 "started_at": self.started_at,
@@ -56,11 +57,12 @@ class DashboardReporter:
             return
         status = "passed" if report.passed else "skipped" if report.skipped else "failed"
         started = self.case_started.get(nodeid, time.monotonic() - report.duration)
+        short_name = nodeid.split("::")[-1]
         log_parts = [part for part in [getattr(report, "capstdout", ""), getattr(report, "capstderr", "")] if part]
         error = getattr(report, "longreprtext", "") if status == "failed" else ""
         result = {
             "case_id": nodeid,
-            "name": nodeid,
+            "name": short_name,
             "platform": os.environ.get("PLATFORM", "android").lower(),
             "status": status,
             "started_at": datetime.fromtimestamp(time.time() - (time.monotonic() - started), timezone.utc).isoformat(timespec="seconds"),
@@ -68,7 +70,11 @@ class DashboardReporter:
             "duration_seconds": round(float(report.duration), 3),
             "log": "\n".join(log_parts)[-20000:],
             "error": error[-20000:] if error else "",
-            "artifacts": {"jenkins_build": os.environ.get("BUILD_TAG", "")},
+            "artifacts": {
+                "jenkins_build": os.environ.get("BUILD_TAG", ""),
+                "apk_id": os.environ.get("SWAN_APK_ID", ""),
+                "evidence_dir": os.environ.get("EVIDENCE_DIR", ""),
+            },
         }
         self.case_results[nodeid] = result
         self.client.post(f"/api/runs/{self.run_id}/cases", result)

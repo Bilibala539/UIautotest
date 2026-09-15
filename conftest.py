@@ -99,6 +99,26 @@ def _cleanup_intermediate_screenshots() -> None:
 
 
 @pytest.hookimpl(tryfirst=True)
+def pytest_sessionstart(session) -> None:
+    """环境门禁(③ preflight):PREFLIGHT=1 时,会话开始前先过门禁。
+
+    环境阻塞(设备掉线/网关不通等)直接终止会话——按平台规则,
+    环境问题按 bug 处理,不计业务失败,也不带病开跑。
+    """
+    if os.environ.get("PREFLIGHT", "").strip() not in {"1", "true", "True", "on"}:
+        return
+    from qa_platform.preflight import run_preflight
+    verdict = run_preflight()
+    for item in verdict["results"]:
+        mark = "✅" if item["ok"] else ("🚫 阻塞" if item["blocking"] else "⚠️ 非阻塞")
+        logger.info(f"[preflight] {mark} {item['check']}: {item['detail']}")
+    if verdict["verdict"] == "ENV_BLOCKED":
+        blocked = ", ".join(verdict["blocked_by"])
+        logger.error(f"[preflight] 环境阻塞({blocked}),会话终止。环境问题按 bug 处理。")
+        pytest.exit(f"环境门禁未通过: {blocked}", returncode=3)
+
+
+@pytest.hookimpl(tryfirst=True)
 def pytest_runtest_setup(item) -> None:
     global _per_test_html_handler, _per_test_log_file
     stem = os.path.splitext(os.path.basename(str(item.fspath)))[0]

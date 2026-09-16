@@ -7,7 +7,7 @@
 # 与正向通道互盲：本文件未读取、未参考任何正向用例中间产物
 schema_version: "1.1"
 task_id: "SWAN-20260911-001-fullregression"
-module: fullregression-18domains
+module: fullregression (18 功能域)
 level: L2/L3（逐 case tags 标注）
 case_count: 64
 data_label: TEST-SYNTHETIC

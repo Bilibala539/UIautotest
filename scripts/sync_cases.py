@@ -16,6 +16,7 @@ import argparse
 import json
 import re
 import sys
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -29,13 +30,20 @@ ID_TOKEN_PATTERN = re.compile(r"\b[A-Z0-9]+(?:-[A-Z0-9]+)*\b")
 DRIVER_PREFIX = "knowledge/swan/cases/driver/"
 
 
-def _post_or_put(url: str, method: str, payload: dict) -> dict:
-    request = urllib.request.Request(
-        url, data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
-        headers={"Content-Type": "application/json"}, method=method,
-    )
-    with urllib.request.urlopen(request, timeout=15) as response:
-        return json.loads(response.read().decode("utf-8"))
+def _post_or_put(url: str, method: str, payload: dict, retries: int = 3) -> dict:
+    last_error: Exception | None = None
+    for attempt in range(retries):
+        try:
+            request = urllib.request.Request(
+                url, data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+                headers={"Content-Type": "application/json"}, method=method,
+            )
+            with urllib.request.urlopen(request, timeout=15) as response:
+                return json.loads(response.read().decode("utf-8"))
+        except OSError as error:  # 端口瞬时耗尽等可重试错误
+            last_error = error
+            time.sleep(0.5 * (attempt + 1))
+    raise last_error
 
 
 def load_text_cases() -> list[dict]:

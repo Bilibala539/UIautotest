@@ -80,8 +80,12 @@ def list_products() -> list[dict]:
 
 def create_bug(product_id: int, title: str, steps: str,
                severity: int = 3, pri: int = 3,
-               opened_build: str = "trunk", module_id: int = 0) -> dict:
-    """创建 bug 单(人工确认后才调用)。返回禅道响应(含 bug id)。"""
+               opened_build: str = "trunk", module_id: int = 0,
+               keywords: str = "自动化") -> dict:
+    """创建 bug 单(人工确认后才调用)。返回禅道响应(含 bug id)。
+
+    平台创建的 bug 单默认在"关键词"字段填"自动化",便于禅道侧筛选自动化发现的缺陷。
+    """
     payload = {
         "product": int(product_id),
         "title": title,
@@ -91,6 +95,7 @@ def create_bug(product_id: int, title: str, steps: str,
         "type": "codeerror",
         "openedBuild[0]": str(opened_build or "trunk"),
         "module": int(module_id),
+        "keywords": str(keywords or "自动化"),
     }
     return _request(f"/products/{int(product_id)}/bugs", "POST",
                     payload, token=_token())

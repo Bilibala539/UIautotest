@@ -30,6 +30,9 @@
     .timeline { position:relative; padding-left:18px; } .timeline::before { content:""; position:absolute; left:5px; top:6px; bottom:6px; width:2px; background:var(--line); } .tl-item { position:relative; padding:8px 0 8px 10px; } .tl-item::before { content:""; position:absolute; left:-17px; top:14px; width:8px; height:8px; border-radius:50%; background:var(--muted); } .tl-item.passed::before { background:var(--good); } .tl-item.failed::before,.tl-item.error::before { background:var(--bad); } .tl-item.skipped::before { background:var(--warn); }
     /* 建单弹窗:hidden 属性必须能真正隐藏(此前内联 display:flex 把它顶掉了) */
     #bug-modal { display:none; } #bug-modal:not([hidden]) { display:flex; }
+    #cd-modal { display:none; } #cd-modal:not([hidden]) { display:flex; }
+    .badge.t-text { color:var(--warn); background:#fff9db; } .badge.t-auto { color:var(--brand); background:#edf2ff; }
+    .bug-link { color:var(--bad); }
     .hint { color:var(--muted); font-size:12px; margin-top:6px; }
     iframe { width:100%; height:640px; border:1px solid var(--line); border-radius:12px; background:#fff; }
     .health { display:flex; gap:10px; align-items:center; padding:12px 16px; border-radius:12px; background:var(--card); border:1px solid var(--line); margin-bottom:14px; }
@@ -39,10 +42,11 @@
 </head>
 <body>
   <header>
-    <h1>Swan 测试平台</h1><p>包体 · 执行会话 · 用例历史 · 证据 · 验证码工具</p>
+    <h1>Swan 测试平台</h1><p>包体 · 执行会话 · 用例管理 · 用例历史 · 证据 · 验证码工具</p>
     <nav>
       <button data-page="runs" class="active">执行会话</button>
       <button data-page="apks">包管理</button>
+      <button data-page="casedefs">用例管理</button>
       <button data-page="cases">用例历史</button>
       <button data-page="captcha">验证码工具</button>
     </nav>
@@ -99,6 +103,24 @@
       </section>
       <p class="hint">先搜索关键词得到用例 ID，点选后查执行历史；从什么时候开始错的、近 20 次结果一目了然。</p>
     </section>
+    <section class="page" id="page-casedefs">
+      <div class="toolbar">
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <select id="cd-type"><option value="">全部类型</option><option value="text">文字用例</option><option value="auto">自动化用例</option></select>
+          <select id="cd-module"><option value="">全部模块</option></select>
+          <input id="cd-q" placeholder="搜用例(编号/标题/内容关键词)" style="min-width:250px">
+          <button class="ghost" id="cd-search">搜索</button>
+          <button class="ghost" id="cd-reset">清空搜索</button>
+        </div>
+        <button class="primary" id="cd-new">+ 新建用例</button>
+      </div>
+      <section class="card table-card"><table><thead><tr><th>用例 ID</th><th>类型</th><th>标题</th><th>模块</th><th>优先级</th><th>关联用例</th><th>来源 bug 单</th><th>更新时间</th><th>操作</th></tr></thead><tbody id="cd-rows"><tr><td colspan="9" class="empty">加载中…</td></tr></tbody></table></section>
+      <p class="hint">未搜索时展示全部用例，搜索后才过滤。文字用例 ⇄ 自动化用例通过"关联用例"列互跳；bug 单来源(如 SWAN-BUG-…)来自用例 tags。仓库用例批量入库：python scripts/sync_cases.py。</p>
+      <section class="card" id="cd-detail" style="display:none">
+        <div class="detail-head"><div><h2 id="cd-detail-title" style="margin:0 0 8px;font-size:18px"></h2><div class="meta" id="cd-detail-meta"></div></div><button class="ghost" id="cd-detail-close">关闭</button></div>
+        <pre id="cd-detail-content" style="max-height:420px"></pre>
+      </section>
+    </section>
     <section class="page" id="page-captcha">
       <div class="health"><span class="dot" id="gw-dot"></span><span id="gw-text">检测中…</span><span class="meta" id="gw-detail"></span></div>
       <iframe id="gw-frame" src="about:blank" title="otp-gateway"></iframe>
@@ -125,6 +147,23 @@
       </div>
     </div>
   </div>
+  <div id="cd-modal" hidden style="position:fixed;inset:0;background:rgba(15,23,42,.45);align-items:center;justify-content:center;z-index:50">
+    <div style="background:var(--card,#fff);border-radius:12px;padding:20px 22px;width:min(720px,94vw);max-height:88vh;overflow:auto">
+      <h3 style="margin:0 0 10px" id="cd-modal-title">新建用例</h3>
+      <div class="form-grid">
+        <div><label for="cd-f-id">用例 ID *</label><input id="cd-f-id" placeholder="LOGIN-L2-POS-001 / POS-002"></div>
+        <div><label for="cd-f-type">类型 *</label><select id="cd-f-type"><option value="text">文字用例</option><option value="auto">自动化用例</option></select></div>
+        <div><label for="cd-f-pri">优先级</label><input id="cd-f-pri" placeholder="P0 / P1 / L2 / L3"></div>
+        <div><label for="cd-f-title">标题 *</label><input id="cd-f-title" style="grid-column:span 2" placeholder="用例名称"></div>
+        <div><label for="cd-f-module">模块</label><input id="cd-f-module" placeholder="login / fullregression"></div>
+        <div><label for="cd-f-link">关联用例(自动化→文字)</label><input id="cd-f-link" placeholder="LOGIN-L2-POS-002"></div>
+        <div><label for="cd-f-bug">来源 bug 单</label><input id="cd-f-bug" placeholder="SWAN-BUG-20260910-001"></div>
+        <div><label for="cd-f-src">来源描述</label><input id="cd-f-src" placeholder="来源文件 / 任务卡"></div>
+        <div style="grid-column:1/-1"><label for="cd-f-content">用例内容(步骤/预期,YAML 或自由文本)</label><textarea id="cd-f-content" rows="10" style="width:100%;border:1px solid var(--line);border-radius:8px;padding:8px;font-family:monospace"></textarea></div>
+        <div class="form-actions"><button class="primary" id="cd-save">保存</button><button class="ghost" id="cd-cancel">取消</button><span class="meta" id="cd-msg"></span></div>
+      </div>
+    </div>
+  </div>
   <script>
     const $ = (id) => document.getElementById(id);
     const statusText = {running:'执行中', passed:'通过', failed:'失败', skipped:'跳过', error:'错误'};
@@ -139,6 +178,7 @@
       document.querySelectorAll('section.page').forEach(p => p.classList.remove('active'));
       btn.classList.add('active'); $('page-' + btn.dataset.page).classList.add('active');
       if (btn.dataset.page === 'apks') loadApks();
+      if (btn.dataset.page === 'casedefs') loadCaseDefs();
       if (btn.dataset.page === 'captcha') loadGateway();
     });
 
@@ -236,8 +276,8 @@
     function filterByApk(apkId) { $('filter-apk').value = apkId; document.querySelector('nav button[data-page=runs]').click(); loadRuns(); }
 
     async function searchCases() {
-      const q = $('case-q').value.trim(); if (!q) return;
-      const data = await (await fetch('/api/cases/search?q=' + encodeURIComponent(q))).json(); const items = data.items||[];
+      const q = $('case-q').value.trim(); // 空关键词 = 展示全部用例
+      const data = await (await fetch('/api/cases/search?q=' + encodeURIComponent(q) + '&limit=100')).json(); const items = data.items||[];
       $('case-search-result').innerHTML = items.length
         ? `<section class="card table-card" style="margin-bottom:14px"><table><thead><tr><th>用例 ID</th><th>名称</th><th>执行次数</th><th>最近执行</th><th></th></tr></thead><tbody>${items.map(i => `<tr class="clickable" onclick="pickCase(decodeURIComponent('${encodeURIComponent(i.case_id)}'))"><td>${safe(i.case_id)}</td><td>${safe(i.name)}</td><td>${i.executions}</td><td>${safe(formatDate(i.last_seen))}</td><td><button class="ghost">选它</button></td></tr>`).join('')}</tbody></table></section>`
         : `<p class="meta">没有匹配的用例</p>`;
@@ -255,6 +295,87 @@
           ${h.error ? `<pre>${safe(h.error.slice(0,800))}</pre>` : ''}
         </div>`).join('') : '<p class="empty">没有执行记录</p>';
     }
+
+    // ---------- 用例管理(文字用例 ⇄ 自动化用例 ⇄ bug 单) ----------
+    let cdEditing = null; // 编辑中的原 case_id,新建时为 null
+    async function loadCaseDefs() {
+      const qs = new URLSearchParams();
+      const type = $('cd-type').value, q = $('cd-q').value.trim();
+      if (type) qs.set('type', type); if (q) qs.set('q', q);
+      const data = await (await fetch('/api/case-defs?' + qs)).json(); const items = data.items||[];
+      const modules = [...new Set(items.map(i => i.module).filter(Boolean))].sort();
+      const sel = $('cd-module'); const cur = sel.value;
+      sel.innerHTML = '<option value="">全部模块</option>' + modules.map(m => `<option value="${safe(m)}">${safe(m)}</option>`).join('');
+      if (![...sel.options].some(o => o.value === cur)) cur = '';
+      sel.value = cur;
+      const module = sel.value;
+      const shown = module ? items.filter(i => i.module === module) : items;
+      const tbody = $('cd-rows'); tbody.innerHTML = '';
+      if (!shown.length) { tbody.innerHTML = `<tr><td colspan="9" class="empty">${q ? '没有匹配的用例' : '还没有用例——点右上"+ 新建用例"，或在本机运行 scripts/sync_cases.py 同步仓库用例'}</td></tr>`; return; }
+      shown.forEach(c => { const row = document.createElement('tr');
+        const typeBadge = `<span class="badge t-${c.case_type}">${c.case_type === 'text' ? '文字' : '自动化'}</span>`;
+        let linkHtml = '-';
+        if (c.case_type === 'text') { linkHtml = (c.auto_cases||[]).map(a => `<a href="#" onclick="showCaseDef(decodeURIComponent('${encodeURIComponent(a.case_id)}'));return false">${safe(a.case_id)}</a>`).join('、') || '<span class="meta">-</span>'; }
+        else if (c.linked_case_id) { linkHtml = `<a href="#" onclick="showCaseDef(decodeURIComponent('${encodeURIComponent(c.linked_case_id)}'));return false">${safe(c.linked_case_id)}</a>`; }
+        const bugHtml = c.source_bug ? `<span class="bug-link">${safe(c.source_bug)}</span>` : '-';
+        row.innerHTML = `<td><strong>${safe(c.case_id)}</strong></td><td>${typeBadge}</td><td style="white-space:normal;min-width:220px">${safe(c.title)}</td><td>${safe(c.module||'-')}</td><td>${safe(c.priority||'-')}</td><td>${linkHtml}</td><td>${bugHtml}</td><td>${safe(formatDate(c.updated_at))}</td>
+          <td><button class="ghost" onclick="showCaseDef(decodeURIComponent('${encodeURIComponent(c.case_id)}'))">详情</button> <button class="ghost" onclick="openCaseDefForm(decodeURIComponent('${encodeURIComponent(c.case_id)}'))">编辑</button> <button class="ghost" onclick="deleteCaseDef(decodeURIComponent('${encodeURIComponent(c.case_id)}'))">删除</button></td>`;
+        tbody.appendChild(row); });
+    }
+    async function showCaseDef(caseId) {
+      const c = await (await fetch('/api/case-defs/' + encodeURIComponent(caseId))).json();
+      if (c.error) { alert(c.error); return; }
+      $('cd-detail').style.display = 'block';
+      $('cd-detail-title').textContent = `${c.case_id} · ${c.case_type === 'text' ? '文字用例' : '自动化用例'}`;
+      const links = [];
+      if (c.case_type === 'text' && (c.auto_cases||[]).length) links.push('自动化: ' + c.auto_cases.map(a => a.case_id).join('、'));
+      if (c.case_type === 'auto' && c.text_case) links.push('文字用例: ' + c.text_case.case_id + ' ' + (c.text_case.title||''));
+      if (c.source_bug) links.push('来源 bug: ' + c.source_bug);
+      if (c.file_path) links.push('文件: ' + c.file_path);
+      $('cd-detail-meta').textContent = [c.title, c.module, c.priority].filter(Boolean).join(' · ') + (links.length ? '　|　' + links.join('　|　') : '');
+      $('cd-detail-content').textContent = c.content || '(无内容)';
+      $('cd-detail').scrollIntoView({behavior:'smooth'});
+    }
+    async function openCaseDefForm(caseId) {
+      cdEditing = caseId || null;
+      $('cd-msg').textContent = '';
+      $('cd-modal-title').textContent = caseId ? '编辑用例 ' + caseId : '新建用例';
+      let c = { case_type: 'text' };
+      if (caseId) { c = await (await fetch('/api/case-defs/' + encodeURIComponent(caseId))).json(); if (c.error) { alert(c.error); return; } }
+      $('cd-f-id').value = c.case_id || ''; $('cd-f-id').disabled = !!caseId;
+      $('cd-f-type').value = c.case_type || 'text';
+      $('cd-f-title').value = c.title || ''; $('cd-f-module').value = c.module || '';
+      $('cd-f-pri').value = c.priority || ''; $('cd-f-link').value = c.linked_case_id || '';
+      $('cd-f-bug').value = c.source_bug || ''; $('cd-f-src').value = c.source || '';
+      $('cd-f-content').value = c.content || '';
+      $('cd-modal').hidden = false;
+    }
+    async function saveCaseDef() {
+      const caseId = $('cd-f-id').value.trim();
+      if (!caseId) { $('cd-msg').textContent = '用例 ID 必填'; return; }
+      if (!$('cd-f-title').value.trim()) { $('cd-msg').textContent = '标题必填'; return; }
+      const payload = { case_id: caseId, case_type: $('cd-f-type').value, title: $('cd-f-title').value.trim(),
+        module: $('cd-f-module').value.trim(), priority: $('cd-f-pri').value.trim(),
+        linked_case_id: $('cd-f-link').value.trim(), source_bug: $('cd-f-bug').value.trim(),
+        source: $('cd-f-src').value.trim(), content: $('cd-f-content').value };
+      const resp = await fetch('/api/case-defs/' + encodeURIComponent(cdEditing || caseId), { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+      const data = await resp.json().catch(() => ({}));
+      if (resp.ok) { $('cd-modal').hidden = true; loadCaseDefs(); }
+      else $('cd-msg').textContent = '保存失败: ' + (data.error || resp.status);
+    }
+    async function deleteCaseDef(caseId) {
+      if (!confirm(`确认删除用例 ${caseId}？此操作不可撤销。`)) return;
+      const resp = await fetch('/api/case-defs/' + encodeURIComponent(caseId), { method:'DELETE' });
+      if (resp.ok) { if ($('cd-detail').style.display !== 'none' && $('cd-detail-title').textContent.startsWith(caseId)) $('cd-detail').style.display = 'none'; loadCaseDefs(); }
+      else { const data = await resp.json().catch(() => ({})); alert('删除失败: ' + (data.error || resp.status)); }
+    }
+    $('cd-search').onclick = loadCaseDefs; $('cd-q').onkeydown = e => { if (e.key==='Enter') loadCaseDefs(); };
+    $('cd-reset').onclick = () => { $('cd-q').value=''; $('cd-type').value=''; $('cd-module').value=''; loadCaseDefs(); };
+    $('cd-type').onchange = loadCaseDefs; $('cd-module').onchange = loadCaseDefs;
+    $('cd-new').onclick = () => openCaseDefForm(null);
+    $('cd-save').onclick = saveCaseDef;
+    $('cd-cancel').onclick = () => { $('cd-modal').hidden = true; };
+    $('cd-detail-close').onclick = () => { $('cd-detail').style.display = 'none'; };
 
     async function loadGateway() {
       try {

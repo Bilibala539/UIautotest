@@ -261,7 +261,7 @@ cases:
     test_data: "TEST-SYNTHETIC: tel=13800000001"
     repro_points: "对照组：不发杀进程，返回手机号步再进验证码页，剩余时间应复用（NEG-SMS-004）；本条断言的是跨进程生命周期冷却丢失"
     recovery: "等待服务端频繁窗口过期"
-    tags: [L2, negative, flaky?]
+    tags: [L2, negative, 'flaky?']
     channels: [assertion]
 
   - case_id: NEG-SMS-004
@@ -545,7 +545,7 @@ cases:
     test_data: "TEST-SYNTHETIC: 无真实第三方账号"
     repro_points: "「授权中不置灰」是防止微信中途返回后永久卡死的设计决策——本条反面断言：取消后图标必须立即可再点（若永久禁用记 suspected-defect）；OHOS 平台第三方整块隐藏（OhosRuntimeUiPolicy），OHOS 真机另行验证待设备在环"
     recovery: "重新发起授权"
-    tags: [L2, negative, flaky?]
+    tags: [L2, negative, 'flaky?']
     channels: [assertion]
 
   - case_id: NEG-CONC-003
@@ -706,7 +706,7 @@ cases:
     test_data: "TEST-SYNTHETIC: 深链 scheme:///login/bind-phone"
     repro_points: "卡片未决问题：绑定页参数 fallback loginType:'2' 的实际触发路径未逐行确认——本条目的就是把「深链无参」这条路径实际跑出来定性；登录请求体冗余字段（password:''/code:''）在绑定请求中的形态一并代理核对"
     recovery: "返回登录页"
-    tags: [L2, negative, experimental?]
+    tags: [L2, negative, 'experimental?']
     channels: [assertion]
 
   - case_id: NEG-BIND-003
@@ -727,7 +727,7 @@ cases:
     test_data: "TEST-SYNTHETIC: thirdPartyId='mock-third-party-002'"
     repro_points: "绑定成功复用同一 token——若失效码在绑定响应后瞬间到达，验证 token 收口与登出清理的时序竞争（adoptToken 与 logout 顺序）无脏状态"
     recovery: "重新登录"
-    tags: [L2, negative, flaky?]
+    tags: [L2, negative, 'flaky?']
     channels: [assertion]
 
   # ============ 权限缺失 ============
@@ -781,7 +781,7 @@ cases:
   # ============ 模式库反哺（P-003 启动 ANR）============
   - case_id: NEG-ANR-001
     dimension: 并发
-    name: [P-003 反哺] 登录页主线程敏感点叠加：60s Timer + autofill 自动提交 + 第三方回调并发窗口
+    name: "[P-003 反哺] 登录页主线程敏感点叠加：60s Timer + autofill 自动提交 + 第三方回调并发窗口"
     expected_type: suspected-defect
     method_design:
       error_guessing: "三个已知主线程敏感点在最坏窗口叠加，做 hierarchy 可达性探针"
@@ -797,7 +797,7 @@ cases:
     test_data: "TEST-SYNTHETIC: tel=13800000001, code=1234"
     repro_points: "P-003 已有一次候选（SWAN-BUG-20260904-004）且 SWAN-20260904-005 复核时登录页是 ANR 后第一可达页面——本条把登录页三个敏感点主动叠加压测；任何一次 ANR 即升级反哺动作"
     recovery: "杀进程重启"
-    tags: [L2, negative, flaky?, experimental?]
+    tags: [L2, negative, 'flaky?', 'experimental?']
     channels: [assertion]
 
   # ============ token 有效期策略（变更单 G3 追加）============

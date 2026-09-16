@@ -195,6 +195,21 @@ class DashboardStore:
                     result_json TEXT NOT NULL DEFAULT '{}'
                 );
                 CREATE INDEX IF NOT EXISTS idx_pipeline_jobs_status ON pipeline_jobs(status);
+                CREATE TABLE IF NOT EXISTS case_defs (
+                    case_id TEXT PRIMARY KEY,
+                    case_type TEXT NOT NULL DEFAULT 'auto',
+                    title TEXT NOT NULL DEFAULT '',
+                    module TEXT NOT NULL DEFAULT '',
+                    priority TEXT NOT NULL DEFAULT '',
+                    source TEXT NOT NULL DEFAULT '',
+                    source_bug TEXT NOT NULL DEFAULT '',
+                    file_path TEXT NOT NULL DEFAULT '',
+                    content TEXT NOT NULL DEFAULT '',
+                    linked_case_id TEXT NOT NULL DEFAULT '',
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_case_defs_module ON case_defs(module);
                 """
             )
 
@@ -704,20 +719,181 @@ class DashboardStore:
         return [dict(row) for row in rows]
 
     def search_case_ids(self, keyword: str, limit: int = 20) -> list[dict[str, Any]]:
-        """按关键词模糊搜用例(取最近出现的 case_id),供历史页选择。"""
+        """按关键词模糊搜用例(取最近出现的 case_id),供历史页选择。
+
+        keyword 为空时不加 WHERE,返回全部 case_id(页面默认展示全部,搜索后才过滤)。
+        """
         limit = min(max(int(limit), 1), 100)
         pattern = f"%{keyword}%"
         with self.transaction() as connection:
-            rows = connection.execute(
-                """
-                SELECT c.case_id, MAX(c.name) AS name, COUNT(*) AS executions,
-                       MAX(c.started_at) AS last_seen
-                FROM cases c WHERE c.case_id LIKE ?
-                GROUP BY c.case_id ORDER BY last_seen DESC LIMIT ?
-                """,
-                (pattern, limit),
-            ).fetchall()
+            if keyword:
+                rows = connection.execute(
+                    """
+                    SELECT c.case_id, MAX(c.name) AS name, COUNT(*) AS executions,
+                           MAX(c.started_at) AS last_seen
+                    FROM cases c WHERE c.case_id LIKE ?
+                    GROUP BY c.case_id ORDER BY last_seen DESC LIMIT ?
+                    """,
+                    (pattern, limit),
+                ).fetchall()
+            else:
+                rows = connection.execute(
+                    """
+                    SELECT c.case_id, MAX(c.name) AS name, COUNT(*) AS executions,
+                           MAX(c.started_at) AS last_seen
+                    FROM cases c
+                    GROUP BY c.case_id ORDER BY last_seen DESC LIMIT ?
+                    """,
+                    (limit,),
+                ).fetchall()
         return [dict(row) for row in rows]
+
+    # ---- 用例定义(case_defs):文字用例 + 自动化脚本用例,双向关联 + bug 单来源 ----
+
+    @staticmethod
+    def _validate_case_def(payload: dict[str, Any], for_update: bool = False) -> dict[str, Any]:
+        case_type = str(payload.get("case_type") or "").strip().lower()
+        if case_type not in {"text", "auto"}:
+            raise ValueError("case_type 必须是 text(文字用例) 或 auto(自动化脚本用例)")
+        case_id = str(payload.get("case_id") or "").strip()
+        if not case_id:
+            raise ValueError("case_id 必填")
+        fields = {
+            "case_id": case_id,
+            "case_type": case_type,
+            "title": str(payload.get("title") or "").strip(),
+            "module": str(payload.get("module") or "").strip(),
+            "priority": str(payload.get("priority") or "").strip(),
+            "source": str(payload.get("source") or "").strip(),
+            "source_bug": str(payload.get("source_bug") or "").strip(),
+            "file_path": str(payload.get("file_path") or "").strip(),
+            "content": str(payload.get("content") or ""),
+            "linked_case_id": str(payload.get("linked_case_id") or "").strip(),
+        }
+        if not fields["title"]:
+            raise ValueError("title 必填")
+        if fields["case_type"] == "auto" and fields["linked_case_id"] \
+                and fields["linked_case_id"] == case_id:
+            raise ValueError("linked_case_id 不能指向自己")
+        return fields
+
+    def upsert_case_def(self, payload: dict[str, Any]) -> dict[str, Any]:
+        fields = self._validate_case_def(payload)
+        now = utc_now()
+        with self.transaction() as connection:
+            row = connection.execute(
+                "SELECT case_id FROM case_defs WHERE case_id=?", (fields["case_id"],)
+            ).fetchone()
+            if row is None:
+                connection.execute(
+                    """INSERT INTO case_defs (
+                        case_id, case_type, title, module, priority, source,
+                        source_bug, file_path, content, linked_case_id,
+                        created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (fields["case_id"], fields["case_type"], fields["title"],
+                     fields["module"], fields["priority"], fields["source"],
+                     fields["source_bug"], fields["file_path"], fields["content"],
+                     fields["linked_case_id"], now, now),
+                )
+            else:
+                connection.execute(
+                    """UPDATE case_defs SET case_type=?, title=?, module=?,
+                       priority=?, source=?, source_bug=?, file_path=?, content=?,
+                       linked_case_id=?, updated_at=? WHERE case_id=?""",
+                    (fields["case_type"], fields["title"], fields["module"],
+                     fields["priority"], fields["source"], fields["source_bug"],
+                     fields["file_path"], fields["content"], fields["linked_case_id"],
+                     now, fields["case_id"]),
+                )
+        return self.get_case_def(fields["case_id"])
+
+    def get_case_def(self, case_id: str) -> dict[str, Any]:
+        item = self._get_case_def_row(case_id)
+        return self._decorate_case_def(item)
+
+    def _get_case_def_row(self, case_id: str) -> dict[str, Any]:
+        with self.connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM case_defs WHERE case_id=?", (case_id,)
+            ).fetchone()
+        if row is None:
+            raise KeyError(f"用例定义不存在: {case_id}")
+        return dict(row)
+
+    def _decorate_case_def(self, item: dict[str, Any]) -> dict[str, Any]:
+        """补双向关联视图:text 用例挂上指向它的 auto 用例;auto 用例挂上对应文字用例标题。"""
+        with self.connect() as connection:
+            if item["case_type"] == "text":
+                autos = connection.execute(
+                    """SELECT case_id, title, module, source_bug FROM case_defs
+                       WHERE case_type='auto' AND linked_case_id=?
+                       ORDER BY case_id""",
+                    (item["case_id"],),
+                ).fetchall()
+                item["auto_cases"] = [dict(a) for a in autos]
+            else:
+                linked = connection.execute(
+                    "SELECT case_id, title FROM case_defs WHERE case_id=?",
+                    (item["linked_case_id"],),
+                ).fetchone()
+                item["text_case"] = dict(linked) if linked else None
+        return item
+
+    def list_case_defs(
+        self, case_type: str = "", module: str = "", keyword: str = "",
+        limit: int = 200,
+    ) -> list[dict[str, Any]]:
+        clauses: list[str] = []
+        params: list[Any] = []
+        if case_type:
+            clauses.append("case_type=?")
+            params.append(case_type)
+        if module:
+            clauses.append("module=?")
+            params.append(module)
+        if keyword:
+            pattern = f"%{keyword}%"
+            clauses.append(
+                "(case_id LIKE ? OR title LIKE ? OR module LIKE ? OR content LIKE ?)"
+            )
+            params.extend([pattern, pattern, pattern, pattern])
+        where = f" WHERE {' AND '.join(clauses)}" if clauses else ""
+        limit = min(max(int(limit), 1), 1000)
+        with self.connect() as connection:
+            rows = connection.execute(
+                f"""SELECT case_id, case_type, title, module, priority, source,
+                    source_bug, file_path, linked_case_id, updated_at
+                    FROM case_defs{where} ORDER BY case_type, module, case_id
+                    LIMIT ?""",
+                (*params, limit),
+            ).fetchall()
+        # 列表视图一次性挂双向关联(text 行 -> auto_cases)
+        autos: dict[str, list[dict[str, Any]]] = {}
+        with self.connect() as connection:
+            for row in connection.execute(
+                """SELECT linked_case_id, case_id, title, module, source_bug
+                   FROM case_defs WHERE case_type='auto' AND linked_case_id != ''
+                   ORDER BY case_id"""
+            ).fetchall():
+                autos.setdefault(row["linked_case_id"], []).append(dict(row))
+        items = []
+        for row in rows:
+            item = dict(row)
+            if item["case_type"] == "text":
+                item["auto_cases"] = autos.get(item["case_id"], [])
+            items.append(item)
+        return items
+
+    def delete_case_def(self, case_id: str) -> dict[str, Any]:
+        with self.transaction() as connection:
+            row = connection.execute(
+                "SELECT case_id FROM case_defs WHERE case_id=?", (case_id,)
+            ).fetchone()
+            if row is None:
+                raise KeyError(f"用例定义不存在: {case_id}")
+            connection.execute("DELETE FROM case_defs WHERE case_id=?", (case_id,))
+        return {"deleted": case_id}
 
 
 class DashboardHandler(BaseHTTPRequestHandler):
@@ -795,10 +971,13 @@ class DashboardHandler(BaseHTTPRequestHandler):
         if parsed.path == "/api/cases/search":
             query = parse_qs(parsed.query)
             keyword = query.get("q", [""])[0].strip()
-            if not keyword:
-                self.send_error_json("q is required", HTTPStatus.BAD_REQUEST)
+            try:
+                limit = int(query.get("limit", ["100"])[0])
+            except ValueError:
+                self.send_error_json("limit must be an integer", HTTPStatus.BAD_REQUEST)
                 return
-            self.send_json({"items": self.store.search_case_ids(keyword)})
+            # 未搜索状态展示全部用例,搜索后才返回匹配结果
+            self.send_json({"items": self.store.search_case_ids(keyword, limit=limit)})
             return
         if parsed.path == "/api/gateway/health":
             # 验证码工具页的健康卡片:平台侧代理 otp-gateway /healthz,避免浏览器跨域
@@ -810,6 +989,27 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 self.send_json({"ok": True, "gateway": gateway, "detail": body[:200]})
             except Exception as error:  # noqa: BLE001 — 健康代理失败本身就是信息
                 self.send_json({"ok": False, "gateway": gateway, "detail": str(error)})
+            return
+        if parsed.path == "/api/case-defs":
+            query = parse_qs(parsed.query)
+            try:
+                limit = int(query.get("limit", ["200"])[0])
+            except ValueError:
+                self.send_error_json("limit must be an integer", HTTPStatus.BAD_REQUEST)
+                return
+            self.send_json({"items": self.store.list_case_defs(
+                case_type=query.get("type", [""])[0].strip(),
+                module=query.get("module", [""])[0].strip(),
+                keyword=query.get("q", [""])[0].strip(),
+                limit=limit,
+            )})
+            return
+        if parsed.path.startswith("/api/case-defs/"):
+            case_id = parsed.path.removeprefix("/api/case-defs/").strip("/")
+            try:
+                self.send_json(self.store.get_case_def(case_id))
+            except KeyError as error:
+                self.send_error_json(str(error), HTTPStatus.NOT_FOUND)
             return
         if parsed.path == "/api/devices":
             self.send_json({"items": self.store.list_devices()})
@@ -915,6 +1115,9 @@ class DashboardHandler(BaseHTTPRequestHandler):
             if parsed.path == "/api/apks":
                 self.send_json(self.store.register_apk(payload), HTTPStatus.CREATED)
                 return
+            if parsed.path == "/api/case-defs":
+                self.send_json(self.store.upsert_case_def(payload), HTTPStatus.CREATED)
+                return
             if parsed.path == "/api/devices/register":
                 self.send_json(self.store.register_device(payload), HTTPStatus.CREATED)
                 return
@@ -983,6 +1186,41 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self.send_error_json(str(error), HTTPStatus.NOT_FOUND)
         except Exception as error:
             self.send_error_json(str(error), HTTPStatus.INTERNAL_SERVER_ERROR)
+
+
+    def do_PUT(self) -> None:
+        try:
+            payload = self.read_json()
+            parsed = urlparse(self.path)
+            if parsed.path.startswith("/api/case-defs/"):
+                case_id = parsed.path.removeprefix("/api/case-defs/").strip("/")
+                if not case_id:
+                    self.send_error_json("case_id is required", HTTPStatus.BAD_REQUEST)
+                    return
+                payload["case_id"] = case_id
+                self.send_json(self.store.upsert_case_def(payload))
+                return
+            self.send_error_json("not found", HTTPStatus.NOT_FOUND)
+        except (ValueError, json.JSONDecodeError) as error:
+            self.send_error_json(str(error), HTTPStatus.BAD_REQUEST)
+        except KeyError as error:
+            self.send_error_json(str(error), HTTPStatus.NOT_FOUND)
+        except Exception as error:
+            self.send_error_json(str(error), HTTPStatus.INTERNAL_SERVER_ERROR)
+
+    def do_DELETE(self) -> None:
+        parsed = urlparse(self.path)
+        if parsed.path.startswith("/api/case-defs/"):
+            case_id = parsed.path.removeprefix("/api/case-defs/").strip("/")
+            if not case_id:
+                self.send_error_json("case_id is required", HTTPStatus.BAD_REQUEST)
+                return
+            try:
+                self.send_json(self.store.delete_case_def(case_id))
+            except KeyError as error:
+                self.send_error_json(str(error), HTTPStatus.NOT_FOUND)
+            return
+        self.send_error_json("not found", HTTPStatus.NOT_FOUND)
 
 
 def create_server(host: str = "127.0.0.1", port: int = 8080, database_path: str | Path = DEFAULT_DATABASE) -> ThreadingHTTPServer:

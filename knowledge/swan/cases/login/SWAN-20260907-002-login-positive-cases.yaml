@@ -35,7 +35,9 @@ cases:
   # ---------- 验收项1: 隐私弹窗同意 → 登录页 ----------
   - case_id: LOGIN-L2-POS-001
     name: "冷启动首启：隐私弹窗同意后进入登录页"
-    epic: "SwanAudio-App"; feature: "登录/会话"; story: "隐私授权与启动状态机"
+    epic: "SwanAudio-App"
+    feature: "登录/会话"
+    story: "隐私授权与启动状态机"
     tags: [smoke, L2]
     channels: [assertion, visual]   # 隐私弹窗按 AppCompat AlertDialog 逐像素复刻, 加视觉通道
     method_design:
@@ -58,7 +60,9 @@ cases:
   # ---------- 验收项2: 短信两步登录主路径 ----------
   - case_id: LOGIN-L2-POS-002
     name: "短信两步登录主路径：手机号+协议→验证码→登录成功进 AppShell"
-    epic: "SwanAudio-App"; feature: "登录/会话"; story: "短信验证码登录"
+    epic: "SwanAudio-App"
+    feature: "登录/会话"
+    story: "短信验证码登录"
     tags: [smoke, L2]
     channels: [assertion]
     method_design:
@@ -68,8 +72,8 @@ cases:
         - {from: "loginRequired(手机号步)", event: "勾选协议+点击主按钮且/captcha success", to: "验证码步(login_code_field 可见, 60s 倒计时启动)", guard: "协议已勾选且号码合法"}
         - {from: "验证码步", event: "输入4位验证码触发自动提交且/user/login success", to: "authenticated(AppShell)", guard: "data.token 非空"}
       decision_table:
-        - conditions: ["协议未勾选", "主按钮点击"], actions: ["不发起请求(按钮不可点/无响应)"]
-        - conditions: ["协议已勾选", "号码合法", "/captcha success==true && code==200"], actions: ["切验证码步"]
+        - {conditions: ["协议未勾选", "主按钮点击"], actions: ["不发起请求(按钮不可点/无响应)"]}
+        - {conditions: ["协议已勾选", "号码合法", "/captcha success==true && code==200"], actions: ["切验证码步"]}
     ui_contract:
       hivi_test_ids: [login_page, login_phone_field, login_area_code_button, login_agreement_checkbox, login_submit_button, login_code_field, me_page]
       value_keys: ["login-phone-field", "login-area-code-button", "login-agreement-checkbox", "login-submit-button", "login-code-field"]
@@ -92,7 +96,9 @@ cases:
   # ---------- 验收项3: 密码登录主路径 ----------
   - case_id: LOGIN-L2-POS-003
     name: "密码登录主路径：手机号+密码一次提交成功"
-    epic: "SwanAudio-App"; feature: "登录/会话"; story: "密码登录"
+    epic: "SwanAudio-App"
+    feature: "登录/会话"
+    story: "密码登录"
     tags: [smoke, L2]
     channels: [assertion]
     method_design:
@@ -121,7 +127,9 @@ cases:
   # ---------- 验收项4: 模式切换 ----------
   - case_id: LOGIN-L2-POS-004
     name: "短信⇄密码模式互切：入口互逆、字段区正确切换"
-    epic: "SwanAudio-App"; feature: "登录/会话"; story: "登录模式切换"
+    epic: "SwanAudio-App"
+    feature: "登录/会话"
+    story: "登录模式切换"
     tags: [L2]
     channels: [assertion]
     method_design:
@@ -143,7 +151,9 @@ cases:
   # ---------- 验收项5: 协议勾选联动 ----------
   - case_id: LOGIN-L2-POS-005
     name: "协议勾选联动：短信主按钮/密码主按钮/第三方图标三处联动"
-    epic: "SwanAudio-App"; feature: "登录/会话"; story: "用户协议联动"
+    epic: "SwanAudio-App"
+    feature: "登录/会话"
+    story: "用户协议联动"
     tags: [L2]
     channels: [assertion]
     method_design:
@@ -165,7 +175,9 @@ cases:
   # ---------- 验收项6: 60s 倒计时与同号复用 ----------
   - case_id: LOGIN-L2-POS-006
     name: "验证码倒计时：60s 递减、同号返回复用冷却、改号重新发码"
-    epic: "SwanAudio-App"; feature: "登录/会话"; story: "短信验证码倒计时"
+    epic: "SwanAudio-App"
+    feature: "登录/会话"
+    story: "短信验证码倒计时"
     tags: [L2]
     channels: [assertion]
     method_design:
@@ -193,7 +205,9 @@ cases:
   # ---------- 验收项7: 验证码满4位自动提交 ----------
   - case_id: LOGIN-L2-POS-007
     name: "验证码输入：满 4 位自动提交，3 位不提交"
-    epic: "SwanAudio-App"; feature: "登录/会话"; story: "验证码自动提交"
+    epic: "SwanAudio-App"
+    feature: "登录/会话"
+    story: "验证码自动提交"
     tags: [L2]
     channels: [assertion]
     method_design:
@@ -218,7 +232,9 @@ cases:
   # ---------- 验收项8: 第三方登录入口与授权成功路径 ----------
   - case_id: LOGIN-L2-POS-008
     name: "第三方登录：入口可见性正确，授权成功后走统一登录收口"
-    epic: "SwanAudio-App"; feature: "登录/会话"; story: "第三方账号登录"
+    epic: "SwanAudio-App"
+    feature: "登录/会话"
+    story: "第三方账号登录"
     tags: [L2, experimental]
     channels: [assertion]
     third_party_dependency:
@@ -248,7 +264,9 @@ cases:
   # ---------- 验收项9: 50015 → bind-phone 正向路径 ----------
   - case_id: LOGIN-L2-POS-009
     name: "第三方登录 50015 未绑定 → 绑定手机号成功后复用同一 token 进 AppShell"
-    epic: "SwanAudio-App"; feature: "登录/会话"; story: "第三方绑定手机号"
+    epic: "SwanAudio-App"
+    feature: "登录/会话"
+    story: "第三方绑定手机号"
     tags: [L2, experimental]
     channels: [assertion]
     third_party_dependency:
@@ -276,7 +294,9 @@ cases:
   # ---------- 验收项10: 登录成功进 AppShell ----------
   - case_id: LOGIN-L2-POS-010
     name: "登录成功后进入 AppShell 且 token 恢复链路完整（冷启动免登）"
-    epic: "SwanApp-Audio"; feature: "登录/会话"; story: "会话恢复与 AppShell"
+    epic: "SwanApp-Audio"
+    feature: "登录/会话"
+    story: "会话恢复与 AppShell"
     tags: [smoke, L2]
     channels: [assertion]
     method_design:
@@ -301,7 +321,9 @@ cases:
   # ---------- 验收项11: 登出 4 触发点（正向清理） ----------
   - case_id: LOGIN-L2-POS-011
     name: "登出触发点1：个人信息页「退出登入」成功清理并回登录页"
-    epic: "SwanApp-Audio"; feature: "登录/会话"; story: "手动登出-个人信息页"
+    epic: "SwanApp-Audio"
+    feature: "登录/会话"
+    story: "手动登出-个人信息页"
     tags: [smoke, L2]
     channels: [assertion]
     method_design:
@@ -327,7 +349,9 @@ cases:
 
   - case_id: LOGIN-L2-POS-012
     name: "登出触发点2：取消账号成功后触发登出清理"
-    epic: "SwanApp-Audio"; feature: "登录/会话"; story: "注销账号登出"
+    epic: "SwanApp-Audio"
+    feature: "登录/会话"
+    story: "注销账号登出"
     tags: [L2]
     channels: [assertion]
     method_design:
@@ -344,7 +368,9 @@ cases:
 
   - case_id: LOGIN-L2-POS-013
     name: "登出触发点3：服务端会话失效(30003)全局登出清栈并 Toast"
-    epic: "SwanApp-Audio"; feature: "登录/会话"; story: "会话失效登出"
+    epic: "SwanApp-Audio"
+    feature: "登录/会话"
+    story: "会话失效登出"
     tags: [L2]
     channels: [assertion]
     method_design:
@@ -369,7 +395,9 @@ cases:
 
   - case_id: LOGIN-L2-POS-014
     name: "登出触发点4：切换服务器直接清本地 token 回登录页"
-    epic: "SwanApp-Audio"; feature: "登录/会话"; story: "切服登出"
+    epic: "SwanApp-Audio"
+    feature: "登录/会话"
+    story: "切服登出"
     tags: [L2]
     channels: [assertion]
     method_design:

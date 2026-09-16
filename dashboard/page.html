@@ -58,6 +58,23 @@
     .cd-drawer-chips { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px; }
     .cd-drawer-chips .chip { margin:0; }
     .cd-actions button { padding:5px 10px; font-size:12px; }
+    mark { background:#fff3bf; color:inherit; padding:0 1px; border-radius:2px; }
+    .cd-pager { display:flex; align-items:center; gap:14px; margin-top:12px; flex-wrap:wrap; }
+    .cd-pager .ghost { padding:5px 12px; font-size:12px; }
+    .cd-pager .ghost:disabled { opacity:.45; cursor:default; }
+    .cd-pagesize { padding:4px 8px; font-size:12px; }
+    .cd-cols-wrap { position:relative; }
+    .cd-cols-pop { position:absolute; right:0; bottom:calc(100% + 8px); background:#fff; border:1px solid var(--line); border-radius:10px; box-shadow:0 8px 24px rgba(23,32,51,.14); padding:10px 14px; z-index:40; min-width:190px; }
+    .cd-cols-pop label { display:flex; gap:8px; align-items:center; font-size:13px; padding:5px 0; cursor:pointer; }
+    .cd-cols-pop .ghost { margin-top:8px; width:100%; padding:5px 10px; font-size:12px; }
+    .cd-tablewrap { overflow-x:auto; }
+    .cd-table { table-layout:fixed; }
+    .cd-table th { position:relative; user-select:none; cursor:grab; }
+    .cd-table th:active { cursor:grabbing; }
+    .cd-th-label { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding-right:6px; }
+    .cd-col-grip { position:absolute; top:0; right:-3px; bottom:0; width:7px; cursor:col-resize; z-index:2; }
+    .cd-col-grip:hover { background:rgba(64,92,245,.3); }
+    .cd-table th.drag-over { box-shadow:inset 2px 0 0 var(--brand); }
     @media (max-width:800px) { .cd-drawer { width:100vw; } }
     .hint { color:var(--muted); font-size:12px; margin-top:6px; }
     iframe { width:100%; height:640px; border:1px solid var(--line); border-radius:12px; background:#fff; }
@@ -150,9 +167,22 @@
             <button class="ghost" id="cd-reset">重置</button>
           </div>
         </div>
+        <div class="cd-cols-wrap">
+          <button class="ghost" id="cd-cols-btn">列设置 ▾</button>
+          <div class="cd-cols-pop" id="cd-cols-pop" hidden></div>
+        </div>
         <button class="primary" id="cd-new">＋ 新建用例</button>
       </div>
-      <section class="card table-card"><table class="cd-table"><thead><tr><th>用例</th><th>类型</th><th>模块 / 优先级</th><th>关联用例</th><th>来源 bug</th><th>更新时间</th><th></th></tr></thead><tbody id="cd-rows"><tr><td colspan="7" class="empty">加载中…</td></tr></tbody></table></section>
+      <section class="card table-card"><div class="cd-tablewrap"><table class="cd-table" id="cd-table-el"><colgroup id="cd-cols"></colgroup><thead><tr id="cd-thead"></tr></thead><tbody id="cd-rows"><tr><td class="empty">加载中…</td></tr></tbody></table></div></section>
+      <div class="cd-pager">
+        <span class="meta" id="cd-page-info">-</span>
+        <button class="ghost" id="cd-prev">← 上一页</button>
+        <button class="ghost" id="cd-next">下一页 →</button>
+        <label class="meta">每页
+          <select id="cd-pagesize" class="cd-pagesize"><option>10</option><option selected>35</option><option>80</option></select> 条
+        </label>
+        <span class="meta">表头可拖拽排序、右缘拖动调宽，"列设置"控制显隐</span>
+      </div>
       <p class="hint">未搜索时展示全部用例。点用例编号或关联 chip 查看详情（右侧抽屉）；文字 ⇄ 自动化互跳；bug 单来源自动取自用例 tags。仓库用例批量入库：python scripts/sync_cases.py。</p>
     </section>
     <section class="page" id="page-captcha">
@@ -345,16 +375,52 @@
         </div>`).join('') : '<p class="empty">没有执行记录</p>';
     }
 
-    // ---------- 用例管理(文字用例 ⇄ 自动化用例 ⇄ bug 单) ----------
+    // ---------- 用例管理(分页 + 列自定义 + 搜索高亮) ----------
     let cdEditing = null;      // 编辑中的原 case_id,新建时为 null
-    let cdAllItems = [];       // 全量用例(客户端过滤,156 条量级无需服务端分页)
+    let cdAllItems = [];       // 全量用例(客户端过滤,量级无需服务端分页)
     let cdTypeFilter = '';     // 当前类型胶囊
+    let cdPage = 1, cdPageSize = 35;
 
-    async function loadCaseDefs() {
-      const data = await (await fetch('/api/case-defs?limit=1000')).json();
-      cdAllItems = data.items || [];
-      renderCaseDefs();
+    const CD_COLUMNS = [
+      { key: 'id',      label: '用例',          width: 330, visible: true },
+      { key: 'type',    label: '类型',          width: 80,  visible: true },
+      { key: 'module',  label: '模块 / 优先级', width: 160, visible: true },
+      { key: 'links',   label: '关联用例',      width: 190, visible: true },
+      { key: 'bug',     label: '来源 bug',      width: 190, visible: true },
+      { key: 'updated', label: '更新时间',      width: 145, visible: true },
+      { key: 'actions', label: '操作',          width: 125, visible: true },
+    ];
+    let cdCols = [];
+
+    function cdLoadCols() {
+      let saved = null;
+      try { saved = JSON.parse(localStorage.getItem('cd-cols-v1') || 'null'); } catch (e) {}
+      if (Array.isArray(saved)) {
+        const defs = Object.fromEntries(CD_COLUMNS.map(c => [c.key, c]));
+        cdCols = saved.filter(s => s && defs[s.key]).map(s => ({
+          ...defs[s.key],
+          width: Math.min(Math.max(Number(s.width) || defs[s.key].width, 56), 900),
+          visible: !!s.visible,
+        }));
+        CD_COLUMNS.forEach(def => { if (!cdCols.some(c => c.key === def.key)) cdCols.push({ ...def }); });
+      } else {
+        cdCols = CD_COLUMNS.map(c => ({ ...c }));
+      }
     }
+    function cdSaveCols() { try { localStorage.setItem('cd-cols-v1', JSON.stringify(cdCols)); } catch (e) {} }
+    cdLoadCols();
+
+    // 搜索命中高亮(先 HTML 转义再包 <mark>,防注入)
+    function hl(text, q) {
+      const esc = safe(text);
+      if (!q) return esc;
+      const qEsc = safe(q).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      try { return esc.replace(new RegExp(qEsc, 'gi'), m => `<mark>${m}</mark>`); }
+      catch (e) { return esc; }
+    }
+
+    function cdVisibleCols() { return cdCols.filter(c => c.visible); }
+
     function renderCaseDefs() {
       // 统计卡片(始终基于全量)
       const nText = cdAllItems.filter(c => c.case_type === 'text').length;
@@ -369,17 +435,35 @@
       const modules = [...new Set(cdAllItems.map(i => i.module).filter(Boolean))].sort();
       sel.innerHTML = '<option value="">全部模块</option>' + modules.map(m => `<option value="${safe(m)}">${safe(m)}</option>`).join('');
       sel.value = modules.includes(cur) ? cur : '';
-      // 过滤(类型胶囊 + 模块 + 关键词)
+      // 过滤
       const q = $('cd-q').value.trim().toLowerCase();
       const module = sel.value;
       let shown = cdAllItems;
       if (cdTypeFilter) shown = shown.filter(c => c.case_type === cdTypeFilter);
       if (module) shown = shown.filter(c => c.module === module);
       if (q) shown = shown.filter(c => `${c.case_id} ${c.title} ${c.module||''} ${c.source_bug||''}`.toLowerCase().includes(q));
-      // 表格
+      // 分页
+      const totalPages = Math.max(1, Math.ceil(shown.length / cdPageSize));
+      if (cdPage > totalPages) cdPage = totalPages;
+      if (cdPage < 1) cdPage = 1;
+      const pageItems = shown.slice((cdPage - 1) * cdPageSize, cdPage * cdPageSize);
+      $('cd-page-info').textContent = `共 ${shown.length} 条 · 第 ${cdPage}/${totalPages} 页`;
+      $('cd-prev').disabled = cdPage <= 1;
+      $('cd-next').disabled = cdPage >= totalPages;
+      // 动态表头 + colgroup(可见列)
+      const vis = cdVisibleCols();
+      $('cd-thead').innerHTML = vis.map(c =>
+        `<th draggable="true" data-key="${c.key}" style="width:${c.width}px"><span class="cd-th-label">${safe(c.label)}</span><span class="cd-col-grip" data-key="${c.key}"></span></th>`).join('');
+      $('cd-cols').innerHTML = vis.map(c => `<col style="width:${c.width}px">`).join('');
+      $('cd-table-el').style.width = vis.reduce((s, c) => s + c.width, 0) + 'px';
+      $('cd-table-el').style.minWidth = '100%';
+      // 行
       const tbody = $('cd-rows'); tbody.innerHTML = '';
-      if (!shown.length) { tbody.innerHTML = `<tr><td colspan="7" class="empty">${q || cdTypeFilter || module ? '没有匹配的用例——试试重置筛选' : '还没有用例——点右上"＋ 新建用例"，或运行 scripts/sync_cases.py 同步仓库用例'}</td></tr>`; return; }
-      shown.forEach(c => { const row = document.createElement('tr');
+      if (!pageItems.length) {
+        tbody.innerHTML = `<tr><td colspan="${vis.length}" class="empty">${q || cdTypeFilter || module ? '没有匹配的用例——试试重置筛选' : '还没有用例——点右上"＋ 新建用例"，或运行 scripts/sync_cases.py 同步仓库用例'}</td></tr>`;
+        renderColsPop(); return;
+      }
+      pageItems.forEach(c => { const row = document.createElement('tr');
         const typeBadge = `<span class="badge t-${c.case_type}">${c.case_type === 'text' ? '文字' : '自动化'}</span>`;
         let linkChips = '<span class="cd-none">-</span>';
         if (c.case_type === 'text' && (c.auto_cases||[]).length) {
@@ -387,20 +471,85 @@
         } else if (c.case_type === 'auto' && c.linked_case_id) {
           linkChips = `<span class="chip" onclick="showCaseDefDrawer(decodeURIComponent('${encodeURIComponent(c.linked_case_id)}'))">${safe(c.linked_case_id)} ↗</span>`;
         }
-        const bugChip = c.source_bug ? `<span class="chip bug" title="bug 单来源">${safe(c.source_bug)}</span>` : '<span class="cd-none">-</span>';
+        const bugChip = c.source_bug ? `<span class="chip bug" title="bug 单来源">${hl(c.source_bug, q)}</span>` : '<span class="cd-none">-</span>';
         const lvl = c.priority ? `<span class="chip ${c.priority.toLowerCase()==='p0' ? 'p0' : 'lvl'}">${safe(c.priority)}</span>` : '';
-        row.innerHTML = `<td><span class="cd-case-id" onclick="showCaseDefDrawer(decodeURIComponent('${encodeURIComponent(c.case_id)}'))">${safe(c.case_id)}</span><div class="cd-case-title">${safe(c.title)}</div></td>
-          <td>${typeBadge}</td>
-          <td>${safe(c.module||'-')}${lvl ? ' ' + lvl : ''}</td>
-          <td style="white-space:normal">${linkChips}</td>
-          <td>${bugChip}</td>
-          <td class="meta">${safe(formatDate(c.updated_at))}</td>
-          <td class="cd-actions"><button class="ghost" onclick="openCaseDefForm(decodeURIComponent('${encodeURIComponent(c.case_id)}'))">编辑</button> <button class="ghost" onclick="deleteCaseDef(decodeURIComponent('${encodeURIComponent(c.case_id)}'))">删除</button></td>`;
+        const cells = {
+          id: `<span class="cd-case-id" onclick="showCaseDefDrawer(decodeURIComponent('${encodeURIComponent(c.case_id)}'))">${hl(c.case_id, q)}</span><div class="cd-case-title">${hl(c.title, q)}</div>`,
+          type: typeBadge,
+          module: `${hl(c.module || '-', q)}${lvl ? ' ' + lvl : ''}`,
+          links: linkChips,
+          bug: bugChip,
+          updated: `<span class="meta">${safe(formatDate(c.updated_at))}</span>`,
+          actions: `<div class="cd-actions"><button class="ghost" onclick="openCaseDefForm(decodeURIComponent('${encodeURIComponent(c.case_id)}'))">编辑</button> <button class="ghost" onclick="deleteCaseDef(decodeURIComponent('${encodeURIComponent(c.case_id)}'))">删除</button></div>`,
+        };
+        row.innerHTML = vis.map(col => `<td>${cells[col.key] || ''}</td>`).join('');
         tbody.appendChild(row); });
+      renderColsPop();
+      bindThEvents();
     }
+
+    // 表头事件:拖拽排序 + 右缘拖动调宽
+    function bindThEvents() {
+      $('cd-thead').querySelectorAll('th').forEach(th => {
+        const key = th.dataset.key;
+        th.addEventListener('dragstart', e => e.dataTransfer.setData('text/plain', key));
+        th.addEventListener('dragover', e => { e.preventDefault(); th.classList.add('drag-over'); });
+        th.addEventListener('dragleave', () => th.classList.remove('drag-over'));
+        th.addEventListener('drop', e => {
+          e.preventDefault(); th.classList.remove('drag-over');
+          const from = e.dataTransfer.getData('text/plain');
+          if (!from || from === key) return;
+          const fromIdx = cdCols.findIndex(c => c.key === from);
+          const toIdx = cdCols.findIndex(c => c.key === key);
+          if (fromIdx < 0 || toIdx < 0) return;
+          const [moved] = cdCols.splice(fromIdx, 1);
+          cdCols.splice(toIdx, 0, moved);
+          cdSaveCols(); renderCaseDefs();
+        });
+        th.querySelector('.cd-col-grip').addEventListener('mousedown', e => {
+          e.preventDefault(); e.stopPropagation();
+          th.draggable = false;
+          const startX = e.clientX, col = cdCols.find(c => c.key === key), startW = col.width;
+          const onMove = ev => {
+            col.width = Math.min(Math.max(startW + ev.clientX - startX, 56), 900);
+            const i = cdVisibleCols().findIndex(c => c.key === key);
+            const colEl = $('cd-cols').children[i], thEl = $('cd-thead').children[i];
+            if (colEl) colEl.style.width = col.width + 'px';
+            if (thEl) thEl.style.width = col.width + 'px';
+          };
+          const onUp = () => {
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+            th.draggable = true; cdSaveCols();
+          };
+          document.addEventListener('mousemove', onMove);
+          document.addEventListener('mouseup', onUp);
+        });
+      });
+    }
+
+    // 列设置弹层(显隐)
+    function renderColsPop() {
+      const pop = $('cd-cols-pop');
+      pop.innerHTML = cdCols.map(c =>
+        `<label><input type="checkbox" data-key="${c.key}" ${c.visible ? 'checked' : ''}>${safe(c.label)}</label>`).join('')
+        + '<button class="ghost" id="cd-cols-reset">恢复默认列</button>';
+      pop.querySelectorAll('input[type=checkbox]').forEach(cb => cb.onchange = () => {
+        const col = cdCols.find(c => c.key === cb.dataset.key);
+        if (!col) return;
+        col.visible = cb.checked;
+        if (!cdCols.some(c => c.visible)) { col.visible = true; cb.checked = true; return; } // 至少留一列
+        cdSaveCols(); renderCaseDefs();
+      });
+      $('cd-cols-reset').onclick = () => {
+        try { localStorage.removeItem('cd-cols-v1'); } catch (e) {}
+        cdLoadCols(); renderCaseDefs();
+      };
+    }
+
     document.querySelectorAll('#cd-pills .cd-pill').forEach(pill => pill.onclick = () => {
       document.querySelectorAll('#cd-pills .cd-pill').forEach(x => x.classList.remove('active'));
-      pill.classList.add('active'); cdTypeFilter = pill.dataset.type; renderCaseDefs();
+      pill.classList.add('active'); cdTypeFilter = pill.dataset.type; cdPage = 1; renderCaseDefs();
     });
     function closeCaseDefDrawer() { $('cd-drawer').hidden = true; }
     async function showCaseDefDrawer(caseId) {
@@ -455,14 +604,23 @@
       if (resp.ok) { loadCaseDefs(); }
       else { const data = await resp.json().catch(() => ({})); alert('删除失败: ' + (data.error || resp.status)); }
     }
-    $('cd-search').onclick = renderCaseDefs; $('cd-q').oninput = renderCaseDefs;
-    $('cd-q').onkeydown = e => { if (e.key==='Enter') renderCaseDefs(); };
+    $('cd-search').onclick = () => { cdPage = 1; renderCaseDefs(); };
+    $('cd-q').oninput = () => { cdPage = 1; renderCaseDefs(); };
+    $('cd-q').onkeydown = e => { if (e.key==='Enter') { cdPage = 1; renderCaseDefs(); } };
     $('cd-reset').onclick = () => {
-      $('cd-q').value=''; $('cd-module').value=''; cdTypeFilter='';
+      $('cd-q').value=''; $('cd-module').value=''; cdTypeFilter=''; cdPage = 1;
       document.querySelectorAll('#cd-pills .cd-pill').forEach(x => x.classList.toggle('active', !x.dataset.type));
       renderCaseDefs();
     };
-    $('cd-module').onchange = renderCaseDefs;
+    $('cd-module').onchange = () => { cdPage = 1; renderCaseDefs(); };
+    $('cd-prev').onclick = () => { cdPage--; renderCaseDefs(); };
+    $('cd-next').onclick = () => { cdPage++; renderCaseDefs(); };
+    $('cd-pagesize').onchange = e => { cdPageSize = Number(e.target.value) || 35; cdPage = 1; renderCaseDefs(); };
+    $('cd-cols-btn').onclick = e => { e.stopPropagation(); const pop = $('cd-cols-pop'); pop.hidden = !pop.hidden; };
+    document.addEventListener('click', e => {
+      const pop = $('cd-cols-pop');
+      if (pop && !pop.hidden && !pop.contains(e.target) && e.target !== $('cd-cols-btn')) pop.hidden = true;
+    });
     $('cd-new').onclick = () => openCaseDefForm(null);
     $('cd-save').onclick = saveCaseDef;
     $('cd-cancel').onclick = () => { $('cd-modal').hidden = true; };

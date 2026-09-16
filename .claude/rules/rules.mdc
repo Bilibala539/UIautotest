@@ -49,4 +49,14 @@ alwaysApply: true
 | OCR `click_text` 偏上 | 筛选器标签/弹窗选项/底部栏按钮加 `dy=8~12`；列表条目无需加 |
 | 图片匹配失败排查顺序 | 灰度标准差>5、均值5-250、无角标/阴影 → 图没问题再查代码 |
 
+## 5. 测试用例文件规范（强制遵守）
+
+> 完整规范与模板：`docs/agents/swan/测试用例文件规范.md`（写用例前必读）。核心条款：
+
+1. **一个用例一个 .py 文件**，禁止多用例共文件
+2. 方法名固定 `setup()` / `teardown()`（继承 conftest.BaseTest），不许 setup_method 等变体
+3. **禁止 Page Object 模式**；业务流程用业务方法编排（`self.userA.createTeam()` 式）
+4. 登录/退登、POPO 启停由框架自动管理，用例中禁止手动 login()/logout()/open_app()/close_app()（特殊场景除外）
+5. 用户实例化只在 `setup()`：`self.userA = self.users("userA")`；teardown 只写自定义清理
+
 </rule>

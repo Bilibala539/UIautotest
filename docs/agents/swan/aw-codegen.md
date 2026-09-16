@@ -7,9 +7,10 @@
 ## 上下文加载
 
 1. `E:\UIAutotest\CLAUDE.md`（硬性规则，尤其：禁止 tap 坐标、断言优先级、失败归因顺序）
-2. 目标页面全文：`knowledge/swan/pages/<page_id>.md` —— **key 只能来自这里或实测 dump**
-3. `utils/aw/business/swan.py` —— 已有业务方法与 key 常量
-4. 架构规则：`.claude/rules/aw_architecture.mdc`
+2. **用例文件规范（强制）**：`docs/agents/swan/测试用例文件规范.md` —— 一用例一文件/固定 setup()/teardown()/禁 PageObject/框架自动管理登录与启停
+3. 目标页面全文：`knowledge/swan/pages/<page_id>.md` —— **key 只能来自这里或实测 dump**
+4. `utils/aw/business/swan.py` —— 已有业务方法与 key 常量
+5. 架构规则：`.claude/rules/aw_architecture.mdc`
 
 ## 调用约定（写用例必知）
 

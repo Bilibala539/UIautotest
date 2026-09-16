@@ -1729,6 +1729,23 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(body)
             return
+        if parsed.path.startswith("/vendor/"):
+            # 页面本地依赖(如 SheetJS)随仓库分发,内网无外网也能加载;仅允许 vendor 目录下的直接文件
+            name = parsed.path.removeprefix("/vendor/").lstrip("/")
+            target = (VENDOR_DIR / name).resolve()
+            if target.parent != VENDOR_DIR or not target.is_file():
+                self.send_error_json("vendor 文件不存在", HTTPStatus.NOT_FOUND)
+                return
+            body = target.read_bytes()
+            self.send_response(HTTPStatus.OK)
+            self.send_header(
+                "Content-Type",
+                "application/javascript; charset=utf-8" if target.suffix == ".js" else "application/octet-stream",
+            )
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
         if parsed.path == "/api/health":
             self.send_json({"status": "ok"})
             return
@@ -2164,6 +2181,8 @@ def create_server(host: str = "127.0.0.1", port: int = 8080, database_path: str 
 
 # 页面独立维护在 dashboard/page.html(四页签:会话/包管理/用例历史/验证码工具)
 DASHBOARD_HTML = (Path(__file__).resolve().parent / "page.html").read_text(encoding="utf-8")
+# 页面本地 JS 依赖目录(SheetJS 等),经 /vendor/<文件名> 提供,仅限本目录下文件
+VENDOR_DIR = (Path(__file__).resolve().parent / "vendor").resolve()
 
 
 def main() -> None:

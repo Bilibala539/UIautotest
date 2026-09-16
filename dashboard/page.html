@@ -256,7 +256,7 @@
           <div class="cd-cols-pop" id="cd-cols-pop" hidden></div>
         </div>
         <button class="ghost" id="cd-mods-btn">模块管理</button>
-        <button class="ghost" id="cd-imp-btn" title="按模板批量导入用例,支持 CSV 预览校验">批量导入</button>
+        <button class="ghost" id="cd-imp-btn" title="按模板批量导入用例,支持 CSV / Excel / Markdown">批量导入</button>
         <button class="primary" id="cd-new">＋ 新建用例</button>
       </div>
       <section class="card table-card"><div class="cd-tablewrap"><table class="cd-table" id="cd-table-el"><colgroup id="cd-cols"></colgroup><thead><tr id="cd-thead"></tr></thead><tbody id="cd-rows"><tr><td class="empty">加载中…</td></tr></tbody></table></div></section>
@@ -385,10 +385,13 @@
   <div id="cd-imp-modal" hidden style="position:fixed;inset:0;background:rgba(15,23,42,.45);align-items:center;justify-content:center;z-index:50">
     <div style="background:var(--card,#fff);border-radius:12px;padding:20px 22px;width:min(900px,94vw);max-height:88vh;overflow:auto;display:flex;flex-direction:column">
       <h3 style="margin:0 0 4px">批量导入用例</h3>
-      <p class="meta" style="margin:0 0 10px">先下载模板,按模板准备 CSV(UTF-8 编码)再上传:预览确认后才入库;case_id 已存在时按更新处理,单行失败不影响其他行。</p>
+      <p class="meta" style="margin:0 0 10px">先下载模板,按模板准备数据文件(支持 CSV / Excel / Markdown)再上传:预览确认后才入库;case_id 已存在时按更新处理,单行失败不影响其他行。</p>
       <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
-        <input type="file" id="cd-imp-file" accept=".csv,text/csv" title="选择按模板准备的 CSV 文件">
-        <button type="button" class="ghost" id="cd-imp-tpl" title="下载 UTF-8 带 BOM 的 CSV 模板,Excel 双击打开不乱码">下载模板</button>
+        <input type="file" id="cd-imp-file" accept=".csv,.xlsx,.md,text/csv" title="选择按模板准备的 CSV / Excel / Markdown 文件">
+        <span class="meta">下载模板:</span>
+        <button type="button" class="ghost" id="cd-imp-tpl-csv" title="下载 UTF-8 带 BOM 的 CSV 模板,Excel 双击打开不乱码">CSV</button>
+        <button type="button" class="ghost" id="cd-imp-tpl-xlsx" title="下载 Excel 模板,含独立「填写说明」工作表">Excel</button>
+        <button type="button" class="ghost" id="cd-imp-tpl-md" title="下载 Markdown 表格模板,表格前的说明段落导入时自动忽略">Markdown</button>
         <span class="meta" id="cd-imp-fileinfo">未选择文件</span>
       </div>
       <div id="cd-imp-preview" hidden>
@@ -405,7 +408,7 @@
         <div id="cd-imp-fails"></div>
       </div>
       <div style="display:flex;gap:10px;margin-top:14px;align-items:center">
-        <button class="primary" id="cd-imp-confirm" disabled title="选择并解析 CSV 后可导入">确认导入</button>
+        <button class="primary" id="cd-imp-confirm" disabled title="选择并解析文件后可导入">确认导入</button>
         <span class="meta" id="cd-imp-msg"></span>
         <span style="flex:1"></span>
         <button class="ghost" id="cd-imp-close">关闭</button>
@@ -512,6 +515,8 @@
       </div>
     </div>
   </div>
+  <!-- SheetJS 本地分发(dashboard/vendor/,经 /vendor/ 提供),内网无外网也能解析与生成 xlsx -->
+  <script src="vendor/xlsx.full.min.js"></script>
   <script>
     const $ = (id) => document.getElementById(id);
     const statusText = {running:'执行中', passed:'通过', failed:'失败', skipped:'跳过', error:'错误'};
@@ -1130,34 +1135,88 @@
     let cdImpRows = [];       // 解析出的待导入行(含文件行号与前端预校验结果)
     let cdImpModules = null;  // 模块中文名/英文标识 -> slug 映射(打开弹窗时拉取)
     // 前端只做预校验标问题行;提交后由 /api/case-defs/batch 逐行权威校验(部分成功)
+    // 表头 -> 字段映射:中文表头(三种模板默认)与英文列名都支持;匹配时忽略大小写与多余空格
     const CD_IMP_HEADERS = {
-      '用例ID': 'case_id', '类型': 'case_type', '标题': 'title', '功能模块': 'module',
-      '优先级': 'priority', '来源': 'source', '来源BUG': 'source_bug',
-      '关联用例ID': 'linked_case_id', '脚本路径': 'file_path',
+      '用例id': 'case_id', 'case id': 'case_id', 'case_id': 'case_id', 'caseid': 'case_id',
+      '类型': 'case_type', 'type': 'case_type', 'case type': 'case_type', 'case_type': 'case_type',
+      '标题': 'title', 'title': 'title',
+      '功能模块': 'module', 'module': 'module',
+      '优先级': 'priority', 'priority': 'priority',
+      '来源': 'source', 'source': 'source',
+      '来源bug': 'source_bug', 'source_bug': 'source_bug', 'source bug': 'source_bug', 'bug id': 'source_bug',
+      '关联用例id': 'linked_case_id', 'linked_case_id': 'linked_case_id', 'linked case id': 'linked_case_id',
+      '脚本路径': 'file_path', 'file_path': 'file_path', 'script path': 'file_path', 'script_path': 'file_path',
     };
-    // 模板内容与 /api/case-defs/batch 的约定一一对应;# 行 = 填写说明,导入时忽略
-    const CD_IMP_TEMPLATE = [
+    // 表头单元格 -> 字段名;未识别返回 null
+    function cdImpHeaderKey(name) {
+      return CD_IMP_HEADERS[String(name == null ? '' : name).trim().toLowerCase().replace(/\s+/g, ' ')] || null;
+    }
+    // 模板公共内容:表头行 + 示例数据 + 填写规则,三种格式模板共用,保证模板标准一致
+    const CD_IMP_HEADER_ROW = ['用例ID', '类型', '标题', '功能模块', '优先级', '来源', '来源BUG', '关联用例ID', '脚本路径'];
+    const CD_IMP_SAMPLE_ROWS = [
+      ['LOGIN-L2-POS-001', 'text', '密码登录成功后进入首页', '登录', 'P0', '需求单 REQ-1201', '', '', 'knowledge/swan/cases/driver/login/pos_001.yaml'],
+      ['LOGIN-L2-NEG-001', 'text', '密码错误时提示账号或密码错误并停留在登录页', '登录', 'P1', '需求单 REQ-1201', 'SWAN-BUG-20260910-001', '', ''],
+      ['DEVC-AUTO-001', 'auto', '蓝牙连接后设备卡显示在线', '设备管理', 'P1', '', '', 'LOGIN-L2-POS-001', 'knowledge/swan/cases/driver/device/conn_001.yaml'],
+    ];
+    const CD_IMP_RULES = [
+      '必填列:用例ID、标题;其余列可留空。',
+      '类型列取值:text(文字用例)或 auto(自动化用例),留空按 text 处理。',
+      '优先级取值:P0/P1/P2/P3;填 L1/L2/L3 会自动映射为 P1/P2/P3,其他非标值按 P3 入库。',
+      '功能模块列填模块中文名(需先在"模块管理"创建,与中文名完全一致,填英文标识也可以);模块不存在时该行导入失败,不会自动创建模块。',
+      '用例ID 已存在时按更新处理;脚本路径填仓库相对路径,如 knowledge/swan/cases/driver/login/pos_001.yaml。',
+    ];
+    // CSV 模板:与 /api/case-defs/batch 的约定一一对应;# 行 = 填写说明,导入时忽略
+    const CD_IMP_CSV_TEMPLATE = [
       '# Swan 测试平台 用例批量导入模板',
-      '# 填写说明:',
-      '# 1. 以 # 开头的行是说明,导入时自动忽略;第一个非说明行必须是表头行,列名与列顺序不要改动。',
-      '# 2. 必填列:用例ID、标题;其余列可留空。',
-      '# 3. 类型列取值:text(文字用例)或 auto(自动化用例),留空按 text 处理。',
-      '# 4. 优先级取值:P0/P1/P2/P3;填 L1/L2/L3 会自动映射为 P1/P2/P3,其他非标值按 P3 入库。',
-      '# 5. 功能模块列填模块中文名(需先在"模块管理"创建,与中文名完全一致,填英文标识也可以);模块不存在时该行导入失败,不会自动创建模块。',
-      '# 6. 用例ID 已存在时按更新处理;脚本路径填仓库相对路径,如 knowledge/swan/cases/driver/login/pos_001.yaml。',
-      '用例ID,类型,标题,功能模块,优先级,来源,来源BUG,关联用例ID,脚本路径',
-      'LOGIN-L2-POS-001,text,密码登录成功后进入首页,登录,P0,需求单 REQ-1201,,,knowledge/swan/cases/driver/login/pos_001.yaml',
-      'LOGIN-L2-NEG-001,text,密码错误时提示账号或密码错误并停留在登录页,登录,P1,需求单 REQ-1201,SWAN-BUG-20260910-001,,',
-      'DEVC-AUTO-001,auto,蓝牙连接后设备卡显示在线,设备管理,P1,,,LOGIN-L2-POS-001,knowledge/swan/cases/driver/device/conn_001.yaml',
-    ].join('\r\n');
-    // 模板下载:前端 Blob 生成(零后端依赖);﻿ 即 BOM,保证 Excel 双击按 UTF-8 打开不乱码
-    function cdDownloadTemplate() {
-      const blob = new Blob(['﻿' + CD_IMP_TEMPLATE], { type: 'text/csv;charset=utf-8' });
+      '# 以 # 开头的行是说明,导入时自动忽略;第一个非说明行必须是表头行,列名与列顺序不要改动。',
+    ].concat(CD_IMP_RULES.map(l => '# ' + l))
+     .concat([CD_IMP_HEADER_ROW.join(',')])
+     .concat(CD_IMP_SAMPLE_ROWS.map(r => r.join(',')))
+     .join('\r\n');
+    // 模板下载公共收尾:Blob 触发浏览器下载
+    function cdDownloadBlob(blob, filename) {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url; a.download = '用例批量导入模板.csv';
+      a.href = url; a.download = filename;
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+    // CSV 模板:前端 Blob 生成(零后端依赖);﻿ 即 BOM,保证 Excel 双击按 UTF-8 打开不乱码
+    function cdDownloadTemplateCsv() {
+      cdDownloadBlob(new Blob(['﻿' + CD_IMP_CSV_TEMPLATE], { type: 'text/csv;charset=utf-8' }), '用例批量导入模板.csv');
+    }
+    // Excel 模板:SheetJS 生成;「用例」表首行即表头,说明放独立「填写说明」工作表(xlsx 无注释行习惯)
+    function cdDownloadTemplateXlsx() {
+      if (typeof XLSX === 'undefined') { $('cd-imp-msg').textContent = 'Excel 组件未加载,请使用 CSV 或 Markdown 模板'; return; }
+      const wsCases = XLSX.utils.aoa_to_sheet([CD_IMP_HEADER_ROW].concat(CD_IMP_SAMPLE_ROWS));
+      wsCases['!cols'] = [{ wch: 20 }, { wch: 8 }, { wch: 44 }, { wch: 12 }, { wch: 8 }, { wch: 20 }, { wch: 24 }, { wch: 18 }, { wch: 52 }];
+      const wsHelp = XLSX.utils.aoa_to_sheet([
+        ['Swan 测试平台 用例批量导入模板(填写说明)'],
+        ['「用例」工作表第 1 行是表头,列名与列顺序不要改动;第 2 行起填数据,空行自动跳过;填完后请删除示例数据行。'],
+      ].concat(CD_IMP_RULES.map(l => [l])));
+      wsHelp['!cols'] = [{ wch: 110 }];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, wsCases, '用例');
+      XLSX.utils.book_append_sheet(wb, wsHelp, '填写说明');
+      XLSX.writeFile(wb, '用例批量导入模板.xlsx');
+    }
+    // Markdown 模板:表格前的说明段落(# 标题/列表)导入时自动忽略,只解析标准表格
+    function cdDownloadTemplateMd() {
+      const lines = [
+        '# Swan 测试平台 用例批量导入模板',
+        '',
+        '> 按下方表格填写用例;表格外的文字导入时自动忽略;支持文件内出现多个表格(表头需一致)。',
+        '',
+        '## 填写说明',
+        '',
+      ].concat(CD_IMP_RULES.map((l, i) => (i + 1) + '. ' + l))
+       .concat([
+         '',
+         '| ' + CD_IMP_HEADER_ROW.join(' | ') + ' |',
+         '| ' + CD_IMP_HEADER_ROW.map(() => '---').join(' | ') + ' |',
+       ])
+       .concat(CD_IMP_SAMPLE_ROWS.map(r => '| ' + r.map(c => c || ' ').join(' | ') + ' |'));
+      cdDownloadBlob(new Blob([lines.join('\n')], { type: 'text/markdown;charset=utf-8' }), '用例批量导入模板.md');
     }
     // CSV 解析:支持引号包裹(内含逗号/换行)、双引号转义("")、CRLF、BOM
     function cdParseCsv(text) {
@@ -1177,6 +1236,52 @@
       }
       if (field !== '' || row.length) { row.push(field); rows.push(row); }
       return rows;
+    }
+    // Markdown 解析(零依赖):识别 | 分隔、第二行 --- 对齐的表格;表格外的文字忽略;多个表格都解析
+    // 单元格内 \| 表示字面竖线;行号取文件真实行号(与编辑器一致,便于定位问题行)
+    function cdParseMarkdownTables(text) {
+      const lines = text.replace(/\r\n?/g, '\n').split('\n');
+      const splitRow = (line) => {
+        let s = line.trim().replace(/^\|/, '').replace(/\|$/, '');
+        s = s.split('\\|').join('\u0000'); // 先保护转义竖线再按 | 切分
+        return s.split('|').map(c => c.trim().split('\u0000').join('|'));
+      };
+      const isSepRow = (cells) => cells.length > 0 && cells.every(c => /^:?-+:?$/.test(c));
+      const isHeaderRow = (cells) => cells.length >= 2 && cells.every(c => c && cdImpHeaderKey(c));
+      const rows = [];
+      let block = []; let blockStart = 0;
+      const flushBlock = () => {
+        // 有效表格:第一行表头 + 第二行 --- 对齐行;缺对齐行的不按表格处理
+        if (block.length >= 2 && isSepRow(splitRow(block[1]))) {
+          for (let i = 0; i < block.length; i++) {
+            if (i === 1) continue; // --- 对齐行不是数据
+            const cells = splitRow(block[i]);
+            if (!cells.join('').trim()) continue;
+            // 首个表格的表头交给统一预览流程识别;后续表格的重复表头行跳过,避免表头文字被当数据导入
+            if (rows.length && isHeaderRow(cells)) continue;
+            rows.push({ cells, row: blockStart + i + 1 });
+          }
+        }
+        block = [];
+      };
+      for (let li = 0; li < lines.length; li++) {
+        if (lines[li].trim().startsWith('|')) {
+          if (!block.length) blockStart = li;
+          block.push(lines[li]);
+        } else if (block.length) {
+          flushBlock();
+        }
+      }
+      flushBlock();
+      return rows;
+    }
+    // Excel 解析:取第一个工作表,首行作表头;raw:false 让日期/数字按显示格式转字符串,避免日期变成序列号
+    function cdImportReadXlsx(buffer) {
+      if (typeof XLSX === 'undefined') throw new Error('Excel 组件未加载,请使用 CSV 或 Markdown 格式');
+      const wb = XLSX.read(buffer, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const grid = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: '' });
+      return grid.map((cells, i) => ({ cells: cells.map(v => String(v == null ? '' : v)), row: i + 1 }));
     }
     async function cdLoadImportModules() {
       const data = await (await fetch('/api/modules')).json();
@@ -1202,36 +1307,53 @@
       row.problems = problems;
       return row;
     }
+    // 按扩展名分流读取:Excel 走 ArrayBuffer(SheetJS),CSV / Markdown 走 UTF-8 文本
     function cdImportReadFile(file) {
       if (!file) return;
       $('cd-imp-msg').textContent = '';
       $('cd-imp-result').hidden = true;
+      const name = (file.name || '').toLowerCase();
       const reader = new FileReader();
-      reader.onload = () => cdImportPreview(String(reader.result || ''));
       reader.onerror = () => { $('cd-imp-msg').textContent = '文件读取失败,请重试'; };
-      reader.readAsText(file, 'utf-8');
+      if (name.endsWith('.xlsx') || name.endsWith('.xls')) {
+        reader.onload = () => {
+          try { cdImportPreviewRows(cdImportReadXlsx(reader.result)); }
+          catch (err) { $('cd-imp-msg').textContent = 'Excel 解析失败:' + ((err && err.message) || err); }
+        };
+        reader.readAsArrayBuffer(file);
+      } else {
+        reader.onload = () => {
+          try {
+            const text = String(reader.result || '');
+            if (name.endsWith('.md') || name.endsWith('.markdown')) cdImportPreviewRows(cdParseMarkdownTables(text));
+            else cdImportPreviewRows(cdParseCsv(text).map((cells, i) => ({ cells, row: i + 1 })));
+          } catch (err) { $('cd-imp-msg').textContent = '文件解析失败:' + ((err && err.message) || err); }
+        };
+        reader.readAsText(file, 'utf-8');
+      }
     }
-    function cdImportPreview(text) {
-      const rawRows = cdParseCsv(text);
+    // 三种格式解析后统一从这里走:rawRows = [{cells:[...], row:文件行号}];表头识别/预校验/渲染对三种格式完全一致
+    function cdImportPreviewRows(rawRows) {
       // 跳过 # 说明行与空行;第一个非说明行作表头
       let head = null, headIndex = 0;
       for (; headIndex < rawRows.length; headIndex++) {
-        const line = rawRows[headIndex].join('').trim();
+        const r = rawRows[headIndex];
+        const line = r.cells.join('').trim();
         if (!line || line.startsWith('#')) continue;
-        head = rawRows[headIndex]; break;
+        head = r.cells; break;
       }
       cdImpRows = [];
       if (!head) {
         $('cd-imp-msg').textContent = '未找到表头行:文件为空或全是说明行,请按模板填写';
       } else {
-        const cols = head.map(h => CD_IMP_HEADERS[String(h).trim()] || null);
+        const cols = head.map(cdImpHeaderKey);
         if (!cols.includes('case_id') || !cols.includes('title')) {
-          $('cd-imp-msg').textContent = '表头不合法:缺少"用例ID"或"标题"列,请勿修改模板表头';
+          $('cd-imp-msg').textContent = '表头不合法:缺少"用例ID"(case_id)或"标题"(title)列,请勿修改模板表头';
         } else {
           for (let i = headIndex + 1; i < rawRows.length; i++) {
-            const cells = rawRows[i];
+            const cells = rawRows[i].cells;
             if (!cells.join('').trim()) continue; // 空行跳过
-            const row = { row: i + 1 }; // 1 起文件行号,与文本编辑器看到的一致,便于定位问题行
+            const row = { row: rawRows[i].row }; // 1 起文件行号,与文本编辑器看到的一致,便于定位问题行
             cols.forEach((key, c) => { if (key) row[key] = String(cells[c] || '').trim(); });
             cdImpRows.push(cdImportCheckRow(row));
           }
@@ -1288,7 +1410,9 @@
       await cdLoadImportModules();
     }
     $('cd-imp-btn').onclick = cdOpenImport;
-    $('cd-imp-tpl').onclick = cdDownloadTemplate;
+    $('cd-imp-tpl-csv').onclick = cdDownloadTemplateCsv;
+    $('cd-imp-tpl-xlsx').onclick = cdDownloadTemplateXlsx;
+    $('cd-imp-tpl-md').onclick = cdDownloadTemplateMd;
     $('cd-imp-file').onchange = e => {
       const file = e.target.files && e.target.files[0];
       $('cd-imp-fileinfo').textContent = file ? file.name : '未选择文件';

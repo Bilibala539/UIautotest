@@ -3,10 +3,11 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sqlite3
 import uuid
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import date, datetime, time as dt_time, timedelta, timezone
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -78,6 +79,161 @@ def _stale_cutoff() -> str:
     """busy 设备的自愈阈值:4 小时前(ISO 时间字符串可直接比较)。"""
     from datetime import timedelta
     return (datetime.now(timezone.utc) - timedelta(hours=4)).isoformat(timespec="seconds")
+
+
+# ==================== 流水线配置:频率解析与下次执行时间(纯函数,便于单测) ====================
+
+PIPELINE_SCHEDULE_TYPES = ("once", "daily", "interval", "weekly")
+_HHMM_RE = re.compile(r"^([01]\d|2[0-3]):([0-5]\d)$")
+
+
+def parse_hhmm(value: Any) -> tuple[int, int]:
+    """校验 'HH:MM'(24 小时制)并拆成 (hour, minute);非法抛 ValueError。"""
+    text = str(value or "").strip()
+    match = _HHMM_RE.match(text)
+    if not match:
+        raise ValueError(f"time 必须是合法的 HH:MM(24 小时制),收到: {value!r}")
+    return int(match.group(1)), int(match.group(2))
+
+
+def parse_run_at(value: Any) -> datetime:
+    """解析 once.run_at,接受 'YYYY-MM-DD HH:MM' 或 ISO 格式;返回本地 naive 分钟精度。"""
+    text = str(value or "").strip()
+    if not text:
+        raise ValueError("once.run_at 必填,格式 YYYY-MM-DD HH:MM")
+    try:
+        moment = datetime.fromisoformat(text.replace("T", " "))
+    except ValueError:
+        raise ValueError(f"run_at 时间格式非法(应为 YYYY-MM-DD HH:MM): {value!r}") from None
+    if moment.tzinfo is not None:
+        moment = moment.astimezone().replace(tzinfo=None)
+    return moment.replace(second=0, microsecond=0)
+
+
+def validate_schedule_param(schedule_type: str, param: dict[str, Any]) -> None:
+    """校验各频率的参数结构,非法抛 ValueError(建/改配置时把关)。"""
+    if schedule_type == "once":
+        parse_run_at(param.get("run_at"))
+    elif schedule_type == "daily":
+        parse_hhmm(param.get("time"))
+    elif schedule_type == "interval":
+        try:
+            every_days = int(param.get("every_days"))
+        except (TypeError, ValueError):
+            raise ValueError("interval.every_days 必须是正整数") from None
+        if every_days < 1:
+            raise ValueError("interval.every_days 必须 >= 1")
+        parse_hhmm(param.get("time"))
+    elif schedule_type == "weekly":
+        weekdays = param.get("weekdays")
+        if not isinstance(weekdays, list) or not weekdays:
+            raise ValueError("weekly.weekdays 必须是非空数组(0=周日 … 6=周六)")
+        try:
+            normalized = {int(w) for w in weekdays}
+        except (TypeError, ValueError):
+            raise ValueError("weekly.weekdays 必须是 0-6 的整数数组") from None
+        if not normalized.issubset(set(range(7))):
+            raise ValueError("weekly.weekdays 取值必须落在 0-6(0=周日)")
+        parse_hhmm(param.get("time"))
+
+
+def validate_pipeline_config(payload: dict[str, Any]) -> dict[str, Any]:
+    """校验并规范化流水线配置字段;schedule_param 统一落成紧凑 JSON 字符串。"""
+    config_id = str(payload.get("config_id") or "").strip()
+    name = str(payload.get("name") or "").strip()
+    if not config_id:
+        raise ValueError("config_id 必填")
+    if not re.fullmatch(r"[A-Za-z0-9._-]{1,64}", config_id):
+        raise ValueError("config_id 只能包含字母/数字/._- 且长度 1-64")
+    if not name:
+        raise ValueError("name 必填")
+    schedule_type = str(payload.get("schedule_type") or "").strip().lower()
+    if schedule_type not in PIPELINE_SCHEDULE_TYPES:
+        raise ValueError(f"schedule_type 必须是 {'/'.join(PIPELINE_SCHEDULE_TYPES)}")
+    raw_param = payload.get("schedule_param")
+    if isinstance(raw_param, str):
+        try:
+            param = json.loads(raw_param or "{}")
+        except json.JSONDecodeError:
+            raise ValueError("schedule_param 不是合法 JSON") from None
+    else:
+        param = raw_param or {}
+    if not isinstance(param, dict):
+        raise ValueError("schedule_param 必须是 JSON 对象")
+    validate_schedule_param(schedule_type, param)
+    return {
+        "config_id": config_id,
+        "name": name,
+        "description": str(payload.get("description") or "").strip(),
+        "suite_id": str(payload.get("suite_id") or "").strip(),
+        "include_build": 1 if payload.get("include_build") in (1, True, "1", "true", "on") else 0,
+        "schedule_type": schedule_type,
+        "schedule_param": json.dumps(param, ensure_ascii=False),
+        "enabled": 0 if payload.get("enabled") in (0, False, "0", "false", "off") else 1,
+    }
+
+
+def compute_next_run_at(
+    schedule_type: str,
+    schedule_param: str | dict,
+    now: datetime | None = None,
+    interval_anchor: str = "1970-01-01",
+) -> str:
+    """计算下次执行时间(本地 naive ISO 字符串,分钟精度);无法计算返回 ''。
+
+    语义:返回 >= now(截断到分钟)的最近一次命中时刻。因此调度器按
+    next_run_at <= now 触发时,天然只在"命中那一分钟"内生效,不会补跑陈旧欠账。
+    interval 以 interval_anchor(默认 1970-01-01)为相位锚点,保证同参数计算确定。
+    weekly.weekdays 用前端约定 0=周日 … 6=周六,内部换算成 Python weekday()。
+    """
+    if isinstance(schedule_param, str):
+        try:
+            param = json.loads(schedule_param or "{}")
+        except json.JSONDecodeError:
+            return ""
+    else:
+        param = schedule_param or {}
+    if not isinstance(param, dict):
+        return ""
+    base = (now or datetime.now()).replace(second=0, microsecond=0)
+    if base.tzinfo is not None:
+        base = base.astimezone().replace(tzinfo=None)
+    try:
+        if schedule_type == "once":
+            target = parse_run_at(param.get("run_at"))
+            return target.isoformat(timespec="seconds") if target >= base else ""
+        if schedule_type == "daily":
+            hour, minute = parse_hhmm(param.get("time"))
+            candidate = base.replace(hour=hour, minute=minute)
+            if candidate < base:
+                candidate += timedelta(days=1)  # 当天时刻已过 → 明天同一时刻(跨天)
+            return candidate.isoformat(timespec="seconds")
+        if schedule_type == "interval":
+            every_days = int(param.get("every_days"))
+            if every_days < 1:
+                return ""
+            hour, minute = parse_hhmm(param.get("time"))
+            anchor_date = date.fromisoformat(str(interval_anchor)[:10])
+            for offset in range(every_days + 1):
+                day = base.date() + timedelta(days=offset)
+                if (day - anchor_date).days % every_days == 0:
+                    candidate = datetime.combine(day, dt_time(hour, minute))
+                    if candidate >= base:
+                        return candidate.isoformat(timespec="seconds")
+            return ""
+        if schedule_type == "weekly":
+            hour, minute = parse_hhmm(param.get("time"))
+            weekdays = {((int(w) - 1) % 7) for w in param.get("weekdays") or []}
+            for offset in range(8):  # 7 天内必命中,留 1 天余量(跨周边界)
+                day = base.date() + timedelta(days=offset)
+                if day.weekday() in weekdays:
+                    candidate = datetime.combine(day, dt_time(hour, minute))
+                    if candidate >= base:
+                        return candidate.isoformat(timespec="seconds")
+            return ""
+    except (ValueError, TypeError):
+        return ""
+    return ""
 
 
 class DashboardStore:
@@ -210,6 +366,24 @@ class DashboardStore:
                     updated_at TEXT NOT NULL
                 );
                 CREATE INDEX IF NOT EXISTS idx_case_defs_module ON case_defs(module);
+                """
+            )
+            # 流水线定时配置(调度器每 30s 轮询,到点 POST {id}/run 建 schedule 任务)
+            connection.executescript(
+                """
+                CREATE TABLE IF NOT EXISTS pipeline_configs (
+                    config_id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    description TEXT NOT NULL DEFAULT '',
+                    suite_id TEXT NOT NULL DEFAULT '',
+                    include_build INTEGER NOT NULL DEFAULT 0,
+                    schedule_type TEXT NOT NULL,
+                    schedule_param TEXT NOT NULL DEFAULT '',
+                    enabled INTEGER NOT NULL DEFAULT 1,
+                    last_run_at TEXT NOT NULL DEFAULT '',
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
                 """
             )
 
@@ -895,6 +1069,119 @@ class DashboardStore:
             connection.execute("DELETE FROM case_defs WHERE case_id=?", (case_id,))
         return {"deleted": case_id}
 
+    # ==================== 流水线配置(定时调度) ====================
+
+    @staticmethod
+    def _decorate_pipeline_config(row: sqlite3.Row) -> dict[str, Any]:
+        """补实时字段:schedule(解析后的参数对象) + next_run_at(实时算,不落库)。"""
+        item = dict(row)
+        try:
+            schedule = json.loads(item.get("schedule_param") or "{}")
+        except json.JSONDecodeError:
+            schedule = {}
+        item["schedule"] = schedule if isinstance(schedule, dict) else {}
+        item["next_run_at"] = compute_next_run_at(
+            str(item.get("schedule_type") or ""), item.get("schedule_param") or "{}"
+        )
+        return item
+
+    def create_pipeline_config(self, payload: dict[str, Any]) -> dict[str, Any]:
+        fields = validate_pipeline_config(payload)
+        now = utc_now()
+        with self.transaction() as connection:
+            existing = connection.execute(
+                "SELECT config_id FROM pipeline_configs WHERE config_id=?",
+                (fields["config_id"],),
+            ).fetchone()
+            if existing is not None:
+                raise ValueError(f"config_id 已存在: {fields['config_id']}")
+            connection.execute(
+                """INSERT INTO pipeline_configs (
+                    config_id, name, description, suite_id, include_build,
+                    schedule_type, schedule_param, enabled, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (fields["config_id"], fields["name"], fields["description"],
+                 fields["suite_id"], fields["include_build"], fields["schedule_type"],
+                 fields["schedule_param"], fields["enabled"], now, now),
+            )
+        return self.get_pipeline_config(fields["config_id"])
+
+    def get_pipeline_config(self, config_id: str) -> dict[str, Any]:
+        with self.connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM pipeline_configs WHERE config_id=?", (config_id,)
+            ).fetchone()
+        if row is None:
+            raise KeyError(f"流水线配置不存在: {config_id}")
+        return self._decorate_pipeline_config(row)
+
+    def list_pipeline_configs(self) -> list[dict[str, Any]]:
+        with self.connect() as connection:
+            rows = connection.execute(
+                "SELECT * FROM pipeline_configs ORDER BY config_id"
+            ).fetchall()
+        return [self._decorate_pipeline_config(row) for row in rows]
+
+    def update_pipeline_config(self, config_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        """部分更新:payload 未带的字段沿用库里现值,整体重新校验。"""
+        with self.transaction() as connection:
+            row = connection.execute(
+                "SELECT * FROM pipeline_configs WHERE config_id=?", (config_id,)
+            ).fetchone()
+            if row is None:
+                raise KeyError(f"流水线配置不存在: {config_id}")
+            merged = {
+                "config_id": config_id,
+                "name": payload.get("name", row["name"]),
+                "description": payload.get("description", row["description"]),
+                "suite_id": payload.get("suite_id", row["suite_id"]),
+                "include_build": payload.get("include_build", row["include_build"]),
+                "schedule_type": payload.get("schedule_type", row["schedule_type"]),
+                "schedule_param": payload.get("schedule_param", row["schedule_param"]),
+                "enabled": payload.get("enabled", row["enabled"]),
+            }
+            fields = validate_pipeline_config(merged)
+            connection.execute(
+                """UPDATE pipeline_configs SET name=?, description=?, suite_id=?,
+                   include_build=?, schedule_type=?, schedule_param=?, enabled=?,
+                   updated_at=? WHERE config_id=?""",
+                (fields["name"], fields["description"], fields["suite_id"],
+                 fields["include_build"], fields["schedule_type"],
+                 fields["schedule_param"], fields["enabled"], utc_now(), config_id),
+            )
+        return self.get_pipeline_config(config_id)
+
+    def delete_pipeline_config(self, config_id: str) -> dict[str, Any]:
+        with self.transaction() as connection:
+            row = connection.execute(
+                "SELECT config_id FROM pipeline_configs WHERE config_id=?", (config_id,)
+            ).fetchone()
+            if row is None:
+                raise KeyError(f"流水线配置不存在: {config_id}")
+            connection.execute("DELETE FROM pipeline_configs WHERE config_id=?", (config_id,))
+        return {"deleted": config_id}
+
+    def run_pipeline_config(self, config_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        """立即执行:照 trigger 通道建一个 schedule 来源任务,并回写 last_run_at。
+
+        pipeline_jobs 的状态机/claim 逻辑不动;payload 可附带 platform/branch/
+        case_filter/apk_id 覆盖(套件上线后由 suite_id 聚合,暂用这些字段)。
+        """
+        self.get_pipeline_config(config_id)  # 不存在抛 KeyError → 404
+        job = self.create_pipeline_job({
+            "trigger_source": "schedule",
+            "platform": str(payload.get("platform") or "flutter"),
+            "branch": str(payload.get("branch") or ""),
+            "case_filter": str(payload.get("case_filter") or ""),
+            "apk_id": str(payload.get("apk_id") or ""),
+        })
+        with self.transaction() as connection:
+            connection.execute(
+                "UPDATE pipeline_configs SET last_run_at=? WHERE config_id=?",
+                (utc_now(), config_id),
+            )
+        return {"config": self.get_pipeline_config(config_id), "job": job}
+
 
 class DashboardHandler(BaseHTTPRequestHandler):
     store: DashboardStore
@@ -1011,6 +1298,16 @@ class DashboardHandler(BaseHTTPRequestHandler):
             except KeyError as error:
                 self.send_error_json(str(error), HTTPStatus.NOT_FOUND)
             return
+        if parsed.path == "/api/pipeline-configs":
+            self.send_json({"items": self.store.list_pipeline_configs()})
+            return
+        if parsed.path.startswith("/api/pipeline-configs/"):
+            config_id = parsed.path.removeprefix("/api/pipeline-configs/").strip("/")
+            try:
+                self.send_json(self.store.get_pipeline_config(config_id))
+            except KeyError as error:
+                self.send_error_json(str(error), HTTPStatus.NOT_FOUND)
+            return
         if parsed.path == "/api/devices":
             self.send_json({"items": self.store.list_devices()})
             return
@@ -1105,10 +1402,25 @@ class DashboardHandler(BaseHTTPRequestHandler):
             "case_name": case_name,
         }
 
+    def read_optional_json(self) -> dict[str, Any]:
+        """同 read_json,但允许空请求体(流水线"立即执行"类接口)。"""
+        length = int(self.headers.get("Content-Length", "0"))
+        if length <= 0:
+            return {}
+        return self.read_json()
+
     def do_POST(self) -> None:
         try:
-            payload = self.read_json()
             parsed = urlparse(self.path)
+            # 立即执行允许空请求体,须先于 read_json 分流(否则空 body 直接 400)
+            if parsed.path.startswith("/api/pipeline-configs/") and parsed.path.endswith("/run"):
+                config_id = parsed.path.removeprefix("/api/pipeline-configs/").removesuffix("/run").strip("/")
+                self.send_json(
+                    self.store.run_pipeline_config(config_id, self.read_optional_json()),
+                    HTTPStatus.CREATED,
+                )
+                return
+            payload = self.read_json()
             if parsed.path == "/api/runs":
                 self.send_json(self.store.create_run(payload), HTTPStatus.CREATED)
                 return
@@ -1117,6 +1429,9 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 return
             if parsed.path == "/api/case-defs":
                 self.send_json(self.store.upsert_case_def(payload), HTTPStatus.CREATED)
+                return
+            if parsed.path == "/api/pipeline-configs":
+                self.send_json(self.store.create_pipeline_config(payload), HTTPStatus.CREATED)
                 return
             if parsed.path == "/api/devices/register":
                 self.send_json(self.store.register_device(payload), HTTPStatus.CREATED)
@@ -1200,6 +1515,13 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 payload["case_id"] = case_id
                 self.send_json(self.store.upsert_case_def(payload))
                 return
+            if parsed.path.startswith("/api/pipeline-configs/"):
+                config_id = parsed.path.removeprefix("/api/pipeline-configs/").strip("/")
+                if not config_id:
+                    self.send_error_json("config_id is required", HTTPStatus.BAD_REQUEST)
+                    return
+                self.send_json(self.store.update_pipeline_config(config_id, payload))
+                return
             self.send_error_json("not found", HTTPStatus.NOT_FOUND)
         except (ValueError, json.JSONDecodeError) as error:
             self.send_error_json(str(error), HTTPStatus.BAD_REQUEST)
@@ -1217,6 +1539,16 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 return
             try:
                 self.send_json(self.store.delete_case_def(case_id))
+            except KeyError as error:
+                self.send_error_json(str(error), HTTPStatus.NOT_FOUND)
+            return
+        if parsed.path.startswith("/api/pipeline-configs/"):
+            config_id = parsed.path.removeprefix("/api/pipeline-configs/").strip("/")
+            if not config_id:
+                self.send_error_json("config_id is required", HTTPStatus.BAD_REQUEST)
+                return
+            try:
+                self.send_json(self.store.delete_pipeline_config(config_id))
             except KeyError as error:
                 self.send_error_json(str(error), HTTPStatus.NOT_FOUND)
             return

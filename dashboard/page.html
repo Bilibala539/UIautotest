@@ -31,6 +31,9 @@
     /* 建单弹窗:hidden 属性必须能真正隐藏(此前内联 display:flex 把它顶掉了) */
     #bug-modal { display:none; } #bug-modal:not([hidden]) { display:flex; }
     #cd-modal { display:none; } #cd-modal:not([hidden]) { display:flex; }
+    /* 流水线弹窗:同 cd-modal 的 hidden+CSS 显隐写法;checkbox/radio 去掉全局 input 的粗边框内边距 */
+    #pl-modal { display:none; } #pl-modal:not([hidden]) { display:flex; }
+    #pl-modal input[type=checkbox], #pl-modal input[type=radio], #pl-rows input[type=checkbox] { padding:0; width:auto; }
     .badge.t-text { color:#9a6700; background:#fff8e1; border:1px solid #efd68b; }
     .badge.t-auto { color:var(--brand); background:#edf2ff; border:1px solid #c3ceff; }
     .cd-filterbar { display:flex; gap:12px; align-items:center; flex-wrap:wrap; flex:1; }
@@ -88,10 +91,11 @@
 </head>
 <body>
   <header>
-    <h1>Swan 测试平台</h1><p>包体 · 执行会话 · 用例管理 · 用例历史 · 证据 · 验证码工具</p>
+    <h1>Swan 测试平台</h1><p>包体 · 执行会话 · 流水线 · 用例管理 · 用例历史 · 证据 · 验证码工具</p>
     <nav>
       <button data-page="runs" class="active">执行会话</button>
       <button data-page="apks">包管理</button>
+      <button data-page="pipelines">流水线</button>
       <button data-page="casedefs">用例管理</button>
       <button data-page="cases">用例历史</button>
       <button data-page="captcha">验证码工具</button>
@@ -132,6 +136,16 @@
       </div>
       <section class="card table-card"><table><thead><tr><th>包 ID</th><th>版本</th><th>Flavor</th><th>分支</th><th>Commit</th><th>来源</th><th>执行次数</th><th>登记时间</th><th></th></tr></thead><tbody id="apk-rows"><tr><td colspan="9" class="empty">加载中…</td></tr></tbody></table></section>
       <p class="hint">“查看执行”跳转到执行会话页并按该包过滤；执行次数按 runs 关联统计。</p>
+    </section>
+    <section class="page" id="page-pipelines">
+      <div class="toolbar">
+        <span class="meta">定时配置由调度器（pipeline_scheduler，每 30 秒）轮询触发，到点自动创建流水线任务</span>
+        <button class="primary" id="pl-new">＋ 新建流水线配置</button>
+      </div>
+      <section class="card table-card"><table><thead><tr><th>配置 ID</th><th>名称</th><th>套件</th><th>含打包</th><th>频率</th><th>上次执行</th><th>下次执行</th><th>启用</th><th>操作</th></tr></thead><tbody id="pl-rows"><tr><td colspan="9" class="empty">加载中…</td></tr></tbody></table></section>
+      <h2 style="margin:22px 0 10px;font-size:17px">最近执行（定时触发，最近 10 条）</h2>
+      <section class="card table-card"><table><thead><tr><th>任务 ID</th><th>平台</th><th>执行目标</th><th>状态</th><th>创建时间</th><th>结束时间</th></tr></thead><tbody id="pl-job-rows"><tr><td colspan="6" class="empty">加载中…</td></tr></tbody></table></section>
+      <p class="hint">套件功能未上线，可先建空配置；“立即执行”等同到点触发。任务由执行 agent 认领执行，结果见“执行会话”页。</p>
     </section>
     <section class="page" id="page-cases">
       <div class="toolbar">
@@ -246,6 +260,53 @@
       </div>
     </div>
   </div>
+  <div id="pl-modal" hidden style="position:fixed;inset:0;background:rgba(15,23,42,.45);align-items:center;justify-content:center;z-index:50">
+    <div style="background:var(--card,#fff);border-radius:12px;padding:20px 22px;width:min(660px,94vw);max-height:88vh;overflow:auto">
+      <h3 style="margin:0 0 4px" id="pl-modal-title">新建流水线配置</h3>
+      <p class="meta" style="margin:0 0 14px">带 * 必填；到点由调度器自动创建一条 schedule 来源的流水线任务</p>
+      <div class="form-grid">
+        <div><label for="pl-f-name">名称 *</label><input id="pl-f-name" style="width:100%" placeholder="每日冒烟"></div>
+        <div><label for="pl-f-id">配置 ID *</label><input id="pl-f-id" style="width:100%" placeholder="PIPE-SMOKE-DAILY"></div>
+        <div><label for="pl-f-suite">关联套件</label>
+          <select id="pl-f-suite" disabled style="width:100%"><option value="">—</option></select>
+          <div class="hint">套件功能未上线，可先建空配置</div>
+        </div>
+        <div><label>频率 *</label>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;padding-top:6px" id="pl-freq-radios">
+            <label style="display:flex;gap:4px;align-items:center"><input type="radio" name="pl-freq" value="once">单次</label>
+            <label style="display:flex;gap:4px;align-items:center"><input type="radio" name="pl-freq" value="daily">每天</label>
+            <label style="display:flex;gap:4px;align-items:center"><input type="radio" name="pl-freq" value="interval">每 N 天</label>
+            <label style="display:flex;gap:4px;align-items:center"><input type="radio" name="pl-freq" value="weekly">每周</label>
+          </div>
+        </div>
+        <div style="grid-column:span 2" id="pl-param-once" hidden><label for="pl-f-runat">执行时间 *</label><input type="datetime-local" id="pl-f-runat" style="width:100%"></div>
+        <div style="grid-column:span 2" id="pl-param-daily" hidden><label for="pl-f-daily-time">每天时刻 *</label><input type="time" id="pl-f-daily-time" value="01:33"></div>
+        <div style="grid-column:span 2" id="pl-param-interval" hidden><label>每 N 天 / 时刻 *</label>
+          <div style="display:flex;gap:8px;align-items:center">
+            <span class="meta">每</span><input type="number" id="pl-f-every" min="1" value="2" style="width:70px"><span class="meta">天</span>
+            <input type="time" id="pl-f-interval-time" value="09:00">
+          </div>
+        </div>
+        <div style="grid-column:1/-1" id="pl-param-weekly" hidden><label>星期 / 时刻 *</label>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+            <div style="display:flex;gap:8px;flex-wrap:wrap" id="pl-f-weekdays">
+              <label style="display:flex;gap:3px;align-items:center"><input type="checkbox" value="0">日</label>
+              <label style="display:flex;gap:3px;align-items:center"><input type="checkbox" value="1">一</label>
+              <label style="display:flex;gap:3px;align-items:center"><input type="checkbox" value="2">二</label>
+              <label style="display:flex;gap:3px;align-items:center"><input type="checkbox" value="3">三</label>
+              <label style="display:flex;gap:3px;align-items:center"><input type="checkbox" value="4">四</label>
+              <label style="display:flex;gap:3px;align-items:center"><input type="checkbox" value="5">五</label>
+              <label style="display:flex;gap:3px;align-items:center"><input type="checkbox" value="6">六</label>
+            </div>
+            <input type="time" id="pl-f-weekly-time" value="22:00">
+          </div>
+        </div>
+        <div><label style="display:flex;gap:6px;align-items:center;margin-top:8px"><input type="checkbox" id="pl-f-build"> 执行前先打包</label></div>
+        <div><label style="display:flex;gap:6px;align-items:center;margin-top:8px"><input type="checkbox" id="pl-f-enabled" checked> 启用</label></div>
+        <div class="form-actions"><button class="primary" id="pl-save">保存</button><button class="ghost" id="pl-cancel">取消</button><span class="meta" id="pl-msg"></span></div>
+      </div>
+    </div>
+  </div>
   <script>
     const $ = (id) => document.getElementById(id);
     const statusText = {running:'执行中', passed:'通过', failed:'失败', skipped:'跳过', error:'错误'};
@@ -260,6 +321,7 @@
       document.querySelectorAll('section.page').forEach(p => p.classList.remove('active'));
       btn.classList.add('active'); $('page-' + btn.dataset.page).classList.add('active');
       if (btn.dataset.page === 'apks') loadApks();
+      if (btn.dataset.page === 'pipelines') plLoadConfigs();
       if (btn.dataset.page === 'casedefs') loadCaseDefs();
       if (btn.dataset.page === 'captcha') loadGateway();
     });
@@ -635,6 +697,147 @@
     $('cd-save').onclick = saveCaseDef;
     $('cd-cancel').onclick = () => { $('cd-modal').hidden = true; };
     $('cdd-close').onclick = closeCaseDefDrawer;
+
+    // ---------- 流水线配置(定时调度) ----------
+    let plItems = [];
+    let plEditing = null;   // 编辑中的 config_id,新建为 null
+    const PL_WEEK_CN = ['日','一','二','三','四','五','六'];  // 下标即 weekdays 值,0=周日
+    const PL_JOB_STATUS = {pending:'待执行', running:'执行中', succeeded:'成功', failed:'失败', env_blocked:'环境阻塞', error:'错误'};
+    const PL_JOB_CLASS = {pending:'', running:'running', succeeded:'passed', failed:'failed', env_blocked:'skipped', error:'error'};
+
+    // 频率的中文友好显示:每天 01:33 / 每 2 天 09:00 / 每周一·五 22:00 / 单次 2026-09-20 14:00
+    function plScheduleText(c) {
+      const p = c.schedule || {};
+      const t = p.time ? ' ' + p.time : '';
+      if (c.schedule_type === 'once') return '单次 ' + String(p.run_at || '-').replace('T', ' ');
+      if (c.schedule_type === 'daily') return '每天 ' + (p.time || '-');
+      if (c.schedule_type === 'interval') return '每 ' + p.every_days + ' 天' + t;
+      if (c.schedule_type === 'weekly') return '每周' + (p.weekdays || []).map(w => PL_WEEK_CN[w]).join('·') + t;
+      return c.schedule_type || '-';
+    }
+    // 新建时自动建议 PIPE-<字母>-<短随机>,可改
+    function plSuggestId() {
+      const L = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+      const pick = n => Array.from({length: n}, () => L[Math.floor(Math.random() * L.length)]).join('');
+      return `PIPE-${pick(3)}-${pick(4)}`;
+    }
+    function plFreqChanged() {
+      const freq = (document.querySelector('input[name="pl-freq"]:checked') || {}).value || 'daily';
+      $('pl-param-once').hidden = freq !== 'once';
+      $('pl-param-daily').hidden = freq !== 'daily';
+      $('pl-param-interval').hidden = freq !== 'interval';
+      $('pl-param-weekly').hidden = freq !== 'weekly';
+    }
+    async function plLoadConfigs() {
+      const data = await (await fetch('/api/pipeline-configs')).json();
+      plItems = data.items || [];
+      const tbody = $('pl-rows'); tbody.innerHTML = '';
+      if (!plItems.length) { tbody.innerHTML = '<tr><td colspan="9" class="empty">还没有流水线配置——点右上"＋ 新建流水线配置"</td></tr>'; }
+      plItems.forEach(c => { const row = document.createElement('tr');
+        row.innerHTML = `<td>${safe(c.config_id)}</td><td>${safe(c.name)}${c.description ? `<div class="cd-case-title">${safe(c.description)}</div>` : ''}</td><td>${safe(c.suite_id || '-')}</td><td>${c.include_build ? '是' : '—'}</td><td>${safe(plScheduleText(c))}</td><td>${c.last_run_at ? safe(formatDate(c.last_run_at)) : '-'}</td><td>${c.next_run_at ? safe(formatDate(c.next_run_at)) : '-'}</td>
+          <td><input type="checkbox" ${c.enabled ? 'checked' : ''} onchange="plToggleEnabled(decodeURIComponent('${encodeURIComponent(c.config_id)}'), this.checked)"></td>
+          <td><button class="ghost" onclick="plRunNow(decodeURIComponent('${encodeURIComponent(c.config_id)}'))">立即执行</button> <button class="ghost" onclick="plOpenForm(decodeURIComponent('${encodeURIComponent(c.config_id)}'))">编辑</button> <button class="ghost" onclick="plDeleteConfig(decodeURIComponent('${encodeURIComponent(c.config_id)}'))">删除</button></td>`;
+        tbody.appendChild(row); });
+      plLoadRecentJobs();
+    }
+    async function plLoadRecentJobs() {
+      // 定时触发的最近任务(source=schedule),从 jobs 列表里过滤
+      const data = await (await fetch('/api/pipeline/jobs?limit=100')).json();
+      const jobs = (data.items || []).filter(j => j.trigger_source === 'schedule').slice(0, 10);
+      const tbody = $('pl-job-rows'); tbody.innerHTML = '';
+      if (!jobs.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty">暂无定时触发的执行记录</td></tr>'; return; }
+      jobs.forEach(j => { const row = document.createElement('tr');
+        row.innerHTML = `<td>${safe(j.job_id)}</td><td>${safe((j.platform || '').toUpperCase())}</td><td>${safe(j.case_filter || '-')}</td><td><span class="badge ${PL_JOB_CLASS[j.status] || ''}">${PL_JOB_STATUS[j.status] || safe(j.status)}</span></td><td>${safe(formatDate(j.created_at))}</td><td>${j.finished_at ? safe(formatDate(j.finished_at)) : '-'}</td>`;
+        tbody.appendChild(row); });
+    }
+    async function plOpenForm(configId) {
+      plEditing = configId || null;
+      $('pl-msg').textContent = '';
+      let c = null;
+      if (configId) { c = await (await fetch('/api/pipeline-configs/' + encodeURIComponent(configId))).json(); if (c.error) { alert(c.error); return; } }
+      $('pl-modal-title').textContent = configId ? '编辑流水线配置 ' + configId : '新建流水线配置';
+      $('pl-f-name').value = c ? (c.name || '') : '';
+      $('pl-f-id').value = c ? (c.config_id || '') : plSuggestId();
+      $('pl-f-id').disabled = !!configId;   // config_id 是主键,编辑时不允许改
+      $('pl-f-build').checked = !!(c && c.include_build);
+      $('pl-f-enabled').checked = c ? !!c.enabled : true;
+      const p = (c && c.schedule) || {};
+      const freq = c ? c.schedule_type : 'daily';
+      document.querySelectorAll('input[name="pl-freq"]').forEach(r => { r.checked = r.value === freq; });
+      $('pl-f-runat').value = p.run_at ? String(p.run_at).replace(' ', 'T').slice(0, 16) : '';
+      $('pl-f-daily-time').value = p.time || '01:33';
+      $('pl-f-every').value = p.every_days || 2;
+      $('pl-f-interval-time').value = p.time || '09:00';
+      $('pl-f-weekly-time').value = p.time || '22:00';
+      document.querySelectorAll('#pl-f-weekdays input').forEach(cb => { cb.checked = (p.weekdays || []).includes(Number(cb.value)); });
+      plFreqChanged();
+      $('pl-modal').hidden = false;
+    }
+    // 按当前选中的频率收集 schedule_param;不合法返回 {error}
+    function plCollectParam() {
+      const freq = (document.querySelector('input[name="pl-freq"]:checked') || {}).value || '';
+      if (!freq) return { error: '请选择频率' };
+      if (freq === 'once') {
+        const v = $('pl-f-runat').value.trim();
+        if (!v) return { error: '单次执行需要选择执行时间' };
+        return { freq, param: { run_at: v } };
+      }
+      if (freq === 'daily') {
+        const t = $('pl-f-daily-time').value;
+        if (!t) return { error: '每天执行需要选择时刻' };
+        return { freq, param: { time: t } };
+      }
+      if (freq === 'interval') {
+        const n = Math.floor(Number($('pl-f-every').value));
+        const t = $('pl-f-interval-time').value;
+        if (!(n >= 1)) return { error: '每 N 天的 N 需要 >= 1' };
+        if (!t) return { error: '每 N 天需要选择时刻' };
+        return { freq, param: { every_days: n, time: t } };
+      }
+      const days = Array.from(document.querySelectorAll('#pl-f-weekdays input:checked')).map(cb => Number(cb.value));
+      const t = $('pl-f-weekly-time').value;
+      if (!days.length) return { error: '每周执行需至少勾选一个星期' };
+      if (!t) return { error: '每周执行需要选择时刻' };
+      return { freq, param: { weekdays: days, time: t } };
+    }
+    async function plSaveConfig() {
+      const name = $('pl-f-name').value.trim();
+      const configId = $('pl-f-id').value.trim();
+      if (!name) { $('pl-msg').textContent = '名称必填'; return; }
+      if (!configId) { $('pl-msg').textContent = '配置 ID 必填'; return; }
+      const built = plCollectParam();
+      if (built.error) { $('pl-msg').textContent = built.error; return; }
+      const payload = { name, config_id: configId, suite_id: $('pl-f-suite').value || '',
+        include_build: $('pl-f-build').checked ? 1 : 0,
+        schedule_type: built.freq, schedule_param: built.param,
+        enabled: $('pl-f-enabled').checked ? 1 : 0 };
+      const url = plEditing ? '/api/pipeline-configs/' + encodeURIComponent(plEditing) : '/api/pipeline-configs';
+      const resp = await fetch(url, { method: plEditing ? 'PUT' : 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+      const data = await resp.json().catch(() => ({}));
+      if (resp.ok) { $('pl-modal').hidden = true; plLoadConfigs(); }
+      else $('pl-msg').textContent = '保存失败: ' + (data.error || resp.status);
+    }
+    async function plToggleEnabled(configId, on) {
+      const resp = await fetch('/api/pipeline-configs/' + encodeURIComponent(configId), { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ enabled: on ? 1 : 0 }) });
+      if (!resp.ok) { const d = await resp.json().catch(() => ({})); alert('切换失败: ' + (d.error || resp.status)); plLoadConfigs(); }
+    }
+    async function plRunNow(configId) {
+      if (!confirm(`确认立即执行配置 ${configId}？将创建一条流水线任务。`)) return;
+      const resp = await fetch('/api/pipeline-configs/' + encodeURIComponent(configId) + '/run', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: '{}' });
+      const data = await resp.json().catch(() => ({}));
+      if (resp.ok) { alert(`已触发任务 ${(data.job && data.job.job_id) || ''}`); plLoadConfigs(); }
+      else alert('触发失败: ' + (data.error || resp.status));
+    }
+    async function plDeleteConfig(configId) {
+      if (!confirm(`确认删除流水线配置 ${configId}？此操作不可撤销。`)) return;
+      const resp = await fetch('/api/pipeline-configs/' + encodeURIComponent(configId), { method: 'DELETE' });
+      if (resp.ok) plLoadConfigs();
+      else { const d = await resp.json().catch(() => ({})); alert('删除失败: ' + (d.error || resp.status)); }
+    }
+    $('pl-new').onclick = () => plOpenForm(null);
+    $('pl-save').onclick = plSaveConfig;
+    $('pl-cancel').onclick = () => { $('pl-modal').hidden = true; };
+    document.querySelectorAll('input[name="pl-freq"]').forEach(r => r.onchange = plFreqChanged);
 
     async function loadGateway() {
       try {

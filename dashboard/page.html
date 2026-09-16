@@ -54,6 +54,8 @@
     #cd-title-box { display:flex; gap:8px; align-items:center; }
     #cd-title-box[hidden] { display:none; }
     #cd-title-box input { flex:1; border:1px solid var(--line); border-radius:8px; padding:8px; }
+    /* 标题区三按钮(编辑/完成/取消)统一尺寸:同高、同 padding、同字号 */
+    .cd-tbtn { padding:3px 10px; font-size:12px; flex-shrink:0; }
     /* 可清空输入框:右侧一键清空 X,仅在有内容时显示 */
     .cd-clear-wrap { position:relative; display:flex; align-items:center; }
     .cd-clear-wrap input { padding-right:26px; }
@@ -320,12 +322,12 @@
         <div style="grid-column:span 2"><label for="cd-f-title">标题 *</label>
           <div id="cd-title-view">
             <span id="cd-title-text" style="white-space:normal;flex:1"></span>
-            <button type="button" class="ghost" id="cd-title-edit" style="padding:3px 10px;font-size:12px;flex-shrink:0">编辑</button>
+            <button type="button" class="ghost cd-tbtn" id="cd-title-edit">编辑</button>
           </div>
           <div id="cd-title-box" hidden>
             <input id="cd-f-title" placeholder="用例名称">
-            <button type="button" class="primary" id="cd-title-done" title="确认当前输入并回到展示态;真正入库仍需点抽屉底部的保存">完成</button>
-            <button type="button" class="ghost" id="cd-title-cancel" title="放弃本次输入,恢复原标题">取消</button>
+            <button type="button" class="primary cd-tbtn" id="cd-title-done" title="完成并保存标题">完成</button>
+            <button type="button" class="ghost cd-tbtn" id="cd-title-cancel" title="放弃本次输入,恢复原标题">取消</button>
           </div>
         </div>
         <div><label for="cd-f-module">功能模块</label><select id="cd-f-module" style="width:100%"><option value="">（无模块）</option></select></div>
@@ -800,6 +802,7 @@
       $('cd-modal-title').textContent = caseId ? '编辑用例 ' + caseId : '新建用例';
       let c = { case_type: 'text' };
       if (caseId) { c = await (await fetch('/api/case-defs/' + encodeURIComponent(caseId))).json(); if (c.error) { alert(c.error); return; } }
+      cdCaseSnap = caseId ? c : null; // 已入库快照,标题完成保存时防覆盖其他字段
       $('cd-f-id').value = c.case_id || ''; $('cd-f-id').disabled = !!caseId;
       $('cd-f-type').value = c.case_type || 'text';
       $('cd-f-link').value = c.linked_case_id || '';
@@ -830,15 +833,52 @@
       $('cd-f-pri').value = String($('cd-f-pri').value).trim().toUpperCase() === btn.dataset.pri ? '' : btn.dataset.pri;
       cdRenderPri();
     });
-    // 标题展示态/编辑态切换:点编辑进输入框,完成=确认当前输入(仅回显,真正入库靠抽屉保存),取消=放弃输入
+    // 标题展示态/编辑态切换:编辑进输入框;完成=立即把新标题入库(只动 title,其余字段用入库快照防覆盖);取消=放弃输入
     let cdTitleBackup = '';
+    let cdCaseSnap = null;   // 打开抽屉时已入库的用例快照,完成保存标题时以它组装 payload
+    let cdTitleSaving = false; // 防连点重复提交
     function cdShowTitleView() { $('cd-title-view').hidden = false; $('cd-title-box').hidden = true; }
     $('cd-title-edit').onclick = () => {
       cdTitleBackup = $('cd-f-title').value;
       $('cd-title-view').hidden = true; $('cd-title-box').hidden = false;
       $('cd-f-title').focus();
     };
-    $('cd-title-done').onclick = () => cdShowTitleView();
+    $('cd-title-done').onclick = async () => {
+      // 新建用例还没有入库记录,完成只确认输入回展示态(入库仍靠抽屉保存)
+      if (!cdEditing || !cdCaseSnap) { cdShowTitleView(); return; }
+      const newTitle = $('cd-f-title').value.trim();
+      if (!newTitle) { $('cd-msg').textContent = '标题必填'; return; }
+      if (newTitle === (cdCaseSnap.title || '')) { cdShowTitleView(); return; } // 未改动直接回
+      if (cdTitleSaving) return;
+      cdTitleSaving = true;
+      try {
+        // payload = 已入库快照 + 新标题,避免把表单里其他未保存的改动一起带出去
+        const payload = {
+          case_id: cdCaseSnap.case_id,
+          case_type: cdCaseSnap.case_type,
+          title: newTitle,
+          module: cdCaseSnap.module || '',
+          priority: cdCaseSnap.priority || '',
+          source: cdCaseSnap.source || '',
+          source_bug: cdCaseSnap.source_bug || '',
+          file_path: cdCaseSnap.file_path || '',
+          content: cdCaseSnap.content || '',
+          linked_case_id: cdCaseSnap.linked_case_id || '',
+        };
+        const resp = await fetch('/api/case-defs/' + encodeURIComponent(cdEditing),
+          { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+        const data = await resp.json().catch(() => ({}));
+        if (resp.ok) {
+          cdCaseSnap = data; // 入库后快照同步,避免下次完成时拿旧值覆盖
+          $('cd-title-text').textContent = newTitle;
+          $('cd-msg').textContent = '标题已保存';
+          loadCaseDefs(); // 用例列表行同步刷新
+          cdShowTitleView();
+        } else {
+          $('cd-msg').textContent = '标题保存失败: ' + (data.error || resp.status); // 失败不关抽屉
+        }
+      } finally { cdTitleSaving = false; }
+    };
     $('cd-title-cancel').onclick = () => { $('cd-f-title').value = cdTitleBackup; cdShowTitleView(); };
     function cdCloseForm() { $('cd-modal').hidden = true; }
     // 表单里的模块下拉:选项来自 modules 表(值=slug,展示=中文名);当前值未登记则补一项防丢

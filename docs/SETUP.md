@@ -203,7 +203,7 @@ openspec/changes/agent-team/.openspec.yaml
 openspec/changes/agent-team/design.md
 openspec/changes/agent-team/proposal.md
 openspec/changes/agent-team/tasks.md
-SETUP.md  ← 本文件
+docs/SETUP.md  ← 本文件
 ```
 
 总计 30 个文件。

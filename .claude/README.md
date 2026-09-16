@@ -58,8 +58,9 @@ E:\UIAutotest\
 │       ├── bootstrap-team.md              # 一键组队
 │       └── verify-team.md                 # 装配自检
 ├── docs\
-│   ├── AW方法总结与复用指南.md            # 写代码前必读
-│   └── UI元素截取与裁剪规范.md            # 截图前必读
+│   ├── UI元素截取与裁剪规范.md            # 截图前必读
+│   ├── agents\                            # 各项目 agent 蓝图（swan/、web/）
+│   └── README.md                          # 文档索引
 ├── explorer_output\knowledge\             # App 知识库
 │   ├── app_map.json
 │   ├── pages\*.md

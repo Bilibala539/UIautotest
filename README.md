@@ -130,11 +130,11 @@ UIAutotest/
 │   ├── aw-codegen.md             # 代码生成员
 │   └── aw-verify.md              # 验证员
 │
-└── docs/                          # 人读文档
-    ├── AW方法总结与复用指南.md
-    ├── UI元素截取与裁剪规范.md
-    ├── 并行测试执行指南.md
-    └── 编排流程与失败处理.md
+└── docs/                          # 人读文档（完整索引见 docs/README.md）
+    ├── UI元素截取与裁剪规范.md    # 元素截图规范
+    ├── 待办与缺口清单.md          # 当前权威 plan
+    ├── agents/                    # 各项目 agent 蓝图（swan/、web/）
+    └── archive/                   # 已归档文档
 ```
 
 ## 知识库系统

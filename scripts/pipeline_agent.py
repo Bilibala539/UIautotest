@@ -95,6 +95,16 @@ def execute_job(job: dict) -> dict:
     first_rc = _run_pytest(job, run_id)
     if first_rc == 3:
         _log(f"job={job['job_id']} ENV_BLOCKED(环境门禁未过,按 bug 处理)")
+        # 门禁走 pytest.exit(3),绕过了 conftest 的 sessionfinish 上报,
+        # run 记录会永远停在 running——这里补一条 error 收尾,保证执行会话终态一致
+        try:
+            _post(f"/api/runs/{run_id}/complete", {
+                "status": "error",
+                "ended_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                "summary": "环境门禁未通过(env_blocked),未执行用例",
+            })
+        except RuntimeError as error:
+            _log(f"WARNING run 收尾上报失败(执行会话可能停留 running): {error}")
         return {"status": "env_blocked", "result": {"run_id": run_id, "exit_code": 3}}
     if first_rc == 0:
         _log(f"job={job['job_id']} succeeded")

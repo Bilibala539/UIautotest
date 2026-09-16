@@ -39,8 +39,8 @@ def _load_dotenv_local() -> None:
 
 _load_dotenv_local()
 
-# 平台取值集合：flutter = Flutter App(跑在 Android 设备上)，pc = 桌面端
-VALID_PLATFORMS = {"android", "ios", "flutter", "pc"}
+# 平台取值集合：flutter = Flutter App(跑在 Android 设备上)，pc = 桌面端，web = 浏览器端
+VALID_PLATFORMS = {"android", "ios", "flutter", "pc", "web"}
 
 
 def utc_now() -> str:
@@ -147,6 +147,9 @@ def validate_pipeline_config(payload: dict[str, Any]) -> dict[str, Any]:
         raise ValueError("config_id 只能包含字母/数字/._- 且长度 1-64")
     if not name:
         raise ValueError("name 必填")
+    platform = str(payload.get("platform") or "flutter").strip().lower()
+    if platform not in VALID_PLATFORMS:
+        raise ValueError(f"platform 必须是 {sorted(VALID_PLATFORMS)} 之一")
     schedule_type = str(payload.get("schedule_type") or "").strip().lower()
     if schedule_type not in PIPELINE_SCHEDULE_TYPES:
         raise ValueError(f"schedule_type 必须是 {'/'.join(PIPELINE_SCHEDULE_TYPES)}")
@@ -170,6 +173,7 @@ def validate_pipeline_config(payload: dict[str, Any]) -> dict[str, Any]:
         "schedule_type": schedule_type,
         "schedule_param": json.dumps(param, ensure_ascii=False),
         "enabled": 0 if payload.get("enabled") in (0, False, "0", "false", "off") else 1,
+        "platform": platform,
     }
 
 
@@ -429,11 +433,18 @@ class DashboardStore:
                     schedule_param TEXT NOT NULL DEFAULT '',
                     enabled INTEGER NOT NULL DEFAULT 1,
                     last_run_at TEXT NOT NULL DEFAULT '',
+                    platform TEXT NOT NULL DEFAULT 'flutter',
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL
                 );
                 """
             )
+            # platform 为后加列:存量库补列(默认 flutter,兼容老配置)
+            existing_cols = {row[1] for row in connection.execute("PRAGMA table_info(pipeline_configs)")}
+            if "platform" not in existing_cols:
+                connection.execute(
+                    "ALTER TABLE pipeline_configs ADD COLUMN platform TEXT NOT NULL DEFAULT 'flutter'"
+                )
             # 测试套件(M4 P1):套件定义 + 套件↔用例多对多成员(seq 决定执行顺序)
             connection.executescript(
                 """
@@ -1091,6 +1102,64 @@ class DashboardStore:
                 )
         return self.get_case_def(fields["case_id"])
 
+    def batch_import_case_defs(self, rows: Any) -> dict[str, Any]:
+        """批量导入用例(部分成功语义):逐行复用 upsert_case_def 的校验与入库,不另起平行实现。
+
+        与导入模板的约定:module 列收模块中文名,先经 modules 表映射回 slug
+        (填英文标识也兼容);映射不到的行报 failed 并提示先在模块管理创建,
+        不自动建模块、不静默丢弃。case_id 重复走 upsert 更新;缺 case_id/标题
+        为空的行走 failed;单行失败不影响其他行。
+        """
+        if not isinstance(rows, list) or not rows:
+            raise ValueError("rows 必须是非空数组")
+        if len(rows) > 2000:
+            raise ValueError("单次最多导入 2000 行")
+        with self.connect() as connection:
+            # 中文名 -> slug 为主映射;同时收录 slug 自身,兼容直接填英文标识的行
+            name_to_slug: dict[str, str] = {}
+            for row in connection.execute("SELECT slug, name_cn FROM modules").fetchall():
+                name_to_slug[(row["name_cn"] or "").strip()] = row["slug"]
+                name_to_slug.setdefault(row["slug"], row["slug"])
+            existing = {
+                row["case_id"]
+                for row in connection.execute("SELECT case_id FROM case_defs").fetchall()
+            }
+        created = updated = 0
+        failed: list[dict[str, Any]] = []
+        seen: set[str] = set()  # 同一文件内重复 case_id:第二次起按更新计数
+        for index, raw in enumerate(rows):
+            if not isinstance(raw, dict):
+                failed.append({"row": index + 1, "case_id": "", "reason": "行数据必须是对象"})
+                continue
+            row_no = raw.get("row")
+            if not isinstance(row_no, int) or row_no < 1:
+                row_no = index + 1  # 前端没带行号时退化为序号
+            payload = {k: v for k, v in raw.items() if k != "row"}
+            case_id = str(payload.get("case_id") or "").strip()
+            try:
+                # 类型列模板语义:text(文字)或 auto(自动化),manual 视作 text,空默认 text
+                case_type = str(payload.get("case_type") or "").strip().lower()
+                payload["case_type"] = {"manual": "text"}.get(case_type, case_type or "text")
+                # 模块中文名 -> slug;映射不到即该行失败(与模板填写说明第 5 条一致)
+                module_name = str(payload.get("module") or "").strip()
+                if module_name:
+                    slug = name_to_slug.get(module_name)
+                    if slug is None:
+                        raise ValueError(
+                            f"功能模块「{module_name}」不存在,请先在模块管理中创建该模块"
+                        )
+                    payload["module"] = slug
+                self.upsert_case_def(payload)  # 复用单条校验+入库(含优先级归一)
+                if case_id in existing or case_id in seen:
+                    updated += 1
+                else:
+                    created += 1
+                seen.add(case_id)
+            except ValueError as error:
+                # 校验类失败(case_id 缺失/标题为空/模块不存在等)只记该行
+                failed.append({"row": row_no, "case_id": case_id, "reason": str(error)})
+        return {"created": created, "updated": updated, "failed": failed}
+
     def get_case_def(self, case_id: str) -> dict[str, Any]:
         item = self._get_case_def_row(case_id)
         return self._decorate_case_def(item)
@@ -1227,11 +1296,11 @@ class DashboardStore:
             connection.execute(
                 """INSERT INTO pipeline_configs (
                     config_id, name, description, suite_id, include_build,
-                    schedule_type, schedule_param, enabled, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    schedule_type, schedule_param, enabled, platform, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (fields["config_id"], fields["name"], fields["description"],
                  fields["suite_id"], fields["include_build"], fields["schedule_type"],
-                 fields["schedule_param"], fields["enabled"], now, now),
+                 fields["schedule_param"], fields["enabled"], fields["platform"], now, now),
             )
         return self.get_pipeline_config(fields["config_id"])
 
@@ -1268,15 +1337,17 @@ class DashboardStore:
                 "schedule_type": payload.get("schedule_type", row["schedule_type"]),
                 "schedule_param": payload.get("schedule_param", row["schedule_param"]),
                 "enabled": payload.get("enabled", row["enabled"]),
+                "platform": payload.get("platform", row["platform"]),
             }
             fields = validate_pipeline_config(merged)
             connection.execute(
                 """UPDATE pipeline_configs SET name=?, description=?, suite_id=?,
                    include_build=?, schedule_type=?, schedule_param=?, enabled=?,
-                   updated_at=? WHERE config_id=?""",
+                   platform=?, updated_at=? WHERE config_id=?""",
                 (fields["name"], fields["description"], fields["suite_id"],
                  fields["include_build"], fields["schedule_type"],
-                 fields["schedule_param"], fields["enabled"], utc_now(), config_id),
+                 fields["schedule_param"], fields["enabled"], fields["platform"],
+                 utc_now(), config_id),
             )
         return self.get_pipeline_config(config_id)
 
@@ -1294,14 +1365,34 @@ class DashboardStore:
         """立即执行:照 trigger 通道建一个 schedule 来源任务,并回写 last_run_at。
 
         pipeline_jobs 的状态机/claim 逻辑不动;payload 可附带 platform/branch/
-        case_filter/apk_id 覆盖(套件上线后由 suite_id 聚合,暂用这些字段)。
+        case_filter/apk_id 覆盖。case_filter 的取值优先级:
+          1) payload 显式给了 case_filter → 以 payload 为准(保留覆盖语义);
+          2) 否则配置关联了套件 → 聚合套件成员里以 .py 结尾的 file_path
+             (相对仓库根的 pytest 目标,按 seq 顺序空格连接),作为执行目标;
+          3) 套件无可用 .py 成员 / 未关联套件 → 留空,执行 agent 回落默认 target。
+        YAML 驱动用例(knowledge/swan/cases/driver/*.yaml)到 pytest 目标的映射待 M5 二期。
         """
-        self.get_pipeline_config(config_id)  # 不存在抛 KeyError → 404
+        config = self.get_pipeline_config(config_id)  # 不存在抛 KeyError → 404
+        payload_case_filter = str(payload.get("case_filter") or "").strip()
+        if payload_case_filter:
+            # 覆盖语义:运行时显式指定的 case_filter 优先于套件聚合
+            case_filter, filter_source = payload_case_filter, "payload"
+        elif str(config.get("suite_id") or "").strip():
+            # 套件聚合:只取 .py 脚本成员(YAML 成员映射待 M5 二期)
+            py_targets = [
+                p for p in self.list_suite_case_paths(config["suite_id"])
+                if p.endswith(".py")
+            ]
+            case_filter = " ".join(py_targets)
+            filter_source = "suite" if py_targets else ""
+        else:
+            case_filter, filter_source = "", ""
         job = self.create_pipeline_job({
             "trigger_source": "schedule",
-            "platform": str(payload.get("platform") or "flutter"),
+            # 运行时 payload 优先,其次配置里的 platform 列,最后兜底 flutter
+            "platform": str(payload.get("platform") or config.get("platform") or "flutter"),
             "branch": str(payload.get("branch") or ""),
-            "case_filter": str(payload.get("case_filter") or ""),
+            "case_filter": case_filter,
             "apk_id": str(payload.get("apk_id") or ""),
         })
         with self.transaction() as connection:
@@ -1309,7 +1400,12 @@ class DashboardStore:
                 "UPDATE pipeline_configs SET last_run_at=? WHERE config_id=?",
                 (utc_now(), config_id),
             )
-        return {"config": self.get_pipeline_config(config_id), "job": job}
+        # filter_source 摘要:payload=运行时覆盖 / suite=套件聚合 / 空串=回落执行 agent 默认 target
+        return {
+            "config": self.get_pipeline_config(config_id),
+            "job": job,
+            "case_filter_source": filter_source or "default",
+        }
 
     # ==================== 测试套件(M4 P1) ====================
 
@@ -1392,6 +1488,39 @@ class DashboardStore:
             connection.execute("DELETE FROM suite_cases WHERE suite_id=?", (suite_id,))
             connection.execute("DELETE FROM test_suites WHERE suite_id=?", (suite_id,))
         return {"deleted": suite_id}
+
+    def list_suite_case_paths(self, suite_id: str) -> list[str]:
+        """套件成员的脚本路径列表(按 seq 排序,跳过空串),供流水线聚合 pytest 目标。
+
+        一次 JOIN 查完避免 N+1;只取 enabled=1 的成员。file_path 规范化为
+        相对仓库根的 posix 路径(绝对路径会尝试转相对,仓库外的丢弃);
+        YAML 驱动用例(knowledge/swan/cases/driver/*.yaml)到 pytest 目标的
+        映射待 M5 二期,这里不做转换,调用方自行按后缀过滤。
+        """
+        with self.connect() as connection:
+            rows = connection.execute(
+                """SELECT cd.file_path
+                   FROM suite_cases sc JOIN case_defs cd ON cd.case_id = sc.case_id
+                   WHERE sc.suite_id=? AND sc.enabled=1 AND cd.file_path != ''
+                   ORDER BY sc.seq, sc.case_id""",
+                (suite_id,),
+            ).fetchall()
+        targets: list[str] = []
+        for row in rows:
+            raw = str(row["file_path"]).replace("\\", "/").strip()
+            if raw.startswith("./"):
+                raw = raw[2:]
+            if not raw:
+                continue
+            path = Path(raw)
+            if path.is_absolute():
+                try:
+                    raw = path.resolve().relative_to(PROJECT_ROOT).as_posix()
+                except ValueError:  # 仓库外的绝对路径,无法作为 pytest 目标,跳过
+                    continue
+            if raw not in targets:
+                targets.append(raw)
+        return targets
 
     def list_suite_cases(self, suite_id: str) -> list[dict[str, Any]]:
         """套件成员有序列表,LEFT JOIN case_defs 带出标题/模块/类型/优先级。"""
@@ -1824,6 +1953,10 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 return
             if parsed.path == "/api/case-defs":
                 self.send_json(self.store.upsert_case_def(payload), HTTPStatus.CREATED)
+                return
+            if parsed.path == "/api/case-defs/batch":
+                # 批量导入(部分成功语义):created/updated/failed 逐行明细,见 batch_import_case_defs
+                self.send_json(self.store.batch_import_case_defs(payload.get("rows")))
                 return
             if parsed.path == "/api/modules":
                 self.send_json(self.store.create_module(payload), HTTPStatus.CREATED)

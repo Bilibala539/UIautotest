@@ -29,7 +29,8 @@ class DashboardReporter:
         if not self.enabled:
             return
         platform = os.environ.get("PLATFORM", "android").lower()
-        if platform not in {"android", "ios", "flutter", "pc"}:
+        # web 平台同样上报(流水线链路冒烟等无设备用例也要有执行会话记录)
+        if platform not in {"android", "ios", "flutter", "pc", "web"}:
             self.enabled = False
             return
         self.client.post(

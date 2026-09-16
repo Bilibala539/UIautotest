@@ -118,10 +118,19 @@ ALL_CHECKS = [
     ("app_installed", check_app_installed),
 ]
 
+# 设备类检查:仅真机/模拟器平台需要;web 平台不碰 adb,跳过以免误阻塞
+DEVICE_CHECKS = {"adb_available", "device_online", "app_installed"}
+
 
 def run_preflight() -> dict:
+    # 平台感知:web 用例(如流水线链路冒烟)不需要设备,设备类检查直接放行
+    platform = os.environ.get("PLATFORM", "web").strip().lower()
+    checks = [
+        (name, func) for name, func in ALL_CHECKS
+        if platform != "web" or name not in DEVICE_CHECKS
+    ]
     results = []
-    for name, func in ALL_CHECKS:
+    for name, func in checks:
         try:
             ok, detail = func()
         except Exception as error:  # noqa: BLE001 — 检查自身异常按失败算

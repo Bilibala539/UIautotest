@@ -74,6 +74,12 @@
     .cd-td-id { white-space:normal; }
     /* 模块管理小弹窗 */
     #cd-mods-modal { display:none; } #cd-mods-modal:not([hidden]) { display:flex; }
+    /* 批量导入弹窗:同模块管理弹窗的 hidden+CSS 显隐写法;预览/失败明细共用窄表格容器 */
+    #cd-imp-modal { display:none; } #cd-imp-modal:not([hidden]) { display:flex; }
+    .cd-imp-wrap { border:1px solid var(--line); border-radius:10px; overflow:auto; max-height:300px; }
+    .cd-imp-wrap table { width:100%; }
+    .cd-imp-wrap td, .cd-imp-wrap th { white-space:nowrap; }
+    .cd-imp-bad td { color:var(--bad); }
     .su-members { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:10px; }
     .su-case-list { border:1px solid var(--line); border-radius:10px; background:#fff; max-height:420px; overflow:auto; margin-top:8px; }
     .su-case-item { display:flex; gap:8px; align-items:center; padding:7px 10px; border-bottom:1px solid var(--line); font-size:13px; cursor:default; }
@@ -250,6 +256,7 @@
           <div class="cd-cols-pop" id="cd-cols-pop" hidden></div>
         </div>
         <button class="ghost" id="cd-mods-btn">模块管理</button>
+        <button class="ghost" id="cd-imp-btn" title="按模板批量导入用例,支持 CSV 预览校验">批量导入</button>
         <button class="primary" id="cd-new">＋ 新建用例</button>
       </div>
       <section class="card table-card"><div class="cd-tablewrap"><table class="cd-table" id="cd-table-el"><colgroup id="cd-cols"></colgroup><thead><tr id="cd-thead"></tr></thead><tbody id="cd-rows"><tr><td class="empty">加载中…</td></tr></tbody></table></div></section>
@@ -375,6 +382,36 @@
       <div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="ghost" id="cd-mods-close">关闭</button></div>
     </div>
   </div>
+  <div id="cd-imp-modal" hidden style="position:fixed;inset:0;background:rgba(15,23,42,.45);align-items:center;justify-content:center;z-index:50">
+    <div style="background:var(--card,#fff);border-radius:12px;padding:20px 22px;width:min(900px,94vw);max-height:88vh;overflow:auto;display:flex;flex-direction:column">
+      <h3 style="margin:0 0 4px">批量导入用例</h3>
+      <p class="meta" style="margin:0 0 10px">先下载模板,按模板准备 CSV(UTF-8 编码)再上传:预览确认后才入库;case_id 已存在时按更新处理,单行失败不影响其他行。</p>
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+        <input type="file" id="cd-imp-file" accept=".csv,text/csv" title="选择按模板准备的 CSV 文件">
+        <button type="button" class="ghost" id="cd-imp-tpl" title="下载 UTF-8 带 BOM 的 CSV 模板,Excel 双击打开不乱码">下载模板</button>
+        <span class="meta" id="cd-imp-fileinfo">未选择文件</span>
+      </div>
+      <div id="cd-imp-preview" hidden>
+        <div class="meta" id="cd-imp-stats" style="margin-bottom:6px"></div>
+        <div class="cd-imp-wrap">
+          <table>
+            <thead><tr><th>行号</th><th>用例ID</th><th>类型</th><th>标题</th><th>功能模块</th><th>优先级</th><th>校验</th></tr></thead>
+            <tbody id="cd-imp-rows"></tbody>
+          </table>
+        </div>
+      </div>
+      <div id="cd-imp-result" hidden style="margin-top:10px">
+        <div class="meta" id="cd-imp-result-text" style="margin-bottom:6px"></div>
+        <div id="cd-imp-fails"></div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:14px;align-items:center">
+        <button class="primary" id="cd-imp-confirm" disabled title="选择并解析 CSV 后可导入">确认导入</button>
+        <span class="meta" id="cd-imp-msg"></span>
+        <span style="flex:1"></span>
+        <button class="ghost" id="cd-imp-close">关闭</button>
+      </div>
+    </div>
+  </div>
   <div id="pl-modal" hidden style="position:fixed;inset:0;background:rgba(15,23,42,.45);align-items:center;justify-content:center;z-index:50">
     <div style="background:var(--card,#fff);border-radius:12px;padding:20px 22px;width:min(660px,94vw);max-height:88vh;overflow:auto">
       <h3 style="margin:0 0 4px" id="pl-modal-title">新建流水线配置</h3>
@@ -385,6 +422,15 @@
         <div><label for="pl-f-suite">关联套件</label>
           <select id="pl-f-suite" style="width:100%"><option value="">— 不关联 —</option></select>
           <div class="hint">可选;套件在"测试套"页维护,执行时按成员 seq 顺序跑用例</div>
+        </div>
+        <div><label for="pl-f-platform">平台</label>
+          <select id="pl-f-platform" style="width:100%">
+            <option value="flutter">Flutter</option>
+            <option value="web">Web</option>
+            <option value="android">Android</option>
+            <option value="pc">PC</option>
+          </select>
+          <div class="hint">执行任务使用的平台,默认 Flutter;Web 跑浏览器用例</div>
         </div>
         <div><label>频率 *</label>
           <div style="display:flex;gap:10px;flex-wrap:wrap;padding-top:6px" id="pl-freq-radios">
@@ -1080,11 +1126,183 @@
     $('cd-mods-add').onclick = cdAddModule;
     $('cd-mods-close').onclick = () => { $('cd-mods-modal').hidden = true; };
 
+    // ---------- 批量导入用例(模板下载 + CSV 预览校验 + 部分成功导入) ----------
+    let cdImpRows = [];       // 解析出的待导入行(含文件行号与前端预校验结果)
+    let cdImpModules = null;  // 模块中文名/英文标识 -> slug 映射(打开弹窗时拉取)
+    // 前端只做预校验标问题行;提交后由 /api/case-defs/batch 逐行权威校验(部分成功)
+    const CD_IMP_HEADERS = {
+      '用例ID': 'case_id', '类型': 'case_type', '标题': 'title', '功能模块': 'module',
+      '优先级': 'priority', '来源': 'source', '来源BUG': 'source_bug',
+      '关联用例ID': 'linked_case_id', '脚本路径': 'file_path',
+    };
+    // 模板内容与 /api/case-defs/batch 的约定一一对应;# 行 = 填写说明,导入时忽略
+    const CD_IMP_TEMPLATE = [
+      '# Swan 测试平台 用例批量导入模板',
+      '# 填写说明:',
+      '# 1. 以 # 开头的行是说明,导入时自动忽略;第一个非说明行必须是表头行,列名与列顺序不要改动。',
+      '# 2. 必填列:用例ID、标题;其余列可留空。',
+      '# 3. 类型列取值:text(文字用例)或 auto(自动化用例),留空按 text 处理。',
+      '# 4. 优先级取值:P0/P1/P2/P3;填 L1/L2/L3 会自动映射为 P1/P2/P3,其他非标值按 P3 入库。',
+      '# 5. 功能模块列填模块中文名(需先在"模块管理"创建,与中文名完全一致,填英文标识也可以);模块不存在时该行导入失败,不会自动创建模块。',
+      '# 6. 用例ID 已存在时按更新处理;脚本路径填仓库相对路径,如 knowledge/swan/cases/driver/login/pos_001.yaml。',
+      '用例ID,类型,标题,功能模块,优先级,来源,来源BUG,关联用例ID,脚本路径',
+      'LOGIN-L2-POS-001,text,密码登录成功后进入首页,登录,P0,需求单 REQ-1201,,,knowledge/swan/cases/driver/login/pos_001.yaml',
+      'LOGIN-L2-NEG-001,text,密码错误时提示账号或密码错误并停留在登录页,登录,P1,需求单 REQ-1201,SWAN-BUG-20260910-001,,',
+      'DEVC-AUTO-001,auto,蓝牙连接后设备卡显示在线,设备管理,P1,,,LOGIN-L2-POS-001,knowledge/swan/cases/driver/device/conn_001.yaml',
+    ].join('\r\n');
+    // 模板下载:前端 Blob 生成(零后端依赖);﻿ 即 BOM,保证 Excel 双击按 UTF-8 打开不乱码
+    function cdDownloadTemplate() {
+      const blob = new Blob(['﻿' + CD_IMP_TEMPLATE], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = '用例批量导入模板.csv';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+    // CSV 解析:支持引号包裹(内含逗号/换行)、双引号转义("")、CRLF、BOM
+    function cdParseCsv(text) {
+      if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+      text = text.replace(/\r\n?/g, '\n');
+      const rows = []; let row = []; let field = ''; let inQuotes = false;
+      for (let i = 0; i < text.length; i++) {
+        const ch = text[i];
+        if (inQuotes) {
+          if (ch === '"') {
+            if (text[i + 1] === '"') { field += '"'; i++; } else inQuotes = false;
+          } else field += ch;
+        } else if (ch === '"') inQuotes = true;
+        else if (ch === ',') { row.push(field); field = ''; }
+        else if (ch === '\n') { row.push(field); field = ''; rows.push(row); row = []; }
+        else field += ch;
+      }
+      if (field !== '' || row.length) { row.push(field); rows.push(row); }
+      return rows;
+    }
+    async function cdLoadImportModules() {
+      const data = await (await fetch('/api/modules')).json();
+      const map = new Map();
+      (data.items || []).forEach(m => {
+        map.set(m.slug, m.slug);
+        if (m.name_cn) map.set(m.name_cn.trim(), m.slug);
+      });
+      cdImpModules = map;
+    }
+    // 单行预校验:只标问题、不拦截提交(问题行由后端走 failed,不拖累其他行)
+    function cdImportCheckRow(row) {
+      const problems = [];
+      if (!row.case_id) problems.push('用例ID 必填');
+      if (!row.title) problems.push('标题必填');
+      if (row.case_type) {
+        if (row.case_type.toLowerCase() === 'manual') row.case_type = 'text';
+        if (!['text', 'auto'].includes(row.case_type)) problems.push('类型须为 text 或 auto');
+      }
+      if (row.module && cdImpModules && !cdImpModules.has(row.module)) {
+        problems.push('模块不存在,请先在模块管理中创建该模块');
+      }
+      row.problems = problems;
+      return row;
+    }
+    function cdImportReadFile(file) {
+      if (!file) return;
+      $('cd-imp-msg').textContent = '';
+      $('cd-imp-result').hidden = true;
+      const reader = new FileReader();
+      reader.onload = () => cdImportPreview(String(reader.result || ''));
+      reader.onerror = () => { $('cd-imp-msg').textContent = '文件读取失败,请重试'; };
+      reader.readAsText(file, 'utf-8');
+    }
+    function cdImportPreview(text) {
+      const rawRows = cdParseCsv(text);
+      // 跳过 # 说明行与空行;第一个非说明行作表头
+      let head = null, headIndex = 0;
+      for (; headIndex < rawRows.length; headIndex++) {
+        const line = rawRows[headIndex].join('').trim();
+        if (!line || line.startsWith('#')) continue;
+        head = rawRows[headIndex]; break;
+      }
+      cdImpRows = [];
+      if (!head) {
+        $('cd-imp-msg').textContent = '未找到表头行:文件为空或全是说明行,请按模板填写';
+      } else {
+        const cols = head.map(h => CD_IMP_HEADERS[String(h).trim()] || null);
+        if (!cols.includes('case_id') || !cols.includes('title')) {
+          $('cd-imp-msg').textContent = '表头不合法:缺少"用例ID"或"标题"列,请勿修改模板表头';
+        } else {
+          for (let i = headIndex + 1; i < rawRows.length; i++) {
+            const cells = rawRows[i];
+            if (!cells.join('').trim()) continue; // 空行跳过
+            const row = { row: i + 1 }; // 1 起文件行号,与文本编辑器看到的一致,便于定位问题行
+            cols.forEach((key, c) => { if (key) row[key] = String(cells[c] || '').trim(); });
+            cdImpRows.push(cdImportCheckRow(row));
+          }
+          if (!cdImpRows.length) $('cd-imp-msg').textContent = '没有可导入的数据行';
+        }
+      }
+      cdRenderImportPreview();
+    }
+    function cdRenderImportPreview() {
+      const bad = cdImpRows.filter(r => (r.problems || []).length).length;
+      $('cd-imp-stats').textContent = `共解析 ${cdImpRows.length} 行数据,其中 ${bad} 行有问题(问题行会导入失败,不影响其他行)`;
+      $('cd-imp-rows').innerHTML = cdImpRows.map(r => {
+        const pri = cdPriNorm(r.priority);
+        const check = (r.problems || []).length ? safe(r.problems.join(';')) : '通过';
+        return `<tr${(r.problems || []).length ? ' class="cd-imp-bad"' : ''}><td>${r.row}</td><td>${safe(r.case_id) || '-'}</td><td>${safe(r.case_type || 'text')}</td><td>${safe(r.title) || '-'}</td><td>${safe(r.module) || '-'}</td><td>${safe(pri) || '-'}</td><td>${check}</td></tr>`;
+      }).join('');
+      $('cd-imp-preview').hidden = !cdImpRows.length;
+      $('cd-imp-confirm').disabled = !cdImpRows.length;
+    }
+    async function cdImportSubmit() {
+      if (!cdImpRows.length) return;
+      $('cd-imp-confirm').disabled = true;
+      $('cd-imp-msg').textContent = '导入中…';
+      try {
+        const resp = await fetch('/api/case-defs/batch', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rows: cdImpRows }),
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok) { $('cd-imp-msg').textContent = '导入失败: ' + (data.error || resp.status); return; }
+        $('cd-imp-msg').textContent = '';
+        $('cd-imp-result').hidden = false;
+        $('cd-imp-result-text').textContent =
+          `导入完成:新增 ${data.created || 0} 条,更新 ${data.updated || 0} 条,失败 ${(data.failed || []).length} 条`;
+        $('cd-imp-fails').innerHTML = (data.failed || []).length
+          ? '<div class="cd-imp-wrap"><table><thead><tr><th>行号</th><th>用例ID</th><th>失败原因</th></tr></thead><tbody>'
+            + data.failed.map(f => `<tr class="cd-imp-bad"><td>${safe(f.row)}</td><td>${safe(f.case_id) || '-'}</td><td>${safe(f.reason)}</td></tr>`).join('')
+            + '</tbody></table></div>'
+          : '';
+        loadCaseDefs(); // 导入结果落库后刷新列表(统计卡/模块下拉同步更新)
+      } finally {
+        $('cd-imp-confirm').disabled = !cdImpRows.length;
+      }
+    }
+    async function cdOpenImport() {
+      cdImpRows = [];
+      $('cd-imp-file').value = '';
+      $('cd-imp-fileinfo').textContent = '未选择文件';
+      $('cd-imp-preview').hidden = true;
+      $('cd-imp-result').hidden = true;
+      $('cd-imp-msg').textContent = '';
+      $('cd-imp-confirm').disabled = true;
+      $('cd-imp-modal').hidden = false;
+      await cdLoadImportModules();
+    }
+    $('cd-imp-btn').onclick = cdOpenImport;
+    $('cd-imp-tpl').onclick = cdDownloadTemplate;
+    $('cd-imp-file').onchange = e => {
+      const file = e.target.files && e.target.files[0];
+      $('cd-imp-fileinfo').textContent = file ? file.name : '未选择文件';
+      cdImportReadFile(file);
+    };
+    $('cd-imp-confirm').onclick = cdImportSubmit;
+    $('cd-imp-close').onclick = () => { $('cd-imp-modal').hidden = true; };
+
     // 抽屉/弹窗统一 Esc 关闭(UI 规范 4.3):依次看哪些开着
     document.addEventListener('keydown', e => {
       if (e.key !== 'Escape') return;
       [['cd-drawer', closeCaseDefDrawer], ['cd-modal', cdCloseForm],
        ['su-drawer', suCloseDrawer], ['cd-mods-modal', () => { $('cd-mods-modal').hidden = true; }],
+       ['cd-imp-modal', () => { $('cd-imp-modal').hidden = true; }],
        ['su-modal', () => { $('su-modal').hidden = true; }]].forEach(([id, close]) => {
         const el = $(id);
         if (el && !el.hidden) { close(); }
@@ -1173,6 +1391,8 @@
         sel.innerHTML = '<option value="">— 不关联 —</option>';
       }
       sel.value = (c && c.suite_id) || '';
+      // 平台回显:老配置没有 platform 值时回落 flutter
+      $('pl-f-platform').value = (c && c.platform) || 'flutter';
       plFreqChanged();
       $('pl-modal').hidden = false;
     }
@@ -1213,7 +1433,8 @@
       const payload = { name, config_id: configId, suite_id: $('pl-f-suite').value || '',
         include_build: $('pl-f-build').checked ? 1 : 0,
         schedule_type: built.freq, schedule_param: built.param,
-        enabled: $('pl-f-enabled').checked ? 1 : 0 };
+        enabled: $('pl-f-enabled').checked ? 1 : 0,
+        platform: $('pl-f-platform').value || 'flutter' };
       const url = plEditing ? '/api/pipeline-configs/' + encodeURIComponent(plEditing) : '/api/pipeline-configs';
       const resp = await fetch(url, { method: plEditing ? 'PUT' : 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
       const data = await resp.json().catch(() => ({}));

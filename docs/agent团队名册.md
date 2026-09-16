@@ -16,7 +16,7 @@
 | 用例管理 agent | case_defs CRUD、用例管理页、sync_cases.py | 待命(可唤醒) | 修复过列宽拖拽×2、列重叠;单列宽度=可见列宽之和的方案已验证 |
 | **jenkins打包模块开发** | .166 构建环境(JDK17/Android/Flutter)+ scripts/build_swan_apk.py | ✅ 环境与脚本已交付(a690bc5);在修 register_apk.py 缺 apk_id 的 bug | 构建环境:C:\build-env\+env.ps1(JDK17 Temurin/Android SDK 34+36/Flutter 3.47.4 南京大学镜像,flutter doctor 通过);**阻塞:auto_tester 权限未生效,真打包未验**;注意 .166 的 python 是 WindowsApps 占位符,远程跑脚本用 py -3 |
 | **平台侧流水线开发** | pipeline_configs + 调度器 + 流水线页面 | ✅ 已交付(1118a66+aff7db7,已部署) | 已完成:套件→case_filter 聚合、web 平台支持、门禁按平台裁剪、rc3 补 run 收尾(执行会话/流水线状态一致) |
-| **平台侧用例模块开发** | 测试套件管理 M4 + 用例页 6 条优化 + 规范对齐 | ✅ 已交付部署(34fcedd+aff7db7,2026-09-16) | 套件 CRUD/成员管理/modules/优先级徽章/编辑抽屉/**批量导入+CSV 模板下载**(aff7db7);未尽:批量操作条、toast 组件、账号体系 |
+| **平台侧用例模块开发** | 测试套件管理 M4 + 用例页 6 条优化 + 规范对齐 | ✅ 已交付部署(34fcedd+aff7db7,2026-09-16) | 套件 CRUD/成员管理/modules/优先级徽章/编辑抽屉/**批量导入+CSV 模板下载**(aff7db7);批量导入已扩至 .xlsx/.csv/.md 三格式+SheetJS vendor(e38c357);未尽:批量操作条、toast 组件、账号体系、字段化模板编辑、脑图视图 |
 | **平台侧产品设计师** | 全网检索同类测试平台交互与 UI,产出 docs/平台UI设计规范.md;所有开发 agent 页面开发以规范为唯一依据 | 设计中(2026-09-16) | 只设计不改代码;规范落地后按 P0/P1 建议清单驱动各页签改造 |
 
 ## 关键约定(全团队硬性纪律)

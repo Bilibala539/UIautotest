@@ -523,6 +523,7 @@
             const colEl = $('cd-cols').children[i], thEl = $('cd-thead').children[i];
             if (colEl) colEl.style.width = col.width + 'px';
             if (thEl) thEl.style.width = col.width + 'px';
+            $('cd-table-el').style.width = cdVisibleCols().reduce((s, c) => s + c.width, 0) + 'px';
           };
           const onUp = () => {
             document.removeEventListener('mousemove', onMove);

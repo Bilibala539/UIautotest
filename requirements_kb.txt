@@ -1,0 +1,10 @@
+# 知识库向量检索依赖（vector_kb MCP 服务 + scripts/knowledge/embedding_pipeline.py）
+# 安装顺序（先单独装 CPU 版 torch，避免 pip 默认拉取 CUDA 大包）：
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
+#   pip install -r requirements.txt -r requirements_kb.txt
+chromadb==1.5.9
+sentence-transformers==6.0.1
+# 嵌入管线要求 protobuf 钉在 3.20.x（升级会与 chromadb/transformers 冲突）
+protobuf==3.20.2
+# 嵌入模型从 ModelScope 下载用（scripts/download_embedding_model.py）
+modelscope

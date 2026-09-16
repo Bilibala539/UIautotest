@@ -383,8 +383,8 @@
         <div><label for="pl-f-name">名称 *</label><input id="pl-f-name" style="width:100%" placeholder="每日冒烟"></div>
         <div><label for="pl-f-id">配置 ID *</label><input id="pl-f-id" style="width:100%" placeholder="PIPE-SMOKE-DAILY"></div>
         <div><label for="pl-f-suite">关联套件</label>
-          <select id="pl-f-suite" disabled style="width:100%"><option value="">—</option></select>
-          <div class="hint">套件功能未上线，可先建空配置</div>
+          <select id="pl-f-suite" style="width:100%"><option value="">— 不关联 —</option></select>
+          <div class="hint">可选;套件在"测试套"页维护,执行时按成员 seq 顺序跑用例</div>
         </div>
         <div><label>频率 *</label>
           <div style="display:flex;gap:10px;flex-wrap:wrap;padding-top:6px" id="pl-freq-radios">
@@ -1163,6 +1163,16 @@
       $('pl-f-interval-time').value = p.time || '09:00';
       $('pl-f-weekly-time').value = p.time || '22:00';
       document.querySelectorAll('#pl-f-weekdays input').forEach(cb => { cb.checked = (p.weekdays || []).includes(Number(cb.value)); });
+      // 关联套件下拉:实时拉取测试套列表(套件功能已上线),并回显当前配置的 suite_id
+      const sel = $('pl-f-suite');
+      try {
+        const suites = (await (await fetch('/api/suites')).json()).items || [];
+        sel.innerHTML = '<option value="">— 不关联 —</option>' + suites.map(s =>
+          `<option value="${safe(s.suite_id)}">${safe(s.name)}（${safe(s.suite_id)} · ${SU_TYPE_CN[s.suite_type] || safe(s.suite_type)}）</option>`).join('');
+      } catch (e) {
+        sel.innerHTML = '<option value="">— 不关联 —</option>';
+      }
+      sel.value = (c && c.suite_id) || '';
       plFreqChanged();
       $('pl-modal').hidden = false;
     }

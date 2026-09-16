@@ -56,6 +56,14 @@
     #cd-title-box input { flex:1; border:1px solid var(--line); border-radius:8px; padding:8px; }
     /* 标题区三按钮(编辑/完成/取消)统一尺寸:同高、同 padding、同字号 */
     .cd-tbtn { padding:3px 10px; font-size:12px; flex-shrink:0; }
+    /* 自动化用例只读态(规范 8.5/8.6):灰底、去输入框感 */
+    .cd-readonly-box { background:var(--neutral-weak); border:1px solid var(--line); border-radius:8px; padding:8px 10px; color:var(--muted); font-size:12px; white-space:pre-wrap; word-break:break-all; font-family:monospace; max-height:420px; overflow:auto; margin:0; }
+    .cd-readonly-note { background:var(--neutral-weak); color:var(--muted); }
+    /* 仓库脚本区块(规范 8.3):等宽路径 + 复制路径 + PyCharm 跳转 */
+    .cd-mini-btn { padding:5px 12px; font-size:12px; flex-shrink:0; }
+    a.cd-mini-btn { display:inline-block; background:#fff; color:inherit; border:1px solid var(--line); border-radius:8px; text-decoration:none; cursor:pointer; }
+    a.cd-mini-btn:hover { background:var(--hover); }
+    #cdd-file-path { font-family:monospace; font-size:12px; word-break:break-all; flex:1; min-width:180px; background:var(--neutral-weak); border-radius:6px; padding:4px 8px; }
     /* 可清空输入框:右侧一键清空 X,仅在有内容时显示 */
     .cd-clear-wrap { position:relative; display:flex; align-items:center; }
     .cd-clear-wrap input { padding-right:26px; }
@@ -293,6 +301,14 @@
         </div>
         <button class="ghost" id="cdd-close">关闭</button>
       </div>
+      <div id="cdd-repo" hidden style="margin:0 0 12px">
+        <div class="cd-drawer-id" style="margin-bottom:6px">仓库脚本</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <code id="cdd-file-path"></code>
+          <button type="button" class="primary cd-mini-btn" id="cdd-copy-path" title="复制仓库文件的绝对路径到剪贴板">复制路径</button>
+          <a id="cdd-pycharm" class="cd-mini-btn" href="#" title="需要本机安装 PyCharm;未安装时点击无反应,可用复制路径兜底">用 PyCharm 打开</a>
+        </div>
+      </div>
       <pre id="cdd-content"></pre>
     </aside>
   </div>
@@ -303,7 +319,7 @@
         <div>
           <div class="cd-drawer-id" id="cd-form-id"></div>
           <h2 id="cd-modal-title" style="margin:2px 0 6px">新建用例</h2>
-          <p class="hint" style="margin:0">带 * 必填；自动化用例建议填"关联用例"指向对应文字用例</p>
+          <p class="hint" id="cd-form-hint" style="margin:0">带 * 必填；自动化用例建议填"关联用例"指向对应文字用例</p>
         </div>
         <button class="ghost" id="cd-cancel">关闭</button>
       </div>
@@ -334,7 +350,12 @@
         <div><label for="cd-f-link">关联用例(自动化→文字)</label><input id="cd-f-link" placeholder="LOGIN-L2-POS-002"></div>
         <div><label for="cd-f-bug">来源 bug 单</label><input id="cd-f-bug" placeholder="SWAN-BUG-20260910-001"></div>
         <div><label for="cd-f-src">来源描述</label><input id="cd-f-src" placeholder="来源文件 / 任务卡"></div>
-        <div style="grid-column:1/-1"><label for="cd-f-content">用例内容(步骤/预期,YAML 或自由文本)</label><textarea id="cd-f-content" rows="10" style="width:100%;border:1px solid var(--line);border-radius:8px;padding:8px;font-family:monospace"></textarea></div>
+        <div style="grid-column:1/-1" id="cd-content-wrap">
+          <label for="cd-f-content">用例内容(步骤/预期,YAML 或自由文本)</label>
+          <pre id="cd-f-content-ro" class="cd-readonly-box" hidden></pre>
+          <p class="meta cd-readonly-note" id="cd-content-hint" hidden style="margin:6px 0 0;padding:6px 10px;border-radius:8px">内容在代码工程维护,请在 PyCharm 修改后同步;此处只读。</p>
+          <textarea id="cd-f-content" rows="10" style="width:100%;border:1px solid var(--line);border-radius:8px;padding:8px;font-family:monospace"></textarea>
+        </div>
         <div class="form-actions"><button class="primary" id="cd-save">保存</button><span class="meta" id="cd-msg"></span></div>
       </div>
     </aside>
@@ -793,8 +814,40 @@
       if (c.file_path) chips.push(`<span class="chip lvl" title="仓库文件">${safe(c.file_path)}</span>`);
       $('cdd-chips').innerHTML = chips.join('');
       $('cdd-content').textContent = c.content || '(无内容)';
+      // 仓库脚本区块(规范 8.3):auto 用例展示等宽路径 + 复制路径 + PyCharm 跳转;无 file_path 整块不渲染
+      const repoBox = $('cdd-repo');
+      if (c.file_path) {
+        repoBox.hidden = false;
+        $('cdd-file-path').textContent = c.file_path;
+        const absPath = 'E:/UIAutotest/' + c.file_path; // 仓库根绝对路径,拼给 PyCharm 与剪贴板
+        $('cdd-copy-path').onclick = async () => {
+          const btn = $('cdd-copy-path');
+          const ok = await cdCopyText(absPath);
+          btn.textContent = ok ? '已复制' : '复制失败';
+          setTimeout(() => { btn.textContent = '复制路径'; }, 1500);
+        };
+        const jb = $('cdd-pycharm');
+        jb.href = 'jetbrains://PyCharm/navigate/reference?project=UIAutotest&path=' + encodeURIComponent(absPath);
+      } else {
+        repoBox.hidden = true;
+      }
       $('cd-drawer').hidden = false;
     }
+    // 复制文本:clipboard API 优先;平台走 http 非安全源时 API 不在,降级 execCommand
+    async function cdCopyText(text) {
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(text); return true;
+        }
+      } catch (e) { /* 落到降级路径 */ }
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      let ok = false;
+      try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+      ta.remove(); return ok;
+    }
+    let cdAutoEdit = false; // 规范 8.5:auto 用例编辑收窄,仅管理属性可改
     async function openCaseDefForm(caseId) {
       cdEditing = caseId || null;
       $('cd-msg').textContent = '';
@@ -804,13 +857,31 @@
       if (caseId) { c = await (await fetch('/api/case-defs/' + encodeURIComponent(caseId))).json(); if (c.error) { alert(c.error); return; } }
       cdCaseSnap = caseId ? c : null; // 已入库快照,标题完成保存时防覆盖其他字段
       $('cd-f-id').value = c.case_id || ''; $('cd-f-id').disabled = !!caseId;
-      $('cd-f-type').value = c.case_type || 'text';
+      // 自动化用例(编辑态)收窄:content/ID/标题/类型/来源 bug 单只读,可编辑仅
+      // 优先级/模块/关联文字用例/来源描述(规范 8.5/8.6);文字用例与新建不受限
+      cdAutoEdit = !!caseId && c.case_type === 'auto';
+      $('cd-form-hint').textContent = cdAutoEdit
+        ? '自动化用例内容在代码工程维护,此处仅编辑管理属性(优先级/模块/关联用例/来源描述)'
+        : '带 * 必填；自动化用例建议填"关联用例"指向对应文字用例';
+      $('cd-f-type').disabled = cdAutoEdit;
+      $('cd-f-bug').disabled = cdAutoEdit;
+      $('cd-f-link').disabled = false; $('cd-f-src').disabled = false;
+      if (cdAutoEdit) {
+        $('cd-f-content').hidden = true;
+        const ro = $('cd-f-content-ro'); ro.hidden = false; ro.textContent = c.content || '(无内容)';
+        $('cd-content-hint').hidden = false;
+      } else {
+        $('cd-f-content').hidden = false;
+        $('cd-f-content-ro').hidden = true;
+        $('cd-content-hint').hidden = true;
+      }
       $('cd-f-link').value = c.linked_case_id || '';
       $('cd-f-bug').value = c.source_bug || ''; $('cd-f-src').value = c.source || '';
       $('cd-f-content').value = c.content || '';
-      // 标题默认只读展示,点"编辑"才切输入框(展示态/编辑态分离)
+      // 标题默认只读展示,点"编辑"才切输入框(展示态/编辑态分离);auto 标题为仓库源头,不给编辑入口
       $('cd-title-text').textContent = c.title || '(无标题)';
       $('cd-f-title').value = c.title || '';
+      $('cd-title-edit').hidden = cdAutoEdit;
       cdShowTitleView();
       // 优先级四档:旧值归一后回填点选态
       const rawPri = String(c.priority || '').trim();
@@ -895,10 +966,28 @@
       const caseId = $('cd-f-id').value.trim();
       if (!caseId) { $('cd-msg').textContent = '用例 ID 必填'; return; }
       if (!$('cd-f-title').value.trim()) { $('cd-msg').textContent = '标题必填'; return; }
-      const payload = { case_id: caseId, case_type: $('cd-f-type').value, title: $('cd-f-title').value.trim(),
-        module: $('cd-f-module').value.trim(), priority: $('cd-f-pri').value.trim(),
-        linked_case_id: $('cd-f-link').value.trim(), source_bug: $('cd-f-bug').value.trim(),
-        source: $('cd-f-src').value.trim(), content: $('cd-f-content').value };
+      let payload;
+      if (cdAutoEdit && cdCaseSnap) {
+        // 规范 8.5:auto 编辑只提交可编辑字段(优先级/模块/关联文字用例/来源描述),
+        // 其余字段取入库快照,防止把只读字段或表单残留值覆盖回去
+        payload = {
+          case_id: cdCaseSnap.case_id,
+          case_type: cdCaseSnap.case_type,
+          title: cdCaseSnap.title || '',
+          module: $('cd-f-module').value.trim(),
+          priority: $('cd-f-pri').value.trim(),
+          linked_case_id: $('cd-f-link').value.trim(),
+          source: $('cd-f-src').value.trim(),
+          source_bug: cdCaseSnap.source_bug || '',
+          file_path: cdCaseSnap.file_path || '',
+          content: cdCaseSnap.content || '',
+        };
+      } else {
+        payload = { case_id: caseId, case_type: $('cd-f-type').value, title: $('cd-f-title').value.trim(),
+          module: $('cd-f-module').value.trim(), priority: $('cd-f-pri').value.trim(),
+          linked_case_id: $('cd-f-link').value.trim(), source_bug: $('cd-f-bug').value.trim(),
+          source: $('cd-f-src').value.trim(), content: $('cd-f-content').value };
+      }
       const resp = await fetch('/api/case-defs/' + encodeURIComponent(cdEditing || caseId), { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
       const data = await resp.json().catch(() => ({}));
       if (resp.ok) { $('cd-modal').hidden = true; loadCaseDefs(); }

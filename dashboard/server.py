@@ -403,12 +403,19 @@ class DashboardStore:
                     file_path TEXT NOT NULL DEFAULT '',
                     content TEXT NOT NULL DEFAULT '',
                     linked_case_id TEXT NOT NULL DEFAULT '',
+                    link_strength TEXT NOT NULL DEFAULT 'strong',
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL
                 );
                 CREATE INDEX IF NOT EXISTS idx_case_defs_module ON case_defs(module);
                 """
             )
+            # link_strength 为后加列:存量库补列(默认 strong,sync_cases.py 同步时会按来源纠正)
+            existing_cols = {row[1] for row in connection.execute("PRAGMA table_info(case_defs)")}
+            if "link_strength" not in existing_cols:
+                connection.execute(
+                    "ALTER TABLE case_defs ADD COLUMN link_strength TEXT NOT NULL DEFAULT 'strong'"
+                )
             # 流水线定时配置(调度器每 30s 轮询,到点 POST {id}/run 建 schedule 任务)
             connection.executescript(
                 """
@@ -1042,6 +1049,12 @@ class DashboardStore:
     def upsert_case_def(self, payload: dict[str, Any]) -> dict[str, Any]:
         fields = self._validate_case_def(payload)
         now = utc_now()
+        # link_strength(规范 8.2):strong=显式锚点/平台直建,weak=路径推断的弱关联。
+        # 只在 payload 显式携带时才生效,否则 INSERT 默认 strong、UPDATE 保留原值——
+        # 防止页面保存(不传该字段)把 sync 标的 weak 冲掉
+        new_link = str(payload.get("link_strength") or "").strip().lower()
+        if new_link not in {"strong", "weak"}:
+            new_link = ""
         with self.transaction() as connection:
             # 新模块 slug 自动登记进 modules(中文名优先取已知映射,否则先同 slug,
             # 后续可在模块管理里改),保证 sync_cases.py 再同步时筛选项与中文名映射不回退
@@ -1051,28 +1064,29 @@ class DashboardStore:
                     (fields["module"], MODULE_CN_SEED.get(fields["module"], fields["module"])),
                 )
             row = connection.execute(
-                "SELECT case_id FROM case_defs WHERE case_id=?", (fields["case_id"],)
+                "SELECT case_id, link_strength FROM case_defs WHERE case_id=?", (fields["case_id"],)
             ).fetchone()
             if row is None:
                 connection.execute(
                     """INSERT INTO case_defs (
                         case_id, case_type, title, module, priority, source,
                         source_bug, file_path, content, linked_case_id,
-                        created_at, updated_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                        link_strength, created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (fields["case_id"], fields["case_type"], fields["title"],
                      fields["module"], fields["priority"], fields["source"],
                      fields["source_bug"], fields["file_path"], fields["content"],
-                     fields["linked_case_id"], now, now),
+                     fields["linked_case_id"], new_link or "strong", now, now),
                 )
             else:
                 connection.execute(
                     """UPDATE case_defs SET case_type=?, title=?, module=?,
                        priority=?, source=?, source_bug=?, file_path=?, content=?,
-                       linked_case_id=?, updated_at=? WHERE case_id=?""",
+                       linked_case_id=?, link_strength=?, updated_at=? WHERE case_id=?""",
                     (fields["case_type"], fields["title"], fields["module"],
                      fields["priority"], fields["source"], fields["source_bug"],
                      fields["file_path"], fields["content"], fields["linked_case_id"],
+                     new_link or row["link_strength"] or "strong",
                      now, fields["case_id"]),
                 )
         return self.get_case_def(fields["case_id"])
@@ -1140,7 +1154,7 @@ class DashboardStore:
         with self.connect() as connection:
             rows = connection.execute(
                 f"""SELECT case_id, case_type, title, module, priority, source,
-                    source_bug, file_path, linked_case_id, updated_at
+                    source_bug, file_path, linked_case_id, link_strength, updated_at
                     FROM case_defs{where} ORDER BY case_type, module, case_id
                     LIMIT ?""",
                 (*params, limit),

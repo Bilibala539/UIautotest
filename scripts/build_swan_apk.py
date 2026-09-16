@@ -1,0 +1,261 @@
+"""Swan 打包脚本(源码检出 → flutter 构建 → 平台登记)。
+
+跑在 .166 构建机上,依赖 C:\\build-env 下的构建环境(JDK/Android SDK/Flutter)
+和 E:/uiautotest/.env.local 里的 GitLab 机器人账号。
+用法:
+  python scripts/build_swan_apk.py                    # 构建 develop 分支并登记
+  python scripts/build_swan_apk.py --branch main      # 指定分支
+  python scripts/build_swan_apk.py --commit abc1234   # 指定 commit
+  python scripts/build_swan_apk.py --skip-build       # 跳过构建,直接登记已有产物
+  python scripts/build_swan_apk.py --keep-src         # 构建后不删源码
+权限尚未生效时可用 --repo-url 指向本地裸仓验证检出逻辑(不构建不登记)。
+"""
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import time
+import urllib.error
+import urllib.request
+from pathlib import Path
+
+# 构建机固定路径约定(可用 .env.local 同名键覆盖)
+ENV_FILE = Path(__file__).resolve().parent.parent / ".env.local"
+SRC_DIR = Path(r"E:\swan-build\src")
+LOG_DIR = Path(r"E:\swan-build\logs")
+PLATFORM_URL = os.environ.get("DASHBOARD_URL", "http://127.0.0.1:8080").rstrip("/")
+REPO_URL = "https://git.hivi.com/swan-app/swan-audio.git"
+
+DEFAULTS = {
+    "JAVA_HOME": r"C:\build-env\jdk-17",
+    "ANDROID_HOME": r"C:\build-env\android",
+    "FLUTTER_HOME": r"C:\build-env\flutter",
+    "FLUTTER_STORAGE_BASE_URL": "https://storage.flutter-io.cn",
+    "PUB_HOSTED_URL": "https://pub.flutter-io.cn",
+}
+
+
+def load_env(path: Path) -> dict[str, str]:
+    """解析 .env.local,格式 KEY=VALUE,忽略 BOM/注释/空行,不回显任何值。"""
+    env: dict[str, str] = {}
+    if not path.is_file():
+        return env
+    text = path.read_text(encoding="utf-8-sig", errors="replace")
+    for line in text.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key = key.strip()
+        if key:
+            env[key] = value.strip()
+    return env
+
+
+def redact(text: str, secrets: list[str]) -> str:
+    """日志脱敏:密码字面量替换为 ***,带凭据的 URL 归一为 git.hivi.com/...。"""
+    for secret in secrets:
+        if secret:
+            text = text.replace(secret, "***")
+    # https://user:pwd@host/... → git.hivi.com/...(凭据部分整体抹掉)
+    return re.sub(r"(?i)https?://[^/\s@]+@git\.hivi\.com", "git.hivi.com", text)
+
+
+def run(cmd: list[str], cwd: Path, log, secrets: list[str]) -> None:
+    """执行命令,输出经脱敏后写入日志;失败抛 RuntimeError。"""
+    printable = [redact(part, secrets) if ":" in part or "@" in part else part for part in cmd]
+    log.write(f"$ {subprocess.list2cmdline(printable)}\n")
+    log.flush()
+    result = subprocess.run(
+        cmd, cwd=str(cwd), capture_output=True, text=True,
+        encoding="utf-8", errors="replace",
+    )
+    output = redact((result.stdout or "") + (result.stderr or ""), secrets)
+    log.write(output)
+    if result.returncode != 0:
+        raise RuntimeError(f"命令失败 exit={result.returncode}: {printable[0]} …(详见日志)")
+
+
+def git_out(src: Path, *args: str) -> str:
+    """执行只读 git 命令并返回 stdout(可能抛错,由调用方处理)。"""
+    result = subprocess.run(
+        ["git", "-C", str(src), *args], capture_output=True, text=True,
+        encoding="utf-8", errors="replace",
+    )
+    if result.returncode != 0:
+        raise RuntimeError(f"git {' '.join(args)} 失败: {result.stderr.strip()}")
+    return result.stdout.strip()
+
+
+def ensure_src(src: Path, url: str, secrets: list[str], log) -> None:
+    """确保源码目录存在:没有则 clone,已有则 fetch+prune。URL 不落日志明文。"""
+    src.parent.mkdir(parents=True, exist_ok=True)
+    if (src / ".git").is_dir():
+        log.write("源码目录已存在,执行 fetch --all --prune\n")
+        run(["git", "-C", str(src), "fetch", "--all", "--prune"], src, log, secrets)
+    else:
+        log.write("源码目录不存在,执行 clone\n")
+        run(["git", "clone", url, str(src)], src.parent, log, secrets)
+
+
+def checkout_target(src: Path, branch: str, commit: str, secrets: list[str], log) -> str:
+    """检出目标分支或 commit,返回完整 commit hash。分支做 hard reset 对齐远端。"""
+    if commit:
+        log.write(f"checkout commit {commit}\n")
+        run(["git", "-C", str(src), "checkout", "--force", commit], src, log, secrets)
+    else:
+        # 分支:优先跟踪 origin/<branch>(clone 后远端引用已就绪)
+        log.write(f"checkout branch {branch}\n")
+        run(["git", "-C", str(src), "checkout", "--force", "-B", branch, f"origin/{branch}"],
+            src, log, secrets)
+        run(["git", "-C", str(src), "reset", "--hard", f"origin/{branch}"], src, log, secrets)
+    return git_out(src, "rev-parse", "HEAD")
+
+
+def build_env(creds: dict[str, str]) -> dict[str, str]:
+    """合并系统环境 + .env.local 覆盖 + 固定默认值,得到构建子进程环境。"""
+    env = dict(os.environ)
+    for key, value in DEFAULTS.items():
+        env[key] = creds.get(key, value)
+    flutter_bin = str(Path(env["FLUTTER_HOME"]) / "bin")
+    env["PATH"] = flutter_bin + os.pathsep + str(Path(env["JAVA_HOME"]) / "bin") \
+        + os.pathsep + env["PATH"]
+    return env
+
+
+def rotate_logs(keep: int = 20) -> None:
+    """只保留最近 keep 个构建日志。"""
+    logs = sorted(LOG_DIR.glob("build_*.log"))
+    for old in logs[:-keep]:
+        old.unlink(missing_ok=True)
+
+
+def register_apk(payload: dict[str, str]) -> dict[str, str]:
+    """POST 平台 /api/apks 登记,返回服务端响应。"""
+    request = urllib.request.Request(
+        f"{PLATFORM_URL}/api/apks",
+        data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+        headers={"Content-Type": "application/json; charset=utf-8"},
+        method="POST",
+    )
+    with urllib.request.urlopen(request, timeout=30) as response:
+        return json.loads(response.read().decode("utf-8"))
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Swan 自动打包并登记进平台")
+    parser.add_argument("--branch", default="develop", help="构建分支(默认 develop)")
+    parser.add_argument("--commit", default="", help="构建指定 commit(优先于分支)")
+    parser.add_argument("--repo-url", default=REPO_URL, help="源码仓库地址(默认 Swan 仓库)")
+    parser.add_argument("--skip-build", action="store_true", help="跳过构建,直接登记已有产物(调试)")
+    parser.add_argument("--only-checkout", action="store_true", help="只验证检出流程,不构建不登记(自测)")
+    parser.add_argument("--keep-src", action="store_true", help="构建完成后不删除源码目录")
+    args = parser.parse_args()
+
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
+    creds = load_env(ENV_FILE)
+    user = creds.get("GITLAB_BOT_USER", "")
+    pwd = creds.get("GITLAB_BOT_PASSWORD", "")
+    if not user or not pwd:
+        print("缺少 GITLAB_BOT_USER / GITLAB_BOT_PASSWORD,无法拼出拉取凭据")
+        return 1
+    secrets = [pwd]
+    # 凭据只进 git URL,不进任何日志/命令行回显
+    authed_url = f"https://{user}:{pwd}@git.hivi.com/swan-app/swan-audio.git"
+    if args.repo_url != REPO_URL:  # 本地裸仓调试路径,无需凭据
+        authed_url = args.repo_url
+
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
+    stamp = time.strftime("%Y%m%d_%H%M%S") + f"_{os.getpid()}"
+    log_path = LOG_DIR / f"build_{stamp}.log"
+    log = log_path.open("w", encoding="utf-8")
+    started = time.monotonic()
+
+    def echo(msg: str) -> None:
+        log.write(msg + "\n")
+        print(msg)
+
+    try:
+        if args.skip_build:
+            echo("--skip-build:跳过源码与构建,直接登记已有产物")
+            src = SRC_DIR
+        else:
+            echo(f"== 步骤 1/3 检出源码({log_path}) ==")
+            ensure_src(SRC_DIR, authed_url, secrets, log)
+            checkout_target(SRC_DIR, args.branch, args.commit, secrets, log)
+            commit_hash = git_out(SRC_DIR, "rev-parse", "HEAD")
+            echo(f"检出完成 commit={commit_hash}")
+            if args.only_checkout:
+                echo("--only-checkout:检出验证结束,不构建不登记")
+                log.close()
+                rotate_logs()
+                return 0
+
+            echo("== 步骤 2/3 flutter build apk --release ==")
+            env = build_env(creds)
+            flutter = str(Path(env["FLUTTER_HOME"]) / "bin" / "flutter.bat")
+            build_start = time.monotonic()
+            run([flutter, "build", "apk", "--release"], SRC_DIR, log, secrets)
+            echo(f"构建耗时 {time.monotonic() - build_start:.0f}s")
+    except (RuntimeError, OSError) as error:
+        echo(f"失败:{error}")
+        log.write(f"失败:{error}\n")
+        log.close()
+        rotate_logs()
+        return 1
+
+    # ---- 产物登记 ----
+    # APK 归档到 swan-build\apks:源码目录默认会被清理,登记的 file_path 必须指向持久位置
+    apk_src = SRC_DIR / "build" / "app" / "outputs" / "flutter-apk" / "app-release.apk"
+    if not apk_src.is_file():
+        echo(f"产物不存在:{apk_src}")
+        log.close()
+        rotate_logs()
+        return 1
+    archive_dir = Path(r"E:\swan-build\apks")
+    short = git_out(SRC_DIR, "rev-parse", "--short", "HEAD") if (SRC_DIR / ".git").is_dir() else "unknown"
+    archive_dir.mkdir(parents=True, exist_ok=True)
+    apk_id = f"swan-{args.branch}-{short}-{time.strftime('%Y%m%d')}"
+    apk = archive_dir / f"{apk_id}.apk"
+    shutil.copy2(apk_src, apk)
+    file_hash = hashlib.sha256(apk.read_bytes()).hexdigest()
+    elapsed = int(time.monotonic() - started)
+    payload = {
+        "apk_id": apk_id,
+        "app_version": "",
+        "branch": args.branch,
+        "commit_hash": short,
+        "flavor": "release",
+        "source": "auto-build",
+        "file_path": str(apk),
+        "file_hash": file_hash,
+        "notes": f"branch={args.branch} commit={short} 构建耗时={elapsed}s",
+    }
+    echo(f"== 步骤 3/3 登记平台({PLATFORM_URL}/api/apks)==")
+    try:
+        result = register_apk(payload)
+        echo(f"登记成功 apk_id={result.get('apk_id')} sha256={file_hash[:12]}…")
+    except (urllib.error.URLError, OSError, ValueError) as error:
+        echo(f"登记失败:{error}(产物仍在 {apk})")
+        log.close()
+        rotate_logs()
+        return 1
+
+    if not args.keep_src and not args.skip_build:
+        echo("清理源码目录(未指定 --keep-src)")
+        shutil.rmtree(SRC_DIR, ignore_errors=True)
+    log.close()
+    rotate_logs()
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

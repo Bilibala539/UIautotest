@@ -14,12 +14,11 @@
 | `agent团队名册.md` | Swan 平台 Agent 团队角色名册，会话恢复入口 |
 | `编排流程详细设计.md` | 多 Agent 编排体系（人读版；机器可读实现见 `.claude/agents/`） |
 | `UI元素截取与裁剪规范.md` | 元素截图/裁剪规范（`image_exists`/`click_image` 用图质量） |
-| `UIAutotest平台与用例说明.md` | 面向同事的平台框架与三平台用例组织说明 |
 | `runtime_experience.md` | 运行时经验知识库（子 Agent 踩坑沉淀，供语义检索注入） |
 | `SETUP.md` | agent teams 配置包跨机器安装指南 |
 | `ShowUI-Windows部署指南.md` | ShowUI-2B 多模态 UI 定位环境 Windows 部署（独立 venv） |
 
-非 md 资产：`aw-architecture.html`（架构细则）、`Swan测试工程总览.html`、`UIAutotest平台与Swan用例介绍.docx`。
+非 md 资产：`aw-architecture.html`（架构细则）。
 
 ## 各项目 agent 蓝图（docs/agents/）
 

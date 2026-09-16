@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Swan 测试平台</title>
   <style>
-    :root { color-scheme: light; --ink:#172033; --muted:#667085; --line:#e6e9ef; --bg:#f5f7fb; --card:#fff; --brand:#405cf5; --good:#087f5b; --bad:#c92a2a; --warn:#ad6800; }
+    :root { color-scheme: light; --ink:#172033; --muted:#667085; --line:#e6e9ef; --bg:#f5f7fb; --card:#fff; --brand:#405cf5; --good:#087f5b; --bad:#c92a2a; --warn:#ad6800; --good-weak:#e6fcf5; --bad-weak:#fff5f5; --brand-weak:#edf2ff; --warn-weak:#fff9db; --neutral-weak:#f1f3f8; --hover:#f8f9ff; --danger:#c92a2a; }
     * { box-sizing:border-box; } body { margin:0; color:var(--ink); background:var(--bg); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif; }
     header { background:linear-gradient(120deg,#172554,#405cf5); color:#fff; padding:22px max(24px,calc((100% - 1240px)/2)) 0; }
     header h1 { margin:0 0 4px; font-size:23px; } header p { margin:0 0 14px; opacity:.78; }
@@ -30,10 +30,37 @@
     .timeline { position:relative; padding-left:18px; } .timeline::before { content:""; position:absolute; left:5px; top:6px; bottom:6px; width:2px; background:var(--line); } .tl-item { position:relative; padding:8px 0 8px 10px; } .tl-item::before { content:""; position:absolute; left:-17px; top:14px; width:8px; height:8px; border-radius:50%; background:var(--muted); } .tl-item.passed::before { background:var(--good); } .tl-item.failed::before,.tl-item.error::before { background:var(--bad); } .tl-item.skipped::before { background:var(--warn); }
     /* 建单弹窗:hidden 属性必须能真正隐藏(此前内联 display:flex 把它顶掉了) */
     #bug-modal { display:none; } #bug-modal:not([hidden]) { display:flex; }
-    #cd-modal { display:none; } #cd-modal:not([hidden]) { display:flex; }
+    /* 用例编辑改侧边抽屉(UI 规范 4.3:680px 详情/编辑抽屉,点遮罩与 Esc 可关) */
+    #cd-modal[hidden] { display:none; }
     /* 流水线弹窗:同 cd-modal 的 hidden+CSS 显隐写法;checkbox/radio 去掉全局 input 的粗边框内边距 */
     #pl-modal { display:none; } #pl-modal:not([hidden]) { display:flex; }
     #pl-modal input[type=checkbox], #pl-modal input[type=radio], #pl-rows input[type=checkbox] { padding:0; width:auto; }
+    /* 测试套件(M4):弹窗/抽屉沿用 hidden+CSS 显隐写法;checkbox 去掉全局 input 粗样式 */
+    #su-modal { display:none; } #su-modal:not([hidden]) { display:flex; }
+    #su-drawer[hidden] { display:none; }
+    #su-drawer input[type=checkbox] { padding:0; width:auto; }
+    #su-drawer .cd-drawer { width:min(980px,96vw); }
+    .su-type-smoke { color:var(--warn); background:var(--warn-weak); } .su-type-regression { color:var(--brand); background:var(--brand-weak); } .su-type-custom { color:var(--muted); background:var(--neutral-weak); }
+    /* 优先级档位点选(编辑抽屉):默认中性,选中用规范 2.3 四档配色 */
+    .cd-pri { border-radius:999px; padding:4px 13px; font-size:12px; font-weight:600; border:1px solid var(--line); background:var(--card); color:var(--muted); cursor:pointer; }
+    .cd-pri:hover { background:var(--hover); }
+    .cd-pri.active.p0 { color:var(--bad); background:var(--bad-weak); border-color:var(--bad); }
+    .cd-pri.active.p1 { color:var(--warn); background:var(--warn-weak); border-color:var(--warn); }
+    .cd-pri.active.p2 { color:var(--brand); background:var(--brand-weak); border-color:var(--brand); }
+    .cd-pri.active.p3 { color:var(--muted); background:var(--neutral-weak); border-color:var(--muted); }
+    /* 标题列允许换行(规范 3.2:标题/备注类列 white-space:normal) */
+    .cd-td-id { white-space:normal; }
+    /* 模块管理小弹窗 */
+    #cd-mods-modal { display:none; } #cd-mods-modal:not([hidden]) { display:flex; }
+    .su-members { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:10px; }
+    .su-case-list { border:1px solid var(--line); border-radius:10px; background:#fff; max-height:420px; overflow:auto; margin-top:8px; }
+    .su-case-item { display:flex; gap:8px; align-items:center; padding:7px 10px; border-bottom:1px solid var(--line); font-size:13px; cursor:default; }
+    .su-case-item:last-child { border-bottom:none; }
+    .su-case-item label { display:flex; gap:8px; align-items:center; flex:1; cursor:pointer; }
+    .su-member-idx { color:var(--muted); font-size:12px; width:22px; text-align:right; flex-shrink:0; }
+    .su-case-item button { padding:2px 8px; font-size:12px; flex-shrink:0; }
+    .su-member-meta { white-space:normal; color:var(--muted); font-size:12px; }
+    @media (max-width:800px) { #su-drawer .cd-drawer { width:100vw; } .su-members { grid-template-columns:1fr; } }
     .badge.t-text { color:#9a6700; background:#fff8e1; border:1px solid #efd68b; }
     .badge.t-auto { color:var(--brand); background:#edf2ff; border:1px solid #c3ceff; }
     .cd-filterbar { display:flex; gap:12px; align-items:center; flex-wrap:wrap; flex:1; }
@@ -50,7 +77,11 @@
     .chip:hover { background:#e6ebff; }
     .chip.bug { color:var(--bad); background:#fff5f5; } .chip.bug:hover { background:#ffe9e9; }
     .chip.lvl { cursor:default; color:var(--muted); }
-    .chip.p0 { cursor:default; color:var(--bad); background:#fff5f5; }
+    /* 优先级四档配色(UI 规范 2.3:强色字+语义弱底,不加边框加粗) */
+    .chip.p0 { cursor:default; color:var(--bad); background:var(--bad-weak); }
+    .chip.p1 { cursor:default; color:var(--warn); background:var(--warn-weak); }
+    .chip.p2 { cursor:default; color:var(--brand); background:var(--brand-weak); }
+    .chip.p3 { cursor:default; color:var(--muted); background:var(--neutral-weak); }
     /* 关联用例/来源bug/模块列:允许 chip 折行堆叠,避免 fixed 列宽下横向溢出压到右侧列 */
     .cd-td-links, .cd-td-bug, .cd-td-module { white-space:normal; }
     .cd-td-links .chip, .cd-td-bug .chip, .cd-td-module .chip { word-break:break-word; }
@@ -96,6 +127,7 @@
       <button data-page="runs" class="active">执行会话</button>
       <button data-page="apks">包管理</button>
       <button data-page="pipelines">流水线</button>
+      <button data-page="suites">测试套件</button>
       <button data-page="casedefs">用例管理</button>
       <button data-page="cases">用例历史</button>
       <button data-page="captcha">验证码工具</button>
@@ -147,6 +179,13 @@
       <section class="card table-card"><table><thead><tr><th>任务 ID</th><th>平台</th><th>执行目标</th><th>状态</th><th>创建时间</th><th>结束时间</th></tr></thead><tbody id="pl-job-rows"><tr><td colspan="6" class="empty">加载中…</td></tr></tbody></table></section>
       <p class="hint">套件功能未上线，可先建空配置；“立即执行”等同到点触发。任务由执行 agent 认领执行，结果见“执行会话”页。</p>
     </section>
+    <section class="page" id="page-suites">
+      <div class="toolbar">
+        <span class="meta">套件是自动化用例的有序集合（seq 即执行顺序），供流水线配置（suite_id）与执行触发使用</span>
+        <button class="primary" id="su-new">＋ 新建测试套件</button>
+      </div>
+      <section class="card table-card"><table><thead><tr><th>套件 ID</th><th>名称</th><th>类型</th><th>用例数</th><th>创建时间</th><th>操作</th></tr></thead><tbody id="su-rows"><tr><td colspan="6" class="empty">加载中…</td></tr></tbody></table></section>
+    </section>
     <section class="page" id="page-cases">
       <div class="toolbar">
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
@@ -188,6 +227,7 @@
           <button class="ghost" id="cd-cols-btn">列设置 ▾</button>
           <div class="cd-cols-pop" id="cd-cols-pop" hidden></div>
         </div>
+        <button class="ghost" id="cd-mods-btn">模块管理</button>
         <button class="primary" id="cd-new">＋ 新建用例</button>
       </div>
       <section class="card table-card"><div class="cd-tablewrap"><table class="cd-table" id="cd-table-el"><colgroup id="cd-cols"></colgroup><thead><tr id="cd-thead"></tr></thead><tbody id="cd-rows"><tr><td class="empty">加载中…</td></tr></tbody></table></div></section>
@@ -242,22 +282,57 @@
       <pre id="cdd-content"></pre>
     </aside>
   </div>
-  <div id="cd-modal" hidden style="position:fixed;inset:0;background:rgba(15,23,42,.45);align-items:center;justify-content:center;z-index:50">
-    <div style="background:var(--card,#fff);border-radius:12px;padding:20px 22px;width:min(720px,94vw);max-height:88vh;overflow:auto">
-      <h3 style="margin:0 0 4px" id="cd-modal-title">新建用例</h3>
-      <p class="meta" style="margin:0 0 14px">带 * 必填；自动化用例建议填"关联用例"指向对应文字用例</p>
-      <div class="form-grid">
+  <div id="cd-modal" hidden>
+    <div class="cd-drawer-mask" onclick="cdCloseForm()"></div>
+    <aside class="cd-drawer">
+      <div class="detail-head">
+        <div>
+          <div class="cd-drawer-id" id="cd-form-id"></div>
+          <h2 id="cd-modal-title" style="margin:2px 0 6px">新建用例</h2>
+          <p class="hint" style="margin:0">带 * 必填；自动化用例建议填"关联用例"指向对应文字用例</p>
+        </div>
+        <button class="ghost" id="cd-cancel">关闭</button>
+      </div>
+      <div class="form-grid" style="margin-top:14px">
         <div><label for="cd-f-id">用例 ID *</label><input id="cd-f-id" placeholder="LOGIN-L2-POS-001 / POS-002"></div>
         <div><label for="cd-f-type">类型 *</label><select id="cd-f-type"><option value="text">文字用例</option><option value="auto">自动化用例</option></select></div>
-        <div><label for="cd-f-pri">优先级</label><input id="cd-f-pri" placeholder="P0 / P1 / L2 / L3"></div>
-        <div><label for="cd-f-title">标题 *</label><input id="cd-f-title" style="grid-column:span 2" placeholder="用例名称"></div>
-        <div><label for="cd-f-module">模块</label><input id="cd-f-module" placeholder="login / fullregression"></div>
+        <div><label>优先级</label>
+          <div id="cd-pri-group" style="display:flex;gap:6px;flex-wrap:wrap">
+            <button type="button" class="cd-pri" data-pri="P0">P0</button>
+            <button type="button" class="cd-pri" data-pri="P1">P1</button>
+            <button type="button" class="cd-pri" data-pri="P2">P2</button>
+            <button type="button" class="cd-pri" data-pri="P3">P3</button>
+          </div>
+          <input type="hidden" id="cd-f-pri">
+        </div>
+        <div style="grid-column:span 2"><label for="cd-f-title">标题 *</label>
+          <div id="cd-title-view" style="display:flex;gap:8px;align-items:center">
+            <span id="cd-title-text" style="white-space:normal;flex:1"></span>
+            <button type="button" class="ghost" id="cd-title-edit" style="padding:3px 10px;font-size:12px;flex-shrink:0">编辑</button>
+          </div>
+          <input id="cd-f-title" placeholder="用例名称" style="width:100%" hidden>
+        </div>
+        <div><label for="cd-f-module">功能模块</label><select id="cd-f-module" style="width:100%"><option value="">（无模块）</option></select></div>
         <div><label for="cd-f-link">关联用例(自动化→文字)</label><input id="cd-f-link" placeholder="LOGIN-L2-POS-002"></div>
         <div><label for="cd-f-bug">来源 bug 单</label><input id="cd-f-bug" placeholder="SWAN-BUG-20260910-001"></div>
         <div><label for="cd-f-src">来源描述</label><input id="cd-f-src" placeholder="来源文件 / 任务卡"></div>
         <div style="grid-column:1/-1"><label for="cd-f-content">用例内容(步骤/预期,YAML 或自由文本)</label><textarea id="cd-f-content" rows="10" style="width:100%;border:1px solid var(--line);border-radius:8px;padding:8px;font-family:monospace"></textarea></div>
-        <div class="form-actions"><button class="primary" id="cd-save">保存</button><button class="ghost" id="cd-cancel">取消</button><span class="meta" id="cd-msg"></span></div>
+        <div class="form-actions"><button class="primary" id="cd-save">保存</button><span class="meta" id="cd-msg"></span></div>
       </div>
+    </aside>
+  </div>
+  <div id="cd-mods-modal" hidden style="position:fixed;inset:0;background:rgba(15,23,42,.45);align-items:center;justify-content:center;z-index:50">
+    <div style="background:var(--card,#fff);border-radius:12px;padding:20px 22px;width:min(620px,94vw);max-height:88vh;overflow:auto">
+      <h3 style="margin:0 0 4px">功能模块管理</h3>
+      <p class="meta" style="margin:0 0 12px">中文名改完失焦即保存；删除前校验有无用例引用。用例数据里仍存 slug，这里只管展示名。</p>
+      <section class="card table-card" style="box-shadow:none"><table><thead><tr><th>slug</th><th>中文名</th><th>用例数</th><th></th></tr></thead><tbody id="cd-mods-rows"><tr><td colspan="4" class="empty">加载中…</td></tr></tbody></table></section>
+      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center">
+        <input id="cd-mods-new-slug" placeholder="slug（如 login）" style="width:170px">
+        <input id="cd-mods-new-name" placeholder="中文名（可后补）" style="width:170px">
+        <button class="primary" id="cd-mods-add">添加</button>
+        <span class="meta" id="cd-mods-msg"></span>
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="ghost" id="cd-mods-close">关闭</button></div>
     </div>
   </div>
   <div id="pl-modal" hidden style="position:fixed;inset:0;background:rgba(15,23,42,.45);align-items:center;justify-content:center;z-index:50">
@@ -307,6 +382,50 @@
       </div>
     </div>
   </div>
+  <div id="su-drawer" hidden>
+    <div class="cd-drawer-mask" onclick="suCloseDrawer()"></div>
+    <aside class="cd-drawer">
+      <div class="detail-head">
+        <div>
+          <div class="cd-drawer-id" id="su-d-id"></div>
+          <h2 id="su-d-title"></h2>
+          <p class="hint" style="margin:0">左侧按模块/搜索勾选要加入的自动化用例；右侧自上而下即执行顺序（seq），可上移/下移/移除，点"保存成员"生效。</p>
+        </div>
+        <button class="ghost" id="su-d-close">关闭</button>
+      </div>
+      <div class="su-members">
+        <div>
+          <div class="cd-search">
+            <select id="su-m-module" style="max-width:140px"><option value="">全部模块</option></select>
+            <input id="su-m-q" placeholder="搜编号 / 标题…">
+          </div>
+          <div id="su-m-list" class="su-case-list"></div>
+        </div>
+        <div>
+          <div class="meta" id="su-m-count">已选 0 条</div>
+          <div id="su-m-members" class="su-case-list"></div>
+        </div>
+      </div>
+      <div class="form-actions" style="margin-top:14px">
+        <button class="primary" id="su-m-save">保存成员</button>
+        <span class="meta" id="su-m-msg"></span>
+      </div>
+    </aside>
+  </div>
+  <div id="su-modal" hidden style="position:fixed;inset:0;background:rgba(15,23,42,.45);align-items:center;justify-content:center;z-index:50">
+    <div style="background:var(--card,#fff);border-radius:12px;padding:20px 22px;width:min(560px,94vw);max-height:88vh;overflow:auto">
+      <h3 style="margin:0 0 4px" id="su-modal-title">新建测试套件</h3>
+      <p class="meta" style="margin:0 0 14px">带 * 必填；套件 ID 是主键，建后不可改</p>
+      <div class="form-grid" style="grid-template-columns:repeat(2,1fr)">
+        <div><label for="su-f-name">名称 *</label><input id="su-f-name" placeholder="主流程冒烟"></div>
+        <div><label for="su-f-id">套件 ID *</label><input id="su-f-id" placeholder="SUITE-SMOKE"></div>
+        <div><label for="su-f-type">类型</label><select id="su-f-type"><option value="smoke">smoke（冒烟）</option><option value="regression" selected>regression（回归）</option><option value="custom">custom（自定义）</option></select></div>
+        <div><label style="display:flex;gap:6px;align-items:center;margin-top:8px"><input type="checkbox" id="su-f-enabled" checked> 启用</label></div>
+        <div style="grid-column:1/-1"><label for="su-f-desc">描述</label><input id="su-f-desc" style="width:100%" placeholder="套件用途说明"></div>
+        <div class="form-actions"><button class="primary" id="su-save">保存</button><button class="ghost" id="su-cancel">取消</button><span class="meta" id="su-msg"></span></div>
+      </div>
+    </div>
+  </div>
   <script>
     const $ = (id) => document.getElementById(id);
     const statusText = {running:'执行中', passed:'通过', failed:'失败', skipped:'跳过', error:'错误'};
@@ -322,6 +441,7 @@
       btn.classList.add('active'); $('page-' + btn.dataset.page).classList.add('active');
       if (btn.dataset.page === 'apks') loadApks();
       if (btn.dataset.page === 'pipelines') plLoadConfigs();
+      if (btn.dataset.page === 'suites') suLoadSuites();
       if (btn.dataset.page === 'casedefs') loadCaseDefs();
       if (btn.dataset.page === 'captcha') loadGateway();
     });
@@ -493,6 +613,14 @@
 
     function cdVisibleCols() { return cdCols.filter(c => c.visible); }
 
+    // 优先级归一展示(UI 规范 2.3):L1/L2/L3 → P1/P2/P3,非标值归 P3
+    function cdPriNorm(v) {
+      const s = String(v || '').trim().toUpperCase();
+      if (!s) return '';
+      const p = ({ L1: 'P1', L2: 'P2', L3: 'P3' })[s] || s;
+      return ['P0', 'P1', 'P2', 'P3'].includes(p) ? p : 'P3';
+    }
+
     function renderCaseDefs() {
       // 统计卡片(始终基于全量)
       const nText = cdAllItems.filter(c => c.case_type === 'text').length;
@@ -502,10 +630,12 @@
       $('cd-text-count').textContent = nText;
       $('cd-auto-count').textContent = nAuto;
       $('cd-bug-count').textContent = nBug;
-      // 模块下拉(保留当前选择)
+      // 模块下拉(保留当前选择;值仍是 slug,展示统一用中文名 module_cn)
       const sel = $('cd-module'); const cur = sel.value;
-      const modules = [...new Set(cdAllItems.map(i => i.module).filter(Boolean))].sort();
-      sel.innerHTML = '<option value="">全部模块</option>' + modules.map(m => `<option value="${safe(m)}">${safe(m)}</option>`).join('');
+      const modMap = new Map();
+      cdAllItems.forEach(i => { if (i.module && !modMap.has(i.module)) modMap.set(i.module, i.module_cn || i.module); });
+      const modules = [...modMap.keys()].sort();
+      sel.innerHTML = '<option value="">全部模块</option>' + modules.map(m => `<option value="${safe(m)}">${safe(modMap.get(m))}</option>`).join('');
       sel.value = modules.includes(cur) ? cur : '';
       // 过滤
       const q = $('cd-q').value.trim().toLowerCase();
@@ -543,11 +673,13 @@
           linkChips = `<span class="chip" onclick="showCaseDefDrawer(decodeURIComponent('${encodeURIComponent(c.linked_case_id)}'))">${safe(c.linked_case_id)} ↗</span>`;
         }
         const bugChip = c.source_bug ? `<span class="chip bug" title="bug 单来源">${hl(c.source_bug, q)}</span>` : '<span class="cd-none">-</span>';
-        const lvl = c.priority ? `<span class="chip ${c.priority.toLowerCase()==='p0' ? 'p0' : 'lvl'}">${safe(c.priority)}</span>` : '';
+        // 优先级按规范 2.3 归一展示(L2→P2 等),四档配色 chip
+        const pri = cdPriNorm(c.priority);
+        const lvl = pri ? `<span class="chip ${pri.toLowerCase()}">${safe(pri)}</span>` : '';
         const cells = {
           id: `<span class="cd-case-id" onclick="showCaseDefDrawer(decodeURIComponent('${encodeURIComponent(c.case_id)}'))">${hl(c.case_id, q)}</span><div class="cd-case-title">${hl(c.title, q)}</div>`,
           type: typeBadge,
-          module: `${hl(c.module || '-', q)}${lvl ? ' ' + lvl : ''}`,
+          module: `${hl(c.module_cn || c.module || '-', q)}${lvl ? ' ' + lvl : ''}`,
           links: linkChips,
           bug: bugChip,
           updated: `<span class="meta">${safe(formatDate(c.updated_at))}</span>`,
@@ -630,8 +762,9 @@
       $('cdd-id').textContent = c.case_id;
       $('cdd-title').textContent = c.title || caseId;
       const chips = [`<span class="badge t-${c.case_type}">${c.case_type === 'text' ? '文字用例' : '自动化用例'}</span>`];
-      if (c.module) chips.push(`<span class="chip lvl">${safe(c.module)}</span>`);
-      if (c.priority) chips.push(`<span class="chip lvl">${safe(c.priority)}</span>`);
+      if (c.module_cn || c.module) chips.push(`<span class="chip lvl">${safe(c.module_cn || c.module)}</span>`);
+      const pri = cdPriNorm(c.priority);
+      if (pri) chips.push(`<span class="chip ${pri.toLowerCase()}">${safe(pri)}</span>`);
       if (c.case_type === 'text') {
         (c.auto_cases||[]).forEach(a => chips.push(`<span class="chip" onclick="showCaseDefDrawer(decodeURIComponent('${encodeURIComponent(a.case_id)}'))">自动化 ${safe(a.case_id)} ↗</span>`));
       } else if (c.text_case) {
@@ -646,16 +779,48 @@
     async function openCaseDefForm(caseId) {
       cdEditing = caseId || null;
       $('cd-msg').textContent = '';
+      $('cd-form-id').textContent = caseId || '新建';
       $('cd-modal-title').textContent = caseId ? '编辑用例 ' + caseId : '新建用例';
       let c = { case_type: 'text' };
       if (caseId) { c = await (await fetch('/api/case-defs/' + encodeURIComponent(caseId))).json(); if (c.error) { alert(c.error); return; } }
       $('cd-f-id').value = c.case_id || ''; $('cd-f-id').disabled = !!caseId;
       $('cd-f-type').value = c.case_type || 'text';
-      $('cd-f-title').value = c.title || ''; $('cd-f-module').value = c.module || '';
-      $('cd-f-pri').value = c.priority || ''; $('cd-f-link').value = c.linked_case_id || '';
+      $('cd-f-link').value = c.linked_case_id || '';
       $('cd-f-bug').value = c.source_bug || ''; $('cd-f-src').value = c.source || '';
       $('cd-f-content').value = c.content || '';
+      // 标题默认只读展示,点"编辑"才切输入框(展示态/编辑态分离)
+      $('cd-title-text').textContent = c.title || '(无标题)';
+      $('cd-f-title').value = c.title || '';
+      $('cd-title-view').hidden = false; $('cd-f-title').hidden = true;
+      // 优先级四档:旧值归一后回填点选态
+      const rawPri = String(c.priority || '').trim();
+      $('cd-f-pri').value = cdPriNorm(rawPri);
+      cdRenderPri();
+      if (rawPri && rawPri.toUpperCase() !== cdPriNorm(rawPri)) $('cd-msg').textContent = `优先级 ${rawPri} 已按规范归一为 ${cdPriNorm(rawPri)}`;
+      await cdLoadModuleOptions(c.module || '');
       $('cd-modal').hidden = false;
+    }
+    function cdRenderPri() {
+      // 点选态同步:hidden input 存实际值,徽章按四档配色高亮
+      const cur = String($('cd-f-pri').value || '').trim().toUpperCase();
+      document.querySelectorAll('#cd-pri-group .cd-pri').forEach(btn =>
+        btn.classList.toggle('active', btn.dataset.pri === cur));
+    }
+    document.querySelectorAll('#cd-pri-group .cd-pri').forEach(btn => btn.onclick = () => {
+      $('cd-f-pri').value = String($('cd-f-pri').value).trim().toUpperCase() === btn.dataset.pri ? '' : btn.dataset.pri;
+      cdRenderPri();
+    });
+    $('cd-title-edit').onclick = () => { $('cd-title-view').hidden = true; $('cd-f-title').hidden = false; $('cd-f-title').focus(); };
+    function cdCloseForm() { $('cd-modal').hidden = true; }
+    // 表单里的模块下拉:选项来自 modules 表(值=slug,展示=中文名);当前值未登记则补一项防丢
+    async function cdLoadModuleOptions(current) {
+      const data = await (await fetch('/api/modules')).json();
+      const mods = data.items || [];
+      const opts = ['<option value="">（无模块）</option>']
+        .concat(mods.map(m => `<option value="${safe(m.slug)}">${safe(m.name_cn || m.slug)}</option>`));
+      if (current && !mods.some(m => m.slug === current)) opts.push(`<option value="${safe(current)}">${safe(current)}（未登记）</option>`);
+      $('cd-f-module').innerHTML = opts.join('');
+      $('cd-f-module').value = current || '';
     }
     async function saveCaseDef() {
       const caseId = $('cd-f-id').value.trim();
@@ -697,6 +862,58 @@
     $('cd-save').onclick = saveCaseDef;
     $('cd-cancel').onclick = () => { $('cd-modal').hidden = true; };
     $('cdd-close').onclick = closeCaseDefDrawer;
+
+    // ---------- 功能模块管理(modules 表) ----------
+    async function cdRenderMods() {
+      const data = await (await fetch('/api/modules')).json();
+      const mods = data.items || [];
+      const tbody = $('cd-mods-rows'); tbody.innerHTML = '';
+      if (!mods.length) { tbody.innerHTML = '<tr><td colspan="4" class="empty">还没有模块——在下方添加,或用例同步时自动登记</td></tr>'; return; }
+      mods.forEach(m => { const row = document.createElement('tr');
+        row.innerHTML = `<td>${safe(m.slug)}</td>
+          <td><input value="${safe(m.name_cn || '')}" style="width:180px"></td>
+          <td>${m.case_count}</td>
+          <td><button class="ghost" ${m.case_count ? 'disabled title="有用例引用,不能删除"' : ''}>删除</button></td>`;
+        row.querySelector('input').onchange = e => cdRenameModule(m.slug, e.target.value);
+        row.querySelector('button').onclick = () => cdDeleteModule(m.slug);
+        tbody.appendChild(row); });
+    }
+    async function cdOpenMods() { $('cd-mods-modal').hidden = false; await cdRenderMods(); }
+    async function cdRenameModule(slug, nameCn) {
+      const resp = await fetch('/api/modules/' + encodeURIComponent(slug), { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ name_cn: nameCn.trim() }) });
+      const data = await resp.json().catch(() => ({}));
+      if (resp.ok) { $('cd-mods-msg').textContent = '已改名: ' + slug; loadCaseDefs(); }
+      else $('cd-mods-msg').textContent = '改名失败: ' + (data.error || resp.status);
+    }
+    async function cdDeleteModule(slug) {
+      if (!confirm(`确认删除模块 ${slug}？`)) return;
+      const resp = await fetch('/api/modules/' + encodeURIComponent(slug), { method: 'DELETE' });
+      const data = await resp.json().catch(() => ({}));
+      if (resp.ok) { $('cd-mods-msg').textContent = '已删除'; cdRenderMods(); }
+      else $('cd-mods-msg').textContent = data.error || ('删除失败: ' + resp.status);
+    }
+    async function cdAddModule() {
+      const slug = $('cd-mods-new-slug').value.trim();
+      if (!slug) { $('cd-mods-msg').textContent = 'slug 必填'; return; }
+      const resp = await fetch('/api/modules', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ slug, name_cn: $('cd-mods-new-name').value.trim() }) });
+      const data = await resp.json().catch(() => ({}));
+      if (resp.ok) { $('cd-mods-new-slug').value = ''; $('cd-mods-new-name').value = ''; $('cd-mods-msg').textContent = '已添加'; cdRenderMods(); }
+      else $('cd-mods-msg').textContent = data.error || ('添加失败: ' + resp.status);
+    }
+    $('cd-mods-btn').onclick = cdOpenMods;
+    $('cd-mods-add').onclick = cdAddModule;
+    $('cd-mods-close').onclick = () => { $('cd-mods-modal').hidden = true; };
+
+    // 抽屉/弹窗统一 Esc 关闭(UI 规范 4.3):依次看哪些开着
+    document.addEventListener('keydown', e => {
+      if (e.key !== 'Escape') return;
+      [['cd-drawer', closeCaseDefDrawer], ['cd-modal', cdCloseForm],
+       ['su-drawer', suCloseDrawer], ['cd-mods-modal', () => { $('cd-mods-modal').hidden = true; }],
+       ['su-modal', () => { $('su-modal').hidden = true; }]].forEach(([id, close]) => {
+        const el = $(id);
+        if (el && !el.hidden) { close(); }
+      });
+    });
 
     // ---------- 流水线配置(定时调度) ----------
     let plItems = [];
@@ -838,6 +1055,164 @@
     $('pl-save').onclick = plSaveConfig;
     $('pl-cancel').onclick = () => { $('pl-modal').hidden = true; };
     document.querySelectorAll('input[name="pl-freq"]').forEach(r => r.onchange = plFreqChanged);
+
+    // ---------- 测试套件(M4 P1) ----------
+    let suItems = [];              // 套件列表缓存
+    let suEditing = null;          // 编辑中的 suite_id,新建为 null
+    let suDrawerSuite = null;      // 成员管理抽屉当前套件(含 case_count 等)
+    let suAllCases = [];           // 左侧可选的 auto 用例全量(复用 /api/case-defs?type=auto)
+    let suMembers = [];            // 右侧期望的有序成员 case_id 列表
+    let suOriginalMembers = [];    // 打开抽屉时的成员快照(保存时算出需删除的)
+    const SU_TYPE_CN = { smoke: '冒烟', regression: '回归', custom: '自定义' };
+
+    // 新建时自动建议 SUITE-<字母>-<短随机>,可改
+    function suSuggestId() {
+      const L = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+      const pick = n => Array.from({ length: n }, () => L[Math.floor(Math.random() * L.length)]).join('');
+      return `SUITE-${pick(3)}-${pick(4)}`;
+    }
+    async function suLoadSuites() {
+      const data = await (await fetch('/api/suites')).json();
+      suItems = data.items || [];
+      const tbody = $('su-rows'); tbody.innerHTML = '';
+      if (!suItems.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty">还没有测试套件——点右上"＋ 新建测试套件"</td></tr>'; return; }
+      suItems.forEach(s => { const row = document.createElement('tr');
+        row.innerHTML = `<td>${safe(s.suite_id)}</td><td>${safe(s.name)}${s.description ? `<div class="cd-case-title">${safe(s.description)}</div>` : ''}</td>
+          <td><span class="badge su-type-${safe(s.suite_type)}">${SU_TYPE_CN[s.suite_type] || safe(s.suite_type)}</span></td>
+          <td>${s.case_count}</td><td>${safe(formatDate(s.created_at))}</td>
+          <td><button class="ghost" onclick="suOpenMembers(decodeURIComponent('${encodeURIComponent(s.suite_id)}'))">成员管理</button> <button class="ghost" onclick="suOpenForm(decodeURIComponent('${encodeURIComponent(s.suite_id)}'))">编辑</button> <button class="ghost" onclick="suDeleteSuite(decodeURIComponent('${encodeURIComponent(s.suite_id)}'))">删除</button></td>`;
+        tbody.appendChild(row); });
+    }
+    async function suOpenForm(suiteId) {
+      suEditing = suiteId || null;
+      $('su-msg').textContent = '';
+      let s = null;
+      if (suiteId) { s = await (await fetch('/api/suites/' + encodeURIComponent(suiteId))).json(); if (s.error) { alert(s.error); return; } }
+      $('su-modal-title').textContent = suiteId ? '编辑测试套件 ' + suiteId : '新建测试套件';
+      $('su-f-name').value = s ? (s.name || '') : '';
+      $('su-f-id').value = s ? (s.suite_id || '') : suSuggestId();
+      $('su-f-id').disabled = !!suiteId;   // suite_id 是主键,编辑时不允许改
+      $('su-f-type').value = s ? (s.suite_type || 'regression') : 'regression';
+      $('su-f-enabled').checked = s ? !!s.enabled : true;
+      $('su-f-desc').value = s ? (s.description || '') : '';
+      $('su-modal').hidden = false;
+    }
+    async function suSaveSuite() {
+      const name = $('su-f-name').value.trim();
+      const suiteId = $('su-f-id').value.trim();
+      if (!name) { $('su-msg').textContent = '名称必填'; return; }
+      if (!suiteId) { $('su-msg').textContent = '套件 ID 必填'; return; }
+      const payload = { name, suite_id: suiteId, suite_type: $('su-f-type').value,
+        description: $('su-f-desc').value.trim(), enabled: $('su-f-enabled').checked ? 1 : 0 };
+      const url = suEditing ? '/api/suites/' + encodeURIComponent(suEditing) : '/api/suites';
+      const resp = await fetch(url, { method: suEditing ? 'PUT' : 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+      const data = await resp.json().catch(() => ({}));
+      if (resp.ok) { $('su-modal').hidden = true; suLoadSuites(); }
+      else $('su-msg').textContent = '保存失败: ' + (data.error || resp.status);
+    }
+    async function suDeleteSuite(suiteId) {
+      if (!confirm(`确认删除测试套件 ${suiteId}？成员关系一并删除,此操作不可撤销。`)) return;
+      const resp = await fetch('/api/suites/' + encodeURIComponent(suiteId), { method: 'DELETE' });
+      if (resp.ok) suLoadSuites();
+      else { const d = await resp.json().catch(() => ({})); alert('删除失败: ' + (d.error || resp.status)); }
+    }
+    // ----- 成员管理抽屉 -----
+    function suCloseDrawer() { $('su-drawer').hidden = true; }
+    async function suOpenMembers(suiteId) {
+      const s = await (await fetch('/api/suites/' + encodeURIComponent(suiteId))).json();
+      if (s.error) { alert(s.error); return; }
+      suDrawerSuite = s;
+      suMembers = (s.cases || []).map(c => c.case_id);
+      suOriginalMembers = suMembers.slice();
+      const data = await (await fetch('/api/case-defs?type=auto&limit=1000')).json();
+      suAllCases = data.items || [];
+      $('su-d-id').textContent = s.suite_id;
+      $('su-d-title').textContent = s.name || s.suite_id;
+      // 模块下拉(保留当前选择)
+      const sel = $('su-m-module'); const cur = sel.value;
+      const modules = [...new Set(suAllCases.map(c => c.module).filter(Boolean))].sort();
+      sel.innerHTML = '<option value="">全部模块</option>' + modules.map(m => `<option value="${safe(m)}">${safe(m)}</option>`).join('');
+      sel.value = modules.includes(cur) ? cur : '';
+      $('su-drawer').hidden = false;
+      suRenderMembers(); suRenderCaseList();
+    }
+    function suRenderCaseList() {
+      // 左侧:按模块 + 关键词过滤 auto 用例,勾选状态跟 suMembers 走
+      const q = $('su-m-q').value.trim().toLowerCase();
+      const module = $('su-m-module').value;
+      let shown = suAllCases;
+      if (module) shown = shown.filter(c => c.module === module);
+      if (q) shown = shown.filter(c => `${c.case_id} ${c.title || ''}`.toLowerCase().includes(q));
+      const box = $('su-m-list'); box.innerHTML = '';
+      if (!shown.length) { box.innerHTML = '<div class="empty">没有匹配的自动化用例</div>'; return; }
+      shown.forEach(c => { const item = document.createElement('label'); item.className = 'su-case-item';
+        item.innerHTML = `<input type="checkbox" ${suMembers.includes(c.case_id) ? 'checked' : ''}>
+          <span><strong>${safe(c.case_id)}</strong> <span class="su-member-meta">${safe(c.title || '')}${(c.module_cn || c.module) ? ' · ' + safe(c.module_cn || c.module) : ''}</span></span>`;
+        item.querySelector('input').onchange = e => suToggleMember(c.case_id, e.target.checked);
+        box.appendChild(item); });
+    }
+    function suToggleMember(caseId, on) {
+      if (on) { if (!suMembers.includes(caseId)) suMembers.push(caseId); }
+      else suMembers = suMembers.filter(id => id !== caseId);
+      suRenderMembers(); suRenderCaseList();
+    }
+    function suRenderMembers() {
+      // 右侧:当前有序成员,seq 从 1 起,可上移/下移/移除
+      const box = $('su-m-members'); box.innerHTML = '';
+      $('su-m-count').textContent = `已选 ${suMembers.length} 条(自上而下即执行顺序)`;
+      if (!suMembers.length) { box.innerHTML = '<div class="empty">还没有勾选用例——在左侧勾选</div>'; return; }
+      suMembers.forEach((caseId, i) => {
+        const def = suAllCases.find(c => c.case_id === caseId) || {};
+        const item = document.createElement('div'); item.className = 'su-case-item';
+        item.innerHTML = `<span class="su-member-idx">${i + 1}</span>
+          <span style="flex:1"><strong>${safe(caseId)}</strong> <span class="su-member-meta">${safe(def.title || '')}</span></span>
+          <button class="ghost" ${i === 0 ? 'disabled' : ''} title="上移">↑</button>
+          <button class="ghost" ${i === suMembers.length - 1 ? 'disabled' : ''} title="下移">↓</button>
+          <button class="ghost" title="移除">✕</button>`;
+        const [up, down, del] = item.querySelectorAll('button');
+        up.onclick = () => suMoveMember(i, -1);
+        down.onclick = () => suMoveMember(i, 1);
+        del.onclick = () => suRemoveMember(i);
+        box.appendChild(item);
+      });
+    }
+    function suMoveMember(index, delta) {
+      const j = index + delta;
+      if (j < 0 || j >= suMembers.length) return;
+      [suMembers[index], suMembers[j]] = [suMembers[j], suMembers[index]];
+      suRenderMembers(); suRenderCaseList();
+    }
+    function suRemoveMember(index) {
+      suMembers.splice(index, 1);
+      suRenderMembers(); suRenderCaseList();
+    }
+    async function suSaveMembers() {
+      if (!suDrawerSuite) return;
+      const suiteId = suDrawerSuite.suite_id;
+      $('su-m-msg').textContent = '保存中…';
+      // 先按当前顺序整体 upsert(seq 重排 + 新增),再批量删除已取消勾选的旧成员
+      if (suMembers.length) {
+        const resp = await fetch(`/api/suites/${encodeURIComponent(suiteId)}/cases`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ case_ids: suMembers }) });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok) { $('su-m-msg').textContent = '保存失败: ' + (data.error || resp.status); return; }
+      }
+      const toRemove = suOriginalMembers.filter(id => !suMembers.includes(id));
+      if (toRemove.length) {
+        const del = await fetch(`/api/suites/${encodeURIComponent(suiteId)}/cases`, { method: 'DELETE', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ case_ids: toRemove }) });
+        if (!del.ok) { const d = await del.json().catch(() => ({})); $('su-m-msg').textContent = '移除失败: ' + (d.error || del.status); return; }
+      }
+      $('su-m-msg').textContent = '已保存';
+      suOriginalMembers = suMembers.slice();
+      suLoadSuites();
+      setTimeout(() => { $('su-m-msg').textContent = ''; }, 1500);
+    }
+    $('su-new').onclick = () => suOpenForm(null);
+    $('su-save').onclick = suSaveSuite;
+    $('su-cancel').onclick = () => { $('su-modal').hidden = true; };
+    $('su-d-close').onclick = suCloseDrawer;
+    $('su-m-save').onclick = suSaveMembers;
+    $('su-m-q').oninput = suRenderCaseList;
+    $('su-m-module').onchange = suRenderCaseList;
 
     async function loadGateway() {
       try {

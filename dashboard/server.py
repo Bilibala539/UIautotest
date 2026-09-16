@@ -173,6 +173,40 @@ def validate_pipeline_config(payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+# ==================== 测试套件(M4 P1):校验纯函数 ====================
+
+SUITE_TYPES = ("smoke", "regression", "custom")
+
+
+def validate_test_suite(payload: dict[str, Any]) -> dict[str, Any]:
+    """校验并规范化测试套件字段:suite_id/name 必填,suite_type 限定枚举。"""
+    suite_id = str(payload.get("suite_id") or "").strip()
+    if not suite_id:
+        raise ValueError("suite_id 必填")
+    name = str(payload.get("name") or "").strip()
+    if not name:
+        raise ValueError("name 必填")
+    suite_type = str(payload.get("suite_type") or "regression").strip().lower()
+    if suite_type not in SUITE_TYPES:
+        raise ValueError(f"suite_type 必须是 {'/'.join(SUITE_TYPES)} 之一")
+    return {
+        "suite_id": suite_id,
+        "name": name,
+        "description": str(payload.get("description") or "").strip(),
+        "suite_type": suite_type,
+        "enabled": 0 if payload.get("enabled") in (0, False, "0", "false", "off") else 1,
+    }
+
+
+def _normalize_priority(value: Any) -> str:
+    """优先级归一(UI 规范 2.3):统一四档 P0-P3;旧档 L1/L2/L3 入库映射,非标值归 P3。"""
+    priority = str(value or "").strip().upper()
+    if not priority:
+        return ""
+    priority = {"L1": "P1", "L2": "P2", "L3": "P3"}.get(priority, priority)
+    return priority if priority in {"P0", "P1", "P2", "P3"} else "P3"
+
+
 def compute_next_run_at(
     schedule_type: str,
     schedule_param: str | dict,
@@ -385,6 +419,45 @@ class DashboardStore:
                     updated_at TEXT NOT NULL
                 );
                 """
+            )
+            # 测试套件(M4 P1):套件定义 + 套件↔用例多对多成员(seq 决定执行顺序)
+            connection.executescript(
+                """
+                CREATE TABLE IF NOT EXISTS test_suites (
+                    suite_id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    description TEXT NOT NULL DEFAULT '',
+                    suite_type TEXT NOT NULL DEFAULT 'regression',
+                    enabled INTEGER NOT NULL DEFAULT 1,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS suite_cases (
+                    suite_id TEXT NOT NULL,
+                    case_id TEXT NOT NULL,
+                    seq INTEGER NOT NULL DEFAULT 0,
+                    enabled INTEGER NOT NULL DEFAULT 1,
+                    PRIMARY KEY (suite_id, case_id),
+                    FOREIGN KEY (suite_id) REFERENCES test_suites(suite_id) ON DELETE CASCADE,
+                    FOREIGN KEY (case_id) REFERENCES case_defs(case_id)
+                );
+                CREATE INDEX IF NOT EXISTS idx_suite_cases_case_id ON suite_cases(case_id);
+                """
+            )
+            # 功能模块表(模块管理):slug 主键 + 中文名;建表时用现有用例的 distinct module 自动播种
+            connection.executescript(
+                """
+                CREATE TABLE IF NOT EXISTS modules (
+                    slug TEXT PRIMARY KEY,
+                    name_cn TEXT NOT NULL DEFAULT '',
+                    project TEXT NOT NULL DEFAULT 'swan',
+                    sort_order INTEGER NOT NULL DEFAULT 0
+                );
+                """
+            )
+            connection.execute(
+                """INSERT OR IGNORE INTO modules (slug, name_cn)
+                   SELECT DISTINCT module, module FROM case_defs WHERE module != ''"""
             )
 
     def create_run(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -937,7 +1010,8 @@ class DashboardStore:
             "case_type": case_type,
             "title": str(payload.get("title") or "").strip(),
             "module": str(payload.get("module") or "").strip(),
-            "priority": str(payload.get("priority") or "").strip(),
+            # 优先级按 UI 规范 2.3 归一为 P0-P3:旧档 L1/L2/L3 入库时映射,非标值归 P3
+            "priority": _normalize_priority(payload.get("priority")),
             "source": str(payload.get("source") or "").strip(),
             "source_bug": str(payload.get("source_bug") or "").strip(),
             "file_path": str(payload.get("file_path") or "").strip(),
@@ -955,6 +1029,13 @@ class DashboardStore:
         fields = self._validate_case_def(payload)
         now = utc_now()
         with self.transaction() as connection:
+            # 新模块 slug 自动登记进 modules(中文名先同 slug,后续可在模块管理里改),
+            # 保证 sync_cases.py 再同步时筛选项与中文名映射不回退
+            if fields["module"]:
+                connection.execute(
+                    "INSERT OR IGNORE INTO modules (slug, name_cn) VALUES (?, ?)",
+                    (fields["module"], fields["module"]),
+                )
             row = connection.execute(
                 "SELECT case_id FROM case_defs WHERE case_id=?", (fields["case_id"],)
             ).fetchone()
@@ -998,6 +1079,14 @@ class DashboardStore:
     def _decorate_case_def(self, item: dict[str, Any]) -> dict[str, Any]:
         """补双向关联视图:text 用例挂上指向它的 auto 用例;auto 用例挂上对应文字用例标题。"""
         with self.connect() as connection:
+            # 模块中文名(规范:展示一律 module_cn,查不到回退 slug)
+            if item.get("module"):
+                mrow = connection.execute(
+                    "SELECT name_cn FROM modules WHERE slug=?", (item["module"],)
+                ).fetchone()
+                item["module_cn"] = (mrow["name_cn"] if mrow and mrow["name_cn"] else item["module"])
+            else:
+                item["module_cn"] = ""
             if item["case_type"] == "text":
                 autos = connection.execute(
                     """SELECT case_id, title, module, source_bug FROM case_defs
@@ -1044,6 +1133,10 @@ class DashboardStore:
             ).fetchall()
         # 列表视图一次性挂双向关联(text 行 -> auto_cases)
         autos: dict[str, list[dict[str, Any]]] = {}
+        # 套件归属装饰:一条 SQL 批量查全部成员关系,勿 N+1
+        suites_map: dict[str, list[str]] = {}
+        # 模块中文名映射(展示层用,库里的 module 仍存 slug)
+        modules_map: dict[str, str] = {}
         with self.connect() as connection:
             for row in connection.execute(
                 """SELECT linked_case_id, case_id, title, module, source_bug
@@ -1051,11 +1144,19 @@ class DashboardStore:
                    ORDER BY case_id"""
             ).fetchall():
                 autos.setdefault(row["linked_case_id"], []).append(dict(row))
+            for row in connection.execute(
+                "SELECT case_id, suite_id FROM suite_cases ORDER BY suite_id, seq"
+            ).fetchall():
+                suites_map.setdefault(row["case_id"], []).append(row["suite_id"])
+            for row in connection.execute("SELECT slug, name_cn FROM modules").fetchall():
+                modules_map[row["slug"]] = row["name_cn"] or row["slug"]
         items = []
         for row in rows:
             item = dict(row)
             if item["case_type"] == "text":
                 item["auto_cases"] = autos.get(item["case_id"], [])
+            item["suites"] = suites_map.get(item["case_id"], [])
+            item["module_cn"] = modules_map.get(item["module"], item["module"])
             items.append(item)
         return items
 
@@ -1182,6 +1283,259 @@ class DashboardStore:
             )
         return {"config": self.get_pipeline_config(config_id), "job": job}
 
+    # ==================== 测试套件(M4 P1) ====================
+
+    def create_test_suite(self, payload: dict[str, Any]) -> dict[str, Any]:
+        fields = validate_test_suite(payload)
+        now = utc_now()
+        with self.transaction() as connection:
+            existing = connection.execute(
+                "SELECT suite_id FROM test_suites WHERE suite_id=?",
+                (fields["suite_id"],),
+            ).fetchone()
+            if existing is not None:
+                raise ValueError(f"suite_id 已存在: {fields['suite_id']}")
+            connection.execute(
+                """INSERT INTO test_suites (
+                    suite_id, name, description, suite_type, enabled, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                (fields["suite_id"], fields["name"], fields["description"],
+                 fields["suite_type"], fields["enabled"], now, now),
+            )
+        return self.get_test_suite(fields["suite_id"])
+
+    def get_test_suite(self, suite_id: str) -> dict[str, Any]:
+        """套件详情:带 case_count 与成员用例列表(join case_defs 取标题/模块/类型/优先级)。"""
+        with self.connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM test_suites WHERE suite_id=?", (suite_id,)
+            ).fetchone()
+            if row is None:
+                raise KeyError(f"测试套件不存在: {suite_id}")
+            item = dict(row)
+            item["case_count"] = connection.execute(
+                "SELECT COUNT(*) FROM suite_cases WHERE suite_id=?", (suite_id,)
+            ).fetchone()[0]
+        item["cases"] = self.list_suite_cases(suite_id)
+        return item
+
+    def list_test_suites(self) -> list[dict[str, Any]]:
+        """套件列表:每行带 case_count(子查询一次算齐)。"""
+        with self.connect() as connection:
+            rows = connection.execute(
+                """SELECT ts.*,
+                          (SELECT COUNT(*) FROM suite_cases sc WHERE sc.suite_id = ts.suite_id)
+                          AS case_count
+                   FROM test_suites ts ORDER BY ts.created_at DESC, ts.suite_id"""
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def update_test_suite(self, suite_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        """部分更新:payload 未带的字段沿用库里现值,整体重新校验。"""
+        with self.transaction() as connection:
+            row = connection.execute(
+                "SELECT * FROM test_suites WHERE suite_id=?", (suite_id,)
+            ).fetchone()
+            if row is None:
+                raise KeyError(f"测试套件不存在: {suite_id}")
+            merged = {
+                "suite_id": suite_id,
+                "name": payload.get("name", row["name"]),
+                "description": payload.get("description", row["description"]),
+                "suite_type": payload.get("suite_type", row["suite_type"]),
+                "enabled": payload.get("enabled", row["enabled"]),
+            }
+            fields = validate_test_suite(merged)
+            connection.execute(
+                """UPDATE test_suites SET name=?, description=?, suite_type=?, enabled=?,
+                   updated_at=? WHERE suite_id=?""",
+                (fields["name"], fields["description"], fields["suite_type"],
+                 fields["enabled"], utc_now(), suite_id),
+            )
+        return self.get_test_suite(suite_id)
+
+    def delete_test_suite(self, suite_id: str) -> dict[str, Any]:
+        with self.transaction() as connection:
+            row = connection.execute(
+                "SELECT suite_id FROM test_suites WHERE suite_id=?", (suite_id,)
+            ).fetchone()
+            if row is None:
+                raise KeyError(f"测试套件不存在: {suite_id}")
+            connection.execute("DELETE FROM suite_cases WHERE suite_id=?", (suite_id,))
+            connection.execute("DELETE FROM test_suites WHERE suite_id=?", (suite_id,))
+        return {"deleted": suite_id}
+
+    def list_suite_cases(self, suite_id: str) -> list[dict[str, Any]]:
+        """套件成员有序列表,LEFT JOIN case_defs 带出标题/模块/类型/优先级。"""
+        with self.connect() as connection:
+            rows = connection.execute(
+                """SELECT sc.case_id, sc.seq, sc.enabled, cd.title, cd.module,
+                          cd.case_type, cd.priority
+                   FROM suite_cases sc LEFT JOIN case_defs cd ON cd.case_id = sc.case_id
+                   WHERE sc.suite_id=? ORDER BY sc.seq, sc.case_id""",
+                (suite_id,),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def add_suite_cases(self, suite_id: str, case_ids: Any) -> dict[str, Any]:
+        """批量添加成员:case_id 必须存在于 case_defs(缺失整体 400);重复添加幂等。
+
+        传全量有序列表时即为"按传入顺序重排 seq";未列入的既有成员 seq 保持不变,
+        列入的成员(新增或既有)按传入顺序排在它们之后。
+        """
+        self.get_test_suite(suite_id)  # 不存在抛 KeyError → 404
+        if isinstance(case_ids, str):
+            case_ids = [case_ids]
+        if not isinstance(case_ids, list):
+            raise ValueError("case_ids 必须是数组")
+        wanted: list[str] = []
+        for value in case_ids:
+            case_id = str(value or "").strip()
+            if case_id and case_id not in wanted:
+                wanted.append(case_id)
+        if not wanted:
+            raise ValueError("case_ids 不能为空")
+        with self.transaction() as connection:
+            found = {
+                row["case_id"]
+                for row in connection.execute(
+                    f"SELECT case_id FROM case_defs WHERE case_id IN ({','.join('?' * len(wanted))})",
+                    wanted,
+                )
+            }
+            missing = sorted(set(wanted) - found)
+            if missing:
+                raise ValueError("以下 case_id 不存在于 case_defs: " + ", ".join(missing))
+            existing = {
+                row["case_id"]: row["seq"]
+                for row in connection.execute(
+                    "SELECT case_id, seq FROM suite_cases WHERE suite_id=?", (suite_id,)
+                )
+            }
+            # 未列入本次调用的既有成员 seq 保持,新成员/重排成员接在其后
+            keep_max = max(
+                (seq for cid, seq in existing.items() if cid not in set(wanted)),
+                default=0,
+            )
+            added: list[str] = []
+            for offset, case_id in enumerate(wanted, start=1):
+                seq = keep_max + offset
+                if case_id in existing:
+                    if existing[case_id] != seq:
+                        connection.execute(
+                            "UPDATE suite_cases SET seq=? WHERE suite_id=? AND case_id=?",
+                            (seq, suite_id, case_id),
+                        )
+                else:
+                    connection.execute(
+                        "INSERT INTO suite_cases (suite_id, case_id, seq, enabled) VALUES (?, ?, ?, 1)",
+                        (suite_id, case_id, seq),
+                    )
+                    added.append(case_id)
+        return {"added": len(added), "case_count": len(existing) + len(added)}
+
+    def remove_suite_cases(self, suite_id: str, case_ids: Any) -> dict[str, Any]:
+        """从套件移除成员(支持批量);未加入的 case_id 忽略,不报错。"""
+        self.get_test_suite(suite_id)  # 不存在抛 KeyError → 404
+        if isinstance(case_ids, str):
+            case_ids = [case_ids]
+        if not isinstance(case_ids, list):
+            raise ValueError("case_ids 必须是数组")
+        wanted = sorted({str(value or "").strip() for value in case_ids} - {""})
+        if not wanted:
+            raise ValueError("case_ids 不能为空")
+        with self.transaction() as connection:
+            cursor = connection.execute(
+                f"DELETE FROM suite_cases WHERE suite_id=? AND case_id IN ({','.join('?' * len(wanted))})",
+                (suite_id, *wanted),
+            )
+            removed = cursor.rowcount
+        return {"removed": removed}
+
+    # ==================== 功能模块(modules,模块管理) ====================
+
+    @staticmethod
+    def _validate_module(payload: dict[str, Any]) -> dict[str, Any]:
+        slug = str(payload.get("slug") or "").strip()
+        if not slug:
+            raise ValueError("slug 必填")
+        if len(slug) > 64:
+            raise ValueError("slug 长度不能超过 64")
+        try:
+            sort_order = int(payload.get("sort_order") or 0)
+        except (TypeError, ValueError):
+            raise ValueError("sort_order 必须是整数") from None
+        return {
+            "slug": slug,
+            "name_cn": str(payload.get("name_cn") or "").strip() or slug,
+            "project": str(payload.get("project") or "swan").strip() or "swan",
+            "sort_order": sort_order,
+        }
+
+    def list_modules(self) -> list[dict[str, Any]]:
+        """模块列表:带 case_count(该 slug 被 case_defs 引用的条数),按排序字段+slug 排。"""
+        with self.connect() as connection:
+            rows = connection.execute(
+                """SELECT m.*,
+                          (SELECT COUNT(*) FROM case_defs cd WHERE cd.module = m.slug) AS case_count
+                   FROM modules m ORDER BY m.sort_order, m.slug"""
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def get_module(self, slug: str) -> dict[str, Any]:
+        with self.connect() as connection:
+            row = connection.execute("SELECT * FROM modules WHERE slug=?", (slug,)).fetchone()
+        if row is None:
+            raise KeyError(f"模块不存在: {slug}")
+        return dict(row)
+
+    def create_module(self, payload: dict[str, Any]) -> dict[str, Any]:
+        fields = self._validate_module(payload)
+        with self.transaction() as connection:
+            existing = connection.execute(
+                "SELECT slug FROM modules WHERE slug=?", (fields["slug"],)
+            ).fetchone()
+            if existing is not None:
+                raise ValueError(f"模块已存在: {fields['slug']}")
+            connection.execute(
+                "INSERT INTO modules (slug, name_cn, project, sort_order) VALUES (?, ?, ?, ?)",
+                (fields["slug"], fields["name_cn"], fields["project"], fields["sort_order"]),
+            )
+        return self.get_module(fields["slug"])
+
+    def update_module(self, slug: str, payload: dict[str, Any]) -> dict[str, Any]:
+        """部分更新:用于改中文名/排序;slug 不可改(它是 case_defs.module 的外键语义)。"""
+        with self.transaction() as connection:
+            row = connection.execute("SELECT * FROM modules WHERE slug=?", (slug,)).fetchone()
+            if row is None:
+                raise KeyError(f"模块不存在: {slug}")
+            merged = {
+                "slug": slug,
+                "name_cn": payload.get("name_cn", row["name_cn"]),
+                "project": payload.get("project", row["project"]),
+                "sort_order": payload.get("sort_order", row["sort_order"]),
+            }
+            fields = self._validate_module(merged)
+            connection.execute(
+                "UPDATE modules SET name_cn=?, project=?, sort_order=? WHERE slug=?",
+                (fields["name_cn"], fields["project"], fields["sort_order"], slug),
+            )
+        return self.get_module(slug)
+
+    def delete_module(self, slug: str) -> dict[str, Any]:
+        """删除模块:删除前校验 case_defs 引用数,有引用则 400 拒绝。"""
+        with self.transaction() as connection:
+            row = connection.execute("SELECT slug FROM modules WHERE slug=?", (slug,)).fetchone()
+            if row is None:
+                raise KeyError(f"模块不存在: {slug}")
+            used = connection.execute(
+                "SELECT COUNT(*) FROM case_defs WHERE module=?", (slug,)
+            ).fetchone()[0]
+            if used:
+                raise ValueError(f"模块 {slug} 下还有 {used} 条用例引用,不能删除;请先改这些用例的模块")
+            connection.execute("DELETE FROM modules WHERE slug=?", (slug,))
+        return {"deleted": slug}
+
 
 class DashboardHandler(BaseHTTPRequestHandler):
     store: DashboardStore
@@ -1298,6 +1652,9 @@ class DashboardHandler(BaseHTTPRequestHandler):
             except KeyError as error:
                 self.send_error_json(str(error), HTTPStatus.NOT_FOUND)
             return
+        if parsed.path == "/api/modules":
+            self.send_json({"items": self.store.list_modules()})
+            return
         if parsed.path == "/api/pipeline-configs":
             self.send_json({"items": self.store.list_pipeline_configs()})
             return
@@ -1305,6 +1662,16 @@ class DashboardHandler(BaseHTTPRequestHandler):
             config_id = parsed.path.removeprefix("/api/pipeline-configs/").strip("/")
             try:
                 self.send_json(self.store.get_pipeline_config(config_id))
+            except KeyError as error:
+                self.send_error_json(str(error), HTTPStatus.NOT_FOUND)
+            return
+        if parsed.path == "/api/suites":
+            self.send_json({"items": self.store.list_test_suites()})
+            return
+        if parsed.path.startswith("/api/suites/"):
+            suite_id = parsed.path.removeprefix("/api/suites/").strip("/")
+            try:
+                self.send_json(self.store.get_test_suite(suite_id))
             except KeyError as error:
                 self.send_error_json(str(error), HTTPStatus.NOT_FOUND)
             return
@@ -1430,8 +1797,22 @@ class DashboardHandler(BaseHTTPRequestHandler):
             if parsed.path == "/api/case-defs":
                 self.send_json(self.store.upsert_case_def(payload), HTTPStatus.CREATED)
                 return
+            if parsed.path == "/api/modules":
+                self.send_json(self.store.create_module(payload), HTTPStatus.CREATED)
+                return
             if parsed.path == "/api/pipeline-configs":
                 self.send_json(self.store.create_pipeline_config(payload), HTTPStatus.CREATED)
+                return
+            if parsed.path == "/api/suites":
+                self.send_json(self.store.create_test_suite(payload), HTTPStatus.CREATED)
+                return
+            if parsed.path.startswith("/api/suites/") and parsed.path.endswith("/cases"):
+                suite_id = parsed.path.removeprefix("/api/suites/").removesuffix("/cases").strip("/")
+                # 批量 {case_ids:[...]} 或单个 {case_id:"..."}
+                case_ids = payload.get("case_ids")
+                if case_ids is None:
+                    case_ids = payload.get("case_id")
+                self.send_json(self.store.add_suite_cases(suite_id, case_ids), HTTPStatus.CREATED)
                 return
             if parsed.path == "/api/devices/register":
                 self.send_json(self.store.register_device(payload), HTTPStatus.CREATED)
@@ -1515,12 +1896,26 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 payload["case_id"] = case_id
                 self.send_json(self.store.upsert_case_def(payload))
                 return
+            if parsed.path.startswith("/api/modules/"):
+                slug = parsed.path.removeprefix("/api/modules/").strip("/")
+                if not slug:
+                    self.send_error_json("slug is required", HTTPStatus.BAD_REQUEST)
+                    return
+                self.send_json(self.store.update_module(slug, payload))
+                return
             if parsed.path.startswith("/api/pipeline-configs/"):
                 config_id = parsed.path.removeprefix("/api/pipeline-configs/").strip("/")
                 if not config_id:
                     self.send_error_json("config_id is required", HTTPStatus.BAD_REQUEST)
                     return
                 self.send_json(self.store.update_pipeline_config(config_id, payload))
+                return
+            if parsed.path.startswith("/api/suites/"):
+                suite_id = parsed.path.removeprefix("/api/suites/").strip("/")
+                if not suite_id:
+                    self.send_error_json("suite_id is required", HTTPStatus.BAD_REQUEST)
+                    return
+                self.send_json(self.store.update_test_suite(suite_id, payload))
                 return
             self.send_error_json("not found", HTTPStatus.NOT_FOUND)
         except (ValueError, json.JSONDecodeError) as error:
@@ -1532,6 +1927,35 @@ class DashboardHandler(BaseHTTPRequestHandler):
 
     def do_DELETE(self) -> None:
         parsed = urlparse(self.path)
+        # 套件成员移除:支持 ?case_id= 单删,或 body {case_id}/{case_ids} 批量删
+        if parsed.path.startswith("/api/suites/") and parsed.path.endswith("/cases"):
+            suite_id = parsed.path.removeprefix("/api/suites/").removesuffix("/cases").strip("/")
+            query = parse_qs(parsed.query)
+            case_ids = query.get("case_id", [])
+            try:
+                if not case_ids and int(self.headers.get("Content-Length", "0")) > 0:
+                    body = self.read_json()
+                    case_ids = body.get("case_ids")
+                    if case_ids is None:
+                        case_ids = body.get("case_id")
+            except (ValueError, json.JSONDecodeError) as error:
+                self.send_error_json(str(error), HTTPStatus.BAD_REQUEST)
+                return
+            try:
+                self.send_json(self.store.remove_suite_cases(suite_id, case_ids))
+            except KeyError as error:
+                self.send_error_json(str(error), HTTPStatus.NOT_FOUND)
+            return
+        if parsed.path.startswith("/api/suites/"):
+            suite_id = parsed.path.removeprefix("/api/suites/").strip("/")
+            if not suite_id:
+                self.send_error_json("suite_id is required", HTTPStatus.BAD_REQUEST)
+                return
+            try:
+                self.send_json(self.store.delete_test_suite(suite_id))
+            except KeyError as error:
+                self.send_error_json(str(error), HTTPStatus.NOT_FOUND)
+            return
         if parsed.path.startswith("/api/case-defs/"):
             case_id = parsed.path.removeprefix("/api/case-defs/").strip("/")
             if not case_id:
@@ -1541,6 +1965,18 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 self.send_json(self.store.delete_case_def(case_id))
             except KeyError as error:
                 self.send_error_json(str(error), HTTPStatus.NOT_FOUND)
+            return
+        if parsed.path.startswith("/api/modules/"):
+            slug = parsed.path.removeprefix("/api/modules/").strip("/")
+            if not slug:
+                self.send_error_json("slug is required", HTTPStatus.BAD_REQUEST)
+                return
+            try:
+                self.send_json(self.store.delete_module(slug))
+            except KeyError as error:
+                self.send_error_json(str(error), HTTPStatus.NOT_FOUND)
+            except ValueError as error:  # 有用例引用,拒绝删除
+                self.send_error_json(str(error), HTTPStatus.BAD_REQUEST)
             return
         if parsed.path.startswith("/api/pipeline-configs/"):
             config_id = parsed.path.removeprefix("/api/pipeline-configs/").strip("/")

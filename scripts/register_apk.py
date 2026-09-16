@@ -1,6 +1,8 @@
 """APK 注册脚本(步骤 10 构建产物入口)。
 
 把一个 APK 文件注册进平台包管理,返回 apk_id(供执行会话/流水线任务关联)。
+apk_id 规则与 build_swan_apk.py 一致:swan-<branch>-<shortsha>-<yyyymmdd>,
+shortsha 取 --commit 前 7 位(未传则退化为产物 sha256 前 7 位);也可 --apk-id 手动指定。
 用法:
   python scripts/register_apk.py E:\\swan\\swan-audio-1.2.3.apk \
       --version 1.2.3 --branch main --flavor prod --source dev
@@ -12,6 +14,7 @@ import hashlib
 import json
 import os
 import sys
+import time
 import urllib.request
 from pathlib import Path
 
@@ -24,6 +27,8 @@ def main() -> int:
     parser.add_argument("--version", default="", help="应用版本号")
     parser.add_argument("--branch", default="", help="来源分支")
     parser.add_argument("--flavor", default="", help="渠道/flavor(如 prod)")
+    parser.add_argument("--commit", default="", help="来源 commit(取前 7 位拼 apk_id)")
+    parser.add_argument("--apk-id", default="", help="手动指定 apk_id(默认按规则自动生成)")
     parser.add_argument("--source", default="manual", help="来源(manual/pipeline/dev)")
     args = parser.parse_args()
     if hasattr(sys.stdout, "reconfigure"):
@@ -34,10 +39,15 @@ def main() -> int:
         print(f"文件不存在: {apk}")
         return 1
     file_hash = hashlib.sha256(apk.read_bytes()).hexdigest()
+    short = args.commit[:7] if args.commit else file_hash[:7]
+    # apk_id 是平台必填的 upsert 键;分支缺省用 manual,避免 apk_id 出现空段
+    apk_id = args.apk_id or f"swan-{args.branch or 'manual'}-{short}-{time.strftime('%Y%m%d')}"
 
     payload = {
+        "apk_id": apk_id,
         "app_version": args.version,
         "branch": args.branch,
+        "commit_hash": short,
         "flavor": args.flavor,
         "source": args.source,
         "file_path": str(apk),

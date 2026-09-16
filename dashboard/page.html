@@ -410,6 +410,13 @@
     function cdSaveCols() { try { localStorage.setItem('cd-cols-v1', JSON.stringify(cdCols)); } catch (e) {} }
     cdLoadCols();
 
+    async function loadCaseDefs() {
+      const data = await (await fetch('/api/case-defs?limit=1000')).json();
+      cdAllItems = data.items || [];
+      cdPage = 1;
+      renderCaseDefs();
+    }
+
     // 搜索命中高亮(先 HTML 转义再包 <mark>,防注入)
     function hl(text, q) {
       const esc = safe(text);

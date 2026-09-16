@@ -48,6 +48,9 @@
     .chip.bug { color:var(--bad); background:#fff5f5; } .chip.bug:hover { background:#ffe9e9; }
     .chip.lvl { cursor:default; color:var(--muted); }
     .chip.p0 { cursor:default; color:var(--bad); background:#fff5f5; }
+    /* 关联用例/来源bug/模块列:允许 chip 折行堆叠,避免 fixed 列宽下横向溢出压到右侧列 */
+    .cd-td-links, .cd-td-bug, .cd-td-module { white-space:normal; }
+    .cd-td-links .chip, .cd-td-bug .chip, .cd-td-module .chip { word-break:break-word; }
     .cd-none { color:var(--muted); }
     #cd-drawer[hidden] { display:none; }
     .cd-drawer-mask { position:fixed; inset:0; background:rgba(15,23,42,.35); z-index:60; }
@@ -489,7 +492,7 @@
           updated: `<span class="meta">${safe(formatDate(c.updated_at))}</span>`,
           actions: `<div class="cd-actions"><button class="ghost" onclick="openCaseDefForm(decodeURIComponent('${encodeURIComponent(c.case_id)}'))">编辑</button> <button class="ghost" onclick="deleteCaseDef(decodeURIComponent('${encodeURIComponent(c.case_id)}'))">删除</button></div>`,
         };
-        row.innerHTML = vis.map(col => `<td>${cells[col.key] || ''}</td>`).join('');
+        row.innerHTML = vis.map(col => `<td class="cd-td-${col.key}">${cells[col.key] || ''}</td>`).join('');
         tbody.appendChild(row); });
       renderColsPop();
       bindThEvents();

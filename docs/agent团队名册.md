@@ -15,7 +15,7 @@
 | 调度者(主会话) | 任务接收/分配/汇总/验收/提交/部署/播报 | 常驻 | 巡检 cron 每 23 分钟(会话内) |
 | 用例管理 agent | case_defs CRUD、用例管理页、sync_cases.py | 待命(可唤醒) | 修复过列宽拖拽×2、列重叠;单列宽度=可见列宽之和的方案已验证 |
 | **jenkins打包模块开发** | .166 构建环境(JDK17/Android/Flutter)+ scripts/build_swan_apk.py | ✅ 环境与脚本已交付(a690bc5);在修 register_apk.py 缺 apk_id 的 bug | 构建环境:C:\build-env\+env.ps1(JDK17 Temurin/Android SDK 34+36/Flutter 3.47.4 南京大学镜像,flutter doctor 通过);**阻塞:auto_tester 权限未生效,真打包未验**;注意 .166 的 python 是 WindowsApps 占位符,远程跑脚本用 py -3 |
-| **平台侧流水线开发** | pipeline_configs + 调度器 + 流水线页面 | ✅ 已交付(1118a66,已部署) | 下次唤醒可做:include_build 执行层适配、套件下拉填充 |
+| **平台侧流水线开发** | pipeline_configs + 调度器 + 流水线页面 | ✅ 已交付(1118a66,已部署) | 下次唤醒可做:include_build 执行层适配。套件下拉已启用(a154bbe,2026-09-16) |
 | **平台侧用例模块开发** | 测试套件管理 M4 + 用例页 6 条优化 + 规范对齐 | ✅ 已交付部署(34fcedd,2026-09-16) | 套件 CRUD/成员管理/modules 模块管理与中文化/优先级四档徽章/编辑抽屉/标题多行;未尽:M5 打通执行、批量操作条、toast 组件、账号体系 |
 | **平台侧产品设计师** | 全网检索同类测试平台交互与 UI,产出 docs/平台UI设计规范.md;所有开发 agent 页面开发以规范为唯一依据 | 设计中(2026-09-16) | 只设计不改代码;规范落地后按 P0/P1 建议清单驱动各页签改造 |
 

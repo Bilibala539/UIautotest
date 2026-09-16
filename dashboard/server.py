@@ -177,6 +177,13 @@ def validate_pipeline_config(payload: dict[str, Any]) -> dict[str, Any]:
 
 SUITE_TYPES = ("smoke", "regression", "custom")
 
+# 已知模块 slug 的官方中文名。种子/自动登记时用它替代"中文名=slug"的占位,
+# 避免模块管理里出现一排英文占位名;用户改名后不会被覆盖(见 initialize 的迁移条件)。
+MODULE_CN_SEED = {
+    "fullregression": "全量回归",
+    "login": "登录",
+}
+
 
 def validate_test_suite(payload: dict[str, Any]) -> dict[str, Any]:
     """校验并规范化测试套件字段:suite_id/name 必填,suite_type 限定枚举。"""
@@ -459,6 +466,13 @@ class DashboardStore:
                 """INSERT OR IGNORE INTO modules (slug, name_cn)
                    SELECT DISTINCT module, module FROM case_defs WHERE module != ''"""
             )
+            # 一次性存量迁移:早期种子把中文名写成了 slug,这里只把"未翻译"
+            # (name_cn=slug)的行替换为官方中文名,用户改过的名字不动,幂等可重复执行
+            for slug, name_cn in MODULE_CN_SEED.items():
+                connection.execute(
+                    "UPDATE modules SET name_cn=? WHERE slug=? AND name_cn=slug",
+                    (name_cn, slug),
+                )
 
     def create_run(self, payload: dict[str, Any]) -> dict[str, Any]:
         run_id = str(payload.get("run_id") or "").strip()
@@ -1029,12 +1043,12 @@ class DashboardStore:
         fields = self._validate_case_def(payload)
         now = utc_now()
         with self.transaction() as connection:
-            # 新模块 slug 自动登记进 modules(中文名先同 slug,后续可在模块管理里改),
-            # 保证 sync_cases.py 再同步时筛选项与中文名映射不回退
+            # 新模块 slug 自动登记进 modules(中文名优先取已知映射,否则先同 slug,
+            # 后续可在模块管理里改),保证 sync_cases.py 再同步时筛选项与中文名映射不回退
             if fields["module"]:
                 connection.execute(
                     "INSERT OR IGNORE INTO modules (slug, name_cn) VALUES (?, ?)",
-                    (fields["module"], fields["module"]),
+                    (fields["module"], MODULE_CN_SEED.get(fields["module"], fields["module"])),
                 )
             row = connection.execute(
                 "SELECT case_id FROM case_defs WHERE case_id=?", (fields["case_id"],)

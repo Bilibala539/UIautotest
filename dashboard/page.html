@@ -48,6 +48,18 @@
     .cd-pri.active.p1 { color:var(--warn); background:var(--warn-weak); border-color:var(--warn); }
     .cd-pri.active.p2 { color:var(--brand); background:var(--brand-weak); border-color:var(--brand); }
     .cd-pri.active.p3 { color:var(--muted); background:var(--neutral-weak); border-color:var(--muted); }
+    /* 标题展示态/编辑态切换:必须用 CSS 规则而非内联 display,否则 hidden 属性失效 */
+    #cd-title-view { display:flex; gap:8px; align-items:center; }
+    #cd-title-view[hidden] { display:none; }
+    #cd-title-box { display:flex; gap:8px; align-items:center; }
+    #cd-title-box[hidden] { display:none; }
+    #cd-title-box input { flex:1; border:1px solid var(--line); border-radius:8px; padding:8px; }
+    /* 可清空输入框:右侧一键清空 X,仅在有内容时显示 */
+    .cd-clear-wrap { position:relative; display:flex; align-items:center; }
+    .cd-clear-wrap input { padding-right:26px; }
+    .cd-clear-btn { position:absolute; right:2px; border:none; background:transparent; color:var(--muted); cursor:pointer; font-size:15px; line-height:1; padding:2px 6px; }
+    .cd-clear-btn:hover { color:var(--danger); }
+    .cd-clear-btn[hidden] { display:none; }
     /* 标题列允许换行(规范 3.2:标题/备注类列 white-space:normal) */
     .cd-td-id { white-space:normal; }
     /* 模块管理小弹窗 */
@@ -298,19 +310,23 @@
         <div><label for="cd-f-type">类型 *</label><select id="cd-f-type"><option value="text">文字用例</option><option value="auto">自动化用例</option></select></div>
         <div><label>优先级</label>
           <div id="cd-pri-group" style="display:flex;gap:6px;flex-wrap:wrap">
-            <button type="button" class="cd-pri" data-pri="P0">P0</button>
-            <button type="button" class="cd-pri" data-pri="P1">P1</button>
-            <button type="button" class="cd-pri" data-pri="P2">P2</button>
-            <button type="button" class="cd-pri" data-pri="P3">P3</button>
+            <button type="button" class="cd-pri p0" data-pri="P0">P0</button>
+            <button type="button" class="cd-pri p1" data-pri="P1">P1</button>
+            <button type="button" class="cd-pri p2" data-pri="P2">P2</button>
+            <button type="button" class="cd-pri p3" data-pri="P3">P3</button>
           </div>
           <input type="hidden" id="cd-f-pri">
         </div>
         <div style="grid-column:span 2"><label for="cd-f-title">标题 *</label>
-          <div id="cd-title-view" style="display:flex;gap:8px;align-items:center">
+          <div id="cd-title-view">
             <span id="cd-title-text" style="white-space:normal;flex:1"></span>
             <button type="button" class="ghost" id="cd-title-edit" style="padding:3px 10px;font-size:12px;flex-shrink:0">编辑</button>
           </div>
-          <input id="cd-f-title" placeholder="用例名称" style="width:100%" hidden>
+          <div id="cd-title-box" hidden>
+            <input id="cd-f-title" placeholder="用例名称">
+            <button type="button" class="primary" id="cd-title-done" title="确认当前输入并回到展示态;真正入库仍需点抽屉底部的保存">完成</button>
+            <button type="button" class="ghost" id="cd-title-cancel" title="放弃本次输入,恢复原标题">取消</button>
+          </div>
         </div>
         <div><label for="cd-f-module">功能模块</label><select id="cd-f-module" style="width:100%"><option value="">（无模块）</option></select></div>
         <div><label for="cd-f-link">关联用例(自动化→文字)</label><input id="cd-f-link" placeholder="LOGIN-L2-POS-002"></div>
@@ -324,11 +340,12 @@
   <div id="cd-mods-modal" hidden style="position:fixed;inset:0;background:rgba(15,23,42,.45);align-items:center;justify-content:center;z-index:50">
     <div style="background:var(--card,#fff);border-radius:12px;padding:20px 22px;width:min(620px,94vw);max-height:88vh;overflow:auto">
       <h3 style="margin:0 0 4px">功能模块管理</h3>
-      <p class="meta" style="margin:0 0 12px">中文名改完失焦即保存；删除前校验有无用例引用。用例数据里仍存 slug，这里只管展示名。</p>
-      <section class="card table-card" style="box-shadow:none"><table><thead><tr><th>slug</th><th>中文名</th><th>用例数</th><th></th></tr></thead><tbody id="cd-mods-rows"><tr><td colspan="4" class="empty">加载中…</td></tr></tbody></table></section>
+      <p class="meta" style="margin:0 0 4px">中文名改完失焦即保存；删除前校验有无用例引用。用例数据里仍存 slug，这里只管展示名。</p>
+      <p class="meta" style="margin:0 0 12px;color:var(--muted)">英文标识是模块的英文代号，用例数据内部存储用，不支持中文。</p>
+      <section class="card table-card" style="box-shadow:none"><table><thead><tr><th>英文标识</th><th>中文名</th><th>用例数</th><th></th></tr></thead><tbody id="cd-mods-rows"><tr><td colspan="4" class="empty">加载中…</td></tr></tbody></table></section>
       <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center">
-        <input id="cd-mods-new-slug" placeholder="slug（如 login）" style="width:170px">
-        <input id="cd-mods-new-name" placeholder="中文名（可后补）" style="width:170px">
+        <div class="cd-clear-wrap"><input id="cd-mods-new-slug" placeholder="英文标识（如 login）" maxlength="15" style="width:170px"><button type="button" class="cd-clear-btn" id="cd-clear-slug" hidden>×</button></div>
+        <div class="cd-clear-wrap"><input id="cd-mods-new-name" placeholder="中文名（可后补）" maxlength="15" style="width:170px"><button type="button" class="cd-clear-btn" id="cd-clear-name" hidden>×</button></div>
         <button class="primary" id="cd-mods-add">添加</button>
         <span class="meta" id="cd-mods-msg"></span>
       </div>
@@ -791,7 +808,7 @@
       // 标题默认只读展示,点"编辑"才切输入框(展示态/编辑态分离)
       $('cd-title-text').textContent = c.title || '(无标题)';
       $('cd-f-title').value = c.title || '';
-      $('cd-title-view').hidden = false; $('cd-f-title').hidden = true;
+      cdShowTitleView();
       // 优先级四档:旧值归一后回填点选态
       const rawPri = String(c.priority || '').trim();
       $('cd-f-pri').value = cdPriNorm(rawPri);
@@ -806,11 +823,23 @@
       document.querySelectorAll('#cd-pri-group .cd-pri').forEach(btn =>
         btn.classList.toggle('active', btn.dataset.pri === cur));
     }
-    document.querySelectorAll('#cd-pri-group .cd-pri').forEach(btn => btn.onclick = () => {
+    // 优先级点选:事件委托绑在分组容器上,不受抽屉重渲染影响;再点一次取消选中
+    $('cd-pri-group').addEventListener('click', (e) => {
+      const btn = e.target.closest('.cd-pri');
+      if (!btn) return;
       $('cd-f-pri').value = String($('cd-f-pri').value).trim().toUpperCase() === btn.dataset.pri ? '' : btn.dataset.pri;
       cdRenderPri();
     });
-    $('cd-title-edit').onclick = () => { $('cd-title-view').hidden = true; $('cd-f-title').hidden = false; $('cd-f-title').focus(); };
+    // 标题展示态/编辑态切换:点编辑进输入框,完成=确认当前输入(仅回显,真正入库靠抽屉保存),取消=放弃输入
+    let cdTitleBackup = '';
+    function cdShowTitleView() { $('cd-title-view').hidden = false; $('cd-title-box').hidden = true; }
+    $('cd-title-edit').onclick = () => {
+      cdTitleBackup = $('cd-f-title').value;
+      $('cd-title-view').hidden = true; $('cd-title-box').hidden = false;
+      $('cd-f-title').focus();
+    };
+    $('cd-title-done').onclick = () => cdShowTitleView();
+    $('cd-title-cancel').onclick = () => { $('cd-f-title').value = cdTitleBackup; cdShowTitleView(); };
     function cdCloseForm() { $('cd-modal').hidden = true; }
     // 表单里的模块下拉:选项来自 modules 表(值=slug,展示=中文名);当前值未登记则补一项防丢
     async function cdLoadModuleOptions(current) {
@@ -894,12 +923,30 @@
     }
     async function cdAddModule() {
       const slug = $('cd-mods-new-slug').value.trim();
-      if (!slug) { $('cd-mods-msg').textContent = 'slug 必填'; return; }
+      if (!slug) { $('cd-mods-msg').textContent = '英文标识必填'; return; }
       const resp = await fetch('/api/modules', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ slug, name_cn: $('cd-mods-new-name').value.trim() }) });
       const data = await resp.json().catch(() => ({}));
-      if (resp.ok) { $('cd-mods-new-slug').value = ''; $('cd-mods-new-name').value = ''; $('cd-mods-msg').textContent = '已添加'; cdRenderMods(); }
+      if (resp.ok) {
+        // 清空输入框并触发 input 事件让清空按钮同步隐藏
+        [$('cd-mods-new-slug'), $('cd-mods-new-name')].forEach(el => { el.value = ''; el.dispatchEvent(new Event('input')); });
+        $('cd-mods-msg').textContent = '已添加'; cdRenderMods();
+      }
       else $('cd-mods-msg').textContent = data.error || ('添加失败: ' + resp.status);
     }
+    // 可清空输入框:按码点计数限 15 字(中英文都算 1 个字),X 一键清空,仅在有内容时显示
+    function cdBindClearInput(inputId, btnId) {
+      const input = $(inputId), btn = $(btnId);
+      const sync = () => { btn.hidden = !input.value; };
+      input.addEventListener('input', () => {
+        const chars = Array.from(input.value); // 码点数组,emoji/生僻字也算 1 个字
+        if (chars.length > 15) input.value = chars.slice(0, 15).join('');
+        sync();
+      });
+      btn.onclick = () => { input.value = ''; sync(); input.focus(); };
+      sync();
+    }
+    cdBindClearInput('cd-mods-new-slug', 'cd-clear-slug');
+    cdBindClearInput('cd-mods-new-name', 'cd-clear-name');
     $('cd-mods-btn').onclick = cdOpenMods;
     $('cd-mods-add').onclick = cdAddModule;
     $('cd-mods-close').onclick = () => { $('cd-mods-modal').hidden = true; };

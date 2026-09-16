@@ -466,7 +466,6 @@
         `<th draggable="true" data-key="${c.key}" style="width:${c.width}px"><span class="cd-th-label">${safe(c.label)}</span><span class="cd-col-grip" data-key="${c.key}"></span></th>`).join('');
       $('cd-cols').innerHTML = vis.map(c => `<col style="width:${c.width}px">`).join('');
       $('cd-table-el').style.width = vis.reduce((s, c) => s + c.width, 0) + 'px';
-      $('cd-table-el').style.minWidth = '100%';
       // 行
       const tbody = $('cd-rows'); tbody.innerHTML = '';
       if (!pageItems.length) {

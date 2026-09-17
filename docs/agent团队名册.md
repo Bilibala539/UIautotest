@@ -30,5 +30,24 @@
 
 ## 交接记录
 
+### 2026-09-17 里程碑进度总览(接手者从这里开始)
+
+对照 `docs/测试套件管理计划.md` v2 的 M1-M6:
+
+| 里程碑 | 状态 |
+|---|---|
+| M1 打包链路 | 🟡 约90%:环境+build_swan_apk.py 已交付;**真打包被 auto_tester 权限卡**(需 Owner 加进 swan-audio Reporter) |
+| M2 流水线配置+调度 | ✅ 完成 |
+| M3 Jenkins 接入 | ⬜ 未开始——**下一个大块**(.166:8082 装 Jenkins、2 个参数化 job、jenkins_client.py、状态同步) |
+| M4 测试套件管理 | ✅ 完成(超前) |
+| M5 套件×触发矩阵 | 🟡 一期完成(套件→case_filter 聚合+web 平台+真机 E2E 已验);二期待:打包→冒烟联动、nightly 套件化、YAML 驱动用例映射 |
+| M6 禅道单回写 | ⬜ 可选,最后评估 |
+
+执行层现状:M3 前 PipelineAgent(本机 1BG-IT-01796)顶替 Jenkins 接活,配置/套件层已留切换口。
+其他进行中:平台侧产品设计师出 docs/平台UI设计规范.md(设计中);文档产出以桌面《Swan测试平台全流程详解.md》为唯一使用文档(旧介绍文档已删,976828a)。
+
+---
+(以下为历史交接记录)
+
 - 2026-09-16 平台侧流水线开发交付:commit 1118a66(服务已重启生效,`/api/pipeline-configs` 200;PipelineScheduler 计划任务 Running,日志 logs/pipeline_scheduler.log)。未尽:套件下拉未填充(等 M4)、include_build 只存配置未接执行层、调度器停机跨分钟不补跑
 - 2026-09-16 待办:① 催项目 Owner 把 auto_tester 加进 swan-audio(Reporter,直接成员)② 用户提供仓库准确 Clone 地址 ③ 权限通后 jenkins打包模块开发 联调真打包,随后 M3 Jenkins 接入(.166:8082)

@@ -37,9 +37,16 @@
 - **M3 Jenkins 基础设施已装（主会话操作 .166）**：Jenkins LTS 2.568.3 于 .166:8082（计划任务 JenkinsLTS，SYSTEM+BootTrigger，JENKINS_HOME=C:\build-env\jenkins\home，war+C:\build-env\jdk-21）；管理员+API Token 已配，凭据只在 .166 .env.local（JENKINS_BASE_URL/JENKINS_USER/JENKINS_API_TOKEN/JENKINS_ADMIN_PASSWORD）；防火墙 8082 已放行；job×2 已建：swan-audio-build（BRANCH/COMMIT/SERVER_TYPE→build_swan_apk.py）、swan-autotest（JOB_ID→pipeline_agent --job-id）
 - **新能力定案**：apks 表加 server_type（formal=正式服/test=测试服，存量默认 test）+ build_time 列；新增 GET /api/apks/<id>/download 下载接口；build_swan_apk.py 加 --server-type/--build_time payload
 - **进行中（2026-09-20 全部转终态）**：Jenkins 平台侧集成 ✅（jenkins_client.py/pipeline_jobs 加列/try_jenkins_dispatch/claim 双通道/pipeline_agent --job-id 定向认领）、下包页前端 ✅（新页签"下载安装包"：服别胶囊/双卡最新包/7 列表/二维码弹窗 160+260px/搜索分支过滤/vendor 本地 qrcodejs）、runs 超时收尾 ✅（reaper+孤儿 runs 清扫）、nightly 套件化 ✅（nightly_trigger.py 重写五模式，三道闸切换）、YAML 用例映射 ✅（sync_cases linked_case_id 显式映射）、竞品采集 ✅（docs/竞品截图/）、M5 打包→冒烟联动 ✅（trigger_smoke.py+case-paths 端点）、M6 禅道 testtask 回写 ✅（手动按钮+幂等，REST v1 已探测：v1 无用例级端点→汇总写 desc）
-- **主会话待办（部署节奏）**：验收合并冒烟已过 → 统一提交 → push → .166 pull → 重启 8080 → .166 数据准备（sync_cases 同步、nightly bootstrap、建冒烟套件 SMKE、swan-audio-build job 追加 trigger_smoke 批处理行、.env.local 补 ZENTAO_PROJECT_ID/ZENTAO_PRODUCT_ID 占位）
+- **主会话部署（2026-09-20 已全部完成）**：统一提交 5d8b5f2 → push → .166 pull → 重启 8080 → .166 数据准备（sync_cases 165 条、nightly bootstrap SUITE-NIGHTLY-REGRESSION、冒烟套件 SMKE、swan-audio-build job 追加 trigger_smoke 批处理行、.env.local 补 ZENTAO_PROJECT_ID/ZENTAO_PRODUCT_ID 占位注释）
 - **待用户**：① auto_tester GitLab Reporter 权限 + 仓库 Clone 地址（M1 真打包）② 禅道 project id/product id（M6 首单验证）③ nightly run-now 报备后确认切换（--enable + 禁旧计划任务）
 - **回退方式**：.166 Jenkins = schtasks /end + /delete JenkinsLTS；JENKINS_HOME 可整体删除重建；nightly 回滚 = nightly_trigger --disable + 重启用旧计划任务
+
+### 2026-09-20 冲刺收尾（部署 + E2E 验证）
+
+- **部署与 .166 数据准备全部落盘**（细节见上一节主会话部署行）；8080 已验证新功能在线（下载页/zenTaoSync/vendor qrcode.js/apks API 含 server_type/build_time）
+- **E2E：四次 run-now 全部走通 Jenkins 真链路**（swan-autotest build #1-#4：派发→定向认领→jenkins_build 回填→退出码语义）；#1-#3 卡 pytest 依赖（**SYSTEM 会话看不到 admin 的 Roaming 用户 site，pip "already satisfied" 跳过机器级安装**——用 `pip install --ignore-installed` 机器级装齐后 `py -3 -s -c "import ..."` 验证）；#4 命中设备门禁：**测试机 AKFDCP4718425500 USB 物理离线**（adb kill-server 后总线仍无设备，PnP 无 Android/MTP 设备，需人工插回/开机），env_blocked 收尾完全符合设计（pytest.exit(3)→agent 补 error 收尾+summary，不重跑不计失败；runs 留 error、jobs 留 env_blocked，server.py:772 对账逻辑本就如此设计）
+- **用例级执行验证待设备恢复后重跑一次 run-now 即可**（链路其余环节已全部实测通过）；本地 12 条 mock 用例（test_swan_login_aw.py）经仓库 venv 实测 12 passed
+- .166 C:/Users/admin 下本会话 12 个临时探测脚本已清理（更早会话遗留 18 个未动）
 
 ### 2026-09-18 团队重划 + 业务档案机制(接手者从这里开始)
 

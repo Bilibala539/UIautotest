@@ -20,6 +20,8 @@
 | 密码页 press_back | 只收键盘，不退出 App（验证码输入页的 press_back 才会退出） | codegen 2026-09-08 |
 | 密码错误提示 | 是常驻语义节点 `login_error_text`（content-desc"密码错误，请重新输入！"），不是 toast，可直接 key 断言 | codegen 2026-09-08 |
 | 登录页脏表单 | 提交失败后已填文本+协议勾选态残留；盲点勾选框会把已勾选态反选导致提交按钮置灰。重跑前重启 App 重置（登录页无状态持久化） | codegen 2026-09-08 |
+| 统一登录入口 | `user.login()` 默认从 `SWAN_PHONE` / `SWAN_PASSWORD` 取凭据走密码登录；`method="sms"` 走验证码。须从登录页或有底部导航的页面调用；未登录时重启清理表单，已登录时复用会话回底栏首页，不校验账号身份或切号。验证码输入页出现后才取码 | codegen + verify 2026-09-19：12 项单测与用户代理验证通过，尚未真机验证 |
+| 输入取证含敏感内容 | 现有 `AWBase.input_text` 将输入原文传入 `step_evidence.record`；启用 `EVIDENCE=1` 时密码也会进入截图标注。取证层脱敏尚未实现，须在框架层处理，不能将业务入口视为已脱敏 | orchestrator 2026-09-19：代码审查（未使用真实凭据） |
 | 输入框复用 | 登录类输入前先 `clear_input()`，避免上一轮残留 | codegen 2026-09-08 |
 | 我的页滚动位 | 从帮助/关于页返回后页面停在滚动位，`me_user_profile_entry` 离屏不在语义树中；判该 key 前先 swipe_down 复位 | verify 2026-09-08 |
 | 危险入口 | `person_info_cancel_account_button`（注销账号）紧邻退出登入，⛔ 任何自动化禁止点击 | explorer 2026-09-08 |

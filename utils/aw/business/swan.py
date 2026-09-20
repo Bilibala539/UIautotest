@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import logging
+import os
 
 from utils.aw.base.flutter_base import FlutterBaseAW
 from utils.aw.business.common import CommonBusinessMixin
@@ -80,6 +81,54 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
                 found.append(node_id)
         return found
 
+    def login(
+        self,
+        phone: str | None = None,
+        password: str | None = None,
+        *,
+        method: str = "password",
+        wait_code: float = 60.0,
+    ) -> None:
+        """确保 Swan 已登录并回到首页，支持 password / sms 两种方式。
+
+        App 须已打开，当前处于登录页或显示底部导航的已登录页面。
+        已登录时直接复用当前会话，不校验账号身份，也不切换账号。
+        未登录时，省略的凭据从 SWAN_PHONE / SWAN_PASSWORD 读取；
+        显式空值会报错，密码保留原值。提交前重启 App 清除残留表单，
+        包名取 SWAN_PACKAGE（默认 com.swan.network）。失败直接抛出。
+        sms 模式通过现有验证码平台取码，wait_code 为取码等待秒数。
+        """
+        if method not in ("password", "sms"):
+            raise ValueError("method 仅支持 password 或 sms")
+        if self.accessibility_exists(self.KEY_TAB_ME):
+            self.go_home()
+            return
+
+        phone = os.getenv("SWAN_PHONE") if phone is None else phone
+        if not isinstance(phone, str) or not phone.strip():
+            raise ValueError("请提供手机号或配置 SWAN_PHONE")
+        phone = phone.strip()
+        if method == "password":
+            password = os.getenv("SWAN_PASSWORD") if password is None else password
+            if not isinstance(password, str) or not password.strip():
+                raise ValueError("请提供密码或配置 SWAN_PASSWORD")
+
+        assert self.wait_accessibility(
+            self.KEY_LOGIN_PAGE, timeout=15
+        ), "login 需要从登录页或已登录的底部导航页面调用"
+        self.relaunch_app(os.getenv("SWAN_PACKAGE", "com.swan.network"))
+        if self.accessibility_exists(self.KEY_TAB_ME):
+            self.go_home()
+            return
+        assert self.wait_accessibility(
+            self.KEY_LOGIN_PAGE, timeout=15
+        ), "重启后未进入登录页"
+        if method == "password":
+            self.login_with_password(phone, password)
+        else:
+            self.login_by_sms(phone, wait_code=wait_code)
+        self.go_home()
+
     def login_with_password(self, phone: str, password: str) -> None:
         """密码登录（2026-09-08 真机实测流程），最终停在首页。
 
@@ -120,19 +169,15 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
 
         实测（2026-09-08）：点"下一步"后 App 自动发送验证码并跳到验证码输入页，
         没有"获取验证码"按钮；验证码 4 位，填满第 4 位自动提交进首页。
-        前提：协议勾选框未勾选（全新登录页默认态，方法内会点一次勾上）；
+        确认验证码输入页出现后才向平台取码。
+        前提：处于验证码登录形态，协议勾选框未勾选（全新登录页默认态）；
         若从勾选过的残留表单进入，调用方须先重启 App 重置表单。
         """
         # 已在首页视为已登录
         if self.accessibility_exists(self.KEY_TAB_ME):
             logger.info("已在首页，跳过登录")
             return
-        self.click_accessibility(self.KEY_PHONE_FIELD)
-        self.clear_input()  # 防表单残留：先清空再输入
-        self.input_text(phone)
-        self.click_accessibility(self.KEY_AGREEMENT)
-        # 下一步触发验证码发送，之后网关才能从开发接口取到本次验证码
-        self.click_accessibility(self.KEY_SUBMIT)
+        self.enter_sms_code_step(phone)
         code = self._fetch_sms_code(phone, wait=wait_code)
         self.click_accessibility(self.KEY_CODE_FIELD)
         self.input_text(code)

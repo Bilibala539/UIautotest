@@ -107,11 +107,23 @@ class DevicePoolSession:
     def release(self) -> None:
         if not self.device_id:
             return
+        import logging
         try:
-            _post(f"/api/devices/{self.device_id}/release", {"run_id": self.run_id})
+            try:
+                online = self.device_id in {serial for serial, _ in adb_serials()}
+            except DevicePoolError:
+                # adb 自身不可用无法判断,按在线归还(误判拔线会让好设备退池);真失联交给平台 4h 自愈兜底
+                online = True
+            if online:
+                _post(f"/api/devices/{self.device_id}/release", {"run_id": self.run_id})
+            else:
+                # 设备已拔线/失联:置 offline 移出可领队列,避免下个任务领到即失败;
+                # 重插上后 register 复活回 idle
+                _post(f"/api/devices/{self.device_id}/status", {"status": "offline"})
+                logging.getLogger(__name__).warning(
+                    f"设备 {self.device_id} adb 不可见,按失联置 offline")
         except DevicePoolError as error:
             # 归还失败只告警:平台侧有 busy 超时自愈空间,不阻塞会话收尾
-            import logging
             logging.getLogger(__name__).warning(f"设备归还失败: {error}")
         finally:
             self.device_id = None

@@ -35,13 +35,6 @@
 | `aw-verify.md` | 验证蓝图（跑 pytest、诊断失败、图片转正） |
 | `测试用例文件规范.md` | 用例文件强制规范（一用例一文件、固定 setup/teardown） |
 
-### docs/agents/web/（TidiTree Web 项目，未适配参考）
-
-| 路径 | 主题 |
-|---|---|
-| `README.md` | 启用说明（参照 swan/ 模式适配后使用） |
-| `aw-orchestrator.md` / `aw-explorer.md` / `aw-element.md` / `aw-codegen.md` / `aw-verify.md` | 各角色蓝图旧版，未适配三平台现状 |
-
 ## 对话纪要（docs/conversations/）
 
 | 路径 | 主题 |
@@ -56,3 +49,4 @@
 | `功能地图-v1.md` | Swan App 功能地图 v1（已被 `knowledge/swan/系统认知/功能地图.md` v2 取代） |
 | `swan_kb_session_handoff.md` | Swan 知识库 v1 会话交接（v1 已建成，交接完成） |
 | `2026-06-12-v5-orchestration-fusion-design.md` | v5 编排融合设计（大部分已落地） |
+| `agents-web/` | TidiTree Web 项目 agent 蓝图旧版（未适配，启用前参照 `docs/agents/swan/` 模式适配） |

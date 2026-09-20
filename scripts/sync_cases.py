@@ -1,9 +1,11 @@
 """用例定义同步(用例管理功能):把仓库里的文字用例 + 自动化脚本用例导入平台 case_defs。
 
 关联规则(平台UI设计规范 8.2):
-  - 自动化用例(cases/driver/**): YAML frontmatter 显式 `case_id` 作强锚点(link_strength=strong);
-    无 frontmatter 时回退现有推断 —— source 字段里的用例编号后缀匹配文字用例,
-    写入 linked_case_id(如 POS-002 -> LOGIN-L2-POS-002),并标 link_strength=weak(弱关联)
+  - 自动化用例(cases/driver/**): 关联优先级为 frontmatter 显式声明 > 推断 > 不挂
+    1. frontmatter `linked_case_id`(完整文字用例编号)显式声明映射,strong
+    2. frontmatter `case_id` 显式锚点(strong),回退现有推断 —— source 字段里的
+       用例编号后缀匹配文字用例,写入 linked_case_id(如 POS-002 -> LOGIN-L2-POS-002),
+       并标 link_strength=weak(弱关联)
   - bug 来源: tags/标题/source 里出现的 SWAN-BUG-YYYYMMDD-NNN 编号写入 source_bug
   - 文字用例(cases/ 下除 driver 外的 **/*.yaml 的 cases: 列表逐条导入,显式 case_id,strong)
 
@@ -105,14 +107,19 @@ def load_text_cases() -> list[dict]:
     return items
 
 
-def load_auto_cases(text_cases: list[dict]) -> list[dict]:
+def load_auto_cases(text_cases: list[dict]) -> tuple[list[dict], set[str]]:
     """cases/driver/** 的 YAML 整文件导入为自动化用例。
 
-    锚点(规范 8.2): 优先读 frontmatter 显式 case_id(强锚点,link_strength=strong);
-    无 frontmatter 时用正文 case_id,与文字用例的关联仍走"source 路径锁定 + 编号后缀
-    唯一命中"推断,标 link_strength=weak,提示补锚点。
+    关联锚点优先级(M5 二期): frontmatter 显式声明 > 推断 > 不挂。
+      1. frontmatter `linked_case_id`(完整文字用例编号)显式声明,strong;
+         须在文字用例集合中全名精确命中,未命中/脏值打 [warn] 丢弃声明回退推断
+      2. 无显式声明回退现行推断 —— source 路径锁定 + 编号后缀唯一命中,weak
+      3. frontmatter `case_id` 仍只作 auto 自身 ID 强锚点,不参与关联推断
+    返回 (用例列表, 显式声明命中的 case_id 集合,dry-run 据此标 [explicit])。
     """
     items: list[dict] = []
+    explicit_ids: set[str] = set()
+    text_ids = {c["case_id"] for c in text_cases}
     for path in sorted(CASES_DIR.glob("driver/**/*.yaml")):
         rel = path.relative_to(PROJ_ROOT).as_posix()
         raw = path.read_text(encoding="utf-8")
@@ -128,7 +135,17 @@ def load_auto_cases(text_cases: list[dict]) -> list[dict]:
         case_id = fm_case_id or str(doc.get("case_id") or "").strip()
         if not case_id:
             continue
-        # 关联文字用例: source 里的 YAML 路径锁定来源文件,再用编号后缀匹配;
+        # 显式映射声明: key 存在才校验(未声明静默走推断);全名精确命中才采纳
+        explicit_linked = ""
+        fm_linked = frontmatter.get("linked_case_id")
+        if fm_linked is not None:
+            cand = str(fm_linked).strip()
+            if cand in text_ids:
+                explicit_linked = cand
+            else:
+                print(f"  [warn] {rel}: frontmatter linked_case_id={fm_linked!r} "
+                      f"未在文字用例中精确命中,丢弃声明回退推断")
+        # 推断(兜底,现行规则): source 里的 YAML 路径锁定来源文件,再用编号后缀匹配;
         # 无路径时全量后缀匹配(唯一命中才挂,避免歧义)
         haystack = " ".join(str(doc.get(k) or "") for k in ("case_id", "title", "source"))
         linked = ""
@@ -145,6 +162,13 @@ def load_auto_cases(text_cases: list[dict]) -> list[dict]:
             if len(matches) == 1:
                 linked = matches[0]
                 break
+        if explicit_linked:
+            # 显式与推断不一致时以显式为准(推断本就弱语义),打 info 供核查
+            if linked and linked != explicit_linked:
+                print(f"  [info] {rel}: 显式 linked_case_id={explicit_linked} "
+                      f"覆盖推断结果 {linked}")
+            linked = explicit_linked
+            explicit_ids.add(case_id)
         bugs = sorted(set(BUG_PATTERN.findall(
             f"{doc.get('title') or ''} {doc.get('source') or ''} {raw[:2000]}")))
         items.append({
@@ -158,10 +182,10 @@ def load_auto_cases(text_cases: list[dict]) -> list[dict]:
             "file_path": rel,
             "content": raw,
             "linked_case_id": linked,
-            # frontmatter 显式锚点 = strong;回退正文/推断 = weak(提示补 case_id)
-            "link_strength": "strong" if fm_case_id else "weak",
+            # frontmatter 显式锚点(case_id 或 linked_case_id)= strong;纯推断 = weak
+            "link_strength": "strong" if (fm_case_id or explicit_linked) else "weak",
         })
-    return items
+    return items, explicit_ids
 
 
 def main() -> int:
@@ -173,13 +197,16 @@ def main() -> int:
     base = args.url.rstrip("/")
 
     text_cases = load_text_cases()
-    auto_cases = load_auto_cases(text_cases)
-    print(f"解析到 文字用例 {len(text_cases)} 条, 自动化用例 {len(auto_cases)} 条")
+    auto_cases, explicit_ids = load_auto_cases(text_cases)
+    print(f"解析到 文字用例 {len(text_cases)} 条, 自动化用例 {len(auto_cases)} 条"
+          f"(显式声明映射 {len(explicit_ids)} 条)")
 
     if args.dry_run:
         for case in text_cases + auto_cases:
             link = f" -> {case['linked_case_id']}" if case.get("linked_case_id") else ""
-            bug = f" [bug:{case['source_bug']}]" if case.get("source_bug") else ""
+            if case["case_id"] in explicit_ids:
+                link += " [explicit]"
+            bug = f" [bug:{case['source_bug']}]" if case['source_bug'] else ""
             strength = "" if case["case_type"] == "text" else f" [{case['link_strength']}]"
             print(f"  [{case['case_type']}{strength}] {case['case_id']}: {case['title']}{link}{bug}")
         weak = sum(1 for c in auto_cases if c.get("link_strength") == "weak")

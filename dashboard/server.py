@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import argparse
+import html
 import json
 import os
 import re
 import sqlite3
+import sys
+import time
 import uuid
 from contextlib import contextmanager
 from datetime import date, datetime, time as dt_time, timedelta, timezone
@@ -12,7 +15,7 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, quote, unquote, urlparse
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -39,8 +42,30 @@ def _load_dotenv_local() -> None:
 
 _load_dotenv_local()
 
+# jenkins_client 与本文件同目录;直接运行本文件时它不在 sys.path,补上(两种运行方式都通)
+_DASHBOARD_DIR = str(Path(__file__).resolve().parent)
+if _DASHBOARD_DIR not in sys.path:
+    sys.path.insert(0, _DASHBOARD_DIR)
+# 包风格 import(from dashboard.zentao_client import ...)依赖项目根在 sys.path;
+# -m 形态 cwd 自带,脚本直跑形态补上,同上两种运行方式都通
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+import jenkins_client  # noqa: E402  (依赖 _load_dotenv_local 注入的 JENKINS_* 环境变量)
+
 # 平台取值集合：flutter = Flutter App(跑在 Android 设备上)，pc = 桌面端，web = 浏览器端
 VALID_PLATFORMS = {"android", "ios", "flutter", "pc", "web"}
+# 安装包服务器类型：formal = 正式服包，test = 测试服包(存量库默认 test)
+VALID_SERVER_TYPES = ("formal", "test")
+
+
+class RunNotFinalizedError(RuntimeError):
+    """run 尚未结束(running),不允许回写禅道测试单(路由层转 409)。"""
+
+
+def apk_file_on_disk(apk: dict[str, Any]) -> bool:
+    """登记行里的 file_path 在磁盘上是否真实存在(页面据此禁用下载/二维码按钮)。"""
+    file_path = str(apk.get("file_path") or "").strip()
+    return bool(file_path) and Path(file_path).is_file()
 
 
 def utc_now() -> str:
@@ -79,6 +104,111 @@ def _stale_cutoff() -> str:
     """busy 设备的自愈阈值:4 小时前(ISO 时间字符串可直接比较)。"""
     from datetime import timedelta
     return (datetime.now(timezone.utc) - timedelta(hours=4)).isoformat(timespec="seconds")
+
+
+# running 任务超时抢回阈值(小时),可用环境变量覆盖。
+# 依据:实测单 job 全程最长约 2 分钟(nightly 单文件含 --lf 两轮,2026-09-19 日志),
+# 默认 1h 约为实测峰值的 45 倍;远小于设备 4h 自愈阈值,两级防线不打架
+RUNNING_TIMEOUT_HOURS = float(os.environ.get("RUNNING_TIMEOUT_HOURS") or "1")
+
+
+def _running_cutoff() -> str:
+    """running 任务抢回阈值:RUNNING_TIMEOUT_HOURS 小时前(ISO 字符串可直接比较)。"""
+    return (datetime.now(timezone.utc)
+            - timedelta(hours=RUNNING_TIMEOUT_HOURS)).isoformat(timespec="seconds")
+
+
+def _reap_log(message: str, filename: str = "pipeline_reaper.log") -> None:
+    """流水线执行侧独立日志文件(常驻/无控制台下 stdout 不可靠)。"""
+    log_dir = PROJECT_ROOT / "logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    with open(log_dir / filename, "a", encoding="utf-8") as log_file:
+        log_file.write(f"[{utc_now()}] {message}\n")
+
+
+def try_jenkins_dispatch(store, job: dict) -> dict:
+    """建任务后尝试派给 Jenkins 构建(M3;Jenkins 侧 job: 参数化,参数 JOB_ID)。
+
+    成功:回填 jenkins_job + 短轮询队列拿 build 号回填(队列积压拿不到则只记
+    queue_id 不阻塞);任务状态语义不变(仍 pending,等 Jenkins 启动的
+    pipeline_agent --job-id 来定向认领)。
+    失败/未配凭据:任务留 pending 走本地 PipelineAgent 轮询兜底,原因记 result_json。
+    """
+    jenkins_job = os.environ.get("JENKINS_TEST_JOB", "swan-autotest").strip() or "swan-autotest"
+    if not jenkins_client.config():
+        return job  # 未配置 Jenkins 凭据:静默走本地通道(本地开发/未部署 Jenkins 的机器)
+    job_id = job["job_id"]
+    outcome = jenkins_client.trigger(jenkins_job, {"JOB_ID": job_id})
+    if not outcome.get("ok"):
+        _reap_log(f"job={job_id} Jenkins 派发失败,留 pending 本地兜底: {outcome.get('error')}",
+                  filename="jenkins_dispatch.log")
+        return store.mark_jenkins_dispatch(job_id, trigger_error=str(outcome.get("error")))
+    queue_id = outcome.get("queue_id")
+    build = None
+    if queue_id:
+        for _ in range(3):  # 常态下 executor 空闲时 executable.number 立即出现;积压不等待
+            item = jenkins_client.queue_item(queue_id)
+            if item.get("ok") and item.get("build"):
+                build = item["build"]
+                break
+            time.sleep(1)
+    updated = store.mark_jenkins_dispatch(job_id, jenkins_job=jenkins_job,
+                                          jenkins_build=build, queue_id=queue_id)
+    _reap_log(f"job={job_id} 已派发 Jenkins jenkins_job={jenkins_job} "
+              f"queue_id={queue_id} build={build}",
+              filename="jenkins_dispatch.log")
+    return updated
+
+
+def _reap_timeout_jobs(connection: sqlite3.Connection) -> list[dict[str, Any]]:
+    """把 running 超过阈值的任务标记 error 并释放其占用设备(幂等,可重复调用)。
+
+    触发时机:claim 前惰性回收——任一执行 agent 轮询即触发,与 busy 设备 4h 自愈
+    同为惰性模式。所有 UPDATE 带状态条件,并发/重复执行均无副作用。
+    """
+    cutoff = _running_cutoff()
+    stale = connection.execute(
+        """SELECT job_id, claimed_by, claimed_at FROM pipeline_jobs
+           WHERE status='running' AND claimed_at < ?""",
+        (cutoff,),
+    ).fetchall()
+    for row in stale:
+        job_id = row["job_id"]
+        connection.execute(
+            """UPDATE pipeline_jobs SET status='error', finished_at=?, result_json=?
+               WHERE job_id=? AND status='running' AND claimed_at < ?""",
+            (utc_now(), json.dumps({
+                "reaped": True,
+                "reason": f"running 超时(>{RUNNING_TIMEOUT_HOURS:g}h)被平台抢回",
+                "claimed_by": row["claimed_by"],
+                "claimed_at": row["claimed_at"],
+            }, ensure_ascii=False), job_id, cutoff),
+        )
+        released = connection.execute(
+            """UPDATE devices SET status='online_idle', current_run='', busy_since=NULL,
+               last_heartbeat=? WHERE status='busy' AND current_run=?""",
+            (utc_now(), f"pipe-{job_id}"),
+        ).rowcount
+        _reap_log(f"job={job_id} running 超时抢回(claimed_by={row['claimed_by']} "
+                  f"claimed_at={row['claimed_at']}),释放设备 {released} 台")
+    return [dict(row) for row in stale]
+
+
+# ---- runs 会话孤儿收尾:执行 agent 失联时,由平台代管把卡死的 running 会话收尾 ----
+
+# 执行 agent 上报的 run_id 约定为 pipe-{job_id}(scripts/pipeline_agent.py 经
+# DASHBOARD_RUN_ID 落库),runs 侧据此反查所属 pipeline job,不依赖 job 侧改动。
+_PIPELINE_RUN_ID_PREFIX = "pipe-"
+# job 终态集合:与 finish_pipeline_job 的校验一致;error 亦含 _reap_timeout_jobs 超时抢回
+PIPELINE_JOB_FINISHED_STATUSES = ("succeeded", "failed", "env_blocked", "error")
+
+
+def _sweep_log(message: str) -> None:
+    """会话代管收尾写独立日志(常驻/无控制台下 stdout 不可靠,对齐 _reap_log)。"""
+    log_dir = PROJECT_ROOT / "logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    with open(log_dir / "runs_sweeper.log", "a", encoding="utf-8") as log_file:
+        log_file.write(f"[{utc_now()}] {message}\n")
 
 
 # ==================== 流水线配置:频率解析与下次执行时间(纯函数,便于单测) ====================
@@ -321,7 +451,8 @@ class DashboardStore:
                     failed_cases INTEGER NOT NULL DEFAULT 0,
                     skipped_cases INTEGER NOT NULL DEFAULT 0,
                     error_cases INTEGER NOT NULL DEFAULT 0,
-                    metadata_json TEXT NOT NULL DEFAULT '{}'
+                    metadata_json TEXT NOT NULL DEFAULT '{}',
+                    zentao_task_id TEXT NOT NULL DEFAULT ''
                 );
                 CREATE TABLE IF NOT EXISTS cases (
                     run_id TEXT NOT NULL,
@@ -343,10 +474,12 @@ class DashboardStore:
                 CREATE INDEX IF NOT EXISTS idx_cases_case_id ON cases(case_id);
                 """
             )
-            # 轻量迁移：老库补列（runs.apk_id）
+            # 轻量迁移：老库补列（runs.apk_id / runs.zentao_task_id 禅道测试单单号,M6）
             run_columns = {row["name"] for row in connection.execute("PRAGMA table_info(runs)")}
             if "apk_id" not in run_columns:
                 connection.execute("ALTER TABLE runs ADD COLUMN apk_id TEXT NOT NULL DEFAULT ''")
+            if "zentao_task_id" not in run_columns:
+                connection.execute("ALTER TABLE runs ADD COLUMN zentao_task_id TEXT NOT NULL DEFAULT ''")
             connection.executescript(
                 """
                 CREATE TABLE IF NOT EXISTS apks (
@@ -359,11 +492,21 @@ class DashboardStore:
                     file_path TEXT NOT NULL DEFAULT '',
                     file_hash TEXT NOT NULL DEFAULT '',
                     notes TEXT NOT NULL DEFAULT '',
+                    server_type TEXT NOT NULL DEFAULT 'test',
+                    build_time TEXT,
                     registered_at TEXT NOT NULL
                 );
                 CREATE INDEX IF NOT EXISTS idx_apks_registered_at ON apks(registered_at DESC);
                 """
             )
+            # server_type/build_time 为后加列:存量库补列(存量包全是开发/测试产出,归测试服;build_time 可空)
+            apk_columns = {row[1] for row in connection.execute("PRAGMA table_info(apks)")}
+            if "server_type" not in apk_columns:
+                connection.execute(
+                    "ALTER TABLE apks ADD COLUMN server_type TEXT NOT NULL DEFAULT 'test'"
+                )
+            if "build_time" not in apk_columns:
+                connection.execute("ALTER TABLE apks ADD COLUMN build_time TEXT")
             connection.executescript(
                 """
                 CREATE TABLE IF NOT EXISTS devices (
@@ -393,6 +536,8 @@ class DashboardStore:
                     created_at TEXT NOT NULL,
                     claimed_at TEXT,
                     finished_at TEXT,
+                    jenkins_job TEXT NOT NULL DEFAULT '',
+                    jenkins_build INTEGER,
                     result_json TEXT NOT NULL DEFAULT '{}'
                 );
                 CREATE INDEX IF NOT EXISTS idx_pipeline_jobs_status ON pipeline_jobs(status);
@@ -491,6 +636,13 @@ class DashboardStore:
                     "UPDATE modules SET name_cn=? WHERE slug=? AND name_cn=slug",
                     (name_cn, slug),
                 )
+            # 轻量迁移:老库补 Jenkins 派发两列(M3);新库 DDL 已含,补列仅对存量库生效
+            # (放所有建表 executescript 之后,pipeline_jobs 表此时必然存在)
+            job_columns = {row["name"] for row in connection.execute("PRAGMA table_info(pipeline_jobs)")}
+            if "jenkins_job" not in job_columns:
+                connection.execute("ALTER TABLE pipeline_jobs ADD COLUMN jenkins_job TEXT NOT NULL DEFAULT ''")
+            if "jenkins_build" not in job_columns:
+                connection.execute("ALTER TABLE pipeline_jobs ADD COLUMN jenkins_build INTEGER")
 
     def create_run(self, payload: dict[str, Any]) -> dict[str, Any]:
         run_id = str(payload.get("run_id") or "").strip()
@@ -609,6 +761,139 @@ class DashboardStore:
             )
         return self.get_run(run_id)
 
+    def _sweep_orphan_runs(self, connection: sqlite3.Connection) -> list[dict[str, Any]]:
+        """流水线会话孤儿收尾(幂等):run 卡 running 而其 job 已终态 → 代管收尾。
+
+        背景:执行 agent 崩溃或任务被 _reap_timeout_jobs 超时抢回时,关联 run 收不到
+        complete 会永远卡 running。对齐 _stale_cutoff/_reap_timeout_jobs 的惰性模式,
+        由 runs 查询路径触发。关联不依赖 job 侧改动:执行 agent 的 run_id 约定为
+        pipe-{job_id},前缀反查即可。收尾口径:
+        - job succeeded 且有用例:按 cases 聚合定状态(与 complete_run 一致)
+        - job 失败/env_blocked/被抢回,或 succeeded 却无用例上报:定 error
+        - ended_at 取 job.finished_at(真实终态时刻);reaped 等关联信息写入 metadata_json
+        UPDATE 带 status='running' 条件,并发/重复执行均无副作用。
+        """
+        finished = ",".join("?" * len(PIPELINE_JOB_FINISHED_STATUSES))
+        orphans = connection.execute(
+            f"""SELECT r.run_id, r.started_at, r.metadata_json,
+                       j.status AS job_status, j.finished_at AS job_finished_at,
+                       j.result_json AS job_result_json
+                FROM runs r JOIN pipeline_jobs j
+                  ON j.job_id = substr(r.run_id, {len(_PIPELINE_RUN_ID_PREFIX) + 1})
+                WHERE r.status='running' AND r.run_id LIKE '{_PIPELINE_RUN_ID_PREFIX}%'
+                  AND j.status IN ({finished})""",
+            PIPELINE_JOB_FINISHED_STATUSES,
+        ).fetchall()
+        swept: list[dict[str, Any]] = []
+        for row in orphans:
+            rows = connection.execute(
+                "SELECT status, COUNT(*) AS count FROM cases WHERE run_id = ? GROUP BY status",
+                (row["run_id"],),
+            ).fetchall()
+            counts = {item["status"]: int(item["count"]) for item in rows}
+            total = sum(counts.values())
+            passed = counts.get("passed", 0)
+            failed = counts.get("failed", 0)
+            skipped = counts.get("skipped", 0)
+            errors = counts.get("error", 0)
+            job_result = json.loads(row["job_result_json"] or "{}")
+            reaped = bool(job_result.get("reaped"))
+            if row["job_status"] == "succeeded" and total:
+                status = "failed" if (failed or errors) else "passed"
+                reason = "执行 agent 失联,pipeline job 已成功,按已有用例聚合收尾"
+            elif row["job_status"] == "succeeded":
+                status = "error"
+                reason = "执行 agent 失联,pipeline job 已成功但无用例上报,会话由平台代管收尾"
+            else:
+                status = "error"
+                if reaped:
+                    reason = "执行 agent 失联,pipeline job 已被平台超时抢回(reaped),会话由平台代管收尾"
+                else:
+                    reason = f"执行 agent 失联,pipeline job 已终态({row['job_status']}),会话由平台代管收尾"
+            ended_at = str(row["job_finished_at"] or utc_now())
+            metadata = json.loads(row["metadata_json"] or "{}")
+            metadata["orphan_swept"] = {
+                "job_id": row["run_id"].removeprefix(_PIPELINE_RUN_ID_PREFIX),
+                "job_status": row["job_status"],
+                "job_finished_at": row["job_finished_at"],
+                "reaped": reaped,
+                "reason": reason,
+                "swept_at": utc_now(),
+            }
+            updated = connection.execute(
+                """
+                UPDATE runs SET status=?, ended_at=?, duration_seconds=?, total_cases=?,
+                    passed_cases=?, failed_cases=?, skipped_cases=?, error_cases=?,
+                    metadata_json=?
+                WHERE run_id=? AND status='running'
+                """,
+                (status, ended_at, self.duration_between(row["started_at"], ended_at),
+                 total, passed, failed, skipped, errors,
+                 json.dumps(metadata, ensure_ascii=False), row["run_id"]),
+            ).rowcount
+            if updated:
+                _sweep_log(f"run={row['run_id']} 会话孤儿收尾 → {status}"
+                           f"(job_status={row['job_status']}, reaped={reaped})")
+                swept.append({"run_id": row["run_id"], "status": status,
+                              "reaped": reaped, "reason": reason})
+        return swept
+
+    def sync_run_zentao(self, run_id: str) -> dict[str, Any]:
+        """把执行会话结果回写禅道测试单(M6;仅页面按钮人工触发,禁止任何自动回写)。
+
+        zentao_task_id 为空 → create_testtask 建单并回存单号;非空 → update_testtask
+        更新 desc(幂等:重复点击=更新同一单)。REST v1 无用例级回写端点,结果以
+        汇总 HTML 写进 desc。project/product 从环境读(部署机 .env.local),未配置抛
+        ValueError(400);running 未完成抛 RunNotFinalizedError(409)。
+        """
+        run = self.get_run(run_id)
+        if run["status"] == "running":
+            raise RunNotFinalizedError(f"会话 {run_id} 尚未结束,完成后才能回写禅道")
+        project_id = str(os.environ.get("ZENTAO_PROJECT_ID") or "").strip()
+        product_id = str(os.environ.get("ZENTAO_PRODUCT_ID") or "").strip()
+        if not project_id or not product_id:
+            raise ValueError("需在 .166 .env.local 配置 ZENTAO_PROJECT_ID 与 ZENTAO_PRODUCT_ID")
+        cases = run.get("cases") or []
+        source = str((run.get("metadata") or {}).get("source") or "-")
+        status_cn = {"passed": "通过", "failed": "失败", "error": "错误", "skipped": "跳过"}
+        lines = [
+            f"<p><strong>执行会话:</strong>{html.escape(str(run_id))}"
+            f"(来源:{html.escape(source)},{html.escape(str(run.get('platform') or ''))} 平台)</p>",
+            f"<p><strong>结果汇总:</strong>共 {int(run.get('total_cases') or 0)} 条,"
+            f"通过 {int(run.get('passed_cases') or 0)},失败 {int(run.get('failed_cases') or 0)},"
+            f"错误 {int(run.get('error_cases') or 0)},跳过 {int(run.get('skipped_cases') or 0)};"
+            f"会话状态 {html.escape(status_cn.get(str(run.get('status')), str(run.get('status'))))}</p>",
+            f"<p><strong>环境:</strong>包体 {html.escape(str(run.get('apk_id') or '-'))},"
+            f"设备 {html.escape(str(run.get('device') or '-'))},"
+            f"构建 {html.escape(str(run.get('jenkins_build') or '-'))}</p>",
+        ]
+        if cases:
+            lines.append("<p><strong>用例清单:</strong></p><ul>")
+            max_list = 50  # nightly 上百条时 desc 过长,截断并指向平台页
+            for case in cases[:max_list]:
+                st = str(case.get("status") or "")
+                lines.append(f"<li>[{html.escape(status_cn.get(st, st))}] "
+                             f"{html.escape(str(case.get('name') or ''))}</li>")
+            if len(cases) > max_list:
+                lines.append(f"<li>…等共 {len(cases)} 条(清单过长截断,明细见平台页)</li>")
+            lines.append("</ul>")
+        desc = "".join(lines)
+
+        from dashboard.zentao_client import ZentaoError, create_testtask, update_testtask
+        task_id = str(run.get("zentao_task_id") or "").strip()
+        if task_id:
+            update_testtask(int(task_id), desc)
+            return {"zentao_task_id": int(task_id), "created": False}
+        data = create_testtask(int(project_id), int(product_id),
+                               f"[Swan] 自动化执行会话 {run_id}",
+                               str(run.get("jenkins_build") or "trunk"), desc)
+        new_id = str(data.get("id") or "").strip()
+        if not new_id:
+            raise ZentaoError(f"禅道建测试单响应缺少 id: {json.dumps(data, ensure_ascii=False)[:200]}")
+        with self.transaction() as connection:
+            connection.execute("UPDATE runs SET zentao_task_id=? WHERE run_id=?", (new_id, run_id))
+        return {"zentao_task_id": int(new_id), "created": True}
+
     # ==================== 设备池 ====================
 
     def register_device(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -641,22 +926,44 @@ class DashboardStore:
                 )
             else:
                 keep_status = row["status"] if row["status"] in {"busy", "disabled"} else "online_idle"
-                connection.execute(
-                    """
-                    UPDATE devices SET name=?, platform=?, model=?, status=?,
-                        last_heartbeat=?, metadata_json=?
-                    WHERE device_id=?
-                    """,
-                    (
-                        str(payload.get("name") or ""),
-                        str(payload.get("platform") or "flutter"),
-                        str(payload.get("model") or ""),
-                        keep_status,
-                        now,
-                        json_object(payload.get("metadata")),
-                        device_id,
-                    ),
-                )
+                if keep_status == row["status"]:
+                    # busy/disabled 的设备注册(执行机自报)不覆盖其状态与 run 占用
+                    connection.execute(
+                        """
+                        UPDATE devices SET name=?, platform=?, model=?, status=?,
+                            last_heartbeat=?, metadata_json=?
+                        WHERE device_id=?
+                        """,
+                        (
+                            str(payload.get("name") or ""),
+                            str(payload.get("platform") or "flutter"),
+                            str(payload.get("model") or ""),
+                            keep_status,
+                            now,
+                            json_object(payload.get("metadata")),
+                            device_id,
+                        ),
+                    )
+                else:
+                    # 空闲刷新或 offline 复活:执行机 adb 在线才会注册,即在线的铁证;
+                    # 复活时清 run 占用残留,避免 release 归属校验错乱
+                    connection.execute(
+                        """
+                        UPDATE devices SET name=?, platform=?, model=?, status=?,
+                            current_run='', busy_since=NULL,
+                            last_heartbeat=?, metadata_json=?
+                        WHERE device_id=?
+                        """,
+                        (
+                            str(payload.get("name") or ""),
+                            str(payload.get("platform") or "flutter"),
+                            str(payload.get("model") or ""),
+                            keep_status,
+                            now,
+                            json_object(payload.get("metadata")),
+                            device_id,
+                        ),
+                    )
         return self.get_device(device_id)
 
     def get_device(self, device_id: str) -> dict[str, Any]:
@@ -751,12 +1058,20 @@ class DashboardStore:
             ).fetchone()
             if row is None:
                 raise KeyError(f"device not found: {device_id}")
-            if row["status"] == "busy" and status != "disabled":
+            if row["status"] == "busy" and status not in {"disabled", "offline"}:
                 raise ValueError("device is busy, release it first")
-            connection.execute(
-                "UPDATE devices SET status=?, last_heartbeat=? WHERE device_id=?",
-                (status, utc_now(), device_id),
-            )
+            if row["status"] == "busy" and status == "offline":
+                # 执行中失联:置 offline 移出可领队列,同时解除 run 占用(重插后由 register 复活)
+                connection.execute(
+                    """UPDATE devices SET status=?, current_run='', busy_since=NULL,
+                       last_heartbeat=? WHERE device_id=?""",
+                    (status, utc_now(), device_id),
+                )
+            else:
+                connection.execute(
+                    "UPDATE devices SET status=?, last_heartbeat=? WHERE device_id=?",
+                    (status, utc_now(), device_id),
+                )
         return self.get_device(device_id)
 
     # ---------- 流水线任务(P4):触发/认领/收尾 ----------
@@ -822,16 +1137,38 @@ class DashboardStore:
         return item
 
     def claim_pipeline_job(self, payload: dict[str, Any]) -> dict[str, Any]:
-        """执行 agent 认领最早的 pending 任务(原子操作,防多机抢跑)。"""
+        """执行 agent 认领任务(原子操作,防多机抢跑)。
+
+        两种通道:
+          - 定向(Jenkins 构建):payload 带 job_id,精确认领该任务;任务不存在/
+            已被认领/非 pending → LookupError(handler 转 404,agent 优雅退出)。
+          - 轮询(本地常驻 agent):领最早 pending,跳过已派发 Jenkins 的任务
+            (jenkins_job 非空)——那些由 Jenkins 构建里的 agent --job-id 领,
+            否则本地 agent 抢在 Jenkins 前执行会让构建空跑。
+        """
         claimed_by = str(payload.get("agent") or "").strip() or "unknown-agent"
+        wanted_job_id = str(payload.get("job_id") or "").strip()
         now = utc_now()
+        # 惰性回收放独立事务:无 pending 时 claim 抛 LookupError 会回滚当前事务,抢回不能跟着陪葬
         with self.transaction() as connection:
-            row = connection.execute(
-                """SELECT job_id FROM pipeline_jobs WHERE status='pending'
-                   ORDER BY created_at LIMIT 1"""
-            ).fetchone()
-            if row is None:
-                raise LookupError("no pending pipeline job")
+            _reap_timeout_jobs(connection)
+        with self.transaction() as connection:
+            if wanted_job_id:
+                row = connection.execute(
+                    """SELECT job_id FROM pipeline_jobs
+                       WHERE job_id=? AND status='pending'""",
+                    (wanted_job_id,),
+                ).fetchone()
+                if row is None:
+                    raise LookupError(f"pipeline job not claimable: {wanted_job_id}")
+            else:
+                row = connection.execute(
+                    """SELECT job_id FROM pipeline_jobs
+                       WHERE status='pending' AND (jenkins_job='' OR jenkins_job IS NULL)
+                       ORDER BY created_at LIMIT 1"""
+                ).fetchone()
+                if row is None:
+                    raise LookupError("no pending pipeline job")
             job_id = row["job_id"]
             connection.execute(
                 """UPDATE pipeline_jobs SET status='running', claimed_by=?,
@@ -857,6 +1194,35 @@ class DashboardStore:
                    WHERE job_id=?""",
                 (status, utc_now(),
                  json.dumps(payload.get("result") or {}, ensure_ascii=False), job_id),
+            )
+        return self.get_pipeline_job(job_id)
+
+    def mark_jenkins_dispatch(self, job_id: str, jenkins_job: str = "",
+                              jenkins_build: int | None = None,
+                              queue_id: int | None = None,
+                              trigger_error: str = "") -> dict[str, Any]:
+        """回填 Jenkins 派发结果(M3)。
+
+        触发成功:jenkins_job 置名 + jenkins_build(拿到时) + result_json.jenkins_queue_id;
+        触发失败:jenkins_job 保持空串(轮询认领不跳过它,本地兜底可领),result_json
+        记 jenkins_trigger_failed 原因。result_json 走读改写合并,不覆盖已有键。
+        """
+        with self.transaction() as connection:
+            row = connection.execute(
+                "SELECT result_json FROM pipeline_jobs WHERE job_id=?", (job_id,)
+            ).fetchone()
+            if row is None:
+                raise KeyError(f"pipeline job not found: {job_id}")
+            result = json.loads(row["result_json"] or "{}")
+            if trigger_error:
+                result["jenkins_trigger_failed"] = trigger_error
+            if queue_id is not None:
+                result["jenkins_queue_id"] = queue_id
+            connection.execute(
+                """UPDATE pipeline_jobs SET jenkins_job=?, jenkins_build=?, result_json=?
+                   WHERE job_id=?""",
+                (jenkins_job, jenkins_build,
+                 json.dumps(result, ensure_ascii=False), job_id),
             )
         return self.get_pipeline_job(job_id)
 
@@ -895,6 +1261,8 @@ class DashboardStore:
 
     def get_run(self, run_id: str) -> dict[str, Any]:
         with self.transaction() as connection:
+            # 查询路径惰性收尾:执行 agent 失联的会话在此代管收尾(幂等)
+            self._sweep_orphan_runs(connection)
             row = connection.execute("SELECT * FROM runs WHERE run_id=?", (run_id,)).fetchone()
             if row is None:
                 raise KeyError(f"run not found: {run_id}")
@@ -921,6 +1289,8 @@ class DashboardStore:
         query += " ORDER BY started_at DESC LIMIT ?"
         parameters.append(limit)
         with self.transaction() as connection:
+            # 查询路径惰性收尾:执行 agent 失联的会话在此代管收尾(幂等)
+            self._sweep_orphan_runs(connection)
             rows = connection.execute(query, parameters).fetchall()
         return [self.serialize_run(row) for row in rows]
 
@@ -930,14 +1300,18 @@ class DashboardStore:
         apk_id = str(payload.get("apk_id") or "").strip()
         if not apk_id:
             raise ValueError("apk_id is required")
+        server_type = str(payload.get("server_type") or "test").strip().lower()
+        if server_type not in VALID_SERVER_TYPES:
+            raise ValueError(f"server_type 必须是 {'/'.join(VALID_SERVER_TYPES)} 之一")
+        build_time = str(payload.get("build_time") or "").strip() or None
         registered_at = str(payload.get("registered_at") or utc_now())
         with self.transaction() as connection:
             connection.execute(
                 """
                 INSERT INTO apks (
                     apk_id, app_version, branch, commit_hash, flavor, source,
-                    file_path, file_hash, notes, registered_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    file_path, file_hash, notes, server_type, build_time, registered_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(apk_id) DO UPDATE SET
                     app_version=excluded.app_version,
                     branch=excluded.branch,
@@ -946,7 +1320,9 @@ class DashboardStore:
                     source=excluded.source,
                     file_path=excluded.file_path,
                     file_hash=excluded.file_hash,
-                    notes=excluded.notes
+                    notes=excluded.notes,
+                    server_type=excluded.server_type,
+                    build_time=excluded.build_time
                 """,
                 (
                     apk_id,
@@ -958,6 +1334,8 @@ class DashboardStore:
                     str(payload.get("file_path") or ""),
                     str(payload.get("file_hash") or ""),
                     str(payload.get("notes") or ""),
+                    server_type,
+                    build_time,
                     registered_at,
                 ),
             )
@@ -970,12 +1348,17 @@ class DashboardStore:
             raise KeyError(f"apk not found: {apk_id}")
         return dict(row)
 
-    def list_apks(self, limit: int = 50) -> list[dict[str, Any]]:
+    def list_apks(self, limit: int = 50, server_type: str = "") -> list[dict[str, Any]]:
         limit = min(max(int(limit), 1), 200)
+        query = "SELECT * FROM apks"
+        parameters: list[Any] = []
+        if server_type in VALID_SERVER_TYPES:
+            query += " WHERE server_type=?"
+            parameters.append(server_type)
+        query += " ORDER BY registered_at DESC LIMIT ?"
+        parameters.append(limit)
         with self.transaction() as connection:
-            rows = connection.execute(
-                "SELECT * FROM apks ORDER BY registered_at DESC LIMIT ?", (limit,)
-            ).fetchall()
+            rows = connection.execute(query, parameters).fetchall()
         return [dict(row) for row in rows]
 
     # ==================== 用例执行历史（三视角之"某用例"） ====================
@@ -1264,8 +1647,12 @@ class DashboardStore:
             ).fetchone()
             if row is None:
                 raise KeyError(f"用例定义不存在: {case_id}")
+            # SQLite FK 未启用,手动清理套件成员,防留孤儿(list_suite_cases 会查出 title=NULL)
+            removed = connection.execute(
+                "DELETE FROM suite_cases WHERE case_id=?", (case_id,)
+            ).rowcount
             connection.execute("DELETE FROM case_defs WHERE case_id=?", (case_id,))
-        return {"deleted": case_id}
+        return {"deleted": case_id, "removed_suite_members": removed}
 
     # ==================== 流水线配置(定时调度) ====================
 
@@ -1387,14 +1774,14 @@ class DashboardStore:
             filter_source = "suite" if py_targets else ""
         else:
             case_filter, filter_source = "", ""
-        job = self.create_pipeline_job({
+        job = try_jenkins_dispatch(self, self.create_pipeline_job({
             "trigger_source": "schedule",
             # 运行时 payload 优先,其次配置里的 platform 列,最后兜底 flutter
             "platform": str(payload.get("platform") or config.get("platform") or "flutter"),
             "branch": str(payload.get("branch") or ""),
             "case_filter": case_filter,
             "apk_id": str(payload.get("apk_id") or ""),
-        })
+        }))
         with self.transaction() as connection:
             connection.execute(
                 "UPDATE pipeline_configs SET last_run_at=? WHERE config_id=?",
@@ -1521,6 +1908,14 @@ class DashboardStore:
             if raw not in targets:
                 targets.append(raw)
         return targets
+
+    def suite_case_paths(self, suite_id: str) -> dict[str, Any]:
+        """套件成员脚本路径(只读,GET /api/suites/<id>/case-paths,冒烟联动 M5)。
+
+        套件不存在抛 KeyError → 404(与"存在但无成员"区分,联动脚本依赖此语义报错)。
+        """
+        self.get_test_suite(suite_id)  # 不存在 → KeyError
+        return {"suite_id": suite_id, "paths": self.list_suite_case_paths(suite_id)}
 
     def list_suite_cases(self, suite_id: str) -> list[dict[str, Any]]:
         """套件成员有序列表,LEFT JOIN case_defs 带出标题/模块/类型/优先级。"""
@@ -1712,6 +2107,13 @@ class DashboardHandler(BaseHTTPRequestHandler):
     def send_error_json(self, message: str, status: int) -> None:
         self.send_json({"error": message}, status)
 
+    def base_url(self) -> str:
+        """按请求 Host 还原绝对地址基座(下载链接/二维码用),无 Host 头时退回本机端口。"""
+        host = self.headers.get("Host", "").strip()
+        if host:
+            return f"http://{host}"
+        return f"http://127.0.0.1:{self.server.server_address[1]}"
+
     def do_OPTIONS(self) -> None:
         self.send_response(HTTPStatus.NO_CONTENT)
         self.send_header("Access-Control-Allow-Origin", "*")
@@ -1768,7 +2170,47 @@ class DashboardHandler(BaseHTTPRequestHandler):
             except ValueError:
                 self.send_error_json("limit must be an integer", HTTPStatus.BAD_REQUEST)
                 return
-            self.send_json({"items": self.store.list_apks(limit=limit)})
+            server_type = query.get("server_type", [""])[0].strip().lower()
+            items = self.store.list_apks(limit=limit, server_type=server_type)
+            base_url = self.base_url()
+            for item in items:
+                # download_url 为绝对地址(二维码直接指向它);file_exists 供前端禁用下载按钮防 404
+                item["download_url"] = f"{base_url}/api/apks/{quote(str(item['apk_id']), safe='')}/download"
+                item["file_exists"] = apk_file_on_disk(item)
+            self.send_json({"items": items})
+            return
+        if parsed.path.startswith("/api/apks/") and parsed.path.endswith("/download"):
+            # 按包登记的 file_path 回源 APK 文件流,手机扫码/浏览器直接下载
+            apk_id = unquote(parsed.path.removeprefix("/api/apks/").removesuffix("/download").strip("/"))
+            if not apk_id:
+                self.send_error_json("apk_id is required", HTTPStatus.BAD_REQUEST)
+                return
+            try:
+                apk = self.store.get_apk(apk_id)
+            except KeyError as error:
+                self.send_error_json(str(error), HTTPStatus.NOT_FOUND)
+                return
+            file_path = str(apk.get("file_path") or "").strip()
+            target = Path(file_path) if file_path else None
+            if target is None or not target.is_file():
+                self.send_error_json(
+                    f"apk 文件不在磁盘上,无法下载(file_path={file_path or '未登记'});请在登记机上重新登记或补登产物路径",
+                    HTTPStatus.NOT_FOUND,
+                )
+                return
+            filename = quote(f"{apk_id}.apk", safe="()")
+            self.send_response(HTTPStatus.OK)
+            self.send_header("Content-Type", "application/vnd.android.package-archive")
+            self.send_header("Content-Length", str(target.stat().st_size))
+            self.send_header(
+                "Content-Disposition",
+                f"attachment; filename=\"{filename}\"; filename*=UTF-8''{filename}",
+            )
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            with target.open("rb") as handle:
+                while chunk := handle.read(1 << 20):
+                    self.wfile.write(chunk)
             return
         if parsed.path.startswith("/api/cases/") and parsed.path.endswith("/history"):
             case_id = parsed.path.removeprefix("/api/cases/").removesuffix("/history").strip("/")
@@ -1841,6 +2283,15 @@ class DashboardHandler(BaseHTTPRequestHandler):
             return
         if parsed.path == "/api/suites":
             self.send_json({"items": self.store.list_test_suites()})
+            return
+        if parsed.path.startswith("/api/suites/") and parsed.path.endswith("/case-paths"):
+            # 只读端点(流水线/冒烟联动 M5):套件成员脚本路径,供外部聚合 pytest 目标;
+            # 须先于 /api/suites/<id> 通配匹配
+            suite_id = parsed.path.removeprefix("/api/suites/").removesuffix("/case-paths").strip("/")
+            try:
+                self.send_json(self.store.suite_case_paths(suite_id))
+            except KeyError as error:
+                self.send_error_json(str(error), HTTPStatus.NOT_FOUND)
             return
         if parsed.path.startswith("/api/suites/"):
             suite_id = parsed.path.removeprefix("/api/suites/").strip("/")
@@ -2023,9 +2474,9 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 self.send_json(result, HTTPStatus.CREATED)
                 return
             if parsed.path == "/api/pipeline/trigger":
-                self.send_json(
-                    self.store.create_pipeline_job(payload), HTTPStatus.CREATED
-                )
+                job = self.store.create_pipeline_job(payload)
+                # M3:建完尝试派 Jenkins;失败留 pending 本地兜底(try_jenkins_dispatch 内消化)
+                self.send_json(try_jenkins_dispatch(self.store, job), HTTPStatus.CREATED)
                 return
             if parsed.path == "/api/pipeline/claim":
                 try:
@@ -2052,6 +2503,17 @@ class DashboardHandler(BaseHTTPRequestHandler):
             if parsed.path.startswith("/api/runs/") and parsed.path.endswith("/complete"):
                 run_id = parsed.path.removeprefix("/api/runs/").removesuffix("/complete").strip("/")
                 self.send_json(self.store.complete_run(run_id, payload))
+                return
+            if parsed.path.startswith("/api/runs/") and parsed.path.endswith("/zentao-sync"):
+                # M6 禅道测试单回写:仅此手动端点(页面按钮触发),无任何自动回写路径
+                run_id = parsed.path.removeprefix("/api/runs/").removesuffix("/zentao-sync").strip("/")
+                from dashboard.zentao_client import ZentaoError
+                try:
+                    self.send_json(self.store.sync_run_zentao(run_id))
+                except RunNotFinalizedError as error:
+                    self.send_error_json(str(error), HTTPStatus.CONFLICT)
+                except ZentaoError as error:
+                    self.send_error_json(str(error), HTTPStatus.BAD_GATEWAY)
                 return
             self.send_error_json("not found", HTTPStatus.NOT_FOUND)
         except (ValueError, json.JSONDecodeError) as error:

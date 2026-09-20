@@ -65,6 +65,12 @@ def _run_pytest(job: dict, run_id: str, rerun: bool = False) -> int:
         "EVIDENCE": "1",      # 每步标注截图
         "DEVICE_POOL": "1",   # 设备池自动领取/归还
     })
+    # 包体透传:job 指定的 apk_id 交给上报插件(pytest_plugin 读 SWAN_APK_ID 落 runs.apk_id)。
+    # job 未指定时主动清掉外层残留值,保证 run 的包关联严格等于任务指定的包
+    if str(job.get("apk_id") or "").strip():
+        env["SWAN_APK_ID"] = str(job["apk_id"]).strip()
+    else:
+        env.pop("SWAN_APK_ID", None)
     command = [sys.executable, "-m", "pytest"]
     target = job.get("case_filter") or DEFAULT_PYTEST_TARGET
     command.extend(target.split())
@@ -122,13 +128,20 @@ def execute_job(job: dict) -> dict:
     return {"status": "error", "result": {"run_id": run_id, "exit_code": first_rc}}
 
 
-def process_once() -> bool:
-    """领取并执行至多一个任务。返回是否领到了任务。"""
+def process_once(job_id: str = "") -> bool:
+    """领取并执行至多一个任务。返回是否领到了任务。
+
+    job_id 提供时定向认领该任务(Jenkins 构建通道):任务不存在/已被认领/非
+    pending 时平台 404 → 返回 False 优雅退出(不报错,构建置绿但不跑用例)。
+    """
     agent = os.environ.get("COMPUTERNAME", "local-agent")
+    payload = {"agent": agent}
+    if job_id:
+        payload["job_id"] = job_id
     try:
-        job = _post("/api/pipeline/claim", {"agent": agent})
+        job = _post("/api/pipeline/claim", payload)
     except RuntimeError as error:
-        if "404" in str(error):  # 平台无 pending 任务属正常
+        if "404" in str(error):  # 无 pending 任务/定向任务不可认领——均属正常
             return False
         raise
     _log(f"claimed job={job['job_id']} source={job['trigger_source']} "
@@ -148,8 +161,13 @@ def main() -> int:
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--once", action="store_true", help="领一个任务执行完退出")
     mode.add_argument("--loop", type=int, metavar="SEC", help="常驻轮询,每 SEC 秒尝试领取")
+    parser.add_argument("--job-id", help="定向认领指定任务(Jenkins 构建通道:执行完即退出)")
     args = parser.parse_args()
 
+    if args.job_id:
+        if not process_once(args.job_id):
+            _log(f"job {args.job_id} 不可认领(不存在/已被认领/非 pending),按空跑退出")
+        return 0
     if args.once:
         got = process_once()
         return 0

@@ -1,11 +1,14 @@
 """禅道客户端(步骤 13):平台服务侧提单。
 
 凭据只从环境变量读取(部署机 .env.local,不进 git):
-    ZENTAO_URL / ZENTAO_ACCOUNT / ZENTAO_PASSWORD / ZENTAO_PRODUCT_ID
+    ZENTAO_URL / ZENTAO_ACCOUNT / ZENTAO_PASSWORD
+    ZENTAO_PROJECT_ID / ZENTAO_PRODUCT_ID(测试单回写用;bug 单的 product 由调用方/页面选择传入)
 
 禅道 22.1 走 REST API v1:
     POST {url}/api.php/v1/tokens        {"account":..., "password":...} -> {token}
     POST {url}/api.php/v1/products/{pid}/bugs   JSON 字段 -> bug 单
+    POST {url}/api.php/v1/testtasks             JSON 字段 -> 测试单(M6 结果回写)
+    PUT  {url}/api.php/v1/testtasks/{id}        更新测试单(重复回写=更新 desc)
 
 调用纪律:提单不可逆,只允许在页面"建单"按钮人工确认后触发;
 环境缺陷类(网关不通/设备掉线)不建业务 bug 单。
@@ -99,3 +102,26 @@ def create_bug(product_id: int, title: str, steps: str,
     }
     return _request(f"/products/{int(product_id)}/bugs", "POST",
                     payload, token=_token())
+
+
+def create_testtask(project_id: int, product_id: int, name: str,
+                    build: str, desc: str) -> dict:
+    """创建禅道测试单(仅页面"回写禅道测试单"按钮人工触发,禁止任何自动回写)。
+
+    返回禅道响应(含测试单 id)。owner 取 ZENTAO_ACCOUNT(测试单负责人=平台对接账号)。
+    """
+    payload = {
+        "project": int(project_id),
+        "product": int(product_id),
+        "name": str(name),
+        "build": str(build or "trunk"),
+        "desc": str(desc),
+        "owner": _config()[1],
+    }
+    return _request("/testtasks", "POST", payload, token=_token())
+
+
+def update_testtask(task_id: int, desc: str) -> dict:
+    """更新禅道测试单 desc(重复回写=更新,幂等;同样仅人工触发)。"""
+    return _request(f"/testtasks/{int(task_id)}", "PUT",
+                    {"desc": str(desc)}, token=_token())

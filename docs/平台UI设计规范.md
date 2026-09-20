@@ -1,6 +1,6 @@
 # Swan 测试平台 UI 设计规范
 
-> 2026-09-16 v1.0。适用范围:`dashboard/page.html` 单页应用(执行会话/包管理/流水线/测试套件/用例管理/用例历史/验证码工具)。
+> 2026-09-16 v1.0。适用范围:`dashboard/page.html` 单页应用(执行会话/包管理/下载安装包/流水线/测试套件/用例管理/用例历史/验证码工具)。
 > 本文档是页面开发的**唯一**视觉与交互依据:写了"要什么"就必须做,写了"不要什么"就不要加。
 > 现有 CSS token(`:root`)是基线,本规范在其上增补 token 与规则,不推倒重来。
 
@@ -77,6 +77,7 @@
 | 套件 regression | `--brand` / `--brand-weak` | `.su-type-regression` |
 | 套件 custom | `--muted` / `--neutral-weak` | `.su-type-custom` |
 | Flavor(test/debug/release) | 全部 `--muted`/`--neutral-weak`,**不配色**——flavor 无好坏语义,配色是噪音 | 新增 `.chip` |
+| 服别(下包页) | 以 apks.server_type 列为准(formal/test):正式服=中性 chip + `--ink` 1px 描边(防呆锚点);测试服=普通中性 chip。语义四色已被状态占用,服别不引入新色 | 新增 `.chip.svr-*`(见 docs/下包页设计.md 4.1) |
 
 原则:**有趋势/好坏含义的才用语义色,纯分类用中性灰。**
 
@@ -273,6 +274,11 @@
 ### 6.7 验证码工具(captcha)
 - **P0(轻)** 提交类按钮加防重复提交;健康条在网关不可达时用 `--bad` 文字说清原因(现状 `gw-detail` 已有,保持格式)。
 - P1 iframe 高度改为 `calc(100vh - 220px)` 自适应;健康条与 iframe 合并进同一张卡片。
+
+### 6.8 下载安装包(downloads,新增页签)
+- 独立只读分发页签(不并入包管理,理由与完整设计见 `docs/下包页设计.md`):最新可用包卡片 + 全量表格 + 二维码弹窗 + 下载端点。
+- P0 清单独立承载于设计稿第八节(后端 4 条+前端 9 条),不计入上述 12 条口径。
+- 规范关联点:服别 chip 配色(2.4)、toast 首个落地页(4.5)、Nexus"最新置顶"对标(七)。
 
 **P0 合计:12 条**(runs 2、apks 2、pipelines 2、suites 2、casedefs 2、cases 1、captcha 1)。
 

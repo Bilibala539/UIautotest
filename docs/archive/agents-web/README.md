@@ -1,4 +1,5 @@
 # TidiTree Web 项目 agent 蓝图（未适配存档）
+> 已归档（2026-09-17）：按 docs/ 目录约定从 docs/agents/web/ 移入；启用 Web 项目前参照 docs/agents/swan/ 模式适配后取回。
 
 > 这批蓝图从 `.claude/agents/` 归档而来（2026-09-08）。内容仍引用旧资产
 > （POPO/MuMu/popo-cli/mumu.py/message_page），按原样保留作参考。

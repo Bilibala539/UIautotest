@@ -40,6 +40,28 @@
     #su-drawer[hidden] { display:none; }
     #su-drawer input[type=checkbox] { padding:0; width:auto; }
     #su-drawer .cd-drawer { width:min(980px,96vw); }
+    /* 包管理登记弹窗:同流水线/套件弹窗的 hidden+CSS 显隐写法 */
+    #apk-modal { display:none; } #apk-modal:not([hidden]) { display:flex; }
+    /* 全站 Toast(规范 4.5):深色浮层+语义色左竖条,替代 alert/emoji 文案;成功 2.4s/失败 3.5s 自动消失 */
+    .toast { position:fixed; top:18px; left:50%; transform:translateX(-50%); z-index:99; background:var(--ink); color:#fff; padding:10px 18px; border-radius:10px; font-size:13px; box-shadow:0 8px 24px rgba(23,32,51,.24); border-left:8px solid var(--good); max-width:min(560px,92vw); }
+    .toast.bad { border-left-color:var(--bad); }
+    /* M6 回写禅道测试单:按钮区 hidden+CSS 显隐写法(勿内联 display,避免顶掉 hidden) */
+    #detail-actions { display:none; } #detail-actions:not([hidden]) { display:flex; gap:10px; align-items:center; margin-top:10px; }
+    .toast[hidden] { display:none; }
+    /* 包 ID/Commit 列等宽 12px(规范 6.2 P0) */
+    .mono { font-family:monospace; font-size:12px; }
+    /* 下包页(下包页设计 4.1):服别 chip 两态,全中性灰,正式服 --ink 描边加重一级防呆 */
+    .chip.st-formal { cursor:default; color:var(--ink); background:var(--neutral-weak); border:1px solid var(--ink); }
+    .chip.st-test { cursor:default; color:var(--muted); background:var(--neutral-weak); }
+    /* 下包页最新可用卡片区(下包页设计 3.2):两卡并排,左信息右码 */
+    .dl-cards { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    .dl-card { display:flex; gap:14px; align-items:center; border:1px solid var(--line); border-radius:12px; padding:14px; background:#fff; }
+    .dl-card .dl-qr { flex-shrink:0; width:160px; height:160px; }
+    @media (max-width:800px) { .dl-cards { grid-template-columns:1fr; } }
+    /* 下包页二维码弹窗(规范 4.4 420px 档;hidden+CSS 显隐写法同其他弹窗) */
+    #dl-modal { display:none; } #dl-modal:not([hidden]) { display:flex; }
+    /* 下包页重置高亮(规范 5.2:有激活筛选时描边变 --brand 提示可清除) */
+    #dl-reset.active { border-color:var(--brand); color:var(--brand); }
     .su-type-smoke { color:var(--warn); background:var(--warn-weak); } .su-type-regression { color:var(--brand); background:var(--brand-weak); } .su-type-custom { color:var(--muted); background:var(--neutral-weak); }
     /* 优先级档位点选(编辑抽屉):默认中性,选中用规范 2.3 四档配色 */
     .cd-pri { border-radius:999px; padding:4px 13px; font-size:12px; font-weight:600; border:1px solid var(--line); background:var(--card); color:var(--muted); cursor:pointer; }
@@ -154,6 +176,7 @@
     <nav>
       <button data-page="runs" class="active">执行会话</button>
       <button data-page="apks">包管理</button>
+      <button data-page="downloads">下载安装包</button>
       <button data-page="pipelines">流水线</button>
       <button data-page="suites">测试套件</button>
       <button data-page="casedefs">用例管理</button>
@@ -179,23 +202,47 @@
         <div class="card"><div class="stat-label">最近一次耗时</div><div class="stat-value" id="latest-duration">-</div></div>
       </section>
       <section class="card table-card"><table><thead><tr><th>执行 ID</th><th>平台</th><th>包体</th><th>设备</th><th>状态</th><th>通过率</th><th>用例数</th><th>耗时</th><th>开始时间</th></tr></thead><tbody id="runs"><tr><td colspan="9" class="empty">加载中…</td></tr></tbody></table></section>
-      <section class="card detail" id="detail"><div class="detail-head"><div><h2 id="detail-title"></h2><div class="meta" id="detail-meta"></div></div><button id="close-detail">关闭</button></div><div id="cases"></div></section>
+      <section class="card detail" id="detail"><div class="detail-head"><div><h2 id="detail-title"></h2><div class="meta" id="detail-meta"></div><div id="detail-actions" hidden><button class="ghost" id="zt-sync-btn">回写禅道测试单</button><span class="meta" id="zt-sync-hint"></span></div></div><button id="close-detail">关闭</button></div><div id="cases"></div></section>
     </section>
     <section class="page" id="page-apks">
-      <div class="card" style="margin-bottom:18px">
-        <strong>登记安装包</strong>
-        <div class="form-grid">
-          <div><label for="apk-id">包 ID *</label><input id="apk-id" placeholder="swan-dev-4d1ed7b-20260915"></div>
-          <div><label for="apk-version">App 版本</label><input id="apk-version" placeholder="5.3.0"></div>
-          <div><label for="apk-flavor">Flavor</label><input id="apk-flavor" placeholder="test / debug / release"></div>
-          <div><label for="apk-branch">分支</label><input id="apk-branch" placeholder="dev"></div>
-          <div><label for="apk-commit">Commit</label><input id="apk-commit" placeholder="4d1ed7b"></div>
-          <div><label for="apk-notes">备注</label><input id="apk-notes" placeholder="谁构建的 / 用途"></div>
-          <div class="form-actions"><button class="primary" id="apk-register">登记</button><span class="meta" id="apk-msg"></span></div>
-        </div>
+      <div class="toolbar">
+        <span class="meta">包体登记后可按包关联执行结果与流水线任务；构建产物由 build_swan_apk.py 自动登记，此处手工补登</span>
+        <button class="primary" id="apk-new">＋ 登记安装包</button>
       </div>
       <section class="card table-card"><table><thead><tr><th>包 ID</th><th>版本</th><th>Flavor</th><th>分支</th><th>Commit</th><th>来源</th><th>执行次数</th><th>登记时间</th><th></th></tr></thead><tbody id="apk-rows"><tr><td colspan="9" class="empty">加载中…</td></tr></tbody></table></section>
       <p class="hint">“查看执行”跳转到执行会话页并按该包过滤；执行次数按 runs 关联统计。</p>
+    </section>
+    <section class="page" id="page-downloads">
+      <div class="toolbar">
+        <div class="cd-filterbar">
+          <div class="cd-pills" id="dl-pills">
+            <button class="cd-pill active" data-st="" id="dl-pill-all">全部</button>
+            <button class="cd-pill" data-st="formal" id="dl-pill-formal">正式服</button>
+            <button class="cd-pill" data-st="test" id="dl-pill-test">测试服</button>
+          </div>
+          <select id="dl-branch"><option value="">全部分支</option></select>
+          <div class="cd-search">
+            <input id="dl-q" placeholder="搜包 ID / 版本 / 分支 / Commit…">
+            <button class="ghost" id="dl-reset">重置</button>
+          </div>
+        </div>
+        <button class="ghost" id="dl-refresh">刷新</button>
+      </div>
+      <section class="card" id="dl-latest" style="margin-bottom:16px">
+        <h2 style="margin:0 0 4px;font-size:17px">最新可用安装包</h2>
+        <p class="hint" style="margin:0 0 12px">按服别取文件仍可下载的最新包；全部历史见下表</p>
+        <div class="dl-cards" id="dl-cards"><p class="meta">加载中…</p></div>
+      </section>
+      <section class="card table-card"><table><thead><tr><th>服别</th><th>包 ID</th><th>版本</th><th>分支</th><th>Commit</th><th>打包时间</th><th>操作</th></tr></thead><tbody id="dl-rows"><tr><td colspan="7" class="empty">加载中…</td></tr></tbody></table></section>
+      <div class="cd-pager" id="dl-pager" hidden>
+        <span class="meta" id="dl-page-info">-</span>
+        <button class="ghost" id="dl-prev">← 上一页</button>
+        <button class="ghost" id="dl-next">下一页 →</button>
+        <label class="meta">每页
+          <select id="dl-pagesize" class="cd-pagesize"><option>10</option><option selected>30</option><option>80</option></select> 条
+        </label>
+      </div>
+      <p class="hint">手机扫码即下载（Android）；测试包可能被定期清理，文件已清理的行不可下载。登记入口在“包管理”页签。</p>
     </section>
     <section class="page" id="page-pipelines">
       <div class="toolbar">
@@ -205,7 +252,7 @@
       <section class="card table-card"><table><thead><tr><th>配置 ID</th><th>名称</th><th>套件</th><th>含打包</th><th>频率</th><th>上次执行</th><th>下次执行</th><th>启用</th><th>操作</th></tr></thead><tbody id="pl-rows"><tr><td colspan="9" class="empty">加载中…</td></tr></tbody></table></section>
       <h2 style="margin:22px 0 10px;font-size:17px">最近执行（定时触发，最近 10 条）</h2>
       <section class="card table-card"><table><thead><tr><th>任务 ID</th><th>平台</th><th>执行目标</th><th>状态</th><th>创建时间</th><th>结束时间</th></tr></thead><tbody id="pl-job-rows"><tr><td colspan="6" class="empty">加载中…</td></tr></tbody></table></section>
-      <p class="hint">套件功能未上线，可先建空配置；“立即执行”等同到点触发。任务由执行 agent 认领执行，结果见“执行会话”页。</p>
+      <p class="hint">配置可关联测试套件，触发时按套件成员聚合执行目标；“立即执行”等同到点触发。任务由执行 agent 认领执行，结果见“执行会话”页。</p>
     </section>
     <section class="page" id="page-suites">
       <div class="toolbar">
@@ -515,6 +562,41 @@
       </div>
     </div>
   </div>
+  <div id="apk-modal" hidden style="position:fixed;inset:0;background:rgba(15,23,42,.45);align-items:center;justify-content:center;z-index:50">
+    <div style="background:var(--card,#fff);border-radius:12px;padding:20px 22px;width:min(620px,94vw);max-height:88vh;overflow:auto">
+      <h3 style="margin:0 0 4px">登记安装包</h3>
+      <p class="meta" style="margin:0 0 14px">带 * 必填；包 ID 是唯一键，重复登记将覆盖元数据（登记时间保留首次值）</p>
+      <div class="form-grid">
+        <div><label for="apk-id">包 ID *</label><input id="apk-id" placeholder="swan-dev-4d1ed7b-20260915"></div>
+        <div><label for="apk-version">App 版本</label><input id="apk-version" placeholder="5.3.0"></div>
+        <div><label for="apk-flavor">Flavor</label><input id="apk-flavor" placeholder="test / debug / release"></div>
+        <div><label for="apk-branch">分支</label><input id="apk-branch" placeholder="dev"></div>
+        <div><label for="apk-commit">Commit</label><input id="apk-commit" placeholder="4d1ed7b"></div>
+        <div><label for="apk-notes">备注</label><input id="apk-notes" placeholder="谁构建的 / 用途"></div>
+        <div class="form-actions"><button class="primary" id="apk-register">登记</button><button class="ghost" id="apk-cancel">取消</button><span class="meta" id="apk-msg"></span></div>
+      </div>
+    </div>
+  </div>
+  <div id="dl-modal" hidden style="position:fixed;inset:0;background:rgba(15,23,42,.45);align-items:center;justify-content:center;z-index:50">
+    <div style="background:var(--card,#fff);border-radius:12px;padding:20px 22px;width:min(420px,90vw);max-height:88vh;overflow:auto">
+      <h3 class="mono" style="margin:0 0 4px;font-size:14px;word-break:break-all" id="dl-m-title"></h3>
+      <p class="meta" style="margin:0 0 2px" id="dl-m-meta"></p>
+      <p class="meta" style="margin:0 0 8px" id="dl-m-notes" hidden></p>
+      <div style="display:flex;justify-content:center;margin:10px 0" id="dl-m-qr"></div>
+      <div class="meta" style="margin:6px 0 4px">下载地址</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <code class="mono" id="dl-m-url" style="flex:1;word-break:break-all;background:var(--neutral-weak);border-radius:6px;padding:4px 8px;font-size:12px"></code>
+        <button class="ghost" id="dl-m-copy" style="flex-shrink:0;padding:5px 12px;font-size:12px">复制链接</button>
+      </div>
+      <p class="meta" style="margin:10px 0 0">仅支持 Android 安装；iOS 扫码可打开链接但无法安装 apk</p>
+      <div class="form-actions" style="margin-top:12px">
+        <button class="primary" id="dl-m-download">下载到电脑</button>
+        <button class="ghost" id="dl-m-close">关闭</button>
+      </div>
+    </div>
+  </div>
+  <!-- qrcodejs 1.0.0(MIT,davidshimjs)本地分发,内网无外网也能生成二维码;二维码内容=download_url -->
+  <script src="vendor/qrcode.min.js"></script>
   <!-- SheetJS 本地分发(dashboard/vendor/,经 /vendor/ 提供),内网无外网也能解析与生成 xlsx -->
   <script src="vendor/xlsx.full.min.js"></script>
   <script>
@@ -526,11 +608,24 @@
     const badge = (s) => `<span class="badge ${s}">${statusText[s]||s}</span>`;
     let gatewayUrl = '';
 
+    // ---------- 全站 Toast(规范 4.5):成功/一般 2.4s、失败 3.5s 自动消失,语义色竖条,不用 emoji ----------
+    let toastTimer = null;
+    function showToast(message, bad) {
+      let box = $('toast-box');
+      if (!box) { box = document.createElement('div'); box.id = 'toast-box'; box.className = 'toast'; document.body.appendChild(box); }
+      clearTimeout(toastTimer);
+      box.textContent = message;
+      box.classList.toggle('bad', !!bad);
+      box.hidden = false;
+      toastTimer = setTimeout(() => { box.hidden = true; }, bad ? 3500 : 2400);
+    }
+
     document.querySelectorAll('nav button').forEach(btn => btn.onclick = () => {
       document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
       document.querySelectorAll('section.page').forEach(p => p.classList.remove('active'));
       btn.classList.add('active'); $('page-' + btn.dataset.page).classList.add('active');
       if (btn.dataset.page === 'apks') loadApks();
+      if (btn.dataset.page === 'downloads') dlLoad();
       if (btn.dataset.page === 'pipelines') plLoadConfigs();
       if (btn.dataset.page === 'suites') suLoadSuites();
       if (btn.dataset.page === 'casedefs') loadCaseDefs();
@@ -557,6 +652,12 @@
       $('detail').style.display = 'block';
       $('detail-title').textContent = `${run.run_id} · ${run.platform.toUpperCase()} ${statusText[run.status]||run.status}`;
       $('detail-meta').textContent = `开始：${formatDate(run.started_at)}　结束：${formatDate(run.ended_at)}　耗时：${formatDuration(run.duration_seconds)}　通过率：${run.pass_rate.toFixed(1)}%　包体：${run.apk_id||'-'}`;
+      // M6 回写禅道测试单:完成态才显示(running 隐藏),已回写过则按钮转"更新"语义
+      const ztBtn = $('zt-sync-btn');
+      $('detail-actions').hidden = (run.status === 'running');
+      ztBtn.textContent = run.zentao_task_id ? `更新禅道测试单(#${run.zentao_task_id})` : '回写禅道测试单';
+      $('zt-sync-hint').textContent = '';
+      ztBtn.onclick = () => zentaoSync(run.run_id);
       const box = $('cases'); box.innerHTML = '';
       (run.cases||[]).forEach(c => { const d = document.createElement('details'); d.className = 'case';
         const art = JSON.stringify(c.artifacts||{}, null, 2);
@@ -570,6 +671,24 @@
       $('detail').scrollIntoView({behavior:'smooth'});
     }
     function gotoHistory(caseId) { $('case-id').value = caseId; document.querySelector('nav button[data-page=cases]').click(); $('case-load').click(); }
+
+    // ---------- M6 禅道测试单回写:人工按钮触发(禁止任何自动回写),重复点击=更新同一单 ----------
+    async function zentaoSync(runId) {
+      const btn = $('zt-sync-btn');
+      btn.disabled = true;
+      try {
+        const resp = await fetch('/api/runs/' + encodeURIComponent(runId) + '/zentao-sync',
+          { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+        const data = await resp.json();
+        if (!resp.ok) { showToast(data.error || '回写禅道失败', true); return; }
+        btn.textContent = `更新禅道测试单(#${data.zentao_task_id})`;
+        showToast(data.created ? `已创建禅道测试单 #${data.zentao_task_id}` : `禅道测试单 #${data.zentao_task_id} 已更新`);
+      } catch (error) {
+        showToast('回写禅道失败:' + error, true);
+      } finally {
+        btn.disabled = false;
+      }
+    }
 
     // ---------- 禅道建单(步骤 13):失败用例 → 预填草稿 → 人工确认 → 提交 ----------
     let zentaoConfigured = false;
@@ -613,22 +732,198 @@
       const runs = await (await fetch('/api/runs?limit=200')).json(); const runItems = runs.items||[];
       const counts = {}; runItems.forEach(r => { if (r.apk_id) counts[r.apk_id] = (counts[r.apk_id]||0)+1; });
       const tbody = $('apk-rows'); tbody.innerHTML = '';
-      if (!items.length) { tbody.innerHTML = '<tr><td colspan="9" class="empty">还没有登记的包——登记后即可按包关联执行结果</td></tr>'; }
+      if (!items.length) { tbody.innerHTML = '<tr><td colspan="9" class="empty">还没有登记的包——点右上角“＋ 登记安装包”创建</td></tr>'; }
       items.forEach(a => { const row = document.createElement('tr');
-        row.innerHTML = `<td>${safe(a.apk_id)}</td><td>${safe(a.app_version||'-')}</td><td>${safe(a.flavor||'-')}</td><td>${safe(a.branch||'-')}</td><td>${safe(a.commit_hash||'-')}</td><td>${safe(a.source)}</td><td>${counts[a.apk_id]||0}</td><td>${safe(formatDate(a.registered_at))}</td><td><button class="ghost" onclick="filterByApk(decodeURIComponent('${encodeURIComponent(a.apk_id)}'))">查看执行</button></td>`;
+        row.innerHTML = `<td class="mono">${safe(a.apk_id)}</td><td>${safe(a.app_version||'-')}</td><td>${safe(a.flavor||'-')}</td><td>${safe(a.branch||'-')}</td><td class="mono">${safe(a.commit_hash||'-')}</td><td>${safe(a.source)}</td><td>${counts[a.apk_id]||0}</td><td>${safe(formatDate(a.registered_at))}</td><td><button class="ghost" onclick="filterByApk(decodeURIComponent('${encodeURIComponent(a.apk_id)}'))">查看执行</button></td>`;
         tbody.appendChild(row); });
       const sel = $('filter-apk'); const current = sel.value;
       sel.innerHTML = '<option value="">全部</option>' + items.map(a => `<option value="${safe(a.apk_id)}">${safe(a.apk_id)}</option>`).join('');
       sel.value = current;
     }
+    function openApkModal() {
+      ['apk-id','apk-version','apk-flavor','apk-branch','apk-commit','apk-notes'].forEach(id => $(id).value='');
+      const m = $('apk-msg'); m.textContent = ''; m.style.color = '';
+      $('apk-modal').hidden = false; $('apk-id').focus();
+    }
+    function closeApkModal() { $('apk-modal').hidden = true; }
     async function registerApk() {
       const payload = { apk_id: $('apk-id').value.trim(), app_version: $('apk-version').value.trim(), flavor: $('apk-flavor').value.trim(), branch: $('apk-branch').value.trim(), commit_hash: $('apk-commit').value.trim(), notes: $('apk-notes').value.trim(), source: 'manual' };
-      if (!payload.apk_id) { $('apk-msg').textContent = '包 ID 必填'; return; }
-      const resp = await fetch('/api/apks', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
-      $('apk-msg').textContent = resp.ok ? '✅ 已登记' : '❌ ' + (await resp.json()).error;
-      if (resp.ok) { ['apk-id','apk-version','apk-flavor','apk-branch','apk-commit','apk-notes'].forEach(id => $(id).value=''); loadApks(); }
+      if (!payload.apk_id) { const m = $('apk-msg'); m.textContent = '包 ID 必填'; m.style.color = 'var(--bad)'; $('apk-id').focus(); return; } // 校验错误留在弹窗 msg,不清空输入
+      $('apk-register').disabled = true; // 提交期间禁用,防重复提交(规范 4.7)
+      try {
+        const resp = await fetch('/api/apks', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok) { showToast('登记失败：' + (data.error || resp.status), true); return; }
+        closeApkModal(); // 登记成功后收起弹窗(规范 6.2 P0)
+        showToast('已登记包 ' + payload.apk_id);
+        loadApks();
+      } catch (e) { showToast('登记失败：' + e, true); }
+      finally { $('apk-register').disabled = false; }
     }
     function filterByApk(apkId) { $('filter-apk').value = apkId; document.querySelector('nav button[data-page=runs]').click(); loadRuns(); }
+
+    // ---------- 下包页(下载安装包):只读分发页,核心动作扫码+下载(下包页设计 3/4/5) ----------
+    let dlAll = [];        // 全量数据(页签加载拉 limit=200;胶囊/分支/搜索纯前端 AND 过滤,4.3)
+    let dlType = '';       // 服别胶囊:''=全部 / formal / test
+    let dlBranch = '';     // 分支筛选
+    let dlPage = 1, dlPageSize = 30;
+    let dlModalApk = null; // 二维码弹窗当前包
+    const dlServerName = (v) => v === 'formal' ? '正式服' : '测试服'; // 2.4:formal→正式服,其余一律测试服,无第三态
+    const dlChip = (v) => `<span class="chip ${v === 'formal' ? 'st-formal' : 'st-test'}">${dlServerName(v)}</span>`;
+    const dlTime = (a) => a.build_time || a.registered_at || ''; // 2.3:build_time 空回退 registered_at,接口返回原始值,回退在展示层
+    const dlUrl = (a) => a.download_url || (window.location.origin + '/api/apks/' + encodeURIComponent(a.apk_id) + '/download'); // 7:响应缺 download_url 时 origin 自拼兜底
+    function dlRelTime(v) { // 相对时间(规范 5.4):主文案相对,title 给完整时间
+      if (!v) return '-';
+      const ms = Date.now() - new Date(v).getTime();
+      if (!(ms >= 0)) return formatDate(v);
+      const m = Math.floor(ms / 60000);
+      if (m < 1) return '刚刚';
+      if (m < 60) return `${m} 分钟前`;
+      const h = Math.floor(m / 60);
+      if (h < 24) return `${h} 小时前`;
+      const d = Math.floor(h / 24);
+      if (d < 30) return `${d} 天前`;
+      return new Date(v).toLocaleDateString('zh-CN');
+    }
+    function dlRenderQR(box, url, size) { // 7:纠错等级 M;卡片 160px / 弹窗 260px 两档
+      box.innerHTML = '';
+      if (typeof QRCode === 'undefined') { box.innerHTML = '<span class="meta">二维码库未加载</span>'; return; }
+      new QRCode(box, { text: url, width: size, height: size, colorDark: '#000000', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
+    }
+    async function dlLoad() {
+      dlAll = []; dlPage = 1;
+      try {
+        const data = await (await fetch('/api/apks?limit=200')).json();
+        dlAll = (data.items || []).sort((a, b) => (dlTime(b) || '').localeCompare(dlTime(a) || '')); // 3.3:时间倒序,最新在顶
+      } catch (e) {
+        $('dl-latest').hidden = true; // 错误态:卡片区隐藏
+        $('dl-rows').innerHTML = `<tr><td colspan="7" class="empty">加载失败：${safe(String(e))}　<button class="ghost" id="dl-retry">重试</button></td></tr>`;
+        $('dl-retry').onclick = dlLoad;
+        return;
+      }
+      $('dl-latest').hidden = false;
+      dlRenderBranchOptions(); dlRenderCounts(); dlSyncFilterUI(); dlRenderLatest(); dlRenderTable();
+    }
+    function dlFiltered() {
+      const q = $('dl-q').value.trim().toLowerCase();
+      return dlAll.filter(a => {
+        if (dlType && (a.server_type || 'test') !== dlType) return false;
+        if (dlBranch && (a.branch || '').trim() !== dlBranch) return false;
+        if (q && ![a.apk_id, a.app_version, a.branch, a.commit_hash].some(v => String(v || '').toLowerCase().includes(q))) return false;
+        return true;
+      });
+    }
+    function dlRenderBranchOptions() {
+      const sel = $('dl-branch'); const current = dlBranch;
+      const branches = [...new Set(dlAll.map(a => (a.branch || '').trim()).filter(Boolean))].sort();
+      sel.innerHTML = '<option value="">全部分支</option>' + branches.map(b => `<option value="${safe(b)}">${safe(b)}</option>`).join('');
+      sel.value = current;
+      if (sel.value !== current) { dlBranch = ''; sel.value = ''; } // 筛中的分支已不在数据集,回退全部
+    }
+    function dlRenderCounts() { // 计数为当前数据集内统计(含文件已清理的行)
+      const n = { '': dlAll.length, formal: 0, test: 0 };
+      dlAll.forEach(a => { n[(a.server_type || 'test') === 'formal' ? 'formal' : 'test'] += 1; });
+      $('dl-pill-all').textContent = `全部 ${n['']}`;
+      $('dl-pill-formal').textContent = `正式服 ${n.formal}`;
+      $('dl-pill-test').textContent = `测试服 ${n.test}`;
+    }
+    function dlSyncFilterUI() { // 规范 5.2:胶囊选中态 + 有激活筛选时重置高亮
+      document.querySelectorAll('#dl-pills .cd-pill').forEach(b => b.classList.toggle('active', (b.dataset.st || '') === dlType));
+      $('dl-reset').classList.toggle('active', !!(dlType || dlBranch || $('dl-q').value.trim()));
+    }
+    function dlRenderLatest() { // 3.2:按服别取 file_exists=true 的最新 1 条,跳过文件已清理的包
+      const box = $('dl-cards'); box.innerHTML = '';
+      ['formal', 'test'].forEach(st => {
+        const latest = dlAll.filter(a => (a.server_type || 'test') === st && a.file_exists)[0]; // dlAll 已倒序
+        const cell = document.createElement('div');
+        cell.className = 'dl-card';
+        if (!latest) {
+          cell.style.justifyContent = 'center';
+          cell.innerHTML = `<span class="meta">暂无${dlServerName(st)}包（可能已清理）</span>`;
+          box.appendChild(cell); return;
+        }
+        cell.innerHTML = `
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${dlChip(st)}<span class="mono" style="font-weight:600">${safe(latest.apk_id)}</span></div>
+            <div class="meta" style="margin-top:4px">版本 ${safe(latest.app_version || '-')} · 分支 ${safe(latest.branch || '-')} · Commit ${safe(latest.commit_hash || '-')}</div>
+            <div class="meta" style="margin-top:2px">打包时间 <span title="${safe(formatDate(dlTime(latest)))}">${dlRelTime(dlTime(latest))}</span></div>
+            <div style="display:flex;gap:8px;margin-top:10px">
+              <button class="primary">下载</button>
+              <button class="ghost">二维码放大</button>
+            </div>
+          </div>
+          <div class="dl-qr" title="扫码下载"></div>`;
+        dlRenderQR(cell.querySelector('.dl-qr'), dlUrl(latest), 160);
+        const [bDl, bQr] = cell.querySelectorAll('button');
+        bDl.onclick = () => dlDownload(latest);
+        bQr.onclick = () => dlOpenModal(latest);
+        box.appendChild(cell);
+      });
+    }
+    function dlRenderTable() {
+      const items = dlFiltered();
+      const pages = Math.max(1, Math.ceil(items.length / dlPageSize));
+      if (dlPage > pages) dlPage = pages;
+      $('dl-pager').hidden = items.length <= Math.max(1, Math.round(dlPageSize * 0.3)); // 3.3:数据 ≤ 每页 30% 隐藏分页
+      $('dl-page-info').textContent = `第 ${dlPage}/${pages} 页 · 共 ${items.length} 条`;
+      const tbody = $('dl-rows'); tbody.innerHTML = '';
+      if (!dlAll.length) { // 5:空态给下一步引导
+        tbody.innerHTML = '<tr><td colspan="7" class="empty">还没有登记过安装包，去“包管理”页签登记，或等流水线打包后自动登记<br><button class="ghost" style="margin-top:8px" id="dl-goto-apks">去包管理</button></td></tr>';
+        $('dl-goto-apks').onclick = () => document.querySelector('nav button[data-page=apks]').click();
+        return;
+      }
+      if (!items.length) { tbody.innerHTML = '<tr><td colspan="7" class="empty">没有符合筛选的包，点“重置”清除筛选</td></tr>'; return; }
+      items.slice((dlPage - 1) * dlPageSize, dlPage * dlPageSize).forEach(a => {
+        const row = document.createElement('tr');
+        const t = dlTime(a);
+        const disabled = a.file_exists ? '' : 'disabled title="文件已清理"'; // 3.3:文件已清理禁用置灰,防扫出 404
+        row.innerHTML = `<td>${dlChip(a.server_type || 'test')}</td><td class="mono">${safe(a.apk_id)}</td><td>${safe(a.app_version || '-')}</td><td>${safe(a.branch || '-')}</td><td class="mono">${safe(a.commit_hash || '-')}</td><td title="${safe(formatDate(t))}">${dlRelTime(t)}</td><td><button class="ghost" ${disabled}>下载</button> <button class="ghost" ${disabled}>二维码</button></td>`;
+        const [bDl, bQr] = row.querySelectorAll('button');
+        bDl.onclick = () => dlDownload(a);
+        bQr.onclick = () => dlOpenModal(a);
+        tbody.appendChild(row);
+      });
+    }
+    async function dlDownload(a) { // 4.2:先探测状态码(拿到即断开,文件本体交给浏览器原生下载),失败转 toast
+      const url = dlUrl(a);
+      const ctrl = new AbortController();
+      try {
+        const resp = await fetch(url, { signal: ctrl.signal });
+        if (!resp.ok) { ctrl.abort(); showToast('文件已清理，无法下载', true); return; }
+        ctrl.abort();
+        window.location.href = url;
+      } catch (e) { showToast('下载失败：' + e, true); }
+    }
+    function dlOpenModal(a) { // 3.4:大码 260px + 复制链接 + iOS 文案
+      dlModalApk = a;
+      $('dl-m-title').textContent = a.apk_id;
+      $('dl-m-meta').textContent = `版本 ${a.app_version || '-'} · ${dlServerName(a.server_type)} · 分支 ${a.branch || '-'} · ${dlRelTime(dlTime(a))}`;
+      const notes = $('dl-m-notes');
+      notes.hidden = !a.notes; notes.textContent = a.notes ? `备注：${a.notes}` : '';
+      const url = dlUrl(a);
+      $('dl-m-url').textContent = url;
+      dlRenderQR($('dl-m-qr'), url, 260);
+      $('dl-modal').hidden = false;
+    }
+    function dlCloseModal() { $('dl-modal').hidden = true; dlModalApk = null; }
+    document.querySelectorAll('#dl-pills .cd-pill').forEach(b => b.onclick = () => { dlType = b.dataset.st || ''; dlPage = 1; dlSyncFilterUI(); dlRenderTable(); });
+    $('dl-branch').onchange = () => { dlBranch = $('dl-branch').value; dlPage = 1; dlSyncFilterUI(); dlRenderTable(); };
+    let dlQTimer = null;
+    $('dl-q').oninput = () => { clearTimeout(dlQTimer); dlQTimer = setTimeout(() => { dlPage = 1; dlSyncFilterUI(); dlRenderTable(); }, 300); }; // 规范 5.2:300ms 防抖自动触发,无独立搜索按钮
+    $('dl-reset').onclick = () => { dlType = ''; dlBranch = ''; $('dl-branch').value = ''; $('dl-q').value = ''; dlPage = 1; dlSyncFilterUI(); dlRenderTable(); };
+    $('dl-refresh').onclick = dlLoad; // 刷新与页签切换重拉数据,保持当前筛选与页码(规范 5.5)
+    $('dl-prev').onclick = () => { if (dlPage > 1) { dlPage -= 1; dlRenderTable(); } };
+    $('dl-next').onclick = () => { dlPage += 1; dlRenderTable(); }; // 页码越界由 dlRenderTable 钳制
+    $('dl-pagesize').onchange = () => { dlPageSize = Number($('dl-pagesize').value) || 30; dlPage = 1; dlRenderTable(); };
+    $('dl-modal').onclick = (e) => { if (e.target === $('dl-modal')) dlCloseModal(); }; // 规范 4.3:点遮罩关闭
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('dl-modal').hidden) dlCloseModal(); }); // 规范 4.3:Esc 关闭
+    $('dl-m-copy').onclick = async () => {
+      if (!dlModalApk) return;
+      const ok = await cdCopyText(dlUrl(dlModalApk)); // 4.2:复制成功走深色 toast,不用 emoji
+      showToast(ok ? '链接已复制' : '复制失败', !ok);
+    };
+    $('dl-m-download').onclick = () => { const a = dlModalApk; dlCloseModal(); if (a) dlDownload(a); };
+    $('dl-m-close').onclick = dlCloseModal;
 
     async function searchCases() {
       const q = $('case-q').value.trim(); // 空关键词 = 展示全部用例
@@ -1758,7 +2053,7 @@
     $('gw-reload').onclick = () => { if (gatewayUrl) $('gw-frame').src = gatewayUrl + '/'; };
 
     $('refresh').onclick = loadRuns; $('platform').onchange = loadRuns; $('filter-apk').onchange = loadRuns; $('close-detail').onclick = () => $('detail').style.display = 'none';
-    $('apk-register').onclick = registerApk;
+    $('apk-new').onclick = openApkModal; $('apk-cancel').onclick = closeApkModal; $('apk-register').onclick = registerApk;
     $('case-search').onclick = searchCases; $('case-q').onkeydown = e => { if (e.key==='Enter') searchCases(); };
     $('case-load').onclick = loadCaseHistory; $('case-id').onkeydown = e => { if (e.key==='Enter') loadCaseHistory(); };
     loadRuns().catch(e => { $('runs').innerHTML = `<tr><td colspan="9" class="empty">加载失败：${e}</td></tr>`; });

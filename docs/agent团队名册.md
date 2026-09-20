@@ -13,11 +13,11 @@
 | 代号 | 职责 | 状态 | 备注 |
 |---|---|---|---|
 | 调度者(主会话) | 任务接收/分配/汇总/验收/提交/部署/播报 | 常驻 | 巡检 cron 每 23 分钟(会话内) |
-| 用例管理 agent | case_defs CRUD、用例管理页、sync_cases.py | 待命(可唤醒) | 修复过列宽拖拽×2、列重叠;单列宽度=可见列宽之和的方案已验证 |
-| **jenkins打包模块开发** | .166 构建环境(JDK17/Android/Flutter)+ scripts/build_swan_apk.py | ✅ 环境与脚本已交付(a690bc5);在修 register_apk.py 缺 apk_id 的 bug | 构建环境:C:\build-env\+env.ps1(JDK17 Temurin/Android SDK 34+36/Flutter 3.47.4 南京大学镜像,flutter doctor 通过);**阻塞:auto_tester 权限未生效,真打包未验**;注意 .166 的 python 是 WindowsApps 占位符,远程跑脚本用 py -3 |
+| 用例管理 agent | case_defs/test_suites/suite_cases/modules CRUD、用例页+套件页、sync_cases.py（2026-09-18 并入原套件管理） | 待命(可唤醒) | 修复过列宽拖拽×2、列重叠;单列宽度=可见列宽之和的方案已验证 |
+| **jenkins打包模块开发** | .166 构建环境(JDK17/Android/Flutter)+ scripts/build_swan_apk.py | ✅ 环境与脚本已交付(a690bc5);register_apk.py 缺 apk_id 的 bug 已修(branch 兜底+--apk-id 参数) | 构建环境:C:\build-env\+env.ps1(JDK17 Temurin/Android SDK 34+36/Flutter 3.47.4 南京大学镜像,flutter doctor 通过);**阻塞:auto_tester 权限未生效,真打包未验**;注意 .166 的 python 是 WindowsApps 占位符,远程跑脚本用 py -3 |
 | **平台侧流水线开发** | pipeline_configs + 调度器 + 流水线页面 | ✅ 已交付(1118a66+aff7db7,已部署) | 已完成:套件→case_filter 聚合、web 平台支持、门禁按平台裁剪、rc3 补 run 收尾(执行会话/流水线状态一致) |
 | **平台侧用例模块开发** | 测试套件管理 M4 + 用例页 6 条优化 + 规范对齐 | ✅ 已交付部署(34fcedd+aff7db7,2026-09-16) | 套件 CRUD/成员管理/modules/优先级徽章/编辑抽屉/**批量导入+CSV 模板下载**(aff7db7);批量导入已扩至 .xlsx/.csv/.md 三格式+SheetJS vendor(e38c357);未尽:批量操作条、toast 组件、账号体系、字段化模板编辑、脑图视图 |
-| **平台侧产品设计师** | 全网检索同类测试平台交互与 UI,产出 docs/平台UI设计规范.md;所有开发 agent 页面开发以规范为唯一依据 | 设计中(2026-09-16) | 只设计不改代码;规范落地后按 P0/P1 建议清单驱动各页签改造 |
+| **平台侧产品设计师** | 全网检索同类测试平台交互与 UI,产出 docs/平台UI设计规范.md;所有开发 agent 页面开发以规范为唯一依据 | ✅ 规范已交付(2026-09-16);2026-09-18 起常驻 /agent-run 团队 | 只设计不改代码;按 P0/P1 建议清单驱动各页签改造;定义文件 ~/.claude/agents/产品设计师.md |
 
 ## 关键约定(全团队硬性纪律)
 
@@ -26,11 +26,29 @@
 3. .166 上绝不 kill 全部 pythonw,只杀指定 PID
 4. 提单(禅道)必须人工确认;企微机器人外发先征得用户同意
 5. 冒烟:临时端口 180xx + 临时 db,测完删;JS 改动 node --check + `$()` 引用交叉核对
-6. 部署节奏:commit → push → .166 pull → 杀 8080 指定 PID → schtasks /run TestHistoryDashboard(首次拉起常失败,跑两次并验证 8080 监听)
+6. 部署节奏:commit → pull --rebase(合并 git 上他人更新,有冲突先解决再推) → push → .166 pull → 杀 8080 指定 PID → schtasks /run TestHistoryDashboard(首次拉起常失败,跑两次并验证 8080 监听)
 
 ## 交接记录
 
-### 2026-09-17 里程碑进度总览(接手者从这里开始)
+### 2026-09-20 平台冲刺（/agent-run 全员会话）
+
+- **团队形态**：/agent-run 平台模式拉起 7 teammate 常驻（swan-build-jenkins/swan-case-mgmt/swan-pipeline/swan-pipeline-ui/swan-pkg-manager/swan-runs-evidence/swan-designer）；agent-run skill 见 .claude/skills/agent-run/
+- **阶段一 7 项小修全部完成**：apk_id→SWAN_APK_ID 透传、running 超时抢回（RUNNING_TIMEOUT_HOURS 默认 1h 可环境变量覆盖）、拔线设备 offline 收敛（release 复核/busy→offline/register 复活）、delete_case_def 清理 suite_cases、page.html:208 过时 hint、包管理 P0（弹窗收起+全站 Toast/mono 组件）、下包页设计（docs/下包页设计.md，服别=server_type 列口径）
+- **M3 Jenkins 基础设施已装（主会话操作 .166）**：Jenkins LTS 2.568.3 于 .166:8082（计划任务 JenkinsLTS，SYSTEM+BootTrigger，JENKINS_HOME=C:\build-env\jenkins\home，war+C:\build-env\jdk-21）；管理员+API Token 已配，凭据只在 .166 .env.local（JENKINS_BASE_URL/JENKINS_USER/JENKINS_API_TOKEN/JENKINS_ADMIN_PASSWORD）；防火墙 8082 已放行；job×2 已建：swan-audio-build（BRANCH/COMMIT/SERVER_TYPE→build_swan_apk.py）、swan-autotest（JOB_ID→pipeline_agent --job-id）
+- **新能力定案**：apks 表加 server_type（formal=正式服/test=测试服，存量默认 test）+ build_time 列；新增 GET /api/apks/<id>/download 下载接口；build_swan_apk.py 加 --server-type/--build_time payload
+- **进行中（2026-09-20 全部转终态）**：Jenkins 平台侧集成 ✅（jenkins_client.py/pipeline_jobs 加列/try_jenkins_dispatch/claim 双通道/pipeline_agent --job-id 定向认领）、下包页前端 ✅（新页签"下载安装包"：服别胶囊/双卡最新包/7 列表/二维码弹窗 160+260px/搜索分支过滤/vendor 本地 qrcodejs）、runs 超时收尾 ✅（reaper+孤儿 runs 清扫）、nightly 套件化 ✅（nightly_trigger.py 重写五模式，三道闸切换）、YAML 用例映射 ✅（sync_cases linked_case_id 显式映射）、竞品采集 ✅（docs/竞品截图/）、M5 打包→冒烟联动 ✅（trigger_smoke.py+case-paths 端点）、M6 禅道 testtask 回写 ✅（手动按钮+幂等，REST v1 已探测：v1 无用例级端点→汇总写 desc）
+- **主会话待办（部署节奏）**：验收合并冒烟已过 → 统一提交 → push → .166 pull → 重启 8080 → .166 数据准备（sync_cases 同步、nightly bootstrap、建冒烟套件 SMKE、swan-audio-build job 追加 trigger_smoke 批处理行、.env.local 补 ZENTAO_PROJECT_ID/ZENTAO_PRODUCT_ID 占位）
+- **待用户**：① auto_tester GitLab Reporter 权限 + 仓库 Clone 地址（M1 真打包）② 禅道 project id/product id（M6 首单验证）③ nightly run-now 报备后确认切换（--enable + 禁旧计划任务）
+- **回退方式**：.166 Jenkins = schtasks /end + /delete JenkinsLTS；JENKINS_HOME 可整体删除重建；nightly 回滚 = nightly_trigger --disable + 重启用旧计划任务
+
+### 2026-09-18 团队重划 + 业务档案机制(接手者从这里开始)
+
+- **团队重划**:原"套件管理"agent 并入"用例管理"(消除用例页双 ownership 与 modules/suites[] 交叉耦合),现 6 个开发 agent + 1 产品设计师;名单见 E:\UIAutotest\.claude\skills\agent-run\SKILL.md,定义文件在 ~/.claude/agents/
+- **业务档案机制**:docs/agent模块档案/<中文名>.md 一模块一份,teammate 首次启动通读代码生成、此后维护(改代码同步更新),跨会话知识靠档案传承;初版 6 份已于 2026-09-18 由各模块 agent 生成(66-93 行,行号已实读校准)
+- **档案编写时发现的跨模块待办**(未修,等派活):① pipeline_agent.py 未把 job.apk_id 传成 SWAN_APK_ID,流水线指定包落不到执行会话(包管理档案 §7/§8) ② page.html:208 hint"套件功能未上线"过时 ③ delete_case_def 不清理 suite_cases 留孤儿(SQLite FK 未启用,用例管理档案 §6)
+- 产品设计师 2026-09-18 起常驻 /agent-run 团队(定义文件 ~/.claude/agents/产品设计师.md,只设计不改代码,tools 无 Bash)
+
+### 2026-09-17 里程碑进度总览
 
 对照 `docs/测试套件管理计划.md` v2 的 M1-M6:
 
@@ -44,7 +62,7 @@
 | M6 禅道单回写 | ⬜ 可选,最后评估 |
 
 执行层现状:M3 前 PipelineAgent(本机 1BG-IT-01796)顶替 Jenkins 接活,配置/套件层已留切换口。
-其他进行中:平台侧产品设计师出 docs/平台UI设计规范.md(设计中);文档产出以桌面《Swan测试平台全流程详解.md》为唯一使用文档(旧介绍文档已删,976828a)。
+其他进行中:平台侧产品设计师已常驻 agent-run 团队(docs/平台UI设计规范.md 已交付);文档产出以桌面《Swan测试平台全流程详解.md》为唯一使用文档(旧介绍文档已删,976828a)。
 
 ---
 (以下为历史交接记录)

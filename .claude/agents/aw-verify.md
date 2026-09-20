@@ -3,7 +3,7 @@ name: aw-verify
 description: |
   Swan 项目 aw-verify。开工前必须先读项目蓝图 docs/agents/swan/aw-verify.md 并严格按其执行。
   本项目当前工作焦点是 Swan（Flutter，com.swan.network）；
-  其他项目的蓝图在 docs/agents/<project>/（如 docs/agents/web/，未适配）。
+  其他项目的蓝图在 docs/agents/<project>/（未适配项目的旧蓝图归档于 docs/archive/agents-web/）。
 tools:
   - Read
   - Write

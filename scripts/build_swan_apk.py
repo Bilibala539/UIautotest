@@ -8,6 +8,7 @@
   python scripts/build_swan_apk.py --commit abc1234   # 指定 commit
   python scripts/build_swan_apk.py --skip-build       # 跳过构建,直接登记已有产物
   python scripts/build_swan_apk.py --keep-src         # 构建后不删源码
+  python scripts/build_swan_apk.py --server-type formal  # 登记为正式服包(默认 test 测试服)
 权限尚未生效时可用 --repo-url 指向本地裸仓验证检出逻辑(不构建不登记)。
 """
 from __future__ import annotations
@@ -156,6 +157,8 @@ def main() -> int:
     parser.add_argument("--skip-build", action="store_true", help="跳过构建,直接登记已有产物(调试)")
     parser.add_argument("--only-checkout", action="store_true", help="只验证检出流程,不构建不登记(自测)")
     parser.add_argument("--keep-src", action="store_true", help="构建完成后不删除源码目录")
+    parser.add_argument("--server-type", choices=["formal", "test"], default="test",
+                        help="服务器类型(formal=正式服/test=测试服,默认 test)")
     args = parser.parse_args()
 
     if hasattr(sys.stdout, "reconfigure"):
@@ -178,6 +181,7 @@ def main() -> int:
     log_path = LOG_DIR / f"build_{stamp}.log"
     log = log_path.open("w", encoding="utf-8")
     started = time.monotonic()
+    build_time = ""  # 构建完成时间,--skip-build 时回落到产物文件 mtime
 
     def echo(msg: str) -> None:
         log.write(msg + "\n")
@@ -204,6 +208,7 @@ def main() -> int:
             flutter = str(Path(env["FLUTTER_HOME"]) / "bin" / "flutter.bat")
             build_start = time.monotonic()
             run([flutter, "build", "apk", "--release"], SRC_DIR, log, secrets)
+            build_time = time.strftime("%Y-%m-%d %H:%M:%S")
             echo(f"构建耗时 {time.monotonic() - build_start:.0f}s")
     except (RuntimeError, OSError) as error:
         echo(f"失败:{error}")
@@ -220,6 +225,9 @@ def main() -> int:
         log.close()
         rotate_logs()
         return 1
+    if not build_time:
+        # --skip-build 没有本次构建,取产物文件修改时间作为构建完成时间
+        build_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(apk_src.stat().st_mtime))
     archive_dir = Path(r"E:\swan-build\apks")
     short = git_out(SRC_DIR, "rev-parse", "--short", "HEAD") if (SRC_DIR / ".git").is_dir() else "unknown"
     archive_dir.mkdir(parents=True, exist_ok=True)
@@ -235,14 +243,16 @@ def main() -> int:
         "commit_hash": short,
         "flavor": "release",
         "source": "auto-build",
+        "server_type": args.server_type,
+        "build_time": build_time,
         "file_path": str(apk),
         "file_hash": file_hash,
         "notes": f"branch={args.branch} commit={short} 构建耗时={elapsed}s",
     }
-    echo(f"== 步骤 3/3 登记平台({PLATFORM_URL}/api/apks)==")
+    echo(f"== 步骤 3/3 登记平台({PLATFORM_URL}/api/apks server_type={args.server_type})==")
     try:
         result = register_apk(payload)
-        echo(f"登记成功 apk_id={result.get('apk_id')} sha256={file_hash[:12]}…")
+        echo(f"登记成功 apk_id={result.get('apk_id')} sha256={file_hash[:12]}… server_type={args.server_type}")
     except (urllib.error.URLError, OSError, ValueError) as error:
         echo(f"登记失败:{error}(产物仍在 {apk})")
         log.close()

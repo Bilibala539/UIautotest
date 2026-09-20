@@ -14,6 +14,7 @@
 | module | ✅ | 所属模块(login / search / …) |
 | priority | | P0/P1/P2 |
 | source | | 来源:文字用例路径或 `bug:SWAN-BUG-xxx`(bug 单来源追溯) |
+| linked_case_id | | **frontmatter 专用**(同步映射):声明与平台文字用例的映射,须填完整编号(如 `LOGIN-L2-POS-002`);缺省时 sync_cases.py 走"路径锁定+编号后缀唯一命中"推断,标弱关联 |
 | preconditions | | 前置条件(人读;状态归一化由 driver/setup 负责) |
 | steps | ✅ | 顺序步骤列表,见下 |
 | expected | | 预期结果(人读) |

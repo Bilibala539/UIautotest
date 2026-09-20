@@ -6,6 +6,7 @@ shortsha 取 --commit 前 7 位(未传则退化为产物 sha256 前 7 位);也�
 用法:
   python scripts/register_apk.py E:\\swan\\swan-audio-1.2.3.apk \
       --version 1.2.3 --branch main --flavor prod --source dev
+  python scripts/register_apk.py E:\\swan\\swan-audio-1.2.3.apk --server-type formal
 """
 from __future__ import annotations
 
@@ -30,6 +31,9 @@ def main() -> int:
     parser.add_argument("--commit", default="", help="来源 commit(取前 7 位拼 apk_id)")
     parser.add_argument("--apk-id", default="", help="手动指定 apk_id(默认按规则自动生成)")
     parser.add_argument("--source", default="manual", help="来源(manual/pipeline/dev)")
+    # 与 build_swan_apk.py 同口径:formal=正式服 / test=测试服,默认测试服
+    parser.add_argument("--server-type", choices=["formal", "test"], default="test",
+                        help="包对应的服务器环境(formal=正式服 / test=测试服,默认 test)")
     args = parser.parse_args()
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -50,6 +54,7 @@ def main() -> int:
         "commit_hash": short,
         "flavor": args.flavor,
         "source": args.source,
+        "server_type": args.server_type,
         "file_path": str(apk),
         "file_hash": file_hash,
         "notes": f"size={apk.stat().st_size}",

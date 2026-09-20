@@ -103,19 +103,37 @@ def git_out(src: Path, *args: str) -> str:
     return result.stdout.strip()
 
 
+def repo_healthy(src: Path) -> bool:
+    """git 自证仓库可用:.git/HEAD 存在 + rev-parse 成功且输出 true 才算健康。
+    .git 残骸(目录在但 HEAD 等核心文件已丢,build #8)会骗过目录存在性检查,
+    骗不过 git 自己;git 不可用(FileNotFoundError)也按损坏处理。"""
+    if not (src / ".git" / "HEAD").is_file():
+        return False
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(src), "rev-parse", "--is-inside-work-tree"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+        )
+    except FileNotFoundError:
+        return False
+    return result.returncode == 0 and result.stdout.strip() == "true"
+
+
 def ensure_src(src: Path, url: str, secrets: list[str], log) -> None:
-    """确保源码目录存在:没有则 clone,已有则 fetch+prune。URL 不落日志明文。
-    目录在但 .git 缺失,视为上次清理中断的半删除残留,清掉重 clone(档案坑 14)。"""
+    """确保源码目录存在:没有则 clone;已有则 git 自证健康后 fetch+prune;目录在但
+    自证失败(.git 残骸/半删除残留)清掉重 clone(档案坑 14)。URL 不落日志明文。"""
     src.parent.mkdir(parents=True, exist_ok=True)
-    if (src / ".git").is_dir():
+    if not src.is_dir():
+        log.write("源码目录不存在,执行 clone\n")
+        run(["git", "clone", url, str(src)], src.parent, log, secrets)
+        return
+    if repo_healthy(src):
         log.write("源码目录已存在,执行 fetch --all --prune\n")
         run(["git", "-C", str(src), "fetch", "--all", "--prune"], src, log, secrets)
         return
-    if src.is_dir():
-        # 残留目录直接 clone 会报"已存在且非空"(build #7 连锁失败根源),先清掉
-        log.write("源码目录存在但缺少 .git(上次清理中断的残留),清除后重新 clone\n")
-        force_rmtree(src)
-    log.write("源码目录不存在,执行 clone\n")
+    # 残留/损坏目录直接 clone 会报"已存在且非空"(build #7/#8 连锁失败根源),先清掉
+    log.write("源码目录损坏(.git 残骸或缺少仓库元数据),清除后重新 clone\n")
+    force_rmtree(src)
     run(["git", "clone", url, str(src)], src.parent, log, secrets)
 
 

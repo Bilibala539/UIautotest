@@ -20,7 +20,10 @@ M5 二期起:nightly 改按"全量回归套件"触发——建套件 + pipeline_
   回滚 = --disable + 重启用计划任务,各一条命令。
 
 套件成员口径(已确认"全量"):case_defs 中 case_type=auto 且 file_path 以
-tests/flutter/ 开头的用例;套件已存在时不增删成员(内容调整走套件页,无代码依赖)。
+knowledge/swan/cases/driver/ 开头的用例(YAML 驱动自动用例);套件已存在时
+不增删成员(内容调整走套件页,无代码依赖)。执行语义:套件聚合无 .py 成员
+→ 执行 agent 回落默认 target=tests/flutter/test_case_driver.py,跑全部
+driver YAML,与旧 nightly 覆盖一致。
 
 部署:bootstrap/enable 由主会话在 .166 执行一次;本脚本不建计划任务。
 """
@@ -40,7 +43,7 @@ SUITE_ID = "SUITE-NIGHTLY-REGRESSION"
 SUITE_NAME = "Nightly 全量回归"
 CONFIG_ID = "NIGHTLY-REGRESSION"
 NIGHTLY_TIME = "01:33"  # 与原计划任务一致(.166 本地时间)
-CASE_PREFIX = "tests/flutter/"  # 全量口径:file_path 在 flutter 目录下的自动用例
+CASE_PREFIX = "knowledge/swan/cases/driver/"  # YAML 驱动自动用例(sync_cases 的 auto 口径;执行时聚合无 .py 成员回落默认 target=driver,等效旧 nightly)
 
 # 旧通道参数(回滚保险,保持原计划任务行为不变)
 LEGACY_PAYLOAD = {

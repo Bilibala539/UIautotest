@@ -494,12 +494,15 @@ class DashboardStore:
                     notes TEXT NOT NULL DEFAULT '',
                     server_type TEXT NOT NULL DEFAULT 'test',
                     build_time TEXT,
+                    jenkins_job TEXT NOT NULL DEFAULT '',
+                    jenkins_build TEXT NOT NULL DEFAULT '',
                     registered_at TEXT NOT NULL
                 );
                 CREATE INDEX IF NOT EXISTS idx_apks_registered_at ON apks(registered_at DESC);
                 """
             )
-            # server_type/build_time 为后加列:存量库补列(存量包全是开发/测试产出,归测试服;build_time 可空)
+            # server_type/build_time/jenkins_* 为后加列:存量库补列(存量包全是开发/测试产出,归测试服;
+            # build_time 可空;jenkins_* 记录触发该包构建的 Jenkins job 与 build 号,空=无构建来源)
             apk_columns = {row[1] for row in connection.execute("PRAGMA table_info(apks)")}
             if "server_type" not in apk_columns:
                 connection.execute(
@@ -507,6 +510,14 @@ class DashboardStore:
                 )
             if "build_time" not in apk_columns:
                 connection.execute("ALTER TABLE apks ADD COLUMN build_time TEXT")
+            if "jenkins_job" not in apk_columns:
+                connection.execute(
+                    "ALTER TABLE apks ADD COLUMN jenkins_job TEXT NOT NULL DEFAULT ''"
+                )
+            if "jenkins_build" not in apk_columns:
+                connection.execute(
+                    "ALTER TABLE apks ADD COLUMN jenkins_build TEXT NOT NULL DEFAULT ''"
+                )
             connection.executescript(
                 """
                 CREATE TABLE IF NOT EXISTS devices (
@@ -1310,8 +1321,9 @@ class DashboardStore:
                 """
                 INSERT INTO apks (
                     apk_id, app_version, branch, commit_hash, flavor, source,
-                    file_path, file_hash, notes, server_type, build_time, registered_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    file_path, file_hash, notes, server_type, build_time,
+                    jenkins_job, jenkins_build, registered_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(apk_id) DO UPDATE SET
                     app_version=excluded.app_version,
                     branch=excluded.branch,
@@ -1322,7 +1334,9 @@ class DashboardStore:
                     file_hash=excluded.file_hash,
                     notes=excluded.notes,
                     server_type=excluded.server_type,
-                    build_time=excluded.build_time
+                    build_time=excluded.build_time,
+                    jenkins_job=excluded.jenkins_job,
+                    jenkins_build=excluded.jenkins_build
                 """,
                 (
                     apk_id,
@@ -1336,6 +1350,8 @@ class DashboardStore:
                     str(payload.get("notes") or ""),
                     server_type,
                     build_time,
+                    str(payload.get("jenkins_job") or ""),
+                    str(payload.get("jenkins_build") or ""),
                     registered_at,
                 ),
             )
@@ -2195,10 +2211,19 @@ class DashboardHandler(BaseHTTPRequestHandler):
             server_type = query.get("server_type", [""])[0].strip().lower()
             items = self.store.list_apks(limit=limit, server_type=server_type)
             base_url = self.base_url()
+            jenkins_base = os.environ.get("JENKINS_BASE_URL", "").strip().rstrip("/")
             for item in items:
                 # download_url 为绝对地址(二维码直接指向它);file_exists 供前端禁用下载按钮防 404
                 item["download_url"] = f"{base_url}/api/apks/{quote(str(item['apk_id']), safe='')}/download"
                 item["file_exists"] = apk_file_on_disk(item)
+                # jenkins_log_url: Jenkins 构建日志页;基址未配置或该包无构建号则为空串,前端不渲染按钮
+                jjob = str(item.get("jenkins_job") or "").strip()
+                jbuild = str(item.get("jenkins_build") or "").strip()
+                item["jenkins_log_url"] = (
+                    f"{jenkins_base}/job/{quote(jjob, safe='')}/{quote(jbuild, safe='')}/console"
+                    if jenkins_base and jjob and jbuild
+                    else ""
+                )
             self.send_json({"items": items})
             return
         if parsed.path.startswith("/api/apks/") and parsed.path.endswith("/download"):

@@ -65,6 +65,8 @@
     /* 规范 4.1 Danger 文字链:行内删除专用,无底 --bad 字,hover --bad-weak 底;padding 对齐行内档 5px 10px */
     .link-danger { background:none; border:none; color:var(--bad); padding:5px 10px; font-size:12px; cursor:pointer; border-radius:6px; }
     .link-danger:hover { background:var(--bad-weak); }
+    /* 备注列超长截断:单元格内 inline-block 裁切,title 悬停看全文 */
+    .note-clip { display:inline-block; max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; vertical-align:bottom; }
     .su-type-smoke { color:var(--warn); background:var(--warn-weak); } .su-type-regression { color:var(--brand); background:var(--brand-weak); } .su-type-custom { color:var(--muted); background:var(--neutral-weak); }
     /* 优先级档位点选(编辑抽屉):默认中性,选中用规范 2.3 四档配色 */
     .cd-pri { border-radius:999px; padding:4px 13px; font-size:12px; font-weight:600; border:1px solid var(--line); background:var(--card); color:var(--muted); cursor:pointer; }
@@ -250,7 +252,7 @@
         <p class="hint" style="margin:0 0 12px">按服别取文件仍可下载的最新包；全部历史见下表</p>
         <div class="dl-cards" id="dl-cards"><p class="meta">加载中…</p></div>
       </section>
-      <section class="card table-card"><table><thead><tr><th>服别</th><th>包 ID</th><th>版本</th><th>分支</th><th>Commit</th><th>打包时间</th><th>执行次数</th><th>操作</th></tr></thead><tbody id="dl-rows"><tr><td colspan="8" class="empty">加载中…</td></tr></tbody></table></section>
+      <section class="card table-card"><table><thead><tr><th>服别</th><th>版本</th><th>分支</th><th>打包时间</th><th>备注</th><th>操作</th></tr></thead><tbody id="dl-rows"><tr><td colspan="6" class="empty">加载中…</td></tr></tbody></table></section>
       <div class="cd-pager" id="dl-pager" hidden>
         <span class="meta" id="dl-page-info">-</span>
         <button class="ghost" id="dl-prev">← 上一页</button>
@@ -728,20 +730,14 @@
       else { $('bug-status').textContent = ''; alert('提交失败: ' + (data.error || resp.status)); $('bug-submit').disabled = false; }
     };
 
-    let dlExecCounts = {}; // apk_id → 执行次数(按最近 200 条 runs 统计,口径同原包管理列表)
-    async function loadApks() { // 包管理主加载:拉包台账 + runs 统计,填执行会话筛选下拉,再渲染双卡/表格(原 dlLoad 并入)
+    async function loadApks() { // 包管理主加载:拉包台账,填执行会话筛选下拉,再渲染双卡/表格(原 dlLoad 并入)
       dlAll = []; dlPage = 1;
       try {
-        const [apksResp, runsResp] = await Promise.all([
-          fetch('/api/apks?limit=200').then(r => r.json()),
-          fetch('/api/runs?limit=200').then(r => r.json())
-        ]);
+        const apksResp = await (await fetch('/api/apks?limit=200')).json();
         dlAll = (apksResp.items || []).sort((a, b) => (dlTime(b) || '').localeCompare(dlTime(a) || '')); // 3.3:时间倒序,最新在顶
-        dlExecCounts = {};
-        (runsResp.items || []).forEach(r => { if (r.apk_id) dlExecCounts[r.apk_id] = (dlExecCounts[r.apk_id] || 0) + 1; });
       } catch (e) {
         $('dl-latest').hidden = true; // 错误态:卡片区隐藏
-        $('dl-rows').innerHTML = `<tr><td colspan="8" class="empty">加载失败：${safe(String(e))}　<button class="ghost" id="dl-retry">重试</button></td></tr>`;
+        $('dl-rows').innerHTML = `<tr><td colspan="6" class="empty">加载失败：${safe(String(e))}　<button class="ghost" id="dl-retry">重试</button></td></tr>`;
         $('dl-retry').onclick = loadApks;
         return;
       }
@@ -790,9 +786,9 @@
       } catch (e) { showToast('触发打包失败：' + e, true); msg.textContent = String(e); }
       finally { btn.disabled = false; btn.style.opacity = ''; }
     }
-    function filterByApk(apkId) { $('filter-apk').value = apkId; document.querySelector('nav button[data-page=runs]').click(); loadRuns(); }
+    // filterByApk(查看执行)已随列表按钮一起移除(用户确认不需要);执行会话页的包体筛选下拉仍由 loadApks 填充
 
-    // ---------- 包管理·下载安装包区(合并页):只读分发+管理,核心动作扫码/下载/查看执行/删除(下包页设计 3/4/5) ----------
+    // ---------- 包管理·下载安装包区(合并页):扫码/下载/Jenkins 日志/删除;按包查看执行已按用户要求移除 ----------
     let dlAll = [];        // 全量数据(页签加载拉 limit=200;胶囊/分支/搜索纯前端 AND 过滤,4.3)
     let dlType = '';       // 服别胶囊:''=全部 / formal / test
     let dlBranch = '';     // 分支筛选
@@ -884,20 +880,23 @@
       $('dl-page-info').textContent = `第 ${dlPage}/${pages} 页 · 共 ${items.length} 条`;
       const tbody = $('dl-rows'); tbody.innerHTML = '';
       if (!dlAll.length) { // 5:空态给下一步引导(合并页:本页即包管理,引导顶部主动打包)
-        tbody.innerHTML = '<tr><td colspan="8" class="empty">还没有安装包登记，Jenkins 构建完成后会自动出现在这里，也可在顶部“主动打包”触发一次</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="empty">还没有安装包登记，Jenkins 构建完成后会自动出现在这里，也可在顶部“主动打包”触发一次</td></tr>';
         return;
       }
-      if (!items.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty">没有符合筛选的包，点“重置”清除筛选</td></tr>'; return; }
+      if (!items.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty">没有符合筛选的包，点“重置”清除筛选</td></tr>'; return; }
       items.slice((dlPage - 1) * dlPageSize, dlPage * dlPageSize).forEach(a => {
         const row = document.createElement('tr');
         const t = dlTime(a);
         const disabled = a.file_exists ? '' : 'disabled title="文件已清理"'; // 3.3:文件已清理禁用置灰,防扫出 404
-        row.innerHTML = `<td>${dlChip(a.server_type || 'test')}</td><td class="mono">${safe(a.apk_id)}</td><td>${safe(a.app_version || '-')}</td><td>${safe(a.branch || '-')}</td><td class="mono">${safe(a.commit_hash || '-')}</td><td title="${safe(formatDate(t))}">${dlRelTime(t)}</td><td>${dlExecCounts[a.apk_id] || 0}</td><td><button class="ghost" ${disabled}>下载</button> <button class="ghost" ${disabled}>二维码</button> <button class="ghost">查看执行</button> <button class="link-danger">删除</button></td>`;
-        const [bDl, bQr, bExec, bDel] = row.querySelectorAll('button');
-        bDl.onclick = () => dlDownload(a);
-        bQr.onclick = () => dlOpenModal(a);
-        bExec.onclick = () => filterByApk(a.apk_id);
-        bDel.onclick = () => apkDelete(a.apk_id);
+        const jkBtn = a.jenkins_log_url ? `<button class="ghost" data-act="jk">Jenkins 日志</button> ` : ''; // 无构建号的旧数据不渲染
+        row.innerHTML = `<td>${dlChip(a.server_type || 'test')}</td><td>${safe(a.app_version || '-')}</td><td>${safe(a.branch || '-')}</td><td title="${safe(formatDate(t))}">${dlRelTime(t)}</td><td><span class="note-clip" title="${safe(a.notes || '')}">${safe(a.notes || '-')}</span></td><td><button class="ghost" ${disabled} data-act="dl">下载</button> <button class="ghost" ${disabled} data-act="qr">二维码</button> ${jkBtn}<button class="link-danger" data-act="del">删除</button></td>`;
+        row.querySelectorAll('button[data-act]').forEach(b => {
+          const act = b.dataset.act;
+          if (act === 'dl') b.onclick = () => dlDownload(a);
+          else if (act === 'qr') b.onclick = () => dlOpenModal(a);
+          else if (act === 'jk') b.onclick = () => window.open(a.jenkins_log_url, '_blank', 'noopener');
+          else if (act === 'del') b.onclick = () => apkDelete(a.apk_id);
+        });
         tbody.appendChild(row);
       });
     }

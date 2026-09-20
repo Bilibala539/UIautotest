@@ -3,13 +3,15 @@
 跑在 .166 构建机上,依赖 C:\\build-env 下的构建环境(JDK/Android SDK/Flutter)
 和 E:/uiautotest/.env.local 里的 GitLab 机器人账号。
 用法:
-  python scripts/build_swan_apk.py                    # 构建 develop 分支并登记
-  python scripts/build_swan_apk.py --branch main      # 指定分支
+  python scripts/build_swan_apk.py                    # 构建 dev 分支并登记
+  python scripts/build_swan_apk.py --branch master    # 指定分支(dev/master/harmony)
   python scripts/build_swan_apk.py --commit abc1234   # 指定 commit
   python scripts/build_swan_apk.py --skip-build       # 跳过构建,直接登记已有产物
   python scripts/build_swan_apk.py --keep-src         # 构建后不删源码
   python scripts/build_swan_apk.py --server-type formal  # 登记为正式服包(默认 test 测试服)
-权限尚未生效时可用 --repo-url 指向本地裸仓验证检出逻辑(不构建不登记)。
+  python scripts/build_swan_apk.py --notes "%E5%8E%8B%E6%B5%8B"  # 登记备注(URL 编码,平台 /api/builds 触发时 quote 传入)
+app 的 pubspec.yaml 以相对路径引用核心仓,检出时会一并 clone 核心仓到源码同级目录。
+权限尚未生效时可用 --repo-url/--core-repo-url 指向本地裸仓验证检出逻辑(不构建不登记)。
 """
 from __future__ import annotations
 
@@ -19,10 +21,12 @@ import json
 import os
 import re
 import shutil
+import stat
 import subprocess
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -31,7 +35,11 @@ ENV_FILE = Path(__file__).resolve().parent.parent / ".env.local"
 SRC_DIR = Path(r"E:\swan-build\src")
 LOG_DIR = Path(r"E:\swan-build\logs")
 PLATFORM_URL = os.environ.get("DASHBOARD_URL", "http://127.0.0.1:8080").rstrip("/")
-REPO_URL = "https://git.hivi.com/swan-app/swan-audio.git"
+REPO_URL = "https://git.hivi.com/swan-app/swan-audio/hivi-network-flutterapp.git"
+# app 的 pubspec.yaml 以 `path: ../hivi_network_flutter_core` 相对路径引用核心仓,
+# 核心仓必须 clone 到 SRC_DIR 同级且目录名与相对路径精确一致
+CORE_REPO_URL = "https://git.hivi.com/swan-app/swan-audio/hivi_network_flutter_core.git"
+CORE_SRC_DIR = SRC_DIR.parent / "hivi_network_flutter_core"
 
 DEFAULTS = {
     "JAVA_HOME": r"C:\build-env\jdk-17",
@@ -137,6 +145,14 @@ def rotate_logs(keep: int = 20) -> None:
         old.unlink(missing_ok=True)
 
 
+def force_rmtree(path: Path) -> None:
+    """Windows 下 git objects 为只读文件,直接 rmtree 会静默残留;失败时解除只读重删。"""
+    def on_error(func, target, _exc_info):
+        os.chmod(target, stat.S_IWRITE)
+        func(target)
+    shutil.rmtree(path, onerror=on_error)
+
+
 def register_apk(payload: dict[str, str]) -> dict[str, str]:
     """POST 平台 /api/apks 登记,返回服务端响应。"""
     request = urllib.request.Request(
@@ -151,14 +167,18 @@ def register_apk(payload: dict[str, str]) -> dict[str, str]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Swan 自动打包并登记进平台")
-    parser.add_argument("--branch", default="develop", help="构建分支(默认 develop)")
+    parser.add_argument("--branch", default="dev", help="构建分支(dev/master/harmony,默认 dev)")
     parser.add_argument("--commit", default="", help="构建指定 commit(优先于分支)")
-    parser.add_argument("--repo-url", default=REPO_URL, help="源码仓库地址(默认 Swan 仓库)")
+    parser.add_argument("--repo-url", default=REPO_URL, help="app 仓地址(自测可指本地裸仓)")
+    parser.add_argument("--core-repo-url", default=CORE_REPO_URL,
+                        help="核心仓地址(默认 hivi_network_flutter_core,自测可指本地裸仓)")
     parser.add_argument("--skip-build", action="store_true", help="跳过构建,直接登记已有产物(调试)")
     parser.add_argument("--only-checkout", action="store_true", help="只验证检出流程,不构建不登记(自测)")
     parser.add_argument("--keep-src", action="store_true", help="构建完成后不删除源码目录")
     parser.add_argument("--server-type", choices=["formal", "test"], default="test",
                         help="服务器类型(formal=正式服/test=测试服,默认 test)")
+    parser.add_argument("--notes", default="",
+                        help="登记备注(URL 编码字符串,与平台 /api/builds 的 quote 行为对齐)")
     args = parser.parse_args()
 
     if hasattr(sys.stdout, "reconfigure"):
@@ -171,10 +191,16 @@ def main() -> int:
         print("缺少 GITLAB_BOT_USER / GITLAB_BOT_PASSWORD,无法拼出拉取凭据")
         return 1
     secrets = [pwd]
-    # 凭据只进 git URL,不进任何日志/命令行回显
-    authed_url = f"https://{user}:{pwd}@git.hivi.com/swan-app/swan-audio.git"
+    # 凭据只进 git URL,不进任何日志/命令行回显;app 与 core 两仓同一 GitLab 机器人账号
+    authed_url = f"https://{user}:{pwd}@git.hivi.com/swan-app/swan-audio/hivi-network-flutterapp.git"
+    authed_core_url = f"https://{user}:{pwd}@git.hivi.com/swan-app/swan-audio/hivi_network_flutter_core.git"
     if args.repo_url != REPO_URL:  # 本地裸仓调试路径,无需凭据
         authed_url = args.repo_url
+    if args.core_repo_url != CORE_REPO_URL:
+        authed_core_url = args.core_repo_url
+    # 平台 /api/builds 触发时 notes 是 URL 编码串(规避 Windows 批处理编码坑),此处解码;
+    # 命令行直跑也建议传 URL 编码值,与平台行为一致
+    user_notes = urllib.parse.unquote(args.notes)
 
     LOG_DIR.mkdir(parents=True, exist_ok=True)
     stamp = time.strftime("%Y%m%d_%H%M%S") + f"_{os.getpid()}"
@@ -190,6 +216,10 @@ def main() -> int:
     try:
         if args.skip_build:
             echo("--skip-build:跳过源码与构建,直接登记已有产物")
+            # 核心仓缺失也要补 clone(pubspec 相对路径引用,缺失会导致后续 flutter pub get 失败)
+            if not (CORE_SRC_DIR / ".git").is_dir():
+                echo("核心仓缺失,补 clone")
+                ensure_src(CORE_SRC_DIR, authed_core_url, secrets, log)
             src = SRC_DIR
         else:
             echo(f"== 步骤 1/3 检出源码({log_path}) ==")
@@ -197,6 +227,9 @@ def main() -> int:
             checkout_target(SRC_DIR, args.branch, args.commit, secrets, log)
             commit_hash = git_out(SRC_DIR, "rev-parse", "HEAD")
             echo(f"检出完成 commit={commit_hash}")
+            # 核心仓:默认与 app 同分支;--commit 只作用于 app 仓
+            ensure_src(CORE_SRC_DIR, authed_core_url, secrets, log)
+            checkout_target(CORE_SRC_DIR, args.branch, "", secrets, log)
             if args.only_checkout:
                 echo("--only-checkout:检出验证结束,不构建不登记")
                 log.close()
@@ -247,7 +280,9 @@ def main() -> int:
         "build_time": build_time,
         "file_path": str(apk),
         "file_hash": file_hash,
-        "notes": f"branch={args.branch} commit={short} 构建耗时={elapsed}s",
+        # notes = 用户备注(如有,置前) + 自动信息(分支/commit/构建耗时)
+        "notes": (f"{user_notes}; " if user_notes else "")
+                 + f"branch={args.branch} commit={short} 构建耗时={elapsed}s",
     }
     echo(f"== 步骤 3/3 登记平台({PLATFORM_URL}/api/apks server_type={args.server_type})==")
     try:
@@ -261,7 +296,8 @@ def main() -> int:
 
     if not args.keep_src and not args.skip_build:
         echo("清理源码目录(未指定 --keep-src)")
-        shutil.rmtree(SRC_DIR, ignore_errors=True)
+        force_rmtree(SRC_DIR)
+        force_rmtree(CORE_SRC_DIR)
     log.close()
     rotate_logs()
     return 0

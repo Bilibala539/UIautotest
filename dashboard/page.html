@@ -40,8 +40,6 @@
     #su-drawer[hidden] { display:none; }
     #su-drawer input[type=checkbox] { padding:0; width:auto; }
     #su-drawer .cd-drawer { width:min(980px,96vw); }
-    /* 包管理登记弹窗:同流水线/套件弹窗的 hidden+CSS 显隐写法 */
-    #apk-modal { display:none; } #apk-modal:not([hidden]) { display:flex; }
     /* 全站 Toast(规范 4.5):深色浮层+语义色左竖条,替代 alert/emoji 文案;成功 2.4s/失败 3.5s 自动消失 */
     .toast { position:fixed; top:18px; left:50%; transform:translateX(-50%); z-index:99; background:var(--ink); color:#fff; padding:10px 18px; border-radius:10px; font-size:13px; box-shadow:0 8px 24px rgba(23,32,51,.24); border-left:8px solid var(--good); max-width:min(560px,92vw); }
     .toast.bad { border-left-color:var(--bad); }
@@ -62,6 +60,11 @@
     #dl-modal { display:none; } #dl-modal:not([hidden]) { display:flex; }
     /* 下包页重置高亮(规范 5.2:有激活筛选时描边变 --brand 提示可清除) */
     #dl-reset.active { border-color:var(--brand); color:var(--brand); }
+    /* 规范 4.6:表单校验错误写到字段下方 12px 红字(不再只塞底部 msg) */
+    .field-error { color:var(--bad); font-size:12px; margin-top:4px; display:block; }
+    /* 规范 4.1 Danger 文字链:行内删除专用,无底 --bad 字,hover --bad-weak 底;padding 对齐行内档 5px 10px */
+    .link-danger { background:none; border:none; color:var(--bad); padding:5px 10px; font-size:12px; cursor:pointer; border-radius:6px; }
+    .link-danger:hover { background:var(--bad-weak); }
     .su-type-smoke { color:var(--warn); background:var(--warn-weak); } .su-type-regression { color:var(--brand); background:var(--brand-weak); } .su-type-custom { color:var(--muted); background:var(--neutral-weak); }
     /* 优先级档位点选(编辑抽屉):默认中性,选中用规范 2.3 四档配色 */
     .cd-pri { border-radius:999px; padding:4px 13px; font-size:12px; font-weight:600; border:1px solid var(--line); background:var(--card); color:var(--muted); cursor:pointer; }
@@ -176,7 +179,6 @@
     <nav>
       <button data-page="runs" class="active">执行会话</button>
       <button data-page="apks">包管理</button>
-      <button data-page="downloads">下载安装包</button>
       <button data-page="pipelines">流水线</button>
       <button data-page="suites">测试套件</button>
       <button data-page="casedefs">用例管理</button>
@@ -205,14 +207,29 @@
       <section class="card detail" id="detail"><div class="detail-head"><div><h2 id="detail-title"></h2><div class="meta" id="detail-meta"></div><div id="detail-actions" hidden><button class="ghost" id="zt-sync-btn">回写禅道测试单</button><span class="meta" id="zt-sync-hint"></span></div></div><button id="close-detail">关闭</button></div><div id="cases"></div></section>
     </section>
     <section class="page" id="page-apks">
-      <div class="toolbar">
-        <span class="meta">包体登记后可按包关联执行结果与流水线任务；构建产物由 build_swan_apk.py 自动登记，此处手工补登</span>
-        <button class="primary" id="apk-new">＋ 登记安装包</button>
-      </div>
-      <section class="card table-card"><table><thead><tr><th>包 ID</th><th>版本</th><th>Flavor</th><th>分支</th><th>Commit</th><th>来源</th><th>执行次数</th><th>登记时间</th><th></th></tr></thead><tbody id="apk-rows"><tr><td colspan="9" class="empty">加载中…</td></tr></tbody></table></section>
-      <p class="hint">“查看执行”跳转到执行会话页并按该包过滤；执行次数按 runs 关联统计。</p>
-    </section>
-    <section class="page" id="page-downloads">
+      <section class="card" style="margin-bottom:16px">
+        <h2 style="margin:0 0 4px;font-size:17px">主动打包</h2>
+        <p class="hint" style="margin:0 0 10px">触发 Jenkins 构建，完成后安装包自动登记到下方列表，无需手动登记</p>
+        <div class="form-grid" style="margin-top:0">
+          <div>
+            <label for="build-branch">分支 *</label>
+            <input id="build-branch" value="dev" placeholder="dev">
+            <span class="field-error" id="build-branch-err" hidden>分支必填</span>
+          </div>
+          <div>
+            <label for="build-server">服别</label>
+            <select id="build-server"><option value="test">测试服</option><option value="formal">正式服</option></select>
+          </div>
+          <div>
+            <label for="build-notes">备注</label>
+            <input id="build-notes" placeholder="可选，如：联调验证包">
+          </div>
+          <div class="form-actions">
+            <button class="primary" id="build-submit">打包</button>
+            <span class="meta" id="build-msg"></span>
+          </div>
+        </div>
+      </section>
       <div class="toolbar">
         <div class="cd-filterbar">
           <div class="cd-pills" id="dl-pills">
@@ -233,7 +250,7 @@
         <p class="hint" style="margin:0 0 12px">按服别取文件仍可下载的最新包；全部历史见下表</p>
         <div class="dl-cards" id="dl-cards"><p class="meta">加载中…</p></div>
       </section>
-      <section class="card table-card"><table><thead><tr><th>服别</th><th>包 ID</th><th>版本</th><th>分支</th><th>Commit</th><th>打包时间</th><th>操作</th></tr></thead><tbody id="dl-rows"><tr><td colspan="7" class="empty">加载中…</td></tr></tbody></table></section>
+      <section class="card table-card"><table><thead><tr><th>服别</th><th>包 ID</th><th>版本</th><th>分支</th><th>Commit</th><th>打包时间</th><th>执行次数</th><th>操作</th></tr></thead><tbody id="dl-rows"><tr><td colspan="8" class="empty">加载中…</td></tr></tbody></table></section>
       <div class="cd-pager" id="dl-pager" hidden>
         <span class="meta" id="dl-page-info">-</span>
         <button class="ghost" id="dl-prev">← 上一页</button>
@@ -242,7 +259,7 @@
           <select id="dl-pagesize" class="cd-pagesize"><option>10</option><option selected>30</option><option>80</option></select> 条
         </label>
       </div>
-      <p class="hint">手机扫码即下载（Android）；测试包可能被定期清理，文件已清理的行不可下载。登记入口在“包管理”页签。</p>
+      <p class="hint">“下载/二维码”扫码即装（Android）；删除只移除台账行，磁盘文件与执行历史保留。</p>
     </section>
     <section class="page" id="page-pipelines">
       <div class="toolbar">
@@ -562,21 +579,6 @@
       </div>
     </div>
   </div>
-  <div id="apk-modal" hidden style="position:fixed;inset:0;background:rgba(15,23,42,.45);align-items:center;justify-content:center;z-index:50">
-    <div style="background:var(--card,#fff);border-radius:12px;padding:20px 22px;width:min(620px,94vw);max-height:88vh;overflow:auto">
-      <h3 style="margin:0 0 4px">登记安装包</h3>
-      <p class="meta" style="margin:0 0 14px">带 * 必填；包 ID 是唯一键，重复登记将覆盖元数据（登记时间保留首次值）</p>
-      <div class="form-grid">
-        <div><label for="apk-id">包 ID *</label><input id="apk-id" placeholder="swan-dev-4d1ed7b-20260915"></div>
-        <div><label for="apk-version">App 版本</label><input id="apk-version" placeholder="5.3.0"></div>
-        <div><label for="apk-flavor">Flavor</label><input id="apk-flavor" placeholder="test / debug / release"></div>
-        <div><label for="apk-branch">分支</label><input id="apk-branch" placeholder="dev"></div>
-        <div><label for="apk-commit">Commit</label><input id="apk-commit" placeholder="4d1ed7b"></div>
-        <div><label for="apk-notes">备注</label><input id="apk-notes" placeholder="谁构建的 / 用途"></div>
-        <div class="form-actions"><button class="primary" id="apk-register">登记</button><button class="ghost" id="apk-cancel">取消</button><span class="meta" id="apk-msg"></span></div>
-      </div>
-    </div>
-  </div>
   <div id="dl-modal" hidden style="position:fixed;inset:0;background:rgba(15,23,42,.45);align-items:center;justify-content:center;z-index:50">
     <div style="background:var(--card,#fff);border-radius:12px;padding:20px 22px;width:min(420px,90vw);max-height:88vh;overflow:auto">
       <h3 class="mono" style="margin:0 0 4px;font-size:14px;word-break:break-all" id="dl-m-title"></h3>
@@ -625,7 +627,6 @@
       document.querySelectorAll('section.page').forEach(p => p.classList.remove('active'));
       btn.classList.add('active'); $('page-' + btn.dataset.page).classList.add('active');
       if (btn.dataset.page === 'apks') loadApks();
-      if (btn.dataset.page === 'downloads') dlLoad();
       if (btn.dataset.page === 'pipelines') plLoadConfigs();
       if (btn.dataset.page === 'suites') suLoadSuites();
       if (btn.dataset.page === 'casedefs') loadCaseDefs();
@@ -727,42 +728,71 @@
       else { $('bug-status').textContent = ''; alert('提交失败: ' + (data.error || resp.status)); $('bug-submit').disabled = false; }
     };
 
-    async function loadApks() {
-      const data = await (await fetch('/api/apks?limit=100')).json(); const items = data.items||[];
-      const runs = await (await fetch('/api/runs?limit=200')).json(); const runItems = runs.items||[];
-      const counts = {}; runItems.forEach(r => { if (r.apk_id) counts[r.apk_id] = (counts[r.apk_id]||0)+1; });
-      const tbody = $('apk-rows'); tbody.innerHTML = '';
-      if (!items.length) { tbody.innerHTML = '<tr><td colspan="9" class="empty">还没有登记的包——点右上角“＋ 登记安装包”创建</td></tr>'; }
-      items.forEach(a => { const row = document.createElement('tr');
-        row.innerHTML = `<td class="mono">${safe(a.apk_id)}</td><td>${safe(a.app_version||'-')}</td><td>${safe(a.flavor||'-')}</td><td>${safe(a.branch||'-')}</td><td class="mono">${safe(a.commit_hash||'-')}</td><td>${safe(a.source)}</td><td>${counts[a.apk_id]||0}</td><td>${safe(formatDate(a.registered_at))}</td><td><button class="ghost" onclick="filterByApk(decodeURIComponent('${encodeURIComponent(a.apk_id)}'))">查看执行</button></td>`;
-        tbody.appendChild(row); });
-      const sel = $('filter-apk'); const current = sel.value;
-      sel.innerHTML = '<option value="">全部</option>' + items.map(a => `<option value="${safe(a.apk_id)}">${safe(a.apk_id)}</option>`).join('');
-      sel.value = current;
-    }
-    function openApkModal() {
-      ['apk-id','apk-version','apk-flavor','apk-branch','apk-commit','apk-notes'].forEach(id => $(id).value='');
-      const m = $('apk-msg'); m.textContent = ''; m.style.color = '';
-      $('apk-modal').hidden = false; $('apk-id').focus();
-    }
-    function closeApkModal() { $('apk-modal').hidden = true; }
-    async function registerApk() {
-      const payload = { apk_id: $('apk-id').value.trim(), app_version: $('apk-version').value.trim(), flavor: $('apk-flavor').value.trim(), branch: $('apk-branch').value.trim(), commit_hash: $('apk-commit').value.trim(), notes: $('apk-notes').value.trim(), source: 'manual' };
-      if (!payload.apk_id) { const m = $('apk-msg'); m.textContent = '包 ID 必填'; m.style.color = 'var(--bad)'; $('apk-id').focus(); return; } // 校验错误留在弹窗 msg,不清空输入
-      $('apk-register').disabled = true; // 提交期间禁用,防重复提交(规范 4.7)
+    let dlExecCounts = {}; // apk_id → 执行次数(按最近 200 条 runs 统计,口径同原包管理列表)
+    async function loadApks() { // 包管理主加载:拉包台账 + runs 统计,填执行会话筛选下拉,再渲染双卡/表格(原 dlLoad 并入)
+      dlAll = []; dlPage = 1;
       try {
-        const resp = await fetch('/api/apks', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+        const [apksResp, runsResp] = await Promise.all([
+          fetch('/api/apks?limit=200').then(r => r.json()),
+          fetch('/api/runs?limit=200').then(r => r.json())
+        ]);
+        dlAll = (apksResp.items || []).sort((a, b) => (dlTime(b) || '').localeCompare(dlTime(a) || '')); // 3.3:时间倒序,最新在顶
+        dlExecCounts = {};
+        (runsResp.items || []).forEach(r => { if (r.apk_id) dlExecCounts[r.apk_id] = (dlExecCounts[r.apk_id] || 0) + 1; });
+      } catch (e) {
+        $('dl-latest').hidden = true; // 错误态:卡片区隐藏
+        $('dl-rows').innerHTML = `<tr><td colspan="8" class="empty">加载失败：${safe(String(e))}　<button class="ghost" id="dl-retry">重试</button></td></tr>`;
+        $('dl-retry').onclick = loadApks;
+        return;
+      }
+      $('dl-latest').hidden = false;
+      const sel = $('filter-apk'); const current = sel.value; // 执行会话页"包体"筛选下拉由本页负责填充
+      sel.innerHTML = '<option value="">全部</option>' + dlAll.map(a => `<option value="${safe(a.apk_id)}">${safe(a.apk_id)}</option>`).join('');
+      sel.value = current;
+      dlRenderBranchOptions(); dlRenderCounts(); dlSyncFilterUI(); dlRenderLatest(); dlRenderTable();
+    }
+    async function apkDelete(apkId) { // 删除台账行(规范 4.1 行内危险文字链 + confirm 确认,对齐全站现有删除模式)
+      if (!confirm(`确认删除安装包 ${apkId}？此操作不可撤销；磁盘文件与执行历史保留。`)) return;
+      try {
+        const resp = await fetch('/api/apks/' + encodeURIComponent(apkId), { method: 'DELETE' });
         const data = await resp.json().catch(() => ({}));
-        if (!resp.ok) { showToast('登记失败：' + (data.error || resp.status), true); return; }
-        closeApkModal(); // 登记成功后收起弹窗(规范 6.2 P0)
-        showToast('已登记包 ' + payload.apk_id);
+        if (!resp.ok) { showToast('删除失败：' + (data.error || resp.status), true); return; }
+        showToast('已删除包 ' + apkId);
         loadApks();
-      } catch (e) { showToast('登记失败：' + e, true); }
-      finally { $('apk-register').disabled = false; }
+      } catch (e) { showToast('删除失败：' + e, true); }
+    }
+    async function buildApk() { // 主动打包:POST /api/builds(打包构建模块并行开发中,端点未上线时优雅降级)
+      const branch = $('build-branch').value.trim();
+      const err = $('build-branch-err');
+      if (!branch) { err.hidden = false; $('build-branch').focus(); return; } // 规范 4.6:首错聚焦,错误写到字段下方,不清空输入
+      err.hidden = true;
+      const btn = $('build-submit'); const msg = $('build-msg');
+      btn.disabled = true; btn.style.opacity = '.5'; // 提交期间禁用(规范 4.7)
+      msg.textContent = '';
+      try {
+        const resp = await fetch('/api/builds', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ branch, server_type: $('build-server').value, notes: $('build-notes').value.trim() }) });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok) {
+          const detail = data && data.error ? String(data.error) : (resp.status === 404 ? '主动打包接口未就绪（HTTP 404）' : 'HTTP ' + resp.status);
+          showToast('触发打包失败：' + detail, true);
+          msg.textContent = detail;
+          return;
+        }
+        showToast('已触发 Jenkins 构建'); // 构建异步执行,包完成后自动登记,不刷列表
+        msg.textContent = '已触发 Jenkins 构建，安装包完成后自动登记到下方列表';
+        const link = [data && data.location, data && data.queue_url, data && data.build_url, data && data.url].find(u => typeof u === 'string' && /^https?:\/\//.test(u)); // 契约返回 location(Jenkins queue 地址);兼容其他链接字段。防注入:仅接受 http(s) 且 DOM 组装
+        if (link) {
+          const a = document.createElement('a');
+          a.href = link; a.target = '_blank'; a.rel = 'noopener';
+          a.textContent = '　查看构建队列';
+          msg.appendChild(a);
+        }
+      } catch (e) { showToast('触发打包失败：' + e, true); msg.textContent = String(e); }
+      finally { btn.disabled = false; btn.style.opacity = ''; }
     }
     function filterByApk(apkId) { $('filter-apk').value = apkId; document.querySelector('nav button[data-page=runs]').click(); loadRuns(); }
 
-    // ---------- 下包页(下载安装包):只读分发页,核心动作扫码+下载(下包页设计 3/4/5) ----------
+    // ---------- 包管理·下载安装包区(合并页):只读分发+管理,核心动作扫码/下载/查看执行/删除(下包页设计 3/4/5) ----------
     let dlAll = [];        // 全量数据(页签加载拉 limit=200;胶囊/分支/搜索纯前端 AND 过滤,4.3)
     let dlType = '';       // 服别胶囊:''=全部 / formal / test
     let dlBranch = '';     // 分支筛选
@@ -789,20 +819,6 @@
       box.innerHTML = '';
       if (typeof QRCode === 'undefined') { box.innerHTML = '<span class="meta">二维码库未加载</span>'; return; }
       new QRCode(box, { text: url, width: size, height: size, colorDark: '#000000', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
-    }
-    async function dlLoad() {
-      dlAll = []; dlPage = 1;
-      try {
-        const data = await (await fetch('/api/apks?limit=200')).json();
-        dlAll = (data.items || []).sort((a, b) => (dlTime(b) || '').localeCompare(dlTime(a) || '')); // 3.3:时间倒序,最新在顶
-      } catch (e) {
-        $('dl-latest').hidden = true; // 错误态:卡片区隐藏
-        $('dl-rows').innerHTML = `<tr><td colspan="7" class="empty">加载失败：${safe(String(e))}　<button class="ghost" id="dl-retry">重试</button></td></tr>`;
-        $('dl-retry').onclick = dlLoad;
-        return;
-      }
-      $('dl-latest').hidden = false;
-      dlRenderBranchOptions(); dlRenderCounts(); dlSyncFilterUI(); dlRenderLatest(); dlRenderTable();
     }
     function dlFiltered() {
       const q = $('dl-q').value.trim().toLowerCase();
@@ -867,20 +883,21 @@
       $('dl-pager').hidden = items.length <= Math.max(1, Math.round(dlPageSize * 0.3)); // 3.3:数据 ≤ 每页 30% 隐藏分页
       $('dl-page-info').textContent = `第 ${dlPage}/${pages} 页 · 共 ${items.length} 条`;
       const tbody = $('dl-rows'); tbody.innerHTML = '';
-      if (!dlAll.length) { // 5:空态给下一步引导
-        tbody.innerHTML = '<tr><td colspan="7" class="empty">还没有登记过安装包，去“包管理”页签登记，或等流水线打包后自动登记<br><button class="ghost" style="margin-top:8px" id="dl-goto-apks">去包管理</button></td></tr>';
-        $('dl-goto-apks').onclick = () => document.querySelector('nav button[data-page=apks]').click();
+      if (!dlAll.length) { // 5:空态给下一步引导(合并页:本页即包管理,引导顶部主动打包)
+        tbody.innerHTML = '<tr><td colspan="8" class="empty">还没有安装包登记，Jenkins 构建完成后会自动出现在这里，也可在顶部“主动打包”触发一次</td></tr>';
         return;
       }
-      if (!items.length) { tbody.innerHTML = '<tr><td colspan="7" class="empty">没有符合筛选的包，点“重置”清除筛选</td></tr>'; return; }
+      if (!items.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty">没有符合筛选的包，点“重置”清除筛选</td></tr>'; return; }
       items.slice((dlPage - 1) * dlPageSize, dlPage * dlPageSize).forEach(a => {
         const row = document.createElement('tr');
         const t = dlTime(a);
         const disabled = a.file_exists ? '' : 'disabled title="文件已清理"'; // 3.3:文件已清理禁用置灰,防扫出 404
-        row.innerHTML = `<td>${dlChip(a.server_type || 'test')}</td><td class="mono">${safe(a.apk_id)}</td><td>${safe(a.app_version || '-')}</td><td>${safe(a.branch || '-')}</td><td class="mono">${safe(a.commit_hash || '-')}</td><td title="${safe(formatDate(t))}">${dlRelTime(t)}</td><td><button class="ghost" ${disabled}>下载</button> <button class="ghost" ${disabled}>二维码</button></td>`;
-        const [bDl, bQr] = row.querySelectorAll('button');
+        row.innerHTML = `<td>${dlChip(a.server_type || 'test')}</td><td class="mono">${safe(a.apk_id)}</td><td>${safe(a.app_version || '-')}</td><td>${safe(a.branch || '-')}</td><td class="mono">${safe(a.commit_hash || '-')}</td><td title="${safe(formatDate(t))}">${dlRelTime(t)}</td><td>${dlExecCounts[a.apk_id] || 0}</td><td><button class="ghost" ${disabled}>下载</button> <button class="ghost" ${disabled}>二维码</button> <button class="ghost">查看执行</button> <button class="link-danger">删除</button></td>`;
+        const [bDl, bQr, bExec, bDel] = row.querySelectorAll('button');
         bDl.onclick = () => dlDownload(a);
         bQr.onclick = () => dlOpenModal(a);
+        bExec.onclick = () => filterByApk(a.apk_id);
+        bDel.onclick = () => apkDelete(a.apk_id);
         tbody.appendChild(row);
       });
     }
@@ -911,7 +928,7 @@
     let dlQTimer = null;
     $('dl-q').oninput = () => { clearTimeout(dlQTimer); dlQTimer = setTimeout(() => { dlPage = 1; dlSyncFilterUI(); dlRenderTable(); }, 300); }; // 规范 5.2:300ms 防抖自动触发,无独立搜索按钮
     $('dl-reset').onclick = () => { dlType = ''; dlBranch = ''; $('dl-branch').value = ''; $('dl-q').value = ''; dlPage = 1; dlSyncFilterUI(); dlRenderTable(); };
-    $('dl-refresh').onclick = dlLoad; // 刷新与页签切换重拉数据,保持当前筛选与页码(规范 5.5)
+    $('dl-refresh').onclick = loadApks; // 刷新与页签切换重拉数据,保持当前筛选与页码(规范 5.5)
     $('dl-prev').onclick = () => { if (dlPage > 1) { dlPage -= 1; dlRenderTable(); } };
     $('dl-next').onclick = () => { dlPage += 1; dlRenderTable(); }; // 页码越界由 dlRenderTable 钳制
     $('dl-pagesize').onchange = () => { dlPageSize = Number($('dl-pagesize').value) || 30; dlPage = 1; dlRenderTable(); };
@@ -2053,7 +2070,7 @@
     $('gw-reload').onclick = () => { if (gatewayUrl) $('gw-frame').src = gatewayUrl + '/'; };
 
     $('refresh').onclick = loadRuns; $('platform').onchange = loadRuns; $('filter-apk').onchange = loadRuns; $('close-detail').onclick = () => $('detail').style.display = 'none';
-    $('apk-new').onclick = openApkModal; $('apk-cancel').onclick = closeApkModal; $('apk-register').onclick = registerApk;
+    $('build-submit').onclick = buildApk; // 主动打包(登记弹窗已移除:自动登记为主,手动兜底走 scripts/register_apk.py)
     $('case-search').onclick = searchCases; $('case-q').onkeydown = e => { if (e.key==='Enter') searchCases(); };
     $('case-load').onclick = loadCaseHistory; $('case-id').onkeydown = e => { if (e.key==='Enter') loadCaseHistory(); };
     loadRuns().catch(e => { $('runs').innerHTML = `<tr><td colspan="9" class="empty">加载失败：${e}</td></tr>`; });

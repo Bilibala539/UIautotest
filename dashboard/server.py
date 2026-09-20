@@ -1361,6 +1361,15 @@ class DashboardStore:
             rows = connection.execute(query, parameters).fetchall()
         return [dict(row) for row in rows]
 
+    def delete_apk(self, apk_id: str) -> dict[str, Any]:
+        # 只删台账行;磁盘上的 apk 文件与 runs 执行历史不动(弱关联,历史按 apk_id 仍可读)
+        with self.transaction() as connection:
+            row = connection.execute("SELECT apk_id FROM apks WHERE apk_id=?", (apk_id,)).fetchone()
+            if row is None:
+                raise KeyError(f"apk not found: {apk_id}")
+            connection.execute("DELETE FROM apks WHERE apk_id=?", (apk_id,))
+        return {"deleted": apk_id}
+
     # ==================== 用例执行历史（三视角之"某用例"） ====================
 
     def get_case_history(self, case_id: str, limit: int = 20) -> list[dict[str, Any]]:
@@ -2419,6 +2428,45 @@ class DashboardHandler(BaseHTTPRequestHandler):
             if parsed.path == "/api/apks":
                 self.send_json(self.store.register_apk(payload), HTTPStatus.CREATED)
                 return
+            if parsed.path == "/api/builds":
+                # 主动触发打包(M3):Jenkins 参数化 job(默认 swan-audio-build,可用
+                # JENKINS_BUILD_JOB 覆盖)。NOTES 必须 URL 编码后再传——规避 Windows
+                # 批处理对中文/特殊字符的编码坑;build_swan_apk.py 侧 unquote 解码
+                branch = str(payload.get("branch") or "").strip()
+                if not branch:
+                    self.send_error_json("branch is required", HTTPStatus.BAD_REQUEST)
+                    return
+                server_type = str(payload.get("server_type") or "").strip() or "test"
+                if server_type not in VALID_SERVER_TYPES:
+                    self.send_error_json("server_type must be formal or test",
+                                         HTTPStatus.BAD_REQUEST)
+                    return
+                notes = str(payload.get("notes") or "").strip()
+                if len(notes) > 200:
+                    self.send_error_json("notes too long (max 200 chars)",
+                                         HTTPStatus.BAD_REQUEST)
+                    return
+                if not jenkins_client.config():
+                    self.send_error_json(
+                        "Jenkins 未配置(JENKINS_BASE_URL/JENKINS_USER/JENKINS_API_TOKEN)",
+                        HTTPStatus.SERVICE_UNAVAILABLE)
+                    return
+                build_job = os.environ.get("JENKINS_BUILD_JOB", "").strip() or "swan-audio-build"
+                params = {"BRANCH": branch, "SERVER_TYPE": server_type}
+                commit = str(payload.get("commit") or "").strip()
+                if commit:
+                    params["COMMIT"] = commit
+                if notes:
+                    params["NOTES"] = quote(notes)
+                outcome = jenkins_client.trigger(build_job, params)
+                if not outcome.get("ok"):
+                    self.send_error_json(f"Jenkins 触发失败: {outcome.get('error')}",
+                                         HTTPStatus.BAD_GATEWAY)
+                    return
+                self.send_json({"ok": True, "job": build_job,
+                                "queue_id": outcome.get("queue_id"),
+                                "location": outcome.get("location")})
+                return
             if parsed.path == "/api/case-defs":
                 self.send_json(self.store.upsert_case_def(payload), HTTPStatus.CREATED)
                 return
@@ -2567,6 +2615,17 @@ class DashboardHandler(BaseHTTPRequestHandler):
 
     def do_DELETE(self) -> None:
         parsed = urlparse(self.path)
+        # 删除安装包台账行(磁盘文件与执行历史不动)
+        if parsed.path.startswith("/api/apks/"):
+            apk_id = parsed.path.removeprefix("/api/apks/").strip("/")
+            if not apk_id:
+                self.send_error_json("apk_id is required", HTTPStatus.BAD_REQUEST)
+                return
+            try:
+                self.send_json(self.store.delete_apk(apk_id))
+            except KeyError as error:
+                self.send_error_json(str(error), HTTPStatus.NOT_FOUND)
+            return
         # 套件成员移除:支持 ?case_id= 单删,或 body {case_id}/{case_ids} 批量删
         if parsed.path.startswith("/api/suites/") and parsed.path.endswith("/cases"):
             suite_id = parsed.path.removeprefix("/api/suites/").removesuffix("/cases").strip("/")

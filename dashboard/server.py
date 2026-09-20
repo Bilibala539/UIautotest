@@ -1763,10 +1763,9 @@ class DashboardStore:
         pipeline_jobs 的状态机/claim 逻辑不动;payload 可附带 platform/branch/
         case_filter/apk_id 覆盖。case_filter 的取值优先级:
           1) payload 显式给了 case_filter → 以 payload 为准(保留覆盖语义);
-          2) 否则配置关联了套件 → 聚合套件成员里以 .py 结尾的 file_path
-             (相对仓库根的 pytest 目标,按 seq 顺序空格连接),作为执行目标;
-          3) 套件无可用 .py 成员 / 未关联套件 → 留空,执行 agent 回落默认 target。
-        YAML 驱动用例(knowledge/swan/cases/driver/*.yaml)到 pytest 目标的映射待 M5 二期。
+          2) 否则配置关联了套件 → 聚合套件成员的 pytest 目标(list_suite_case_paths
+             已把 YAML 驱动用例映射为 test_case_driver node id,按 seq 顺序空格连接);
+          3) 套件无可用成员 / 未关联套件 → 留空,执行 agent 回落默认 target。
         """
         config = self.get_pipeline_config(config_id)  # 不存在抛 KeyError → 404
         payload_case_filter = str(payload.get("case_filter") or "").strip()
@@ -1774,13 +1773,10 @@ class DashboardStore:
             # 覆盖语义:运行时显式指定的 case_filter 优先于套件聚合
             case_filter, filter_source = payload_case_filter, "payload"
         elif str(config.get("suite_id") or "").strip():
-            # 套件聚合:只取 .py 脚本成员(YAML 成员映射待 M5 二期)
-            py_targets = [
-                p for p in self.list_suite_case_paths(config["suite_id"])
-                if p.endswith(".py")
-            ]
-            case_filter = " ".join(py_targets)
-            filter_source = "suite" if py_targets else ""
+            # 套件聚合:list_suite_case_paths 已含 YAML→node id 映射,不再按 .py 过滤
+            targets = self.list_suite_case_paths(config["suite_id"])
+            case_filter = " ".join(targets)
+            filter_source = "suite" if targets else ""
         else:
             case_filter, filter_source = "", ""
         job = try_jenkins_dispatch(self, self.create_pipeline_job({
@@ -1886,12 +1882,13 @@ class DashboardStore:
         return {"deleted": suite_id}
 
     def list_suite_case_paths(self, suite_id: str) -> list[str]:
-        """套件成员的脚本路径列表(按 seq 排序,跳过空串),供流水线聚合 pytest 目标。
+        """套件成员的 pytest 目标列表(按 seq 排序,跳过空串),供流水线/冒烟联动聚合。
 
         一次 JOIN 查完避免 N+1;只取 enabled=1 的成员。file_path 规范化为
-        相对仓库根的 posix 路径(绝对路径会尝试转相对,仓库外的丢弃);
-        YAML 驱动用例(knowledge/swan/cases/driver/*.yaml)到 pytest 目标的
-        映射待 M5 二期,这里不做转换,调用方自行按后缀过滤。
+        相对仓库根的 posix 路径(绝对路径会尝试转相对,仓库外的丢弃)。
+        YAML 驱动用例(knowledge/swan/cases/driver/*.yaml)映射为
+        tests/flutter/test_case_driver.py::TestCaseDriver::test_yaml_<stem>
+        (驱动脚本按 stem 注入 test 方法,.166 实测收集合法;M5 二期已完成)。
         """
         with self.connect() as connection:
             rows = connection.execute(
@@ -1914,9 +1911,25 @@ class DashboardStore:
                     raw = path.resolve().relative_to(PROJECT_ROOT).as_posix()
                 except ValueError:  # 仓库外的绝对路径,无法作为 pytest 目标,跳过
                     continue
-            if raw not in targets:
-                targets.append(raw)
+            target = self._yaml_path_to_node_id(raw) if path.suffix.lower() == ".yaml" else raw
+            if target and target not in targets:
+                targets.append(target)
         return targets
+
+    @staticmethod
+    def _yaml_path_to_node_id(raw_path: str) -> str | None:
+        """YAML 驱动用例路径 → pytest node id;不在驱动用例目录内的 YAML 返回 None(跳过)。
+
+        子目录内(如 driver/login/POS-002.yaml)同样按 stem 映射——驱动脚本
+        注入方法只看 stem,与目录层级无关。
+        """
+        prefix = "knowledge/swan/cases/driver/"
+        if not raw_path.startswith(prefix):
+            return None
+        stem = Path(raw_path[len(prefix):]).stem
+        if not stem:
+            return None
+        return f"tests/flutter/test_case_driver.py::TestCaseDriver::test_yaml_{stem}"
 
     def suite_case_paths(self, suite_id: str) -> dict[str, Any]:
         """套件成员脚本路径(只读,GET /api/suites/<id>/case-paths,冒烟联动 M5)。

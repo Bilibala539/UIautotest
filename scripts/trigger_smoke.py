@@ -4,8 +4,8 @@
   py -3 scripts\\trigger_smoke.py --suite SMKE --apk-id <apk_id> [--platform flutter]
 
 流程:
-  1. GET  {平台}/api/suites/<suite>/case-paths 聚合冒烟套件成员脚本路径,
-     取其中 .py 结尾的拼成 case_filter(与平台"立即执行"的套件聚合口径一致)
+  1. GET  {平台}/api/suites/<suite>/case-paths 聚合套件成员为 case_filter
+     (平台已把 YAML 驱动用例映射为 test_case_driver node id,.py 原样保留)
   2. POST {平台}/api/pipeline/trigger(trigger_source=build-downstream)
      平台侧自动走 Jenkins 派发链路(try_jenkins_dispatch → swan-autotest),
      派发失败自动留 pending 由本地 PipelineAgent 轮询兜底
@@ -54,10 +54,10 @@ def aggregate_case_filter(suite: str) -> str:
                   f"(平台 {DASHBOARD_URL};请检查 --suite 参数或先在平台建套件)", file=sys.stderr)
             raise SystemExit(2) from None
         raise
-    py_targets = [p for p in body.get("paths", []) if p.endswith(".py")]
+    py_targets = list(body.get("paths", []))
     if not py_targets:
-        print(f"[trigger-smoke] 错误: 套件 {suite!r} 没有可用 .py 成员"
-              f"(共 {len(body.get('paths', []))} 个路径),无法聚合 pytest 目标", file=sys.stderr)
+        print(f"[trigger-smoke] 错误: 套件 {suite!r} 没有可用脚本成员"
+              f"(平台 case-paths 返回为空),无法聚合 pytest 目标", file=sys.stderr)
         raise SystemExit(2)
     return " ".join(py_targets)
 

@@ -6,11 +6,12 @@ Each step's full output is written into the dashboard sqlite (apks table,
 apk_id=RECOVERY-*) so the main session can read it via GET /api/apks
 despite broken SSH. ASCII-only to avoid codepage issues.
 """
+import json
 import os
-import sqlite3
 import subprocess
 import sys
 import time
+import urllib.request
 
 DB = r"E:\uiautotest\output\dashboard.sqlite3"
 PUBKEY = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMrKsTHttiJTG4k/2RXbCPy9z5Tdm2KjtwyMVQX8UYzc lan-mesh-1BG-IT-01796"
@@ -99,14 +100,20 @@ def main():
     for step in (sys.argv[1:] or ["noop"]):
         fn = STEPS.get(step)
         body = "step=%s\n%s" % (step, fn() if fn else "unknown step")
+        payload = {
+            "apk_id": "RECOVERY-%s-%d" % (step, int(time.time())),
+            "app_version": "", "branch": "recovery", "commit_hash": "",
+            "flavor": "profile", "source": "recovery",
+            "file_path": "", "file_hash": "",
+            "notes": body[:3500], "server_type": "test",
+        }
         try:
-            conn = sqlite3.connect(DB, timeout=15)
-            conn.execute(
-                "INSERT INTO apks (apk_id, app_version, branch, commit_hash, flavor, source,"
-                " file_path, file_hash, notes, server_type) VALUES (?,?,?,?,?,?,?,?,?,?)",
-                ("RECOVERY-%s-%d" % (step, int(time.time())), "", "", "", "", "recovery", "", "", body[:4000], "test"))
-            conn.commit()
-            conn.close()
+            req = urllib.request.Request(
+                "http://127.0.0.1:8080/api/apks",
+                data=json.dumps(payload).encode("utf-8"),
+                headers={"Content-Type": "application/json"}, method="POST")
+            with urllib.request.urlopen(req, timeout=15) as r:
+                r.read()
         except Exception:
             pass
 

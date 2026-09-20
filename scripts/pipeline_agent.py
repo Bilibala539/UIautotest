@@ -35,6 +35,28 @@ PLATFORM_URL = os.environ.get("DASHBOARD_URL", "http://192.168.12.166:8080").rst
 DEFAULT_PYTEST_TARGET = "tests/flutter/test_case_driver.py"
 
 
+def _load_dotenv_local() -> None:
+    """加载项目根 .env.local(SWAN_PHONE/凭据等,部署机专属,不进 git)。
+
+    Jenkins 以 SYSTEM 跑本脚本时没有交互会话的环境变量,pytest 侧
+    (SWAN_PHONE/PLATFORM 判定等)依赖这里注入;已存在的环境变量优先。
+    """
+    env_file = PROJECT_ROOT / ".env.local"
+    if not env_file.is_file():
+        return
+    for line in env_file.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key, value = key.strip(), value.strip().strip("'\"")
+        if key and key not in os.environ:
+            os.environ[key] = value
+
+
+_load_dotenv_local()
+
+
 def _post(path: str, payload: dict) -> dict:
     request = urllib.request.Request(
         f"{PLATFORM_URL}{path}",

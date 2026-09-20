@@ -2476,6 +2476,12 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 if not branch:
                     self.send_error_json("branch is required", HTTPStatus.BAD_REQUEST)
                     return
+                if not re.fullmatch(r"[A-Za-z0-9._/\-]+", branch):
+                    # Jenkins job 把 BRANCH 原样拼进批处理命令行,白名单外字符(空格
+                    # & | 等)可注入命令以 SYSTEM 执行——分支名只放行合法字符(坑 15)
+                    self.send_error_json("branch 只允许字母/数字/._/与-字符",
+                                         HTTPStatus.BAD_REQUEST)
+                    return
                 server_type = str(payload.get("server_type") or "").strip() or "test"
                 if server_type not in VALID_SERVER_TYPES:
                     self.send_error_json("server_type must be formal or test",
@@ -2484,6 +2490,12 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 notes = str(payload.get("notes") or "").strip()
                 if len(notes) > 200:
                     self.send_error_json("notes too long (max 200 chars)",
+                                         HTTPStatus.BAD_REQUEST)
+                    return
+                if re.search(r'[&|<>^"%]', notes):
+                    # quote 只是 URL 编码不是命令转义,& | < > ^ " % 经 %NOTES% 批处理
+                    # 展开仍可穿透命令行——黑名单硬拒(坑 15)
+                    self.send_error_json('notes 含命令特殊字符(& | < > ^ " %)',
                                          HTTPStatus.BAD_REQUEST)
                     return
                 if not jenkins_client.config():
@@ -2495,6 +2507,11 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 params = {"BRANCH": branch, "SERVER_TYPE": server_type}
                 commit = str(payload.get("commit") or "").strip()
                 if commit:
+                    # 短哈希只可能是十六进制,白名单外字符同理可注入命令行(坑 15)
+                    if not re.fullmatch(r"[0-9a-fA-F]{1,40}", commit):
+                        self.send_error_json("commit 只允许 1-40 位十六进制",
+                                             HTTPStatus.BAD_REQUEST)
+                        return
                     params["COMMIT"] = commit
                 if notes:
                     params["NOTES"] = quote(notes)

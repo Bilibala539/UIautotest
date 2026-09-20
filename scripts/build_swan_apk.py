@@ -8,7 +8,7 @@
   python scripts/build_swan_apk.py --commit abc1234   # 指定 commit
   python scripts/build_swan_apk.py --skip-build       # 跳过构建,直接登记已有产物
   python scripts/build_swan_apk.py --keep-src         # 构建后不删源码
-  python scripts/build_swan_apk.py --server-type formal  # 登记为正式服包(默认 test 测试服)
+  python scripts/build_swan_apk.py --server-type formal  # 正式服包=--release(Release 锁正式服);默认 test=--profile(AOT 且默认连测试服,关于页可切服)
   python scripts/build_swan_apk.py --notes "%E5%8E%8B%E6%B5%8B"  # 登记备注(URL 编码,平台 /api/builds 触发时 quote 传入)
 app 的 pubspec.yaml 以相对路径引用核心仓,检出时会一并 clone 核心仓到源码同级目录。
 权限尚未生效时可用 --repo-url/--core-repo-url 指向本地裸仓验证检出逻辑(不构建不登记)。
@@ -209,6 +209,9 @@ def main() -> int:
     log = log_path.open("w", encoding="utf-8")
     started = time.monotonic()
     build_time = ""  # 构建完成时间,--skip-build 时回落到产物文件 mtime
+    # server_type 决定构建模式:核心仓 ServerEnvironmentManager 在 Release 包锁死正式服且
+    # dart-define 无效;profile 包 AOT 且非 Release 默认连 staging 测试服、关于页可切服(档案坑 13)
+    build_mode = "profile" if args.server_type == "test" else "release"
 
     def echo(msg: str) -> None:
         log.write(msg + "\n")
@@ -237,11 +240,11 @@ def main() -> int:
                 rotate_logs()
                 return 0
 
-            echo("== 步骤 2/3 flutter build apk --release ==")
+            echo(f"== 步骤 2/3 flutter build apk --{build_mode} ==")
             env = build_env(creds)
             flutter = str(Path(env["FLUTTER_HOME"]) / "bin" / "flutter.bat")
             build_start = time.monotonic()
-            run([flutter, "build", "apk", "--release"], SRC_DIR, log, secrets, env=env)
+            run([flutter, "build", "apk", f"--{build_mode}"], SRC_DIR, log, secrets, env=env)
             build_time = time.strftime("%Y-%m-%d %H:%M:%S")
             echo(f"构建耗时 {time.monotonic() - build_start:.0f}s")
     except (RuntimeError, OSError) as error:
@@ -253,7 +256,7 @@ def main() -> int:
 
     # ---- 产物登记 ----
     # APK 归档到 swan-build\apks:源码目录默认会被清理,登记的 file_path 必须指向持久位置
-    apk_src = SRC_DIR / "build" / "app" / "outputs" / "flutter-apk" / "app-release.apk"
+    apk_src = SRC_DIR / "build" / "app" / "outputs" / "flutter-apk" / f"app-{build_mode}.apk"
     if not apk_src.is_file():
         echo(f"产物不存在:{apk_src}")
         log.close()
@@ -265,7 +268,8 @@ def main() -> int:
     archive_dir = Path(r"E:\swan-build\apks")
     short = git_out(SRC_DIR, "rev-parse", "--short", "HEAD") if (SRC_DIR / ".git").is_dir() else "unknown"
     archive_dir.mkdir(parents=True, exist_ok=True)
-    apk_id = f"swan-{args.branch}-{short}-{time.strftime('%Y%m%d')}"
+    # apk_id 带 server_type 段:同分支同 commit 同日的 formal/test 两包不互相覆盖
+    apk_id = f"swan-{args.branch}-{short}-{time.strftime('%Y%m%d')}-{args.server_type}"
     apk = archive_dir / f"{apk_id}.apk"
     shutil.copy2(apk_src, apk)
     file_hash = hashlib.sha256(apk.read_bytes()).hexdigest()
@@ -275,15 +279,15 @@ def main() -> int:
         "app_version": "",
         "branch": args.branch,
         "commit_hash": short,
-        "flavor": "release",
+        "flavor": build_mode,
         "source": "auto-build",
         "server_type": args.server_type,
         "build_time": build_time,
         "file_path": str(apk),
         "file_hash": file_hash,
-        # notes = 用户备注(如有,置前) + 自动信息(分支/commit/构建耗时)
+        # notes = 用户备注(如有,置前) + 自动信息(分支/commit/构建模式/构建耗时)
         "notes": (f"{user_notes}; " if user_notes else "")
-                 + f"branch={args.branch} commit={short} 构建耗时={elapsed}s",
+                 + f"branch={args.branch} commit={short} mode={build_mode} 构建耗时={elapsed}s",
     }
     echo(f"== 步骤 3/3 登记平台({PLATFORM_URL}/api/apks server_type={args.server_type})==")
     try:

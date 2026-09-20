@@ -2211,7 +2211,9 @@ class DashboardHandler(BaseHTTPRequestHandler):
             server_type = query.get("server_type", [""])[0].strip().lower()
             items = self.store.list_apks(limit=limit, server_type=server_type)
             base_url = self.base_url()
-            jenkins_base = os.environ.get("JENKINS_BASE_URL", "").strip().rstrip("/")
+            # 日志链接给浏览器跳转用:优先 JENKINS_PUBLIC_URL(对外可达地址);未配置回退 JENKINS_BASE_URL
+            # (BASE_URL 供服务端回调 Jenkins,可为 localhost/127.0.0.1;PUBLIC_URL 必须是浏览器可达地址)
+            jenkins_base = (os.environ.get("JENKINS_PUBLIC_URL", "").strip() or os.environ.get("JENKINS_BASE_URL", "").strip()).rstrip("/")
             for item in items:
                 # download_url 为绝对地址(二维码直接指向它);file_exists 供前端禁用下载按钮防 404
                 item["download_url"] = f"{base_url}/api/apks/{quote(str(item['apk_id']), safe='')}/download"

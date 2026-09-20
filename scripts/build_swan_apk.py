@@ -104,14 +104,19 @@ def git_out(src: Path, *args: str) -> str:
 
 
 def ensure_src(src: Path, url: str, secrets: list[str], log) -> None:
-    """确保源码目录存在:没有则 clone,已有则 fetch+prune。URL 不落日志明文。"""
+    """确保源码目录存在:没有则 clone,已有则 fetch+prune。URL 不落日志明文。
+    目录在但 .git 缺失,视为上次清理中断的半删除残留,清掉重 clone(档案坑 14)。"""
     src.parent.mkdir(parents=True, exist_ok=True)
     if (src / ".git").is_dir():
         log.write("源码目录已存在,执行 fetch --all --prune\n")
         run(["git", "-C", str(src), "fetch", "--all", "--prune"], src, log, secrets)
-    else:
-        log.write("源码目录不存在,执行 clone\n")
-        run(["git", "clone", url, str(src)], src.parent, log, secrets)
+        return
+    if src.is_dir():
+        # 残留目录直接 clone 会报"已存在且非空"(build #7 连锁失败根源),先清掉
+        log.write("源码目录存在但缺少 .git(上次清理中断的残留),清除后重新 clone\n")
+        force_rmtree(src)
+    log.write("源码目录不存在,执行 clone\n")
+    run(["git", "clone", url, str(src)], src.parent, log, secrets)
 
 
 def checkout_target(src: Path, branch: str, commit: str, secrets: list[str], log) -> str:
@@ -147,11 +152,34 @@ def rotate_logs(keep: int = 20) -> None:
 
 
 def force_rmtree(path: Path) -> None:
-    """Windows 下 git objects 为只读文件,直接 rmtree 会静默残留;失败时解除只读重删。"""
+    """Windows 下删除目录树的兜底:git objects 只读需解除只读重删;构建产物里还有
+    超长路径(常规 API 删不动,用 \\\\?\\ 扩展前缀重试)和"文件在遍历与回调之间被
+    杀软等并发删掉"的竞态(存在性判断放过);整体失败隔 1s 重试一次防杀软短暂占用。
+    两次仍失败则抛出,由调用方决定是否容忍(清理段 best-effort,检出自愈则致命)。
+    """
     def on_error(func, target, _exc_info):
-        os.chmod(target, stat.S_IWRITE)
-        func(target)
-    shutil.rmtree(path, onerror=on_error)
+        # 用 \\?\ 前缀探存在性:常规 API 对超长路径 stat 会误报"不存在",前缀形式总能正确解析
+        marked = "\\\\?\\" + str(target)
+        if not os.path.exists(marked):
+            return  # 文件已消失(build #6 的删除竞态),放过即可
+        os.chmod(marked, stat.S_IWRITE)
+        try:
+            func(target)
+        except OSError:
+            # 常规删除失败(超长路径/残留占用):用 \\?\ 扩展前缀重试一次
+            if os.path.isdir(marked):
+                shutil.rmtree(marked, ignore_errors=True)
+            else:
+                os.remove(marked)
+    for attempt in range(2):
+        try:
+            shutil.rmtree(path, onerror=on_error)
+            return
+        except OSError:
+            if attempt == 0:
+                time.sleep(1)  # 第一次失败:可能杀软/索引服务短暂占用,稍候重试
+            else:
+                raise
 
 
 def register_apk(payload: dict[str, str]) -> dict[str, str]:
@@ -283,6 +311,10 @@ def main() -> int:
         "source": "auto-build",
         "server_type": args.server_type,
         "build_time": build_time,
+        # Jenkins 构建身份(Jenkins job 内跑时环境变量天然存在;本地直跑为空串,
+        # 平台按空串存,供包管理页跳转 Jenkins 日志用)
+        "jenkins_job": os.environ.get("JOB_NAME", ""),
+        "jenkins_build": os.environ.get("BUILD_NUMBER", ""),
         "file_path": str(apk),
         "file_hash": file_hash,
         # notes = 用户备注(如有,置前) + 自动信息(分支/commit/构建模式/构建耗时)
@@ -301,8 +333,13 @@ def main() -> int:
 
     if not args.keep_src and not args.skip_build:
         echo("清理源码目录(未指定 --keep-src)")
-        force_rmtree(SRC_DIR)
-        force_rmtree(CORE_SRC_DIR)
+        # 构建与登记均已成功,清理只是 best-effort:任何清理异常都不得让本次构建标 FAILURE
+        # (build #6 即清理崩溃打穿 try 块外,Jenkins 误标 FAILURE)
+        try:
+            force_rmtree(SRC_DIR)
+            force_rmtree(CORE_SRC_DIR)
+        except Exception as error:
+            echo(f"清理失败(不影响产物与登记):{error}")
     log.close()
     rotate_logs()
     return 0

@@ -76,14 +76,15 @@ def redact(text: str, secrets: list[str]) -> str:
     return re.sub(r"(?i)https?://[^/\s@]+@git\.hivi\.com", "git.hivi.com", text)
 
 
-def run(cmd: list[str], cwd: Path, log, secrets: list[str]) -> None:
-    """执行命令,输出经脱敏后写入日志;失败抛 RuntimeError。"""
+def run(cmd: list[str], cwd: Path, log, secrets: list[str], env: dict[str, str] | None = None) -> None:
+    """执行命令,输出经脱敏后写入日志;失败抛 RuntimeError。env 显式传入构建环境
+    (JAVA_HOME/ANDROID_HOME 等)——Jenkins SYSTEM 会话缺这些变量,不传则 flutter 找不到 SDK。"""
     printable = [redact(part, secrets) if ":" in part or "@" in part else part for part in cmd]
     log.write(f"$ {subprocess.list2cmdline(printable)}\n")
     log.flush()
     result = subprocess.run(
         cmd, cwd=str(cwd), capture_output=True, text=True,
-        encoding="utf-8", errors="replace",
+        encoding="utf-8", errors="replace", env=env,
     )
     output = redact((result.stdout or "") + (result.stderr or ""), secrets)
     log.write(output)
@@ -240,7 +241,7 @@ def main() -> int:
             env = build_env(creds)
             flutter = str(Path(env["FLUTTER_HOME"]) / "bin" / "flutter.bat")
             build_start = time.monotonic()
-            run([flutter, "build", "apk", "--release"], SRC_DIR, log, secrets)
+            run([flutter, "build", "apk", "--release"], SRC_DIR, log, secrets, env=env)
             build_time = time.strftime("%Y-%m-%d %H:%M:%S")
             echo(f"构建耗时 {time.monotonic() - build_start:.0f}s")
     except (RuntimeError, OSError) as error:

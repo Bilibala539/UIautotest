@@ -20,6 +20,9 @@ from urllib.parse import parse_qs, quote, unquote, urlparse
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_DATABASE = PROJECT_ROOT / "output" / "dashboard.sqlite3"
+# APK 平台归档:跨机登记(构建机≠登记机)时登记行的 file_path 指向构建机本地路径,
+# 本机回源不可达——构建机在登记后把产物字节上传到此处,下载/二维码回源归档副本
+APK_ARCHIVE_DIR = PROJECT_ROOT / "output" / "apks"
 
 
 def _load_dotenv_local() -> None:
@@ -63,9 +66,13 @@ class RunNotFinalizedError(RuntimeError):
 
 
 def apk_file_on_disk(apk: dict[str, Any]) -> bool:
-    """登记行里的 file_path 在磁盘上是否真实存在(页面据此禁用下载/二维码按钮)。"""
+    """登记行对应的 APK 是否可回源:file_path 本机存在,或平台归档副本在
+    (跨机登记时构建机文件不可达,下载回源 output/apks/<apk_id>.apk)。"""
     file_path = str(apk.get("file_path") or "").strip()
-    return bool(file_path) and Path(file_path).is_file()
+    if file_path and Path(file_path).is_file():
+        return True
+    apk_id = str(apk.get("apk_id") or "").strip()
+    return bool(apk_id) and (APK_ARCHIVE_DIR / f"{apk_id}.apk").is_file()
 
 
 def utc_now() -> str:
@@ -2242,8 +2249,13 @@ class DashboardHandler(BaseHTTPRequestHandler):
             file_path = str(apk.get("file_path") or "").strip()
             target = Path(file_path) if file_path else None
             if target is None or not target.is_file():
+                # 登记机本机路径不可达(跨机登记,构建机≠登记机)→ 回源平台归档副本
+                archive = APK_ARCHIVE_DIR / f"{apk_id}.apk"
+                target = archive if archive.is_file() else None
+            if target is None:
                 self.send_error_json(
-                    f"apk 文件不在磁盘上,无法下载(file_path={file_path or '未登记'});请在登记机上重新登记或补登产物路径",
+                    f"apk 文件不在磁盘上,无法下载(file_path={file_path or '未登记'});"
+                    "请重新打包登记(自动归档)或核对产物路径",
                     HTTPStatus.NOT_FOUND,
                 )
                 return
@@ -2484,6 +2496,44 @@ class DashboardHandler(BaseHTTPRequestHandler):
                     self.store.run_pipeline_config(config_id, self.read_optional_json()),
                     HTTPStatus.CREATED,
                 )
+                return
+            # APK 归档上传:构建机登记成功后把产物字节推给平台(原始 octet-stream,
+            # 须先于 read_json 分流)。扫码下载跨机回源走 output/apks/<apk_id>.apk。
+            if parsed.path.startswith("/api/apks/") and parsed.path.endswith("/file"):
+                apk_id = unquote(parsed.path.removeprefix("/api/apks/").removesuffix("/file").strip("/"))
+                if not apk_id:
+                    self.send_error_json("apk_id is required", HTTPStatus.BAD_REQUEST)
+                    return
+                try:
+                    self.store.get_apk(apk_id)
+                except KeyError as error:
+                    self.send_error_json(str(error), HTTPStatus.NOT_FOUND)
+                    return
+                try:
+                    length = int(self.headers.get("Content-Length", "0") or 0)
+                except ValueError:
+                    length = 0
+                if length <= 0 or length > (1 << 29):
+                    self.send_error_json("body 须为 APK 原始字节(1B-512MB)", HTTPStatus.BAD_REQUEST)
+                    return
+                APK_ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
+                dest = APK_ARCHIVE_DIR / f"{apk_id}.apk"
+                tmp = dest.with_name(dest.name + ".part")
+                received = 0
+                try:
+                    with open(tmp, "wb") as handle:
+                        while received < length:
+                            chunk = self.rfile.read(min(1 << 20, length - received))
+                            if not chunk:
+                                raise OSError("客户端提前断开")
+                            handle.write(chunk)
+                            received += len(chunk)
+                    os.replace(tmp, dest)  # 落地后原子改名,避免半截文件被回源
+                except OSError as error:
+                    tmp.unlink(missing_ok=True)
+                    self.send_error_json(f"APK 归档保存失败: {error}", HTTPStatus.INTERNAL_SERVER_ERROR)
+                    return
+                self.send_json({"ok": True, "apk_id": apk_id, "bytes": received, "stored": str(dest)})
                 return
             payload = self.read_json()
             if parsed.path == "/api/runs":

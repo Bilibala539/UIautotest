@@ -218,6 +218,22 @@ def register_apk(payload: dict[str, str]) -> dict[str, str]:
         return json.loads(response.read().decode("utf-8"))
 
 
+def upload_archive(archive: Path, apk_id: str) -> dict[str, object]:
+    """把 APK 字节推给平台归档(POST /api/apks/<apk_id>/file)。
+
+    跨机拓扑下平台读不到构建机磁盘,扫码下载回源 output/apks/<apk_id>.apk,
+    登记成功后必须完成这一步,平台侧下载/二维码才真正可用。
+    """
+    request = urllib.request.Request(
+        f"{PLATFORM_URL}/api/apks/{urllib.parse.quote(apk_id, safe='')}/file",
+        data=archive.read_bytes(),
+        headers={"Content-Type": "application/octet-stream"},
+        method="POST",
+    )
+    with urllib.request.urlopen(request, timeout=300) as response:
+        return json.loads(response.read().decode("utf-8"))
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Swan 自动打包并登记进平台")
     parser.add_argument("--branch", default="dev", help="构建分支(dev/master/harmony,默认 dev)")
@@ -357,6 +373,24 @@ def main() -> int:
         echo(f"登记成功 apk_id={result.get('apk_id')} sha256={file_hash[:12]}… server_type={args.server_type}")
     except (urllib.error.URLError, OSError, ValueError) as error:
         echo(f"登记失败:{error}(产物仍在 {apk})")
+        log.close()
+        rotate_logs()
+        return 1
+
+    # 登记成功=平台可下载:归档上传是登记的必要后半步,失败按登记失败同一口径处理
+    echo(f"== 归档产物到平台({PLATFORM_URL}/api/apks/{apk_id}/file)==")
+    upload_error = ""
+    for attempt in (1, 2):
+        try:
+            uploaded = upload_archive(apk, apk_id)
+            echo(f"归档成功 bytes={uploaded.get('bytes')} → {uploaded.get('stored')}")
+            break
+        except (urllib.error.URLError, OSError, ValueError) as error:
+            upload_error = str(error)
+            echo(f"归档失败(第 {attempt} 次):{upload_error}")
+            time.sleep(2)
+    else:
+        echo(f"归档失败:{upload_error}(登记行已存在但平台无法下载,请重跑或手工上传;产物仍在 {apk})")
         log.close()
         rotate_logs()
         return 1

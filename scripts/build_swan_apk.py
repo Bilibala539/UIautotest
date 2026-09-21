@@ -238,6 +238,11 @@ def main() -> int:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
     creds = load_env(ENV_FILE)
+    # DASHBOARD_URL 解析优先级:进程环境变量 > .env.local 同名键 > 模块默认(127.0.0.1:8080)。
+    # 176 构建机上平台在 167,.env.local 是登记地址的权威来源(Jenkins agent 会话无该环境变量)。
+    global PLATFORM_URL
+    PLATFORM_URL = os.environ.get("DASHBOARD_URL",
+                                  creds.get("DASHBOARD_URL", PLATFORM_URL)).rstrip("/")
     user = creds.get("GITLAB_BOT_USER", "")
     pwd = creds.get("GITLAB_BOT_PASSWORD", "")
     if not user or not pwd:

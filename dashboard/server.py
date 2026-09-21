@@ -2393,6 +2393,30 @@ class DashboardHandler(BaseHTTPRequestHandler):
             except KeyError as error:
                 self.send_error_json(str(error), HTTPStatus.NOT_FOUND)
             return
+                # ==================== 机器监控(部署计划 v3 §7.5):Prometheus 只读代理,无任意 query 透传 ====================
+        if parsed.path == "/api/metrics/hosts":
+            self.send_json({"items": metrics_machine_list()})
+            return
+        if parsed.path == "/api/metrics/summary":
+            try:
+                self.send_json(metrics_summary())
+            except MetricsUnavailable as error:
+                self.send_json(
+                    {"error": "监控组件未就绪", "detail": str(error)},
+                    HTTPStatus.SERVICE_UNAVAILABLE,
+                )
+            return
+        if parsed.path == "/api/metrics/history":
+            try:
+                self.send_json(metrics_history(parse_qs(parsed.query)))
+            except MetricsBadRequest as error:
+                self.send_error_json(str(error), HTTPStatus.BAD_REQUEST)
+            except MetricsUnavailable as error:
+                self.send_json(
+                    {"error": "监控组件未就绪", "detail": str(error)},
+                    HTTPStatus.SERVICE_UNAVAILABLE,
+                )
+            return
         self.send_error_json("not found", HTTPStatus.NOT_FOUND)
 
     def read_json(self) -> dict[str, Any]:
@@ -2756,6 +2780,268 @@ def create_server(host: str = "127.0.0.1", port: int = 8080, database_path: str 
     BoundDashboardHandler.store = store
     return ThreadingHTTPServer((host, port), BoundDashboardHandler)
 
+
+# ==================== 机器监控:Prometheus 只读代理(部署计划 v3 §7.5,设计稿 docs/机器监控页设计.md §3.3,档案 docs/agent模块档案/监控.md) ====================
+# 独立 section:仅本段常量/函数 + do_GET 内 /api/metrics/* 路由,不依赖、不改其他模块代码。
+# 部署前提:dashboard 与 Prometheus 同机(167;9090 仅本机监听)。instance 取值来自 scrape 配置
+# (tools/provision/monitoring-infra.md):167=127.0.0.1:9100,176=192.168.12.176:9100。
+import urllib.error
+import urllib.parse
+import urllib.request
+
+PROMETHEUS_URL = os.environ.get("PROMETHEUS_URL", "http://127.0.0.1:9090").rstrip("/")
+_PROM_TIMEOUT_SECONDS = 5
+# 机器白名单:machine_id -> {instance: node_exporter 标签精确值, role: 页面角色};
+# METRICS_MACHINES 环境变量可覆盖(JSON,同形),机器清单不做页面管理(设计稿 §3.3)
+_METRICS_MACHINES_DEFAULT = {
+    "167": {"instance": "127.0.0.1:9100", "role": "platform"},
+    "176": {"instance": "192.168.12.176:9100", "role": "build"},
+}
+try:
+    METRICS_MACHINES: dict[str, dict[str, str]] = (
+        json.loads(os.environ["METRICS_MACHINES"]) if os.environ.get("METRICS_MACHINES")
+        else json.loads(json.dumps(_METRICS_MACHINES_DEFAULT))
+    )
+except ValueError:
+    METRICS_MACHINES = json.loads(json.dumps(_METRICS_MACHINES_DEFAULT))
+# 走势:近 15 分钟、15s 步长=60 点(设计稿 §3.1);滞后判定 30s(设计稿 §四)
+METRICS_WINDOW_SECONDS = 900
+METRICS_STEP_SECONDS = 15
+METRICS_STALE_SECONDS = 30
+# history 可选指标:只做有走势意义的(磁盘容量型不画走势、负载三值在卡头,设计稿 §2.2)
+METRICS_HISTORY_KINDS = ("cpu", "mem", "net_up", "net_down")
+
+# 各机采集状态缓存(进程内存):ok 时刷新,失败时供滞后宽限/降级展示;ThreadingHTTPServer
+# 下 dict 单键读写由 GIL 保证原子,足够本用途
+_METRICS_CACHE: dict[str, dict[str, Any]] = {}
+
+
+class MetricsBadRequest(ValueError):
+    """请求参数不合法(machine 不在白名单等)→ 400。"""
+
+
+class MetricsUnavailable(RuntimeError):
+    """Prometheus 服务本身不可达/响应异常 → 503,前端整页显示"监控组件未就绪"。"""
+
+
+def _metrics_promql(kind: str, instance: str) -> str:
+    """白名单 PromQL 模板(instance 精确匹配,值只来自白名单,无注入面)。
+
+    返回口径:cpu=占用率 %;mem_used/mem_total=字节;disks=按挂载点字节;net_up/net_down=字节/秒;
+    load1/5/15=原值;uptime_s=秒;cpu_cores=核数。"""
+    inst = f'instance="{instance}"'
+    if kind == "cpu":
+        return f'100 - avg(rate(node_cpu_seconds_total{{{inst},mode="idle"}}[5m])) * 100'
+    if kind == "cpu_cores":
+        return f'count(count(node_cpu_seconds_total{{{inst},mode="idle"}}) by (cpu))'
+    if kind == "mem_used":
+        return f'node_memory_MemTotal_bytes{{{inst}}} - node_memory_MemAvailable_bytes{{{inst}}}'
+    if kind == "mem_total":
+        return f'node_memory_MemTotal_bytes{{{inst}}}'
+    if kind == "mem_percent":
+        return (
+            f'(1 - node_memory_MemAvailable_bytes{{{inst}}} '
+            f'/ node_memory_MemTotal_bytes{{{inst}}}) * 100'
+        )
+    if kind == "disk_avail":
+        return f'node_filesystem_avail_bytes{{{inst},mountpoint=~"/|/opt",fstype!~"tmpfs|overlay"}}'
+    if kind == "disk_size":
+        return f'node_filesystem_size_bytes{{{inst},mountpoint=~"/|/opt",fstype!~"tmpfs|overlay"}}'
+    if kind == "net_up":
+        return f'sum(rate(node_network_transmit_bytes_total{{{inst},device!="lo"}}[5m]))'
+    if kind == "net_down":
+        return f'sum(rate(node_network_receive_bytes_total{{{inst},device!="lo"}}[5m]))'
+    if kind == "load1":
+        return f'node_load1{{{inst}}}'
+    if kind == "load5":
+        return f'node_load5{{{inst}}}'
+    if kind == "load15":
+        return f'node_load15{{{inst}}}'
+    if kind == "uptime_s":
+        return f'time() - node_boot_time_seconds{{{inst}}}'
+    raise MetricsBadRequest(f"未知指标类型: {kind}")
+
+
+def _prom_api(path: str, params: dict[str, Any]) -> dict[str, Any]:
+    """调 Prometheus /api/v1/*;网络/HTTP/状态异常一律归一为 MetricsUnavailable(503 降级)。"""
+    url = f"{PROMETHEUS_URL}{path}?{urllib.parse.urlencode(params)}"
+    request = urllib.request.Request(url, headers={"Accept": "application/json"})
+    try:
+        with urllib.request.urlopen(request, timeout=_PROM_TIMEOUT_SECONDS) as response:
+            body = json.loads(response.read().decode("utf-8"))
+    except (urllib.error.URLError, TimeoutError, OSError, ValueError) as error:
+        raise MetricsUnavailable(f"Prometheus({PROMETHEUS_URL})不可达: {error}") from error
+    if body.get("status") != "success":
+        raise MetricsUnavailable(f"Prometheus 返回异常状态: {body.get('status')}")
+    return body.get("data") or {}
+
+
+def _prom_instant(promql: str) -> float | None:
+    """即时查询取唯一序列当前值;无数据(exporter 缺该指标)返回 None,前端显示 '-'。"""
+    result = (_prom_api("/api/v1/query", {"query": promql}).get("result") or [])
+    if not result:
+        return None
+    try:
+        return float(result[0]["value"][1])
+    except (KeyError, IndexError, TypeError, ValueError):
+        return None
+
+
+def _prom_instant_map(promql: str, label: str) -> dict[str, float]:
+    """即时查询按 label 拆多序列 → {label值: 值}(磁盘按挂载点拆用)。"""
+    result = (_prom_api("/api/v1/query", {"query": promql}).get("result") or [])
+    out: dict[str, float] = {}
+    for item in result:
+        label_value = (item.get("metric") or {}).get(label)
+        try:
+            value = float(item["value"][1])
+        except (KeyError, IndexError, TypeError, ValueError):
+            continue
+        if label_value is not None:
+            out[str(label_value)] = value
+    return out
+
+
+def _prom_matrix(promql: str, start: float, end: float, step_seconds: int) -> list[list[float]]:
+    """区间查询取第一条序列 [[unix_ts, value], ...];无数据返回空表。"""
+    params = {"query": promql, "start": start, "end": end, "step": step_seconds}
+    result = (_prom_api("/api/v1/query_range", params).get("result") or [])
+    if not result:
+        return []
+    series: list[list[float]] = []
+    for point in result[0].get("values") or []:
+        try:
+            series.append([float(point[0]), float(point[1])])
+        except (IndexError, TypeError, ValueError):
+            continue
+    return series
+
+
+def metrics_machine_list() -> list[dict[str, str]]:
+    """机器清单(来自后端白名单配置,不做页面增删管理——设计稿 §3.3)。"""
+    return [
+        {"machine_id": machine_id, "instance": cfg["instance"], "role": cfg["role"]}
+        for machine_id, cfg in METRICS_MACHINES.items()
+    ]
+
+
+def _metrics_resolve_machine(query: dict[str, list[str]]) -> tuple[str, dict[str, str]]:
+    values = query.get("machine") or []
+    key = (values[0] if values else "").strip()
+    if key not in METRICS_MACHINES:
+        raise MetricsBadRequest(f"machine 参数必填且必须是 {'/'.join(METRICS_MACHINES)} 之一")
+    return key, METRICS_MACHINES[key]
+
+
+def _collect_machine(instance: str) -> dict[str, Any]:
+    """单机一轮即时查询(设计稿 §3.3 字段口径);Prometheus 不可达抛 MetricsUnavailable。"""
+    def val(kind: str) -> float | None:
+        return _prom_instant(_metrics_promql(kind, instance))
+
+    cpu = val("cpu")
+    mem_used = val("mem_used")
+    mem_total = val("mem_total")
+    net_up = val("net_up")
+    net_down = val("net_down")
+    up_raw = _prom_instant(f'up{{instance="{instance}"}}')
+    # 判定"该机可达":target up=1,或任一核心指标有值(Prometheus 刚装好时 up 也查不到,靠指标兜底)
+    reached = bool(up_raw == 1) or any(
+        value is not None for value in (cpu, mem_used, mem_total, net_up, net_down)
+    )
+    avail_map = _prom_instant_map(_metrics_promql("disk_avail", instance), "mountpoint")
+    size_map = _prom_instant_map(_metrics_promql("disk_size", instance), "mountpoint")
+    disks = [
+        {
+            "mount": mount,
+            "used": (size_map[mount] - avail_map[mount])
+            if mount in size_map and mount in avail_map else None,
+            "total": size_map.get(mount),
+        }
+        for mount in sorted(set(size_map) | set(avail_map))
+    ]
+    return {
+        "up_reached": reached,
+        "cpu_percent": cpu,
+        "cpu_cores": val("cpu_cores"),
+        "mem_used": mem_used,
+        "mem_total": mem_total,
+        "disks": disks,
+        "net_up": net_up,
+        "net_down": net_down,
+        "load": [val("load1"), val("load5"), val("load15")],
+        "uptime_s": val("uptime_s"),
+    }
+
+
+def metrics_summary(query: dict[str, list[str]] | None = None) -> dict[str, Any]:
+    """两机首屏指标一次全量返回(设计稿 §3.2:一次 fetch 渲染两卡)。
+
+    两级降级:Prometheus 服务不可达 → MetricsUnavailable(路由层 503 整页提示);
+    单机 exporter 失联(查询空/up=0) → 该机 status=error(无缓存)或 stale/ok(有缓存,
+    超过 METRICS_STALE_SECONDS=30s 判滞后),另一机照常——单机故障不拖垮整页(设计稿 §四硬要求)。"""
+    machines: list[dict[str, Any]] = []
+    for machine_id, cfg in METRICS_MACHINES.items():
+        now = time.time()
+        cached = _METRICS_CACHE.get(machine_id) or {}
+        data = _collect_machine(cfg["instance"])  # MetricsUnavailable 直接上抛 → 503
+        reached = bool(data.pop("up_reached"))
+        if reached:
+            last_success = now
+            _METRICS_CACHE[machine_id] = {"last_success": now, "payload": data}
+            status = "ok"
+        else:
+            last_success = cached.get("last_success")
+            data = cached.get("payload")
+            if not data:
+                status, last_success = "error", None
+            elif now - last_success > METRICS_STALE_SECONDS:
+                status = "stale"
+            else:
+                status = "ok"  # 30s 内抖动宽限,按正常展示(滞后阈值见设计稿 §四)
+        entry: dict[str, Any] = {
+            "machine_id": machine_id,
+            "role": cfg["role"],
+            "instance": cfg["instance"],
+            "status": status,
+            "last_success": last_success,
+        }
+        if data is None:
+            entry.update({
+                "cpu_percent": None, "cpu_cores": None, "mem_used": None, "mem_total": None,
+                "disks": [], "net_up": None, "net_down": None,
+                "load": [None, None, None], "uptime_s": None,
+            })
+        else:
+            entry.update(data)
+        machines.append(entry)
+    return {"machines": machines}
+
+
+def metrics_history(query: dict[str, list[str]]) -> dict[str, Any]:
+    """单机走势:range 目前仅 15m(P1 再扩 1h/6h),step 15s=60 点;metric 缺省返回全部走势类。"""
+    machine_id, cfg = _metrics_resolve_machine(query)
+    metric = ((query.get("metric") or [""])[0]).strip()
+    kinds = [metric] if metric else list(METRICS_HISTORY_KINDS)
+    for kind in kinds:
+        if kind not in METRICS_HISTORY_KINDS:
+            raise MetricsBadRequest(f"metric 必须是 {'/'.join(METRICS_HISTORY_KINDS)} 之一")
+    range_text = ((query.get("range") or ["15m"])[0]).strip() or "15m"
+    if range_text != "15m":
+        raise MetricsBadRequest("range 目前仅支持 15m(1h/6h 在设计稿 P1 清单)")
+    end = time.time()
+    start = end - METRICS_WINDOW_SECONDS
+    return {
+        "machine_id": machine_id,
+        "instance": cfg["instance"],
+        "range_seconds": METRICS_WINDOW_SECONDS,
+        "step_seconds": METRICS_STEP_SECONDS,
+        "metrics": {
+            kind: _prom_matrix(_metrics_promql(kind, cfg["instance"]), start, end, METRICS_STEP_SECONDS)
+            for kind in kinds
+        },
+    }
+
+# ==================== 机器监控 section 结束 ====================
 
 # 页面独立维护在 dashboard/page.html(四页签:会话/包管理/用例历史/验证码工具)
 DASHBOARD_HTML = (Path(__file__).resolve().parent / "page.html").read_text(encoding="utf-8")

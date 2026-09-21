@@ -98,8 +98,8 @@ Manage Jenkins → Nodes → New Node:
 | Credentials | Add → SSH Username with private key:用户名 `autotest`,私钥选
   **Enter directly** 粘贴 `~autotest/.ssh/jenkins_agent_key` 内容(第 3 步生成) |
 | Host Key Verification Strategy | Known hosts file Verification Strategy |
-| **JavaPath(Advanced)** | `/opt/build-env/jdk-17/bin/java` ——**必填**:176 的 java
-  在 /opt/build-env 下,agent 非登录 shell 拿不到 profile.d 注入的 PATH,不指绝对路径起不来 |
+| **JavaPath(Advanced)** | `/opt/build-env/jdk-21/bin/java` ——**必填**:176 的 java
+  在 /opt/build-env 下,agent 非登录 shell 拿不到 profile.d 注入的 PATH,不指绝对路径起不来(2.568 remoting 要求 ≥21,见勘误 8) |
 
 保存后节点应转在线(日志见 agent.jar 拉取与启动)。API 断言:
 
@@ -195,3 +195,7 @@ swan-autotest 任务同法 createItem,定义文件由流水线执行模块备料
     setHostKeyVerificationStrategy);credential store 用
     `SystemCredentialsProvider.getInstance().getStore()`。另:每次写 /tmp 既有脚本文件
     都会撞 fs.protected_regular(见坑9)——cp 到新名改完 mv 回去最省事。
+15. **POST config.xml 更新 job 必须 `Content-Type: application/xml; charset=utf-8`**——
+    不带 charset 时 Jenkins 把请求体按 ASCII 解,XML 声明里的 UTF-8 不生效,
+    中文报 "invalid XML character (Unicode: 0x89)"(0x89 是 UTF-8 续字节,文件本身
+    合法)。createItem 不受影响(按声明解析),仅 config.xml 更新路径踩此坑。

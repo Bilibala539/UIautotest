@@ -2196,13 +2196,13 @@
     function mcCardHtml(m) {
       const id = m.machine_id;
       const roleText = MC_ROLE_TEXT[m.role] || '';
-      // "数据滞后"黄态前端判定:status=error(红)之外,summary.timestamp 与本地时间差 >30s 即黄(主会话裁决 2026-09-21,后端不做 stateful last_success)
-      const stale = m.status !== 'error' && m.timestamp != null && (Date.now() / 1000 - m.timestamp) > MC_STALE_SECONDS;
+      // 卡态全部前端判定(后端无状态,主会话裁决 2026-09-21):up=false→红"失联";timestamp 与本地时间差 >30s→黄"数据滞后"
+      const stale = m.timestamp != null && (Date.now() / 1000 - m.timestamp) > MC_STALE_SECONDS;
       let dot = '<span class="mc-dot"></span>', chip = '';
-      if (m.status === 'error') { dot = '<span class="mc-dot bad"></span>'; chip = '<span class="chip mc-chip-bad">失联</span>'; }
+      if (m.up === false) { dot = '<span class="mc-dot bad"></span>'; chip = '<span class="chip mc-chip-bad">失联</span>'; }
       else if (stale) { dot = '<span class="mc-dot warn"></span>'; chip = '<span class="chip mc-chip-warn">数据滞后</span>'; }
       let headMeta = '';
-      if (m.status !== 'error') {
+      if (m.up !== false) {
         if (m.cpu_percent == null && m.mem_used_bytes == null) headMeta = '等待首次采集（约 15s）';
         else {
           const loads = (m.load || []).map(v => v == null ? '—' : v.toFixed(2)).join('/');
@@ -2211,8 +2211,8 @@
         }
       }
       let body;
-      if (m.status === 'error') {  // 仅该卡降级,另一卡照常(设计稿 §四硬要求);error=后端无任何缓存,必然从未采到
-        body = `<div class="mc-degraded">采集失联：无法连接 node_exporter（未收到过采集数据）<button class="ghost" onclick="mcPoll()">重试</button></div>`;
+      if (m.up === false) {  // 仅该卡降级,另一卡照常(设计稿 §四硬要求);后端无状态,失联指本轮未采到
+        body = `<div class="mc-degraded">采集失联：无法连接 node_exporter（本轮采集未连上）<button class="ghost" onclick="mcPoll()">重试</button></div>`;
       } else {
         const pct = m.mem_percent != null ? m.mem_percent
           : (m.mem_used_bytes != null && m.mem_total_bytes) ? m.mem_used_bytes / m.mem_total_bytes * 100 : null;

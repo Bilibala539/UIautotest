@@ -2862,10 +2862,6 @@ METRICS_STALE_SECONDS = 30
 # history 可选指标:只做有走势意义的(磁盘容量型不画走势、负载三值在卡头,设计稿 §2.2)
 METRICS_HISTORY_KINDS = ("cpu", "mem", "net_up", "net_down")
 
-# 各机采集状态缓存(进程内存):ok 时刷新,失败时供滞后宽限/降级展示;ThreadingHTTPServer
-# 下 dict 单键读写由 GIL 保证原子,足够本用途
-_METRICS_CACHE: dict[str, dict[str, Any]] = {}
-
 
 class MetricsBadRequest(ValueError):
     """请求参数不合法(machine 不在白名单等)→ 400。"""
@@ -3041,42 +3037,22 @@ def _collect_machine(instance: str) -> dict[str, Any]:
 def metrics_summary(query: dict[str, list[str]] | None = None) -> dict[str, Any]:
     """两机首屏指标一次全量返回(设计稿 §3.2:一次 fetch 渲染两卡)。
 
-    两级降级:Prometheus 服务不可达 → MetricsUnavailable(路由层 503 整页提示);
-    单机 exporter 失联 → 该机无缓存时 status=error,有缓存时 status=ok 且 timestamp
-    为最近一次采集时刻(数据继续供展示)。"数据滞后"黄态判定在前端:summary.timestamp
-    与本地时间差 >30s(主会话裁决 2026-09-21:后端不做 stateful last_success/stale 状态)。
-    两机独立捕获,单机故障不拖垮整页(设计稿 §四硬要求)。"""
+    无状态:每轮即时查询,不做进程内缓存/滞后状态机——"数据滞后"黄态由前端按
+    summary.timestamp 与本地时间差 >30s 判定(主会话裁决 2026-09-21)。
+    Prometheus 服务不可达 → MetricsUnavailable(路由层 503 整页提示);单机 exporter
+    失联 → 该机 up=false、指标为 null,另一机照常——单机故障不拖垮整页(设计稿 §四硬要求)。"""
     machines: list[dict[str, Any]] = []
     for machine_id, cfg in METRICS_MACHINES.items():
-        now = time.time()
-        cached = _METRICS_CACHE.get(machine_id) or {}
         data = _collect_machine(cfg["instance"])  # MetricsUnavailable 直接上抛 → 503
         reached = bool(data.pop("up_reached"))
-        if reached:
-            timestamp = now
-            _METRICS_CACHE[machine_id] = {"timestamp": now, "payload": data}
-            status = "ok"
-        else:
-            data = cached.get("payload")
-            timestamp = cached.get("timestamp") if data else None
-            status = "ok" if data else "error"
         entry: dict[str, Any] = {
             "machine_id": machine_id,
             "role": cfg["role"],
             "instance": cfg["instance"],
-            "status": status,
-            "timestamp": timestamp,
-            "up": reached,
+            "timestamp": time.time(),  # 本条数据产出时刻,前端据此判滞后
+            "up": reached,             # target up=1 或任一核心指标有值(兜底 up 序列未生成)
         }
-        if data is None:
-            entry.update({
-                "cpu_percent": None, "cpu_cores": None, "mem_percent": None,
-                "mem_used_bytes": None, "mem_total_bytes": None,
-                "disks": [], "net_up": None, "net_down": None,
-                "load": [None, None, None], "uptime_s": None,
-            })
-        else:
-            entry.update(data)
+        entry.update(data)  # 失联机各指标为 null、disks=[],前端按 up 分支渲染
         machines.append(entry)
     return {"machines": machines}
 

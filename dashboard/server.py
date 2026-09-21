@@ -2804,7 +2804,8 @@ try:
     )
 except ValueError:
     METRICS_MACHINES = json.loads(json.dumps(_METRICS_MACHINES_DEFAULT))
-# 走势:近 15 分钟、15s 步长=60 点(设计稿 §3.1);滞后判定 30s(设计稿 §四)
+# 走势:近 15 分钟、15s 步长=60 点(设计稿 §3.1);数据滞后阈值 30s(设计稿 §四)由前端按
+# summary.timestamp 与本地时间差判定(主会话裁决 2026-09-21),本常量仅作两端共享口径参考
 METRICS_WINDOW_SECONDS = 900
 METRICS_STEP_SECONDS = 15
 METRICS_STALE_SECONDS = 30
@@ -2827,8 +2828,8 @@ class MetricsUnavailable(RuntimeError):
 def _metrics_promql(kind: str, instance: str) -> str:
     """白名单 PromQL 模板(instance 精确匹配,值只来自白名单,无注入面)。
 
-    返回口径:cpu=占用率 %;mem_used/mem_total=字节;disks=按挂载点字节;net_up/net_down=字节/秒;
-    load1/5/15=原值;uptime_s=秒;cpu_cores=核数。"""
+    返回口径:cpu=占用率 %;mem_used/mem_total=字节;disks=按 device+挂载点字节(同设备去重);
+    net_up/net_down=字节/秒;load1/5/15=原值;uptime_s=秒;cpu_cores=核数。"""
     inst = f'instance="{instance}"'
     if kind == "cpu":
         return f'100 - avg(rate(node_cpu_seconds_total{{{inst},mode="idle"}}[5m])) * 100'
@@ -2838,7 +2839,7 @@ def _metrics_promql(kind: str, instance: str) -> str:
         return f'node_memory_MemTotal_bytes{{{inst}}} - node_memory_MemAvailable_bytes{{{inst}}}'
     if kind == "mem_total":
         return f'node_memory_MemTotal_bytes{{{inst}}}'
-    if kind == "mem_percent":
+    if kind in ("mem", "mem_percent"):  # "mem"=走势口径,占用率 %
         return (
             f'(1 - node_memory_MemAvailable_bytes{{{inst}}} '
             f'/ node_memory_MemTotal_bytes{{{inst}}}) * 100'
@@ -2887,18 +2888,25 @@ def _prom_instant(promql: str) -> float | None:
         return None
 
 
-def _prom_instant_map(promql: str, label: str) -> dict[str, float]:
-    """即时查询按 label 拆多序列 → {label值: 值}(磁盘按挂载点拆用)。"""
+def _prom_instant_map(promql: str, labels: str | tuple[str, ...]) -> dict[Any, float]:
+    """即时查询按 label 拆多序列 → {label值: 值};labels 传元组时键为元组(磁盘按 device+挂载点拆用)。"""
     result = (_prom_api("/api/v1/query", {"query": promql}).get("result") or [])
-    out: dict[str, float] = {}
+    out: dict[Any, float] = {}
     for item in result:
-        label_value = (item.get("metric") or {}).get(label)
+        metric = item.get("metric") or {}
+        if isinstance(labels, tuple):
+            key = tuple(metric.get(name) for name in labels)
+            if any(part is None for part in key):
+                continue
+        else:
+            key = metric.get(labels)
+            if key is None:
+                continue
         try:
             value = float(item["value"][1])
         except (KeyError, IndexError, TypeError, ValueError):
             continue
-        if label_value is not None:
-            out[str(label_value)] = value
+        out[key] = value
     return out
 
 
@@ -2934,7 +2942,8 @@ def _metrics_resolve_machine(query: dict[str, list[str]]) -> tuple[str, dict[str
 
 
 def _collect_machine(instance: str) -> dict[str, Any]:
-    """单机一轮即时查询(设计稿 §3.3 字段口径);Prometheus 不可达抛 MetricsUnavailable。"""
+    """单机一轮即时查询(设计稿 §3.3 字段口径,2026-09-21 契约扩展:mem/disks 带 _bytes
+    后缀原值+percent,disks 按 device 去重);Prometheus 不可达抛 MetricsUnavailable。"""
     def val(kind: str) -> float | None:
         return _prom_instant(_metrics_promql(kind, instance))
 
@@ -2948,23 +2957,29 @@ def _collect_machine(instance: str) -> dict[str, Any]:
     reached = bool(up_raw == 1) or any(
         value is not None for value in (cpu, mem_used, mem_total, net_up, net_down)
     )
-    avail_map = _prom_instant_map(_metrics_promql("disk_avail", instance), "mountpoint")
-    size_map = _prom_instant_map(_metrics_promql("disk_size", instance), "mountpoint")
-    disks = [
-        {
-            "mount": mount,
-            "used": (size_map[mount] - avail_map[mount])
-            if mount in size_map and mount in avail_map else None,
-            "total": size_map.get(mount),
-        }
-        for mount in sorted(set(size_map) | set(avail_map))
-    ]
+    # 磁盘按 (device, mountpoint) 取值:同设备多挂载点(/ 与 /opt 同盘,两台机现状)只保留
+    # 一条,优先根分区;不同设备才多行——渲染跟着数据走(设计稿 §2.2 主会话裁决),不硬凑双行
+    avail_map = _prom_instant_map(_metrics_promql("disk_avail", instance), ("device", "mountpoint"))
+    size_map = _prom_instant_map(_metrics_promql("disk_size", instance), ("device", "mountpoint"))
+    mounts_by_device: dict[str, set[str]] = {}
+    for device, mountpoint in set(avail_map) | set(size_map):
+        mounts_by_device.setdefault(device, set()).add(mountpoint)
+    disks: list[dict[str, Any]] = []
+    for device in sorted(mounts_by_device):
+        mount = "/" if "/" in mounts_by_device[device] else sorted(mounts_by_device[device])[0]
+        total = size_map.get((device, mount))
+        avail = avail_map.get((device, mount))
+        used = (total - avail) if (total is not None and avail is not None) else None
+        percent = round(used / total * 100, 1) if (used is not None and total) else None
+        disks.append({"mount": mount, "used_bytes": used, "total_bytes": total, "percent": percent})
+    disks.sort(key=lambda row: row["mount"])
     return {
         "up_reached": reached,
         "cpu_percent": cpu,
         "cpu_cores": val("cpu_cores"),
-        "mem_used": mem_used,
-        "mem_total": mem_total,
+        "mem_percent": val("mem_percent"),
+        "mem_used_bytes": mem_used,
+        "mem_total_bytes": mem_total,
         "disks": disks,
         "net_up": net_up,
         "net_down": net_down,
@@ -2977,8 +2992,10 @@ def metrics_summary(query: dict[str, list[str]] | None = None) -> dict[str, Any]
     """两机首屏指标一次全量返回(设计稿 §3.2:一次 fetch 渲染两卡)。
 
     两级降级:Prometheus 服务不可达 → MetricsUnavailable(路由层 503 整页提示);
-    单机 exporter 失联(查询空/up=0) → 该机 status=error(无缓存)或 stale/ok(有缓存,
-    超过 METRICS_STALE_SECONDS=30s 判滞后),另一机照常——单机故障不拖垮整页(设计稿 §四硬要求)。"""
+    单机 exporter 失联 → 该机无缓存时 status=error,有缓存时 status=ok 且 timestamp
+    为最近一次采集时刻(数据继续供展示)。"数据滞后"黄态判定在前端:summary.timestamp
+    与本地时间差 >30s(主会话裁决 2026-09-21:后端不做 stateful last_success/stale 状态)。
+    两机独立捕获,单机故障不拖垮整页(设计稿 §四硬要求)。"""
     machines: list[dict[str, Any]] = []
     for machine_id, cfg in METRICS_MACHINES.items():
         now = time.time()
@@ -2986,28 +3003,25 @@ def metrics_summary(query: dict[str, list[str]] | None = None) -> dict[str, Any]
         data = _collect_machine(cfg["instance"])  # MetricsUnavailable 直接上抛 → 503
         reached = bool(data.pop("up_reached"))
         if reached:
-            last_success = now
-            _METRICS_CACHE[machine_id] = {"last_success": now, "payload": data}
+            timestamp = now
+            _METRICS_CACHE[machine_id] = {"timestamp": now, "payload": data}
             status = "ok"
         else:
-            last_success = cached.get("last_success")
             data = cached.get("payload")
-            if not data:
-                status, last_success = "error", None
-            elif now - last_success > METRICS_STALE_SECONDS:
-                status = "stale"
-            else:
-                status = "ok"  # 30s 内抖动宽限,按正常展示(滞后阈值见设计稿 §四)
+            timestamp = cached.get("timestamp") if data else None
+            status = "ok" if data else "error"
         entry: dict[str, Any] = {
             "machine_id": machine_id,
             "role": cfg["role"],
             "instance": cfg["instance"],
             "status": status,
-            "last_success": last_success,
+            "timestamp": timestamp,
+            "up": reached,
         }
         if data is None:
             entry.update({
-                "cpu_percent": None, "cpu_cores": None, "mem_used": None, "mem_total": None,
+                "cpu_percent": None, "cpu_cores": None, "mem_percent": None,
+                "mem_used_bytes": None, "mem_total_bytes": None,
                 "disks": [], "net_up": None, "net_down": None,
                 "load": [None, None, None], "uptime_s": None,
             })

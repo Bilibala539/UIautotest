@@ -173,6 +173,32 @@
     .health { display:flex; gap:10px; align-items:center; padding:12px 16px; border-radius:12px; background:var(--card); border:1px solid var(--line); margin-bottom:14px; }
     .dot { width:10px; height:10px; border-radius:50%; background:var(--muted); } .dot.ok { background:var(--good); } .dot.bad { background:var(--bad); }
     @media (max-width:800px) { .stats,.form-grid { grid-template-columns:repeat(2,1fr); } .toolbar { align-items:stretch; flex-direction:column; } .table-card { overflow-x:auto; } }
+    /* ==================== 机器监控(machines,设计稿 docs/机器监控页设计.md;只用现有 token,不新增颜色) ==================== */
+    .mc-card { padding:16px 18px; margin-bottom:14px; }
+    .mc-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:6px; }
+    .mc-head-meta { color:var(--muted); font-size:13px; }
+    .mc-dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--good); margin-right:6px; }
+    .mc-dot.bad { background:var(--bad); } .mc-dot.warn { background:var(--warn); }
+    .mc-chip-bad { cursor:default; color:var(--bad); background:var(--bad-weak); }
+    .mc-chip-warn { cursor:default; color:var(--warn); background:var(--warn-weak); }
+    .mc-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+    @media (max-width:1000px) { .mc-grid { grid-template-columns:repeat(2,1fr); } }
+    .mc-cell { border:1px solid var(--line); border-radius:10px; padding:12px 14px; background:var(--card); }
+    .mc-label { color:var(--muted); font-size:12px; }
+    .mc-value { font-size:22px; font-weight:700; margin:4px 0 2px; }
+    .mc-value small { font-size:13px; font-weight:400; color:var(--muted); }
+    .mc-second { font-size:15px; font-weight:600; margin-bottom:2px; }
+    .mc-meta { color:var(--muted); font-size:12px; }
+    .mc-up { color:var(--brand); } .mc-down { color:var(--ink); }
+    .mc-spark { width:100%; height:34px; display:block; margin-top:6px; }
+    .mc-disk-row { display:flex; align-items:center; gap:8px; margin-top:14px; }
+    .mc-mount { width:52px; flex:none; color:var(--muted); font-size:12px; }
+    .mc-size { width:92px; flex:none; font-size:12px; }
+    .mc-bar { flex:1; height:8px; border-radius:999px; background:var(--neutral-weak); overflow:hidden; }
+    .mc-bar i { display:block; height:100%; border-radius:999px; }
+    .mc-pct { width:42px; flex:none; text-align:right; font-size:12px; }
+    .mc-degraded { padding:34px 14px; text-align:center; color:var(--muted); font-size:13px; }
+    .mc-degraded .ghost { margin-left:10px; }
   </style>
 </head>
 <body>
@@ -185,6 +211,7 @@
       <button data-page="suites">测试套件</button>
       <button data-page="casedefs">用例管理</button>
       <button data-page="cases">用例历史</button>
+      <button data-page="machines">机器监控</button>
       <button data-page="captcha">验证码工具</button>
     </nav>
   </header>
@@ -341,6 +368,16 @@
       <div class="health"><span class="dot" id="gw-dot"></span><span id="gw-text">检测中…</span><span class="meta" id="gw-detail"></span></div>
       <iframe id="gw-frame" src="about:blank" title="otp-gateway"></iframe>
       <p class="hint">网关页面若未加载，点 <button class="ghost" id="gw-reload" style="padding:4px 10px">重新加载</button>；取码接口由用例自动调用，本页供人工查看最近验证码。</p>
+    </section>
+    <section class="page" id="page-machines">
+      <div class="toolbar">
+        <span class="meta">167 平台机 / 176 构建机，5s 自动刷新（仅本页签激活时轮询）；打包/跑测试前瞄一眼资源余量，深度分析进 Grafana 大盘</span>
+        <span>
+          <button class="ghost" id="mc-refresh">刷新</button>
+          <button class="ghost" id="mc-grafana">Grafana 大盘</button>
+        </span>
+      </div>
+      <div id="mc-cards"><div class="empty">加载中…</div></div>
     </section>
   </main>
   <div id="bug-modal" hidden style="position:fixed;inset:0;background:rgba(15,23,42,.45);align-items:center;justify-content:center;z-index:50">
@@ -633,6 +670,7 @@
       if (btn.dataset.page === 'suites') suLoadSuites();
       if (btn.dataset.page === 'casedefs') loadCaseDefs();
       if (btn.dataset.page === 'captcha') loadGateway();
+      if (btn.dataset.page === 'machines') mcStart(); else mcStop();  // 轮询仅本页签激活期间(设计稿 §3.2)
     });
 
     async function loadRuns() {
@@ -2073,6 +2111,185 @@
     $('case-search').onclick = searchCases; $('case-q').onkeydown = e => { if (e.key==='Enter') searchCases(); };
     $('case-load').onclick = loadCaseHistory; $('case-id').onkeydown = e => { if (e.key==='Enter') loadCaseHistory(); };
     loadRuns().catch(e => { $('runs').innerHTML = `<tr><td colspan="9" class="empty">加载失败：${e}</td></tr>`; });
+
+    // ==================== 机器监控(machines,设计稿 docs/机器监控页设计.md;原生 SVG sparkline,不引图表库) ====================
+    const MC_GRAFANA_URL = 'http://192.168.12.167:3000';  // Grafana 独立大盘(部署计划 §7.5),仅入口链接不内嵌
+    const MC_POLL_MS = 5000, MC_HISTORY_MS = 30000;       // summary 5s、走势 30s 一拉(设计稿 §3.2 推荐省流量)
+    const MC_STALE_SECONDS = 30;                          // 数据滞后阈值:summary.timestamp 与本地时间差,前端判定(设计稿 §四,主会话裁决 2026-09-21)
+    const MC_ROLE_TEXT = { platform: '平台机', build: '构建机' };
+    let mcMachineIds = ['167', '176'];
+    let mcTimer = null, mcHistoryTimer = null;
+    let mcFailCount = 0, mcFailToastShown = false;
+    const mcSparkCache = {};   // machine_id -> history.metrics(60 点由后端 query_range 提供,前端不自累积)
+
+    function mcHHMM(ts) { return ts ? new Date(ts * 1000).toTimeString().slice(0, 5) : ''; }
+    function mcGB(bytes) { return bytes == null ? '—' : (bytes / 1073741824).toFixed(1) + 'G'; }
+    function mcRate(bps) {  // 字节速率自动换档(设计稿 §一:不换算 bit/Mbps,1 位小数)
+      if (bps == null) return '—';
+      if (bps >= 1048576) return (bps / 1048576).toFixed(1) + ' MB/s';
+      if (bps >= 1024) return (bps / 1024).toFixed(1) + ' KB/s';
+      return bps.toFixed(0) + ' B/s';
+    }
+    function mcUptime(seconds) {
+      if (seconds == null) return '';
+      const days = Math.floor(seconds / 86400);
+      return days >= 1 ? `已运行 ${days} 天` : `已运行 ${Math.floor(seconds / 3600)} 小时`;
+    }
+
+    function mcStart() {  // 进页签:立即拉一轮并开轮询
+      mcLoadMachines();
+      mcPoll(); mcPollHistory();
+      mcTimer = setInterval(mcPoll, MC_POLL_MS);
+      mcHistoryTimer = setInterval(mcPollHistory, MC_HISTORY_MS);
+    }
+    function mcStop() {   // 离页签:停轮询并重置失败节流(设计稿 §3.2/§四)
+      clearInterval(mcTimer); clearInterval(mcHistoryTimer);
+      mcTimer = mcHistoryTimer = null;
+      mcFailCount = 0; mcFailToastShown = false;
+    }
+
+    async function mcLoadMachines() {
+      try {
+        const resp = await fetch('/api/metrics/hosts');
+        if (!resp.ok) return;
+        const data = await resp.json();
+        const ids = (data.items || []).map(x => x.machine_id);
+        if (ids.length) mcMachineIds = ids;
+      } catch (e) { /* 清单拉不到就用默认两台 */ }
+    }
+
+    async function mcPoll() {
+      try {
+        const resp = await fetch('/api/metrics/summary');
+        if (resp.status === 503) {  // Prometheus 组件缺失/挂掉:整页降级,不白屏
+          const body = await resp.json().catch(() => ({}));
+          $('mc-cards').innerHTML = `<div class="empty">监控组件未就绪${body.detail ? '：' + safe(body.detail) : ''}</div>`;
+          return;
+        }
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        const data = await resp.json();
+        mcFailCount = 0;
+        if (mcFailToastShown) { mcFailToastShown = false; showToast('监控数据已恢复'); }
+        $('mc-cards').innerHTML = (data.machines || []).map(mcCardHtml).join('');
+        mcDrawAllSparks();
+      } catch (e) {
+        mcFailCount += 1;  // 连续失败 ≥3 次才提示一次,恢复后补成功 toast(设计稿 §四,防逐次打扰)
+        if (mcFailCount >= 3) {
+          if (!mcFailToastShown) { showToast('监控数据获取失败', true); mcFailToastShown = true; }
+          $('mc-cards').innerHTML = '<div class="empty">监控数据获取失败，稍后自动重试…</div>';
+        }
+      }
+    }
+
+    async function mcPollHistory() {
+      await Promise.all(mcMachineIds.map(async (id) => {
+        try {
+          const resp = await fetch('/api/metrics/history?machine=' + encodeURIComponent(id));
+          if (!resp.ok) return;
+          const data = await resp.json();
+          mcSparkCache[id] = data.metrics || {};
+          mcDrawAllSparks();
+        } catch (e) { /* 走势拉不到保持上次缓存 */ }
+      }));
+    }
+
+    function mcCardHtml(m) {
+      const id = m.machine_id;
+      const roleText = MC_ROLE_TEXT[m.role] || '';
+      // "数据滞后"黄态前端判定:status=error(红)之外,summary.timestamp 与本地时间差 >30s 即黄(主会话裁决 2026-09-21,后端不做 stateful last_success)
+      const stale = m.status !== 'error' && m.timestamp != null && (Date.now() / 1000 - m.timestamp) > MC_STALE_SECONDS;
+      let dot = '<span class="mc-dot"></span>', chip = '';
+      if (m.status === 'error') { dot = '<span class="mc-dot bad"></span>'; chip = '<span class="chip mc-chip-bad">失联</span>'; }
+      else if (stale) { dot = '<span class="mc-dot warn"></span>'; chip = '<span class="chip mc-chip-warn">数据滞后</span>'; }
+      let headMeta = '';
+      if (m.status !== 'error') {
+        if (m.cpu_percent == null && m.mem_used_bytes == null) headMeta = '等待首次采集（约 15s）';
+        else {
+          const loads = (m.load || []).map(v => v == null ? '—' : v.toFixed(2)).join('/');
+          headMeta = `负载 ${loads} · ${mcUptime(m.uptime_s)}`;
+          if (stale) headMeta += ` · 数据时间 ${mcHHMM(m.timestamp)}`;  // 滞后数字必须带时间戳(设计稿 §四)
+        }
+      }
+      let body;
+      if (m.status === 'error') {  // 仅该卡降级,另一卡照常(设计稿 §四硬要求);error=后端无任何缓存,必然从未采到
+        body = `<div class="mc-degraded">采集失联：无法连接 node_exporter（未收到过采集数据）<button class="ghost" onclick="mcPoll()">重试</button></div>`;
+      } else {
+        const pct = m.mem_percent != null ? m.mem_percent
+          : (m.mem_used_bytes != null && m.mem_total_bytes) ? m.mem_used_bytes / m.mem_total_bytes * 100 : null;
+        const disks = (m.disks || []).map((d) => {
+          const p = d.percent != null ? d.percent
+            : (d.used_bytes != null && d.total_bytes) ? d.used_bytes / d.total_bytes * 100 : null;
+          const color = p == null ? 'var(--muted)' : p > 90 ? 'var(--bad)' : p >= 70 ? 'var(--warn)' : 'var(--ink)';  // 阈值硬切,不搞渐变(设计稿 §五)
+          return `<div class="mc-disk-row"><span class="mc-mount">${d.mount === '/' ? '根分区' : safe(d.mount)}</span>`
+            + `<span class="mc-size">${mcGB(d.used_bytes)} / ${mcGB(d.total_bytes)}</span>`
+            + `<span class="mc-bar"><i style="width:${p == null ? 0 : p.toFixed(1)}%;background:${color}"></i></span>`
+            + `<span class="mc-pct">${p == null ? '—' : p.toFixed(0) + '%'}</span></div>`;
+        }).join('');
+        body = `<div class="mc-grid">
+          <div class="mc-cell"><div class="mc-label">CPU</div>
+            <div class="mc-value">${m.cpu_percent == null ? '—' : m.cpu_percent.toFixed(1) + '%'}</div>
+            <div class="mc-meta">${m.cpu_cores == null ? '' : m.cpu_cores + ' 核'}</div>
+            <svg class="mc-spark" id="mc-sp-${id}-cpu"></svg></div>
+          <div class="mc-cell"><div class="mc-label">内存</div>
+            <div class="mc-value">${mcGB(m.mem_used_bytes)}<small> / ${mcGB(m.mem_total_bytes)}</small></div>
+            <div class="mc-meta">${pct == null ? '—' : pct.toFixed(0) + '%'}</div>
+            <svg class="mc-spark" id="mc-sp-${id}-mem"></svg></div>
+          <div class="mc-cell"><div class="mc-label">磁盘</div>${disks || '<div class="mc-meta">—</div>'}</div>
+          <div class="mc-cell"><div class="mc-label">网络</div>
+            <div class="mc-value mc-up">${m.net_up == null ? '—' : '↑ ' + mcRate(m.net_up)}</div>
+            <div class="mc-second mc-down">${m.net_down == null ? '—' : '↓ ' + mcRate(m.net_down)}</div>
+            <svg class="mc-spark" id="mc-sp-${id}-net"></svg></div>
+        </div>`;
+      }
+      return `<div class="card mc-card"><div class="mc-head">
+        <span>${dot}<strong>${roleText} ${safe(id)}</strong>${chip}</span>
+        <span class="mc-head-meta">${headMeta}</span></div>${body}</div>`;
+    }
+
+    function drawSparkline(svgEl, series) {
+      // 原生 SVG 面积 sparkline(设计稿 §3.1):polyline 线 + 同色 8% polygon 填充;无动画无坐标轴,重绘不 tween
+      const NS = 'http://www.w3.org/2000/svg', W = 120, H = 34;
+      svgEl.setAttribute('viewBox', `0 0 ${W} ${H}`);
+      svgEl.setAttribute('preserveAspectRatio', 'none');
+      svgEl.innerHTML = '';
+      let min = Infinity, max = -Infinity, has = false;
+      series.forEach((s) => s.points.forEach((p) => {
+        if (p && p[1] != null && isFinite(p[1])) { min = Math.min(min, p[1]); max = Math.max(max, p[1]); has = true; }
+      }));
+      if (!has) return;
+      if (min === max) { min -= 1; max += 1; }  // 平线留出可视高度
+      series.forEach((s) => {
+        const pts = (s.points || []).filter((p) => p && p[1] != null && isFinite(p[1]));
+        if (pts.length < 2) return;
+        const coords = pts.map((p, i) =>
+          `${(i / (pts.length - 1) * W).toFixed(2)},${(H - 2 - (p[1] - min) / (max - min) * (H - 4)).toFixed(2)}`);
+        const poly = document.createElementNS(NS, 'polygon');
+        poly.setAttribute('points', `0,${H} ${coords.join(' ')} ${W},${H}`);
+        poly.setAttribute('fill', s.color); poly.setAttribute('fill-opacity', '0.08');
+        const line = document.createElementNS(NS, 'polyline');
+        line.setAttribute('points', coords.join(' '));
+        line.setAttribute('fill', 'none'); line.setAttribute('stroke', s.color); line.setAttribute('stroke-width', '1.5');
+        svgEl.appendChild(poly); svgEl.appendChild(line);
+      });
+    }
+
+    function mcDrawAllSparks() {  // summary 每 5s 重渲染 DOM 后按缓存重画;线色仅分类不占语义色(设计稿 §五)
+      mcMachineIds.forEach((id) => {
+        const m = mcSparkCache[id] || {};
+        const cpu = $(`mc-sp-${id}-cpu`);
+        if (cpu) drawSparkline(cpu, [{ points: m.cpu || [], color: 'var(--brand)' }]);
+        const mem = $(`mc-sp-${id}-mem`);
+        if (mem) drawSparkline(mem, [{ points: m.mem || [], color: 'var(--good)' }]);
+        const net = $(`mc-sp-${id}-net`);
+        if (net) drawSparkline(net, [
+          { points: m.net_up || [], color: 'var(--brand)' },   // 上行=brand
+          { points: m.net_down || [], color: 'var(--ink)' },   // 下行=ink
+        ]);
+      });
+    }
+
+    $('mc-refresh').onclick = () => { mcPoll(); mcPollHistory(); };
+    $('mc-grafana').onclick = () => window.open(MC_GRAFANA_URL, '_blank', 'noopener');
   </script>
 </body>
 </html>

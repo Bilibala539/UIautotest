@@ -4,9 +4,9 @@
 apk_id 规则与 build_swan_apk.py 一致:swan-<branch>-<shortsha>-<yyyymmdd>-<server_type>,
 shortsha 取 --commit 前 7 位(未传则退化为产物 sha256 前 7 位);也可 --apk-id 手动指定。
 用法:
-  python scripts/register_apk.py E:\\swan\\swan-audio-1.2.3.apk \
+  python scripts/register_apk.py /opt/swan-build/apks/swan-dev-1.2.3.apk \
       --version 1.2.3 --branch main --flavor prod --source dev
-  python scripts/register_apk.py E:\\swan\\swan-audio-1.2.3.apk --server-type formal
+  python scripts/register_apk.py swan-audio-1.2.3.apk --server-type formal
 """
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ import time
 import urllib.request
 from pathlib import Path
 
-PLATFORM_URL = os.environ.get("DASHBOARD_URL", "http://192.168.12.166:8080").rstrip("/")
+PLATFORM_URL = os.environ.get("DASHBOARD_URL", "http://127.0.0.1:8080").rstrip("/")
 
 
 def main() -> int:

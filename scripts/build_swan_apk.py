@@ -1,7 +1,9 @@
 """Swan 打包脚本(源码检出 → flutter 构建 → 平台登记)。
 
-跑在 .166 构建机上,依赖 C:\\build-env 下的构建环境(JDK/Android SDK/Flutter)
-和 E:/uiautotest/.env.local 里的 GitLab 机器人账号。
+跑在构建机(176,Ubuntu;Windows 本机开发也可直跑),依赖构建环境
+(JDK/Android SDK/Flutter,路径可用 .env.local 同名键覆盖)和 .env.local 里的
+GitLab 机器人账号。构建根目录可用环境变量 SWAN_BUILD_ROOT 覆盖,
+缺省按系统分流:Windows=E:\\swan-build / Linux=/opt/swan-build。
 用法:
   python scripts/build_swan_apk.py                    # 构建 dev 分支并登记
   python scripts/build_swan_apk.py --branch master    # 指定分支(dev/master/harmony)
@@ -30,10 +32,14 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-# 构建机固定路径约定(可用 .env.local 同名键覆盖)
+# 构建根目录:SWAN_BUILD_ROOT 环境变量优先;缺省按系统分流
+# (Windows 本机开发保持 E:\swan-build,176 构建机为 /opt/swan-build)。
+# 其余固定路径约定(JAVA_HOME/ANDROID_HOME/FLUTTER_HOME)可用 .env.local 同名键覆盖
 ENV_FILE = Path(__file__).resolve().parent.parent / ".env.local"
-SRC_DIR = Path(r"E:\swan-build\src")
-LOG_DIR = Path(r"E:\swan-build\logs")
+BUILD_ROOT = Path(os.environ.get(
+    "SWAN_BUILD_ROOT", r"E:\swan-build" if os.name == "nt" else "/opt/swan-build"))
+SRC_DIR = BUILD_ROOT / "src"
+LOG_DIR = BUILD_ROOT / "logs"
 PLATFORM_URL = os.environ.get("DASHBOARD_URL", "http://127.0.0.1:8080").rstrip("/")
 REPO_URL = "https://git.hivi.com/swan-app/swan-audio/hivi-network-flutterapp.git"
 # app 的 pubspec.yaml 以 `path: ../hivi_network_flutter_core` 相对路径引用核心仓,
@@ -288,7 +294,8 @@ def main() -> int:
 
             echo(f"== 步骤 2/3 flutter build apk --{build_mode} ==")
             env = build_env(creds)
-            flutter = str(Path(env["FLUTTER_HOME"]) / "bin" / "flutter.bat")
+            flutter = str(Path(env["FLUTTER_HOME"]) / "bin"
+                          / ("flutter.bat" if os.name == "nt" else "flutter"))
             build_start = time.monotonic()
             run([flutter, "build", "apk", f"--{build_mode}"], SRC_DIR, log, secrets, env=env)
             build_time = time.strftime("%Y-%m-%d %H:%M:%S")
@@ -301,7 +308,7 @@ def main() -> int:
         return 1
 
     # ---- 产物登记 ----
-    # APK 归档到 swan-build\apks:源码目录默认会被清理,登记的 file_path 必须指向持久位置
+    # APK 归档到 BUILD_ROOT/apks:源码目录默认会被清理,登记的 file_path 必须指向持久位置
     apk_src = SRC_DIR / "build" / "app" / "outputs" / "flutter-apk" / f"app-{build_mode}.apk"
     if not apk_src.is_file():
         echo(f"产物不存在:{apk_src}")
@@ -311,7 +318,7 @@ def main() -> int:
     if not build_time:
         # --skip-build 没有本次构建,取产物文件修改时间作为构建完成时间
         build_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(apk_src.stat().st_mtime))
-    archive_dir = Path(r"E:\swan-build\apks")
+    archive_dir = BUILD_ROOT / "apks"
     short = git_out(SRC_DIR, "rev-parse", "--short", "HEAD") if (SRC_DIR / ".git").is_dir() else "unknown"
     archive_dir.mkdir(parents=True, exist_ok=True)
     # apk_id 带 server_type 段:同分支同 commit 同日的 formal/test 两包不互相覆盖

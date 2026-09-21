@@ -42,13 +42,25 @@
   <triggers/>
   <concurrentBuild>false</concurrentBuild>
   <builders>
-    <!-- 与 Windows 还原版的差异:commit 值传递修复延续(EXTRA 累加拼接);bash 语义下变量展开不做引号解释,notes 不加字面引号 -->
+    <!-- 与 Windows 还原版的差异:commit 值传递修复延续(EXTRA 累加拼接);显式 bash shebang
+         (Jenkins 无 shebang 时走 /bin/sh=dash,pipefail 不可用);打包输出 tee 到临时文件解析
+         apk_id,成功后触发冒烟套件(M5 打包→冒烟联动,exit-0 保护,冒烟失败不影响打包结果) -->
     <hudson.tasks.Shell>
-      <command>cd /opt/uiautotest
+      <command>#!/bin/bash -xe
+set -o pipefail
+cd /opt/uiautotest
 EXTRA=""
 if [ -n "$COMMIT" ]; then EXTRA="$EXTRA --commit $COMMIT"; fi
 if [ -n "$NOTES" ]; then EXTRA="$EXTRA --notes $NOTES"; fi
-/opt/uiautotest/.venv/bin/python scripts/build_swan_apk.py --branch "$BRANCH" --server-type "$SERVER_TYPE" $EXTRA || exit 1</command>
+OUTF=/tmp/build_swan_out.$$
+/opt/uiautotest/.venv/bin/python scripts/build_swan_apk.py --branch "$BRANCH" --server-type "$SERVER_TYPE" $EXTRA 2>&amp;1 | tee "$OUTF"
+APK_ID=$(grep -oE 'apk_id=[^ ]+' "$OUTF" | head -1 | cut -d= -f2 || true)
+rm -f "$OUTF"
+if [ -n "$APK_ID" ]; then
+  /opt/uiautotest/.venv/bin/python scripts/trigger_smoke.py --suite SMKE --branch "$BRANCH" --apk-id "$APK_ID" || echo "[WARN] smoke trigger failed (打包结果不受影响)"
+else
+  echo "[WARN] 未解析到 apk_id,跳过冒烟触发"
+fi</command>
     </hudson.tasks.Shell>
   </builders>
   <publishers/>

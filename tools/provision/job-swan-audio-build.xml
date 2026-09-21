@@ -1,0 +1,55 @@
+<?xml version='1.1' encoding='UTF-8'?>
+<project>
+  <actions/>
+  <description>Swan 打包:检出(app+core 双仓)→ flutter build → sha256 → POST /api/apks 登记。由平台 POST /api/builds 触发(参数已经平台侧白名单校验,坑 15);也可手工 Build with Parameters。构建环境由脚本自行注入(JAVA_HOME/ANDROID_HOME/FLUTTER_HOME 走 build_env(),坑 11),本机需满足:机器级 py -3 + git 在 PATH、E:\uiautotest\.env.local 含 GITLAB_BOT 凭据。</description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <hudson.model.ParametersDefinitionProperty>
+      <parameterDefinitions>
+        <hudson.model.StringParameterDefinition>
+          <name>BRANCH</name>
+          <description>构建分支(dev/master/harmony)</description>
+          <defaultValue>dev</defaultValue>
+          <trim>true</trim>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>SERVER_TYPE</name>
+          <description>服务器类型(formal=正式服→release / test=测试服→profile)</description>
+          <defaultValue>test</defaultValue>
+          <trim>true</trim>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>COMMIT</name>
+          <description>指定 commit(1-40 位十六进制;留空=分支最新)</description>
+          <defaultValue></defaultValue>
+          <trim>true</trim>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>NOTES</name>
+          <description>登记备注(URL 编码串,平台 quote 传入,脚本侧 unquote 解码)</description>
+          <defaultValue></defaultValue>
+          <trim>true</trim>
+        </hudson.model.StringParameterDefinition>
+      </parameterDefinitions>
+    </hudson.model.ParametersDefinitionProperty>
+  </properties>
+  <scm class="hudson.scm.NullSCM"/>
+  <canRoam>true</canRoam>
+  <disabled>false</disabled>
+  <blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
+  <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
+  <triggers/>
+  <concurrentBuild>false</concurrentBuild>
+  <builders>
+    <!-- 与旧机 #8 控制台还原版的差异: commit 值传递修复(旧版 set EXTRA= 只给了 flag 没给值) -->
+    <hudson.tasks.BatchFile>
+      <command>cd /d E:\uiautotest
+set EXTRA=
+if not "%COMMIT%" == "" set EXTRA=%EXTRA% --commit %COMMIT%
+if not "%NOTES%" == "" set EXTRA=%EXTRA% --notes "%NOTES%"
+py -3 scripts\build_swan_apk.py --branch %BRANCH% --server-type %SERVER_TYPE% %EXTRA% || exit /b 1</command>
+    </hudson.tasks.BatchFile>
+  </builders>
+  <publishers/>
+  <buildWrappers/>
+</project>

@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import socket
 import subprocess
 import sys
 import time
@@ -30,7 +31,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-PLATFORM_URL = os.environ.get("DASHBOARD_URL", "http://192.168.12.166:8080").rstrip("/")
+# 平台机缺省地址(v3:167 平台机,dashboard 同机);DASHBOARD_URL 可覆盖
+PLATFORM_URL = os.environ.get("DASHBOARD_URL", "http://192.168.12.167:8080").rstrip("/")
 # 平台未指定 case_filter 时的默认执行目标
 DEFAULT_PYTEST_TARGET = "tests/flutter/test_case_driver.py"
 
@@ -156,7 +158,8 @@ def process_once(job_id: str = "") -> bool:
     job_id 提供时定向认领该任务(Jenkins 构建通道):任务不存在/已被认领/非
     pending 时平台 404 → 返回 False 优雅退出(不报错,构建置绿但不跑用例)。
     """
-    agent = os.environ.get("COMPUTERNAME", "local-agent")
+    # COMPUTERNAME 是 Windows 变量,Linux 回落 HOSTNAME/主机名
+    agent = os.environ.get("COMPUTERNAME") or os.environ.get("HOSTNAME") or socket.gethostname()
     payload = {"agent": agent}
     if job_id:
         payload["job_id"] = job_id

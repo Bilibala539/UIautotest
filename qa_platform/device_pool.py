@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import socket
 import subprocess
 import urllib.error
 import urllib.request
@@ -28,7 +29,7 @@ class DevicePoolError(RuntimeError):
 
 
 def _platform_url() -> str:
-    url = os.environ.get("DASHBOARD_URL", "http://192.168.12.166:8080").rstrip("/")
+    url = os.environ.get("DASHBOARD_URL", "http://192.168.12.167:8080").rstrip("/")
     return url
 
 
@@ -79,7 +80,8 @@ def register_local_devices(platform: str = "flutter") -> list[str]:
             "name": model or serial,
             "platform": platform,
             "model": model,
-            "metadata": {"host": os.environ.get("COMPUTERNAME", "")},
+            # COMPUTERNAME 是 Windows 变量,Linux 回落 HOSTNAME/主机名
+            "metadata": {"host": os.environ.get("COMPUTERNAME") or os.environ.get("HOSTNAME") or socket.gethostname()},
         })
         serials.append(serial)
     return serials

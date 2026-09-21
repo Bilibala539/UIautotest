@@ -1,7 +1,7 @@
 """打包→冒烟联动(M5 二期):swan-audio-build 打包成功后自动触发冒烟测试。
 
 用法(Jenkins swan-audio-build job 的 batch 步骤,在 build_swan_apk.py 成功后调用):
-  py -3 scripts\\trigger_smoke.py --suite SMKE --apk-id <apk_id> [--platform flutter]
+  /opt/uiautotest/.venv/bin/python scripts\\trigger_smoke.py --suite SMKE --apk-id <apk_id> [--platform flutter]
 
 流程:
   1. GET  {平台}/api/suites/<suite>/case-paths 聚合套件成员为 case_filter
@@ -16,7 +16,7 @@
 pipeline_agent --job-id,不回调任何触发动作,链路天然无环。
 
 失败保护:打包 job 的 batch 里必须用 exit 0 保护包裹本脚本——
-  py -3 scripts\\trigger_smoke.py ... || echo [WARN] smoke trigger failed
+  /opt/uiautotest/.venv/bin/python scripts\\trigger_smoke.py ... || echo [WARN] smoke trigger failed
   冒烟触发失败只打告警,不影响打包 job 的结果标记。
 
 退出码:0 成功;2 参数/套件/成员问题(套件不存在、无可用 .py 成员);
@@ -31,7 +31,7 @@ import sys
 import urllib.error
 import urllib.request
 
-DASHBOARD_URL = os.environ.get("DASHBOARD_URL", "http://192.168.12.166:8080").rstrip("/")
+DASHBOARD_URL = os.environ.get("DASHBOARD_URL", "http://192.168.12.167:8080").rstrip("/")
 
 
 def _request(method: str, path: str, payload: dict | None = None) -> tuple[int, dict]:

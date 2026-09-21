@@ -157,3 +157,19 @@ sudo systemctl daemon-reload && sudo systemctl enable --now grafana-server
 **本清单外(依赖项,不属于安装侧)**:平台"机器监控"页签 = 平台模块在 server.py 加
 /api/metrics/* 代理(仅 localhost:9090)+page.html 新页签(部署计划 §7.5 第四行);
 代理通后再补验"167 页签代理通"一条——页签能画两机 CPU/内存/磁盘/网络实时图即为端到端闭环。
+
+## 实装勘误 v1.1(2026-09-21 实装回填)
+
+1. **TUNA grafana 的 gpg.key 404**(与 jenkins 同病)但 dists 元数据在;稳妥起见直接拉 pool
+   .deb:`https://mirrors.tuna.tsinghua.edu.cn/grafana/apt/pool/main/g/grafana/grafana_12.1.0_amd64.deb`
+   (目录列表取最新)+ `apt-get install -y /tmp/xxx.deb`。prometheus/node-exporter 走 Ubuntu
+   官方仓库无障碍。
+2. **grafana-cli 改密必须以 grafana 用户跑**(root 跑会把 /var/lib/grafana 的 sqlite 弄成
+   root 属主,服务起不来 "unable to open database file: permission denied")。已踩坑后修复:
+   `chown -R grafana:grafana /var/lib/grafana /var/log/grafana` 后 start 即愈;新装机直接
+   `sudo -u grafana grafana-cli --homepath /usr/share/grafana admin reset-admin-password <pw>`。
+3. Grafana 健康检查 sleep 8s 不够(首启建库慢),改 15s 或轮询 /api/health 至 200。
+4. 密码落 .env.local 键 GRAFANA_ADMIN_PASSWORD;数据源用 provisioning 文件
+   (/etc/grafana/provisioning/datasources/prometheus.yaml)免浏览器配置,与 §3.3 浏览器口径二选一。
+5. 实测终态:prometheus targets 三条全 up(node-167=127.0.0.1:9100/node-176=192.168.12.176:9100
+   /prometheus 自监控);grafana :3000 health 200;ufw 167 增放 3000。

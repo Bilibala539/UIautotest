@@ -166,3 +166,21 @@ flutter doctor
 
 全部通过后按 jenkins-setup.md 搭 176 节点,按 jenkins-verify.md 走验证。
 **再次确认:176 不装 adb、不接手机**(部署计划 §5——adb/设备池在 167)。
+
+## 6. 实装勘误 v2.1(2026-09-21 实装回填)
+
+1. **cmdline-tools zip 是单层顶层目录**(cmdline-tools/bin/...):解压目标应为
+   `-d /opt/build-env/android/cmdline-tools`,再 mv 内层 cmdline-tools 为 latest(§3 的
+   `-d android` + 双层 mv 写法会 ENOENT)。
+2. **sdkmanager 直连 dl.google.com 不通时**:sdkmanager 本体支持 HTTP 代理语义——
+   `--no_https --proxy=http --proxy_host=mirrors.cloud.tencent.com --proxy_port=80` 走腾讯
+   镜像(脚本先 curl repository2-1.xml 探活再选路)。platforms/build-tools/platform-tools
+   全部经此装成。
+3. **Flutter 700MB tar.xz 大包会中途断流**(curl 18):必须 `--retry 5 --retry-all-errors -C -`
+   断点续传落 /tmp 固定路径。
+4. **fix-android37.py 的"已存在,跳过"用 SystemExit(字符串) 退出码是 1**——撞 set -e 会杀
+   幂等重跑;调用侧先判 `[ -f android-37/android.jar ]` 再执行。
+5. **`flutter config --android-sdk` 在 sudo -u autotest 下会读错 HOME**(某些 sudo 配置
+   env_keep HOME 时,flutter 校验路径指向调用者家目录报权限错)。构建无碍:打包 job 的
+   构建脚本自行注入 ANDROID_HOME(坑 11 口径),不依赖 flutter config 持久化。
+6. TUNA Adoptium 的 resolve 自动取最新小版本(17.0.20.1_1/21.0.12.1_1),不再钉死旧包名。

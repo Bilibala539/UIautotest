@@ -36,6 +36,7 @@ class AndroidBaseAW(AWBase):
     # (界面标志文字含匹配, 按钮/动作文字精确匹配);新弹窗=追加一条规则
     APP_POPUP_RULES: tuple[tuple[str, str], ...] = (
         ("用户隐私协议概要", "同意"),      # App 首启隐私协议
+        ("欢迎使用Swan Audio", "稍后再说"),  # 平台授权弹窗(授权需先勾选置灰,只点稍后再说)
         ("是否允许", "允许"),              # Android 系统权限弹窗
     )
 

@@ -15,6 +15,7 @@
 from __future__ import annotations
 
 import os
+import time
 from pathlib import Path
 
 import pytest
@@ -111,6 +112,20 @@ class TestCaseDriver(BaseTest):
 
     # ---------- 用例执行 ----------
 
+    def _wait_through_popups(self, key: str, timeout: float) -> bool:
+        """等待语义节点出现,失败间隙周期性处置异步弹窗。
+
+        首启弹窗(隐私/平台授权/系统权限)可能在 start_app 后数秒才异步弹出,
+        一次性前置处置会错过;先短等待,失败则处置弹窗再等,直到超时。
+        """
+        deadline = time.monotonic() + timeout
+        while True:
+            if self.aw.wait_accessibility(key, timeout=4.0):
+                return True
+            if time.monotonic() >= deadline:
+                return False
+            self.aw.dismiss_app_popups()
+
     def _normalize_login_state(self, timeout: float = 15.0) -> None:
         """登录模块前置归一化(移植自登录试点 _ensure_fresh_sms_form)。
 
@@ -124,11 +139,11 @@ class TestCaseDriver(BaseTest):
                 or self.aw.accessibility_exists(K.KEY_ERROR_TEXT)
                 or self.aw.accessibility_exists(K.KEY_CODE_FIELD)):
             self.aw.relaunch_app(self.package)
-            assert self.aw.wait_accessibility(
-                K.KEY_LOGIN_PAGE, timeout=timeout
+            assert self._wait_through_popups(
+                K.KEY_LOGIN_PAGE, timeout
             ), "重启 App 后未回到登录页"
-        assert self.aw.wait_accessibility(
-            K.KEY_USE_PASSWORD_BUTTON, timeout=timeout
+        assert self._wait_through_popups(
+            K.KEY_USE_PASSWORD_BUTTON, timeout
         ), "未停在验证码登录形态(login_use_password_button 未出现)"
 
     def _execute_case(self, case_path: Path) -> None:

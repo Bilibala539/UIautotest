@@ -21,10 +21,11 @@
     .stats { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:18px; } .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px; box-shadow:0 2px 10px rgba(23,32,51,.03); }
     .stat-label { color:var(--muted); font-size:12px; } .stat-value { font-size:25px; font-weight:700; margin-top:4px; } .table-card { padding:0; overflow:hidden; }
     table { border-collapse:collapse; width:100%; } th,td { padding:12px 15px; border-bottom:1px solid var(--line); text-align:left; white-space:nowrap; } th { color:var(--muted); background:#fafbfc; font-size:12px; font-weight:600; }
+    .num { text-align:right; font-variant-numeric:tabular-nums; }
     tbody tr.clickable { cursor:pointer; } tbody tr.clickable:hover { background:#f8f9ff; }
     .badge { border-radius:999px; padding:3px 9px; font-size:12px; font-weight:600; display:inline-block; } .passed { color:var(--good); background:#e6fcf5; } .failed,.error { color:var(--bad); background:#fff5f5; } .running { color:var(--brand); background:#edf2ff; } .skipped { color:var(--warn); background:#fff9db; }
     .empty { padding:44px; text-align:center; color:var(--muted); } .meta { color:var(--muted); font-size:13px; }
-    .detail { margin-top:18px; display:none; } .detail h2 { margin:0 0 14px; font-size:18px; } .detail-head { display:flex; justify-content:space-between; gap:12px; align-items:start; }
+    .detail-head { display:flex; justify-content:space-between; gap:12px; align-items:start; } #run-drawer h2 { margin:0 0 14px; font-size:18px; }
     .case { border:1px solid var(--line); border-radius:10px; margin:10px 0; padding:13px 15px; background:#fff; } .case summary { cursor:pointer; list-style:none; } .case summary::-webkit-details-marker { display:none; } .case summary::before { content:"▸"; margin-right:8px; color:var(--muted); } .case[open] summary::before { content:"▾"; }
     pre { white-space:pre-wrap; word-break:break-word; background:#f7f8fa; border-radius:8px; padding:12px; max-height:300px; overflow:auto; } .case-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:12px 0; color:var(--muted); font-size:12px; }
     .form-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:10px; } .form-grid label { font-size:12px; color:var(--muted); display:block; margin-bottom:4px; } .form-grid input { width:100%; } .form-actions { grid-column:1/-1; display:flex; gap:10px; align-items:center; }
@@ -243,8 +244,22 @@
         <div class="card"><div class="stat-label">最近一次状态</div><div class="stat-value" id="latest-status">-</div></div>
         <div class="card"><div class="stat-label">最近一次耗时</div><div class="stat-value" id="latest-duration">-</div></div>
       </section>
-      <section class="card table-card"><table><thead><tr><th>执行 ID</th><th>平台</th><th>包体</th><th>设备</th><th>状态</th><th>通过率</th><th>用例数</th><th>耗时</th><th>开始时间</th></tr></thead><tbody id="runs"><tr><td colspan="9" class="empty">加载中…</td></tr></tbody></table></section>
-      <section class="card detail" id="detail"><div class="detail-head"><div><h2 id="detail-title"></h2><div class="meta" id="detail-meta"></div><div id="detail-actions" hidden><button class="ghost" id="zt-sync-btn">回写禅道测试单</button><span class="meta" id="zt-sync-hint"></span></div></div><button class="ghost" id="close-detail">关闭</button></div><div id="cases"></div></section>
+      <section class="card table-card"><table><thead><tr><th>执行 ID</th><th>平台</th><th>包体</th><th>设备</th><th>状态</th><th class="num">通过率</th><th>用例数</th><th>耗时</th><th>开始时间</th></tr></thead><tbody id="runs"><tr><td colspan="9" class="empty">加载中…</td></tr></tbody></table></section>
+      <div id="run-drawer" hidden>
+        <div class="cd-drawer-mask" onclick="closeRunDrawer()"></div>
+        <aside class="cd-drawer">
+          <div class="detail-head">
+            <div>
+              <div class="cd-drawer-id" id="detail-run-id"></div>
+              <h2 id="detail-title"></h2>
+              <div class="meta" id="detail-meta"></div>
+              <div id="detail-actions" hidden><button class="ghost" id="zt-sync-btn">回写禅道测试单</button><span class="meta" id="zt-sync-hint"></span></div>
+            </div>
+            <button class="ghost" id="close-detail">关闭</button>
+          </div>
+          <div id="cases"></div>
+        </aside>
+      </div>
     </section>
     <section class="page" id="page-apks">
       <section class="card" style="margin-bottom:16px">
@@ -389,7 +404,7 @@
     </section>
     <section class="page" id="page-machines">
       <div class="toolbar">
-        <span class="meta">167 平台机 / 176 构建机，5s 自动刷新（仅本页签激活时轮询）；打包/跑测试前瞄一眼资源余量，深度分析进 Grafana 大盘</span>
+        <span class="meta">167 平台机 / 176 构建机，1s 自动刷新（仅本页签激活时轮询）；打包/跑测试前瞄一眼资源余量，深度分析进 Grafana 大盘</span>
         <span>
           <button class="ghost" id="mc-refresh">刷新</button>
           <button class="ghost" id="mc-grafana">Grafana 大盘</button>
@@ -398,7 +413,7 @@
       <div id="mc-cards"><div class="empty">加载中…</div></div>
     </section>
   </main>
-  <div id="bug-modal" hidden style="position:fixed;inset:0;background:rgba(15,23,42,.45);align-items:center;justify-content:center;z-index:50">
+  <div id="bug-modal" hidden style="position:fixed;inset:0;background:rgba(15,23,42,.45);align-items:center;justify-content:center;z-index:63">
     <div style="background:var(--bg,#fff);border-radius:12px;padding:20px 22px;width:min(680px,92vw);max-height:88vh;overflow:auto">
       <h3 style="margin:0 0 10px">禅道建单（预填草稿 · 提交前请人工确认）</h3>
       <p class="meta" id="bug-draft-meta" style="margin:0 0 10px"></p>
@@ -720,14 +735,17 @@
       const tbody = $('runs'); tbody.innerHTML = '';
       if (!runs.length) { tbody.innerHTML = '<tr><td colspan="9" class="empty">暂无执行记录</td></tr>'; return; }
       runs.forEach(r => { const row = document.createElement('tr'); row.className = 'clickable';
-        row.innerHTML = `<td>${safe(r.run_id)}</td><td>${safe(r.platform.toUpperCase())}</td><td>${safe(r.apk_id||'-')}</td><td>${safe(r.device||'-')}</td><td>${badge(r.status)}</td><td>${r.pass_rate.toFixed(1)}%</td><td>${r.total_cases}</td><td>${formatDuration(r.duration_seconds)}</td><td>${safe(formatDate(r.started_at))}</td>`;
+        row.innerHTML = `<td>${safe(r.run_id)}</td><td>${safe(r.platform.toUpperCase())}</td><td>${safe(r.apk_id||'-')}</td><td>${safe(r.device||'-')}</td><td>${badge(r.status)}</td><td class="num"${r.total_cases ? ` style="color:${rateColor(r.pass_rate)}"` : ''}>${r.total_cases ? r.pass_rate.toFixed(1)+'%' : '-'}</td><td>${r.total_cases}</td><td>${formatDuration(r.duration_seconds)}</td><td>${safe(formatDate(r.started_at))}</td>`;
         row.onclick = () => showRun(r.run_id); tbody.appendChild(row); });
     }
+    function rateColor(p) { return p >= 90 ? 'var(--good)' : p < 60 ? 'var(--bad)' : 'var(--ink)'; } // 6.1 通过率三档:数字文字色不动底
+    function closeRunDrawer() { $('run-drawer').hidden = true; }
     async function showRun(runId) {
       const run = await (await fetch('/api/runs/' + encodeURIComponent(runId))).json();
-      $('detail').style.display = 'block';
-      $('detail-title').textContent = `${run.run_id} · ${run.platform.toUpperCase()} ${statusText[run.status]||run.status}`;
-      $('detail-meta').textContent = `开始：${formatDate(run.started_at)}　结束：${formatDate(run.ended_at)}　耗时：${formatDuration(run.duration_seconds)}　通过率：${run.pass_rate.toFixed(1)}%　包体：${run.apk_id||'-'}`;
+      $('run-drawer').hidden = false;
+      $('detail-run-id').textContent = run.run_id;
+      $('detail-title').textContent = `${run.platform.toUpperCase()} ${statusText[run.status]||run.status}`;
+      $('detail-meta').textContent = `设备：${run.device||'-'}　开始：${formatDate(run.started_at)}　结束：${formatDate(run.ended_at)}　耗时：${formatDuration(run.duration_seconds)}　通过率：${run.pass_rate.toFixed(1)}%　包体：${run.apk_id||'-'}`;
       // M6 回写禅道测试单:完成态才显示(running 隐藏),已回写过则按钮转"更新"语义
       const ztBtn = $('zt-sync-btn');
       $('detail-actions').hidden = (run.status === 'running');
@@ -1808,7 +1826,7 @@
     // 抽屉/弹窗统一 Esc 关闭(UI 规范 4.3):依次看哪些开着
     document.addEventListener('keydown', e => {
       if (e.key !== 'Escape') return;
-      [['cfm-modal', () => cfmSettle(false)], ['cd-drawer', closeCaseDefDrawer], ['cd-modal', cdCloseForm],
+      [['cfm-modal', () => cfmSettle(false)], ['run-drawer', closeRunDrawer], ['cd-drawer', closeCaseDefDrawer], ['cd-modal', cdCloseForm],
        ['su-drawer', suCloseDrawer], ['cd-mods-modal', () => { $('cd-mods-modal').hidden = true; }],
        ['cd-imp-modal', () => { $('cd-imp-modal').hidden = true; }],
        ['su-modal', () => { $('su-modal').hidden = true; }]].forEach(([id, close]) => {
@@ -2155,7 +2173,7 @@
     }
     $('gw-reload').onclick = () => { if (gatewayUrl) $('gw-frame').src = gatewayUrl + '/'; };
 
-    $('refresh').onclick = loadRuns; $('platform').onchange = loadRuns; $('filter-apk').onchange = loadRuns; $('close-detail').onclick = () => $('detail').style.display = 'none';
+    $('refresh').onclick = loadRuns; $('platform').onchange = loadRuns; $('filter-apk').onchange = loadRuns; $('close-detail').onclick = closeRunDrawer;
     $('build-submit').onclick = buildApk; // 主动打包(登记弹窗已移除:自动登记为主,手动兜底走 scripts/register_apk.py)
     $('case-search').onclick = searchCases; $('case-q').onkeydown = e => { if (e.key==='Enter') searchCases(); };
     $('case-load').onclick = loadCaseHistory; $('case-id').onkeydown = e => { if (e.key==='Enter') loadCaseHistory(); };

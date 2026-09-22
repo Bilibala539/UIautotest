@@ -129,7 +129,7 @@
 - **Semantics key 实测可用**：`login_phone_field` / `login_submit_button` / `login_agreement_checkbox` / `login_use_password_button` / `login_use_sms_button` / `login_password_field` / `login_error_text` / `login_code_field` / `login_area_code_button` 均已在真机 dump 中验证存在，与上表 HiviTestIds 一致。
 - **`SWAN_LOGIN_SUBMIT_BTN` 是置灰态模板**：图像模板只能做存在性断言；实际点击必须走 key `login_submit_button`。
 - **坑 5（4 位自动提交）已由本机实现确认**：`SwanBusiness.login_by_sms()` 即利用"4 位填满自动提交"设计——网关取码后依次填入，无需手动点提交。
-- **验证码获取走 otp-gateway**：真机测试不经外部 MXNZP（坑 1 与验证码下发无关）；路径 `https://testnetwork.hivi.com/api/user/captcha/mockCode?tel=`，网关部署在 .166:18080，pull 模式取码。
+- **验证码获取走 otp-gateway**：真机测试不经外部 MXNZP（坑 1 与验证码下发无关）；路径 `https://testnetwork.hivi.com/api/user/captcha/mockCode?tel=`，网关部署在 .167:18080，pull 模式取码。
 - **未登录态获取方式**：OPPO 无 `pm clear` 权限 → 拿未登录态**只能走登出流程** `logout_if_needed()`；登录态跨进程持久。
 - **测试账号在 `.env.local`**（SWAN_PHONE / 密码），conftest 自动加载；与源机"任务卡按需下发"的凭据纪律等效，但登记于 credentials-registry.md。
 - **密码登录端到端已通**：`test_swan_password_login.py` 走 `login_password_field` + `login_error_text` 断言，密码错误提示为常驻语义节点，可无障碍键断言（呼应"错误处理路径"节的 `_LoginInlineError`）。

@@ -37,7 +37,7 @@ description: 启动 agent 团队（agent teams teammate 形态）的多模式入
 
 | 中文名（subagent_type / name） | 原英文名 | 职责一句话 |
 |---|---|---|
-| 打包构建 | swan-build-jenkins | .166 构建环境 + build_swan_apk.py 打包脚本，衔接 Jenkins 打包 job |
+| 打包构建 | swan-build-jenkins | .176 构建环境(/opt/build-env)+ build_swan_apk.py 打包脚本,衔接 Jenkins 打包 job(master@.167:8082,agent@.176) |
 | 用例管理 | swan-case-mgmt | 用例域全栈：case_defs/test_suites/suite_cases/modules 表与 CRUD、用例页+套件页、sync_cases.py 同步 |
 | 流水线执行 | swan-pipeline | pipeline_jobs、触发通道、pipeline_agent.py 执行 agent、设备池调度 |
 | 流水线调度 | swan-pipeline-ui | pipeline_configs 配置/CRUD/next_run_at、调度器、流水线页签 |
@@ -81,12 +81,12 @@ description: 启动 agent 团队（agent teams teammate 形态）的多模式入
 
 6. **汇报用户**：简报表逐行列出：中文名、职责、状态（就绪/失败）。并说明：这是常驻 teammate 团队（窗口底部 agent 面板可见、成员间可互发消息、每个成员可自开子 agent），并附"怎么用"示例。
 
-### .166 在本模式中的角色（teammate 一律不碰 .166）
+### 运行面(.167 平台机 / .176 打包机)在本模式中的角色(teammate 一律不碰运行面)
 
-- **本机 = 开发面**：6 个开发 teammate 只改本地仓库代码，自测用临时端口+临时 db；产品设计师只产出 docs/、不碰代码；硬性纪律（见 docs/agent团队名册.md）：不 ssh .166、不杀进程、不动计划任务、不提交 git——部署与提交由主会话统一做
-- **.166 = 运行面，主会话专属操作**：验收后走部署节奏 `commit → push → .166 pull → 杀 8080 指定 PID → schtasks /run TestHistoryDashboard（跑两次）→ 验证 8080 监听`；凭据只在 .166 的 .env.local；.166 绝不 kill 全部 pythonw，只杀指定 PID
-- **.166 的 Claude（分调度）**：主会话按需经 remote-166 skill 派任务（scp task.txt → ClaudeTaskWindow 弹窗 → 轮询 result.txt），一次一个任务；它是独立会话，不在本团队里
-- **打包联调中转**：打包构建 teammate 的真打包验证发生在 .166——默认由主会话中转执行并回传结果；经用户明确授权后可放开直连，但仅限构建命令（`py -3`），仍禁止碰进程/计划任务/8080 服务
+- **本机 = 开发面**：6 个开发 teammate 只改本地仓库代码，自测用临时端口+临时 db；产品设计师只产出 docs/、不碰代码；硬性纪律（见 docs/agent团队名册.md）：不 ssh 运行面(.167/.176)、不杀进程、不动 systemd、不提交 git——部署与提交由主会话统一做
+- **.167 = 平台机 = 运行面,主会话专属操作**：验收后走部署节奏 `commit → push → ssh autotest@192.168.12.167 git -C /opt/uiautotest pull --rebase → sudo systemctl restart uiautotest-dashboard → curl 验证 8080`；凭据只在 .167 的 /opt/uiautotest/.env.local;运行面绝不 kill 全部进程,只杀指定 PID
+- **(已废,随 .166 退网).166 的 Claude 分调度**：主会话按需经 remote-166 skill 派任务（scp task.txt → ClaudeTaskWindow 弹窗 → 轮询 result.txt），一次一个任务；它是独立会话，不在本团队里
+- **打包联调中转**：打包构建 teammate 的真打包验证发生在 .176(Jenkins swan-audio-build job 在打包机执行)——默认由主会话中转执行并回传结果;经用户明确授权后可放开直连,但仅限构建命令,仍禁止碰进程/systemd/8080 服务
 
 ### 纪律
 

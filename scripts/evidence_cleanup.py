@@ -34,9 +34,9 @@ PLATFORM_URL = ""
 def _platform_url() -> str:
     url = PLATFORM_URL
     if not url:
-        # scripts/ 下无配置时读环境变量,最后退回 .166 默认
+        # scripts/ 下无配置时读环境变量,最后退回 .167 默认
         import os
-        url = os.environ.get("DASHBOARD_URL", "http://192.168.12.166:8080")
+        url = os.environ.get("DASHBOARD_URL", "http://192.168.12.167:8080")
     return url.rstrip("/")
 
 

@@ -1,6 +1,6 @@
 """Nightly 触发器(M5 二期套件化):nightly 走平台流水线通道的引导与切换工具。
 
-M5 二期前:.166 计划任务 NightlyPipelineTrigger 每日 01:33 调本脚本直接 POST
+M5 二期前:旧 .166 计划任务 NightlyPipelineTrigger 每日 01:33 调本脚本直接 POST(历史);现 .167 由 systemd nightly-pipeline-trigger.timer 调本脚本 --legacy-trigger
 /api/pipeline/trigger(现 --legacy-trigger 模式,固定跑 tests/flutter/test_case_driver.py)。
 M5 二期起:nightly 改按"全量回归套件"触发——建套件 + pipeline_config(daily 01:33),
 由常驻调度器 scripts/pipeline_scheduler.py 到点触发;本脚本改为幂等引导与切换工具。
@@ -25,7 +25,7 @@ knowledge/swan/cases/driver/ 开头的用例(YAML 驱动自动用例);套件已�
 → 执行 agent 回落默认 target=tests/flutter/test_case_driver.py,跑全部
 driver YAML,与旧 nightly 覆盖一致。
 
-部署:bootstrap/enable 由主会话在 .166 执行一次;本脚本不建计划任务。
+部署:bootstrap/enable 由主会话在 .167 执行一次;本脚本不建计划任务。
 """
 from __future__ import annotations
 
@@ -42,7 +42,7 @@ PLATFORM_URL = os.environ.get("DASHBOARD_URL", "http://127.0.0.1:8080").rstrip("
 SUITE_ID = "SUITE-NIGHTLY-REGRESSION"
 SUITE_NAME = "Nightly 全量回归"
 CONFIG_ID = "NIGHTLY-REGRESSION"
-NIGHTLY_TIME = "01:33"  # 与原计划任务一致(.166 本地时间)
+NIGHTLY_TIME = "01:33"  # 与原计划任务一致(原 .166 计划任务口径,.167 CST 同时刻)
 CASE_PREFIX = "knowledge/swan/cases/driver/"  # YAML 驱动自动用例(sync_cases 的 auto 口径;执行时聚合无 .py 成员回落默认 target=driver,等效旧 nightly)
 
 # 旧通道参数(回滚保险,保持原计划任务行为不变)
@@ -175,7 +175,7 @@ def legacy_trigger() -> int:
 
 
 def main() -> int:
-    # .166 控制台可能非 UTF-8 代码页,统一输出编码防中文乱码
+    # (历史坑:.166 Windows 控制台非 UTF-8;.167 Linux 无此虑,保留无害)统一输出编码防中文乱码
     for stream in (sys.stdout, sys.stderr):
         try:
             stream.reconfigure(encoding="utf-8", errors="replace")

@@ -29,7 +29,7 @@
 
 ## 登录态预置规则(人机交接)
 
-- 测试账号在 `.env.local`(SWAN_PHONE 等),conftest 自动加载;验证码走 otp-gateway(.166:18080)自动取码,不需人工给码
+- 测试账号在 `.env.local`(SWAN_PHONE 等),conftest 自动加载;验证码走 otp-gateway(.167:18080)自动取码,不需人工给码
 - 第三方登录态(微信/微博)需人预置;被踢线任务标 `BLOCKED: credential-required` 挂起等人,不计测试失败
 
 ## 源机事故记录(留档,规则继承)

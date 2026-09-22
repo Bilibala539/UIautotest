@@ -16,7 +16,7 @@ Swan 知识库是 Swan App(Android / Flutter,`com.swan.network`)的**已验证 U
 
 | 项 | 值 |
 |---|---|
-| 仓库 | uiautotest(工作副本在 .166 `E:\uiautotest`,远端 GitLab) |
+| 仓库 | uiautotest(工作副本:各开发机+平台机 .167 `/opt/uiautotest`,远端 GitLab) |
 | KB 根目录 | `E:\uiautotest\knowledge\swan\` |
 | 兄弟知识库 | `knowledge/web`(TidiTree Web)、`knowledge/android`(音箱屏 Android)——**严禁跨库引用路由/定位器/页面结构** |
 | 测试对象 | 真机 c0614b6a(OPPO,Android 11,720x1600),app v5.3.0 |

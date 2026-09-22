@@ -1,4 +1,4 @@
-# download_kb_model.ps1 — 从 modelscope 下载 embedding 模型到 .166 本地
+# download_kb_model.ps1 — 从 modelscope 下载 embedding 模型到本机本地(原 .166 已退网)
 $ErrorActionPreference = "Stop"
 $dst = "E:\uiautotest\models\paraphrase-multilingual-MiniLM-L12-v2"
 New-Item -ItemType Directory -Force -Path "$dst\1_Pooling" | Out-Null

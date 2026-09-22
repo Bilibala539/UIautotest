@@ -11,7 +11,7 @@
 
 触发双通道:
   - webhook:平台 POST /api/pipeline/trigger(供 git.hivi.com webhook 调用)
-  - nightly:.166 计划任务每日凌晨 POST trigger(见 deploy 注释)
+  - nightly:nightly-pipeline-trigger.timer(.167 systemd,2026-09-22 起)每日 01:33 POST trigger(见 deploy 注释)
 
 用法:
   python scripts/pipeline_agent.py --once      # 领一个任务执行完退出

@@ -3,7 +3,7 @@
 供业务层（utils/aw/business/）轮询验证码，用例层不应直接使用。
 网关地址通过环境变量 ``SWAN_OTP_GATEWAY`` 注入，例如::
 
-    SWAN_OTP_GATEWAY=http://192.168.12.166:18080
+    SWAN_OTP_GATEWAY=http://192.168.12.167:18080
 
 网关为 pull 模式：调用 :meth:`OtpClient.get_code` 时，网关会主动请求
 开发提供的 ``/user/captcha/mockCode`` 接口取码，客户端只需轮询即可。
@@ -20,7 +20,7 @@ from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_GATEWAY_URL = "http://192.168.12.166:18080"
+DEFAULT_GATEWAY_URL = "http://192.168.12.167:18080"
 
 
 class OtpClientError(RuntimeError):

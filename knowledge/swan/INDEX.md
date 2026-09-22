@@ -32,7 +32,7 @@
 - **已完成**:五域知识迁入;INDEX.md 合并入口;模块卡片-login 元素层校注;设备池本地化(荣耀 JDY-AN00 在线/OPPO c0614b6a 未连/AVD 未启用);审计日志、session-state 已由本侧续写。
 - **已完成**:login 正向 14 条逐条评级(cases/login/TRANSLATION-NOTES.md),5 条翻译落地 `tests/flutter/test_swan_login_positive.py`,SwanBusiness 新增 3 个业务方法;数据映射统一走 .env.local。
 - **进行中**:真机执行 5 条待跑;逆向 33 条、搜索/全回归翻译待铺开;看板接活数据、反馈包回传源机待做。
-- **本机差异**:真机荣耀 JDY-AN00(Android 14,720×1612)在线;验证码走 otp-gateway(.166:18080)自动取码;账号在 `.env.local`。
+- **本机差异**:真机荣耀 JDY-AN00(Android 14,720×1612)在线;验证码走 otp-gateway(.167:18080)自动取码;账号在 `.env.local`。
 - **总览页**(给同事):`E:\UIAutotest\docs\Swan测试工程总览.html`。
 
 ## 检索

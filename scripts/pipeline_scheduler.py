@@ -16,7 +16,7 @@ E:/uiautotest/logs/pipeline_scheduler.log(append),不依赖控制台。
   python scripts/pipeline_scheduler.py --once    # 扫一轮即退出(调试用)
   python scripts/pipeline_scheduler.py --loop 10 # 自定义轮询间隔
 
-部署(主会话执行,本脚本不建计划任务):.166 上 pythonw 常驻即可。
+部署(主会话执行,本脚本不建计划任务):以 systemd uiautotest-scheduler.service 常驻于 .167(2026-09-22 起)。
 """
 from __future__ import annotations
 

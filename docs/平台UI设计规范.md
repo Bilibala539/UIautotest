@@ -178,9 +178,12 @@
 - 按钮尺寸统一:表单/工具栏 `padding:8px 14px`,行内/次要 `padding:5px 10px; font-size:12px`(沿用 `.cd-actions`)。禁止每处各调一套 padding。
 - 禁止渐变按钮、禁止图标+长文字混排按钮。
 - Primary"每区块 1 个"的裁定(2026-09-20,合并包管理页):同屏可有"打包"+双卡"下载"三个 Primary——分属不同决策区块、动作类型不同(发起构建 vs 获取产物),合规;真正的红线是**同一决策区块内不得有两个 Primary**,列表行内操作永远 ghost/Danger 文字链,不因本例外破例。新增 Primary 前先对照本条。
-- `.link-danger` 危险文字链(无底,`--bad` 文字,hover 加 `--bad-weak` 底)已在包管理页落地,作为全站 Danger 层样板;其余页签的删除按钮**随各页签确认弹窗改造(6.3/6.4/6.5)顺路替换,不单开专项**。
+- ~~`.link-danger` 危险文字链~~(**2026-09-22 退役**):行内删除已由 `.icon-btn.danger` 全面取代(eb8d8cf,全站 0 残留),确认弹窗流程不变;本条留档,新代码勿再引入。
+- 行内图标按钮 `.icon-btn`(2026-09-22 用户指令收编):28x26 定宽 inline-flex 居中,内联 SVG 14px/stroke-width:2/描边 currentColor/fill:none,圆角 8px 沿用全局 button;变体 `.danger`=`--bad` 字+hover `--bad` 边;disabled 透明度 .45+not-allowed。**图标集白名单 6 枚**(24 viewBox 线性描边风格,统一在 page.html `ICON` 常量):edit/trash/play/download/qr/log——新增图标先报设计审;不做图标字体、不引图标库(与"明确不做"清单一致),内容区不加装饰图标;图标按钮**必须带 title**(无文字,靠 title 说明+可及性);有引用不可删的场景用 disabled+title 说明(模块删除先例)。
 
 ### 4.2 表格
+
+- **全站列宽拖拽**(2026-09-22 推广至全部列表表,用户指令):交互与用例管理 cd-table 同款——拖某列右缘,左缘不动、其他列不动;统一实现 `makeTableResizable(tbl, storeKey)`:懒锁定(有 localStorage 存档直接转 fixed+colgroup 布局,无则保持自动布局、首次拖动再锁,防拖拽跳动),列宽限 56-1200px,各表独立 storeKey(tw-runs/tw-dl/tw-plcfg/tw-pljob/tw-su/tw-mods);cd-table 用例管理表自带实现,不重复绑定。`.table-card` 放开 overflow-x(修流水线任务列表被列宽截断)。
 
 - 结构:`.card.table-card`(0 padding)+ 表头 `#fafbfc` 底 12px muted(现状保留)。
 - 可点击行(进详情):整行 `cursor:pointer` + hover 变色,**不在行里放"查看"按钮**;操作列除外。
@@ -325,13 +328,14 @@
 > 背景:用户反馈网关表格页"裸 HTML 感"。两层都是自己的代码:平台侧骨架(dashboard/page.html)+网关内页本体(otp_gateway `_build_web_page`,既内嵌又独立开 :18080)。功能全保留:健康检测/重新加载/iframe/手机号脱敏/5 分钟过期语义/2s 自动刷新/空态。
 
 **A. 平台侧骨架(page.html)**
-- 健康条与 iframe **合并进同一张卡**(6.7 旧 P1 落地):`.captcha-card` 即 `.card` 且 `padding:0;overflow:hidden`;卡头 `.captcha-head{display:flex;gap:10px;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line);background:#fafbfc}`,内容=状态点+`gw-text`+`gw-detail`(flex:1,13px muted)+ghost"重新加载"(行内档 5px 10px/12px,从卡外 hint 移入卡头;gw-dot/gw-text/gw-detail/gw-reload 的 id 全保留,JS 兼容)。
+- 健康条与 iframe 合并进同一张卡(6.7 旧 P1)→**2026-09-22 二次迭代(用户指令 eb8d8cf):横幅弱化为右上角胶囊**——`.captcha-card` 加 `position:relative` 作锚点,`.gw-corner{position:absolute;top:10px;right:12px;z-index:2;display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted);background:rgba(255,255,255,.92);border:1px solid var(--line);border-radius:999px;padding:2px 6px 2px 10px}`,内容=状态点+`gw-text`+ghost"重新加载"(2px 8px/11px);**gw-detail 详情字段删除**(胶囊无处安放长串,健康状态 iframe 内容自明,全站无残留引用);gw-dot/gw-text/gw-reload id 保留。页签名改**"短信验证码"**。原 .captcha-head 卡头条方案作废。
 - iframe:`width:100%;height:clamp(480px,calc(100vh - 200px),780px);border:0;display:block`——去自身边框圆角(由卡承担),固定 640px 与旧 P1 calc 口径一并作废;clamp 上限防超宽屏过高。
 - 网关不可达:iframe `hidden` + `.gw-offline{padding:44px;text-align:center;color:var(--muted);font-size:13px}` 显示"验证码网关不可达:{detail}",恢复后复原(原异常态=白框,是本次要解决的体验缺口)。
 - 卡外 hint 一行:"取码接口由用例自动调用,本页供人工查看最近验证码。"
 
 **B. 网关内页(_build_web_page,样式自包含)**
 - CSP 已允许内联(`style-src/script-src 'unsafe-inline'`),全部样式内联,零外部依赖。
+- 2026-09-22 二次迭代:内页去 h1 标题与 `.card` 容器框(iframe 外层已是白卡,内页再套即框中框),验证码列表直接成主体,otp-head 只留 meta 一行。**遗留一项待修(终审发现)**:body 仍 `--bg` 灰底而 table/td 无白底——表格底色层级丢失、行 hover(`--hover` 与 `--bg` 几乎同色)失效,改 `body{background:var(--card)}` 一行即修;`.card` 类定义(522 行)已成死代码可删。
 - 内联精简 token(`:root`,值与平台一致):`--ink:#172033 --muted:#667085 --line:#e6e9ef --bg:#f5f7fb --card:#fff --good:#087f5b --good-weak:#e6fcf5 --warn:#ad6800 --warn-weak:#fff9db --neutral-weak:#f1f3f8 --hover:#f8f9ff`;字体栈同平台 body。
 - 页头:h1 17px/600 + meta 12px muted("每 2 秒自动刷新 · 显示最近取码记录(含已消费/已过期)")——原文案"仅显示未消费且未过期"与 recent 全量返回矛盾,一并修正。
 - 表格:容器 `.card`(白底/1px line/12px 圆角/阴影一档/overflow:hidden);th `8px 12px` 12px/600 muted #fafbfc 底(**弃 #eef2ff 蓝紫,非平台 token**);td `9px 12px` 13px(3.2 紧凑档);行 hover `--hover`;无斑马纹。

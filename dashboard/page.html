@@ -334,7 +334,7 @@
         <span class="meta">套件是自动化用例的有序集合（seq 即执行顺序），供流水线配置（suite_id）与执行触发使用</span>
         <button class="primary" id="su-new">＋ 新建测试套件</button>
       </div>
-      <section class="card table-card"><table><thead><tr><th>套件 ID</th><th>名称</th><th>类型</th><th>用例数</th><th>创建时间</th><th>操作</th></tr></thead><tbody id="su-rows"><tr><td colspan="6" class="empty">加载中…</td></tr></tbody></table></section>
+      <section class="card table-card"><table><thead><tr><th>名称</th><th>类型</th><th>用例数</th><th>创建时间</th><th>操作</th></tr></thead><tbody id="su-rows"><tr><td colspan="5" class="empty">加载中…</td></tr></tbody></table></section>
     </section>
     <section class="page" id="page-cases">
       <div class="toolbar">
@@ -2129,9 +2129,9 @@
       const data = await (await fetch('/api/suites')).json();
       suItems = data.items || [];
       const tbody = $('su-rows'); tbody.innerHTML = '';
-      if (!suItems.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty">还没有测试套件——点右上"＋ 新建测试套件"</td></tr>'; return; }
+      if (!suItems.length) { tbody.innerHTML = '<tr><td colspan="5" class="empty">还没有测试套件——点右上"＋ 新建测试套件"</td></tr>'; return; }
       suItems.forEach(s => { const row = document.createElement('tr');
-        row.innerHTML = `<td>${safe(s.suite_id)}</td><td>${safe(s.name)}${s.description ? `<div class="cd-case-title">${safe(s.description)}</div>` : ''}</td>
+        row.innerHTML = `<td>${safe(s.name)}${s.description ? `<div class="cd-case-title">${safe(s.description)}</div>` : ''}</td>
           <td><span class="badge su-type-${safe(s.suite_type)}">${SU_TYPE_CN[s.suite_type] || safe(s.suite_type)}</span></td>
           <td>${s.case_count}</td><td>${safe(formatDate(s.created_at))}</td>
           <td><button class="icon-btn" onclick="suOpenMembers(decodeURIComponent('${encodeURIComponent(s.suite_id)}'))" title="用例管理">${ICON.list}</button> <button class="icon-btn" onclick="suOpenForm(decodeURIComponent('${encodeURIComponent(s.suite_id)}'))" title="编辑">${ICON.edit}</button> <button class="icon-btn danger" onclick="suDeleteSuite(decodeURIComponent('${encodeURIComponent(s.suite_id)}'))" title="删除">${ICON.trash}</button></td>`;

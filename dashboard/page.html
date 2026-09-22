@@ -2123,7 +2123,7 @@
       } catch (e) {
         $('gw-dot').className = 'dot bad'; $('gw-text').textContent = '验证码网关检测失败';
         $('gw-frame').hidden = true; const offline = $('gw-offline'); offline.hidden = false;
-        offline.textContent = '验证码网关不可达：' + e;
+        offline.textContent = '验证码网关不可达：' + String(e).slice(0, 80);
       }
     }
     $('gw-reload').onclick = () => { if (gatewayUrl) $('gw-frame').src = gatewayUrl + '/'; };

@@ -583,8 +583,8 @@ async function refresh() {
     const data = await response.json();
     const snapshot = JSON.stringify(data.items);
     if (snapshot === lastSnapshot) {
-      for (const row of items.rows) {  // 数据未变不重绘(防打断 hover),但相对时间仍要走钟
-        if (row.dataset.created) row.children[2].textContent = relativeLabel(new Date(Number(row.dataset.created)));
+      for (const created of items.querySelectorAll('[data-created]')) {  // 数据未变不重绘(防打断 hover),但相对时间仍要走钟
+        created.textContent = relativeLabel(new Date(Number(created.dataset.created)));
       }
       return;
     }

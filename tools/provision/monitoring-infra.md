@@ -37,11 +37,11 @@ systemctl is-enabled prometheus && systemctl is-active prometheus   # enabled + 
 ```
 
 **/etc/prometheus/prometheus.yml 整文件替换为如下内容**(sudo 编辑;三 job:自监控+两台 node,
-间隔 15s;retention 用包默认 15d 不动,`systemctl cat prometheus` 无 retention 参数即默认):
+间隔 1s(2026-09-22 由 15s 上调,见勘误 v1.2);retention 用包默认 15d 不动,`systemctl cat prometheus` 无 retention 参数即默认):
 
 ```yaml
 global:
-  scrape_interval: 15s
+  scrape_interval: 1s
 
 scrape_configs:
   - job_name: prometheus
@@ -173,3 +173,10 @@ sudo systemctl daemon-reload && sudo systemctl enable --now grafana-server
    (/etc/grafana/provisioning/datasources/prometheus.yaml)免浏览器配置,与 §3.3 浏览器口径二选一。
 5. 实测终态:prometheus targets 三条全 up(node-167=127.0.0.1:9100/node-176=192.168.12.176:9100
    /prometheus 自监控);grafana :3000 health 200;ufw 167 增放 3000。
+
+## 实装勘误 v1.2(2026-09-22 采集提速)
+
+6. 用户要求两机采集 1s 一次:167 `/etc/prometheus/prometheus.yml` 全局 `scrape_interval`
+   15s→1s(改前备份 .bak-1s,promtool SUCCESS 后 restart,targets 全 up)。两机规模代价:exporter
+   单次抓取毫秒级、每机每秒 1 次,TSDB 入库量×15 仍为个位数 GB/天级,15d 保留期可承受;
+   页面 summary 轮询同步 5s→1s(page.html MC_POLL_MS),数字粒度与页面刷新对齐 1s。

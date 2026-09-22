@@ -179,11 +179,12 @@
 - 禁止渐变按钮、禁止图标+长文字混排按钮。
 - Primary"每区块 1 个"的裁定(2026-09-20,合并包管理页):同屏可有"打包"+双卡"下载"三个 Primary——分属不同决策区块、动作类型不同(发起构建 vs 获取产物),合规;真正的红线是**同一决策区块内不得有两个 Primary**,列表行内操作永远 ghost/Danger 文字链,不因本例外破例。新增 Primary 前先对照本条。
 - ~~`.link-danger` 危险文字链~~(**2026-09-22 退役**):行内删除已由 `.icon-btn.danger` 全面取代(eb8d8cf,全站 0 残留),确认弹窗流程不变;本条留档,新代码勿再引入。
-- 行内图标按钮 `.icon-btn`(2026-09-22 用户指令收编):28x26 定宽 inline-flex 居中,内联 SVG 14px/stroke-width:2/描边 currentColor/fill:none,圆角 8px 沿用全局 button;变体 `.danger`=`--bad` 字+hover `--bad` 边;disabled 透明度 .45+not-allowed。**图标集白名单 6 枚**(24 viewBox 线性描边风格,统一在 page.html `ICON` 常量):edit/trash/play/download/qr/log——新增图标先报设计审;不做图标字体、不引图标库(与"明确不做"清单一致),内容区不加装饰图标;图标按钮**必须带 title**(无文字,靠 title 说明+可及性);有引用不可删的场景用 disabled+title 说明(模块删除先例)。
+- 行内图标按钮 `.icon-btn`(2026-09-22 用户指令收编):28x26 定宽 inline-flex 居中,内联 SVG 14px/stroke-width:2/描边 currentColor/fill:none,圆角 8px 沿用全局 button;变体 `.danger`=`--bad` 字+hover `--bad` 边;disabled 透明度 .45+not-allowed。**图标集白名单 7 枚**(24 viewBox 线性描边风格,统一在 page.html `ICON` 常量):edit/trash/play/download/qr/log/list——新增图标先报设计审;不做图标字体、不引图标库(与"明确不做"清单一致),内容区不加装饰图标;图标按钮**必须带 title**(无文字,靠 title 说明+可及性);有引用不可删的场景用 disabled+title 说明(模块删除先例)。list(Lucide list:三行每行一点一横,2026-09-22 用户指定样式)用于套件页"用例管理"入口——原文字 ghost 按钮改为 icon-btn,title="用例管理"。
 
 ### 4.2 表格
 
-- **全站列宽拖拽**(2026-09-22 推广至全部列表表,用户指令):交互与用例管理 cd-table 同款——拖某列右缘,左缘不动、其他列不动;统一实现 `makeTableResizable(tbl, storeKey)`:懒锁定(有 localStorage 存档直接转 fixed+colgroup 布局,无则保持自动布局、首次拖动再锁,防拖拽跳动),列宽限 56-1200px,各表独立 storeKey(tw-runs/tw-dl/tw-plcfg/tw-pljob/tw-su/tw-mods);cd-table 用例管理表自带实现,不重复绑定。`.table-card` 放开 overflow-x(修流水线任务列表被列宽截断)。
+- **全站列宽拖拽**(2026-09-22 推广至全部列表表,用户指令):交互与用例管理 cd-table 同款——拖某列右缘,左缘不动、其他列不动;统一实现 `makeTableResizable(tbl, storeKey, pinLast)`:懒锁定(有 localStorage 存档直接转 fixed+colgroup 布局,无则保持自动布局、首次拖动再锁,防拖拽跳动),列宽限 56-1200px,各表独立 storeKey(tw-runs/tw-dl/tw-plcfg/tw-pljob/tw-su/tw-mods);cd-table 用例管理表自带实现,不重复绑定。`.table-card` 放开 overflow-x(修流水线任务列表被列宽截断)。
+- **操作列固定最右**(2026-09-22 用户指令):有操作按钮的列表,最后一列固定最右,不参与列宽拖拽——动作区位置恒定,行扫读时不用重新找按钮;被拖进表中部或被挤窄都伤可用性。实现口径(a65dde6):`makeTableResizable` 第三参 pinLast=true 时末列不挂 grip(dl/pl/pljob/su/mods 五表均 pin;runs 表无按钮列,不参与);cd-table 的 actions 列同时禁掉拖拽换序与调宽(表头不渲染 draggable 与 grip),旧 localStorage 存档加载时强制把 actions 归位最右(cdLoadCols 末尾归位,防旧档把操作列排到中间)。
 
 - 结构:`.card.table-card`(0 padding)+ 表头 `#fafbfc` 底 12px muted(现状保留)。
 - 可点击行(进详情):整行 `cursor:pointer` + hover 变色,**不在行里放"查看"按钮**;操作列除外。

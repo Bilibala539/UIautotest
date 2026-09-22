@@ -273,9 +273,28 @@
 - P1 搜索结果改为窄表格(用例 ID/标题/模块/最近结果),点击即查历史,替代现在的自由列表。
 - P1 时间线节点加触发来源文字(手动/定时/流水线)。
 
-### 6.7 验证码工具(captcha)
-- **P0(轻)** 提交类按钮加防重复提交;健康条在网关不可达时用 `--bad` 文字说清原因(现状 `gw-detail` 已有,保持格式)。
-- P1 iframe 高度改为 `calc(100vh - 220px)` 自适应;健康条与 iframe 合并进同一张卡片。
+### 6.7 验证码工具(captcha)——2026-09-22 两层视觉改造定稿
+> 背景:用户反馈网关表格页"裸 HTML 感"。两层都是自己的代码:平台侧骨架(dashboard/page.html)+网关内页本体(otp_gateway `_build_web_page`,既内嵌又独立开 :18080)。功能全保留:健康检测/重新加载/iframe/手机号脱敏/5 分钟过期语义/2s 自动刷新/空态。
+
+**A. 平台侧骨架(page.html)**
+- 健康条与 iframe **合并进同一张卡**(6.7 旧 P1 落地):`.captcha-card` 即 `.card` 且 `padding:0;overflow:hidden`;卡头 `.captcha-head{display:flex;gap:10px;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line);background:#fafbfc}`,内容=状态点+`gw-text`+`gw-detail`(flex:1,13px muted)+ghost"重新加载"(行内档 5px 10px/12px,从卡外 hint 移入卡头;gw-dot/gw-text/gw-detail/gw-reload 的 id 全保留,JS 兼容)。
+- iframe:`width:100%;height:clamp(480px,calc(100vh - 200px),780px);border:0;display:block`——去自身边框圆角(由卡承担),固定 640px 与旧 P1 calc 口径一并作废;clamp 上限防超宽屏过高。
+- 网关不可达:iframe `hidden` + `.gw-offline{padding:44px;text-align:center;color:var(--muted);font-size:13px}` 显示"验证码网关不可达:{detail}",恢复后复原(原异常态=白框,是本次要解决的体验缺口)。
+- 卡外 hint 一行:"取码接口由用例自动调用,本页供人工查看最近验证码。"
+
+**B. 网关内页(_build_web_page,样式自包含)**
+- CSP 已允许内联(`style-src/script-src 'unsafe-inline'`),全部样式内联,零外部依赖。
+- 内联精简 token(`:root`,值与平台一致):`--ink:#172033 --muted:#667085 --line:#e6e9ef --bg:#f5f7fb --card:#fff --good:#087f5b --good-weak:#e6fcf5 --warn:#ad6800 --warn-weak:#fff9db --neutral-weak:#f1f3f8 --hover:#f8f9ff`;字体栈同平台 body。
+- 页头:h1 17px/600 + meta 12px muted("每 2 秒自动刷新 · 显示最近取码记录(含已消费/已过期)")——原文案"仅显示未消费且未过期"与 recent 全量返回矛盾,一并修正。
+- 表格:容器 `.card`(白底/1px line/12px 圆角/阴影一档/overflow:hidden);th `8px 12px` 12px/600 muted #fafbfc 底(**弃 #eef2ff 蓝紫,非平台 token**);td `9px 12px` 13px(3.2 紧凑档);行 hover `--hover`;无斑马纹。
+- 验证码(本页主角):`code.otp`=等宽 ui-monospace/16px/700/`--ink`/letter-spacing 2px,`--neutral-weak` 底 chip 8px 圆角 3px 10px。16px 属内容强调数字特例(先例 stat-value 22px),不新增全局字号档;**弃原 1.35em 红色**(红=失败语义,验证码不是状态)。
+- 状态徽标(三值中文映射):available→"有效"(`--good`/`--good-weak`)、consumed→"已消费"(`--muted`/`--neutral-weak`)、expired→"已过期"(`--warn`/`--warn-weak`);胶囊 12px/600 3px 9px。
+- 行降灰:consumed/expired 行整行 `--muted`;expired 行验证码 chip 降级(字 `--muted`/底透明/1px dashed `--line`)——5 分钟过期语义一眼可辨,有效行为对照。
+- 时间:生成时间=相对时间("刚刚/N 分钟前",title 全量);过期时间=HH:mm:ss 绝对(抄码操作意义,title 全量含日期);时间列 nowrap+tabular-nums。requestId 等宽 12px muted;手机号用后端脱敏值原样。
+- 空态:"暂无验证码记录,用例触发取码后约 2 秒自动出现";失败态:"加载失败:xxx(每 2 秒自动重试)"(2s interval 自带重试,不加按钮)。
+- 可选 JS 稳定化:refresh 前后 JSON 比对,无变化跳过 replaceChildren(防 2s 全量重绘打断行 hover)。
+
+**旧条目清算**:旧 P0"提交类按钮防重复提交"随功能演化失效(页签现仅剩"重新加载"一个按钮,非提交类);旧 P1 两项(iframe calc 高度/健康条合并)由本节收口。本节改造项由 2026-09-22 任务直接派实现,不计入 P0 合计 12 条口径。
 
 ### 6.8 包管理(合并页,2026-09-20 用户拍板)
 - 原"下载安装包"独立页签裁决**废止**;两页签合并为单页签"包管理",自上而下:**主动打包卡片**(表单:分支/服别/备注,登记全自动无感)→ 服别胶囊筛选(全部/正式服/测试服,带计数)→ **最新可用双卡**(正式服/测试服各一,内嵌二维码+下载)→ 安装包列表(二维码/下载/查看执行/删除)。

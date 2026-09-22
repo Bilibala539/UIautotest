@@ -513,64 +513,105 @@ class OtpGateway(ThreadingHTTPServer):
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Swan OTP Gateway</title>
   <style>
-    body { font-family: sans-serif; margin: 24px; background: #f5f7fa; color: #1f2937; }
-    main { max-width: 1100px; margin: auto; }
-    h1 { margin-bottom: 8px; }
-    .hint { color: #6b7280; margin-bottom: 18px; }
-    table { width: 100%; border-collapse: collapse; background: white; box-shadow: 0 1px 3px #0002; }
-    th, td { padding: 10px 12px; border-bottom: 1px solid #e5e7eb; text-align: left; }
-    th { background: #eef2ff; }
-    code { font-size: 1.35em; font-weight: 700; color: #b91c1c; }
-    .empty { text-align: center; color: #6b7280; padding: 28px; }
+    :root { --ink:#172033; --muted:#667085; --line:#e6e9ef; --bg:#f5f7fb; --card:#fff; --good:#087f5b; --good-weak:#e6fcf5; --warn:#ad6800; --warn-weak:#fff9db; --neutral-weak:#f1f3f8; --hover:#f8f9ff; }
+    * { box-sizing:border-box; }
+    body { margin:0; padding:18px 20px 28px; background:var(--bg); color:var(--ink); font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif; }
+    main { max-width:1240px; margin:0 auto; }
+    .otp-head { display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; margin-bottom:12px; }
+    .otp-head h1 { margin:0; font-size:17px; font-weight:600; }
+    .otp-head .meta { color:var(--muted); font-size:12px; }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:12px; box-shadow:0 2px 10px rgba(23,32,51,.03); overflow:hidden; }
+    table { width:100%; border-collapse:collapse; }
+    th { padding:8px 12px; text-align:left; color:var(--muted); background:#fafbfc; font-size:12px; font-weight:600; border-bottom:1px solid var(--line); }
+    td { padding:9px 12px; border-bottom:1px solid var(--line); font-size:13px; text-align:left; }
+    tbody tr:last-child td { border-bottom:0; }
+    tbody tr:hover { background:var(--hover); }
+    code.otp { font-family:ui-monospace,Consolas,monospace; font-size:16px; font-weight:700; color:var(--ink); letter-spacing:2px; background:var(--neutral-weak); padding:3px 10px; border-radius:8px; }
+    .rid { font-family:ui-monospace,Consolas,monospace; font-size:12px; color:var(--muted); }
+    .badge { display:inline-block; border-radius:999px; padding:3px 9px; font-size:12px; font-weight:600; }
+    .badge.available { color:var(--good); background:var(--good-weak); }
+    .badge.consumed { color:var(--muted); background:var(--neutral-weak); }
+    .badge.expired { color:var(--warn); background:var(--warn-weak); }
+    tr.consumed td, tr.expired td { color:var(--muted); }
+    tr.expired code.otp { color:var(--muted); background:transparent; border:1px dashed var(--line); letter-spacing:2px; }
+    td.t-time { white-space:nowrap; font-variant-numeric:tabular-nums; }
+    .empty { text-align:center; color:var(--muted); padding:36px; font-size:13px; }
   </style>
 </head>
 <body>
 <main>
-  <h1>Swan 验证码</h1>
-  <div class="hint">每 2 秒自动刷新，仅显示未消费且未过期的验证码。</div>
-  <table>
+  <div class="otp-head"><h1>Swan 验证码</h1><span class="meta">每 2 秒自动刷新 · 显示最近取码记录（含已消费/已过期）</span></div>
+  <div class="card"><table>
     <thead><tr><th>手机号</th><th>验证码</th><th>生成时间</th><th>过期时间</th><th>请求 ID</th><th>状态</th></tr></thead>
-    <tbody id="items"><tr><td class="empty" colspan="6">加载中...</td></tr></tbody>
-  </table>
+    <tbody id="items"><tr><td class="empty" colspan="6">加载中…</td></tr></tbody>
+  </table></div>
 </main>
 <script>
 const items = document.getElementById('items');
-function cell(value) { const element = document.createElement('td'); element.textContent = value || ''; return element; }
+const BADGE_TEXT = { available: '有效', consumed: '已消费', expired: '已过期' };
+function element(tag, className, text) { const node = document.createElement(tag); if (className) node.className = className; node.textContent = text || ''; return node; }
+function cell(value) { return element('td', '', value); }
+function toDate(value) { const date = new Date(value); return isNaN(date.getTime()) ? null : date; }
+function pad(n) { return String(n).padStart(2, '0'); }
 function formatTime(value) {
-  if (!value) return '';
-  const date = new Date(value);
-  if (isNaN(date.getTime())) return value;
-  const pad = (n) => String(n).padStart(2, '0');
+  const date = toDate(value);
+  if (!date) return value || '';
   return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate()) + ' ' + pad(date.getHours()) + ':' + pad(date.getMinutes()) + ':' + pad(date.getSeconds());
 }
-function timeCell(value) { const element = cell(formatTime(value)); element.title = value || ''; return element; }
+function relativeLabel(date) {
+  const diff = Math.max(0, (Date.now() - date.getTime()) / 1000);
+  return diff < 60 ? '刚刚' : Math.floor(diff / 60) + ' 分钟前';
+}
+function relativeCell(value) {
+  const date = toDate(value);
+  const td = element('td', 't-time', date ? relativeLabel(date) : formatTime(value));
+  td.title = formatTime(value);
+  if (date) td.dataset.created = String(date.getTime());
+  return td;
+}
+function expireCell(value) {
+  const date = toDate(value);
+  // 记录时间是 UTC,过期时刻按本地时区显示到秒(抄码操作意义),title 保留全量
+  const text = date ? pad(date.getHours()) + ':' + pad(date.getMinutes()) + ':' + pad(date.getSeconds()) : (value || '');
+  const td = element('td', 't-time', text); td.title = formatTime(value); return td;
+}
+let lastSnapshot = '';
 async function refresh() {
   try {
     const response = await fetch('/api/test/otp/recent?limit=100', { cache: 'no-store' });
     if (!response.ok) throw new Error('HTTP ' + response.status);
     const data = await response.json();
+    const snapshot = JSON.stringify(data.items);
+    if (snapshot === lastSnapshot) {
+      for (const row of items.rows) {  // 数据未变不重绘(防打断 hover),但相对时间仍要走钟
+        if (row.dataset.created) row.children[2].textContent = relativeLabel(new Date(Number(row.dataset.created)));
+      }
+      return;
+    }
+    lastSnapshot = snapshot;
     items.replaceChildren();
     if (!data.items.length) {
       const row = document.createElement('tr');
-      const empty = document.createElement('td');
-      empty.colSpan = 6; empty.className = 'empty'; empty.textContent = '暂无验证码记录';
-      row.appendChild(empty); items.appendChild(row); return;
+      const empty = element('td', 'empty', '暂无验证码记录，用例触发取码后约 2 秒自动出现');
+      empty.colSpan = 6; row.appendChild(empty); items.appendChild(row); return;
     }
     for (const item of data.items) {
       const row = document.createElement('tr');
+      row.className = item.status || '';
       const codeCell = document.createElement('td');
-      const codeElement = document.createElement('code');
-      codeElement.textContent = item.code;
-      codeCell.appendChild(codeElement);
-      row.append(cell(item.phone), codeCell, timeCell(item.createdAt), timeCell(item.expireAt), cell(item.requestId), cell(item.status));
+      codeCell.appendChild(element('code', 'otp', item.code));
+      const statusCell = document.createElement('td');
+      statusCell.appendChild(element('span', 'badge ' + (item.status || ''), BADGE_TEXT[item.status] || item.status || ''));
+      const ridCell = document.createElement('td');
+      ridCell.appendChild(element('span', 'rid', item.requestId));
+      row.append(cell(item.phone), codeCell, relativeCell(item.createdAt), expireCell(item.expireAt), ridCell, statusCell);
       items.appendChild(row);
     }
   } catch (error) {
     items.replaceChildren();
     const row = document.createElement('tr');
-    const empty = document.createElement('td');
-    empty.colSpan = 6; empty.className = 'empty'; empty.textContent = '加载失败：' + error.message;
-    row.appendChild(empty); items.appendChild(row);
+    const empty = element('td', 'empty', '加载失败：' + error.message + '（每 2 秒自动重试）');
+    empty.colSpan = 6; row.appendChild(empty); items.appendChild(row);
   }
 }
 refresh(); setInterval(refresh, 2000);

@@ -22,6 +22,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import socket
 import subprocess
 import sys
@@ -185,11 +186,99 @@ def _download_apk(apk_id: str, dest: Path) -> Path:
     return dest
 
 
+# 安装确认弹窗适配:不同厂商路径不同(荣耀两道屏/小米授权框/…)。
+# 只认控件属性与按钮文字,不写死坐标;新机型换确认路径时在此加规则即可
+_INSTALL_POSITIVE_TEXT = ("继续安装", "继续", "仍要安装", "确定", "好", "OK")
+_INSTALL_NEGATIVE_TEXT = ("取消", "应用市场", "商店")
+_INSTALL_DIALOG_TIMEOUT = 900  # 传输+弹窗点通的总兜底(179MB 约 1 分钟)
+
+
+def _ui_dump(serial: str) -> str:
+    """当前界面的 uiautomator XML(界面忙碌时可能拿不到,返回空串由调用方重试)。"""
+    for _ in range(2):
+        dump = subprocess.run(
+            ["adb", "-s", serial, "shell", "uiautomator", "dump", "/sdcard/swan_install_ui.xml"],
+            capture_output=True, text=True, timeout=20)
+        if dump.returncode == 0 and "ERROR" not in dump.stdout:
+            cat = subprocess.run(["adb", "-s", serial, "shell", "cat", "/sdcard/swan_install_ui.xml"],
+                                 capture_output=True, text=True, timeout=20)
+            if "<node" in cat.stdout:
+                return cat.stdout
+        time.sleep(1)
+    return ""
+
+
+def _xml_attr(node: str, name: str) -> str:
+    match = re.search(rf'{name}="([^"]*)"', node)
+    return match.group(1) if match else ""
+
+
+def _xml_center(node: str) -> tuple[int, int] | None:
+    bounds = re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", _xml_attr(node, "bounds"))
+    if not bounds:
+        return None
+    x1, y1, x2, y2 = map(int, bounds.groups())
+    return (x1 + x2) // 2, (y1 + y2) // 2
+
+
+def _pick_confirm_tap(xml: str) -> tuple[str, tuple[int, int]] | None:
+    """从安装确认界面挑下一个该点的控件;不认识界面就返回 None(继续等)。
+
+    顺序:先勾"已知晓风险"类勾选框,再点正向按钮;排除 取消/应用市场 类,
+    避免把用户带去应用市场或点中广告位。
+    """
+    nodes = re.findall(r"<node[^>]*>", xml)
+    # 1) 未勾选的勾选框(荣耀"已了解风险"/小米"我已知晓"等)
+    for node in nodes:
+        rid, cls, checked = _xml_attr(node, "resource-id"), _xml_attr(node, "class"), _xml_attr(node, "checked")
+        if checked == "false" and (rid.endswith(":id/checkbox") or cls == "android.widget.CheckBox"):
+            center = _xml_center(node)
+            if center:
+                return ("勾选风险确认框", center)
+    # 2) 正向确认按钮
+    for node in nodes:
+        if _xml_attr(node, "clickable") != "true":
+            continue
+        text, rid = _xml_attr(node, "text"), _xml_attr(node, "resource-id")
+        if any(bad in text for bad in _INSTALL_NEGATIVE_TEXT) or "offical" in rid or "market" in rid:
+            continue
+        if text in _INSTALL_POSITIVE_TEXT or (rid == "android:id/button1" and text):
+            center = _xml_center(node)
+            if center:
+                return (f"点 {text or rid}", center)
+    return None
+
+
 def _install_apk(serial: str, apk_path: Path, apk_id: str) -> None:
-    proc = subprocess.run(["adb", "-s", serial, "install", "-r", str(apk_path)],
-                          capture_output=True, text=True, timeout=1800)
-    out = (proc.stdout + proc.stderr).strip()
-    if proc.returncode != 0 or "Success" not in proc.stdout:
+    """install -r + 确认框自动点通:install 进程活着期间轮询界面,
+    按 _pick_confirm_tap 规则逐屏点掉确认弹窗(不同厂商路径不同);
+    全程只认控件属性/文字,不写死坐标。成功后写设备侧 apk_id 标记。"""
+    proc = subprocess.Popen(
+        ["adb", "-s", serial, "install", "-r", str(apk_path)],
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+        text=True, encoding="utf-8", errors="replace")
+    deadline = time.monotonic() + _INSTALL_DIALOG_TIMEOUT
+    try:
+        while True:
+            try:
+                out, _ = proc.communicate(timeout=4)
+                break
+            except subprocess.TimeoutExpired:
+                pass
+            if time.monotonic() > deadline:
+                raise RuntimeError(f"安装确认超时({_INSTALL_DIALOG_TIMEOUT}s,弹窗未被自动点通)")
+            tap = _pick_confirm_tap(_ui_dump(serial))
+            if tap:
+                label, (x, y) = tap
+                _log(f"  [{serial}] 安装确认弹窗自动点掉: {label} @({x},{y})")
+                subprocess.run(["adb", "-s", serial, "shell", "input", "tap", str(x), str(y)],
+                               capture_output=True, text=True, timeout=15)
+    finally:
+        if proc.poll() is None:
+            proc.kill()
+            out = ""
+    out = (out or "").strip()
+    if proc.returncode != 0 or "Success" not in out:
         raise RuntimeError(f"adb install 失败: {out[-300:]}")
     # 装成功后写标记,下次同 apk_id 不重装(大包安装要 1-3 分钟)
     subprocess.run(["adb", "-s", serial, "shell", f"echo {apk_id} > {APK_MARKER_PATH}"],

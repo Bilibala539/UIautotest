@@ -870,7 +870,7 @@ class DashboardStore:
         project_id = str(os.environ.get("ZENTAO_PROJECT_ID") or "").strip()
         product_id = str(os.environ.get("ZENTAO_PRODUCT_ID") or "").strip()
         if not project_id or not product_id:
-            raise ValueError("需在 .166 .env.local 配置 ZENTAO_PROJECT_ID 与 ZENTAO_PRODUCT_ID")
+            raise ValueError("需在平台机 .167 .env.local 配置 ZENTAO_PROJECT_ID 与 ZENTAO_PRODUCT_ID")
         cases = run.get("cases") or []
         source = str((run.get("metadata") or {}).get("source") or "-")
         status_cn = {"passed": "通过", "failed": "失败", "error": "错误", "skipped": "跳过"}
@@ -1911,7 +1911,7 @@ class DashboardStore:
         相对仓库根的 posix 路径(绝对路径会尝试转相对,仓库外的丢弃)。
         YAML 驱动用例(knowledge/swan/cases/driver/*.yaml)映射为
         tests/flutter/test_case_driver.py::TestCaseDriver::test_yaml_<stem>
-        (驱动脚本按 stem 注入 test 方法,.166 实测收集合法;M5 二期已完成)。
+        (驱动脚本按 stem 注入 test 方法,平台机实测收集合法;M5 二期已完成)。
         """
         with self.connect() as connection:
             rows = connection.execute(
@@ -2300,7 +2300,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
         if parsed.path == "/api/gateway/health":
             # 验证码工具页的健康卡片:平台侧代理 otp-gateway /healthz,避免浏览器跨域
             import urllib.request as _urlreq
-            gateway = os.environ.get("OTP_GATEWAY_URL", "http://192.168.12.166:18080").rstrip("/")
+            gateway = os.environ.get("OTP_GATEWAY_URL", "http://127.0.0.1:18080").rstrip("/")
             try:
                 with _urlreq.urlopen(f"{gateway}/healthz", timeout=5) as response:
                     body = response.read().decode("utf-8", "replace")

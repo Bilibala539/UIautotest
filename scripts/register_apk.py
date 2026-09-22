@@ -49,7 +49,7 @@ def main() -> int:
     # server_type 段与 build_swan_apk.py 口径一致:同分支同日 formal/test 两包不互相覆盖
     apk_id = args.apk_id or (
         f"swan-{args.branch or 'manual'}-{short}-{time.strftime('%Y%m%d')}-{args.server_type}")
-    # flavor 缺省按构建模式口径填(映射与 build_swan_apk.py:214 一致,档案坑 13:
+    # flavor 缺省按构建模式口径填(映射与 build_swan_apk.py:287 一致,档案坑 13:
     # server_type=test→profile 默认连测试服 / formal→release 锁正式服);显式传 --flavor 时以用户值为准
     build_mode = "profile" if args.server_type == "test" else "release"
 

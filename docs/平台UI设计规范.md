@@ -97,7 +97,8 @@
 | 执行中 running | `--brand` | `--brand-weak` | `.running` |
 | 跳过 skipped / 等待 pending | `--warn` | `--warn-weak` | `.skipped` |
 | 阻塞 env_blocked | `--warn` | `--warn-weak` | 新增,文案"环境阻塞" |
-| 取消 cancelled | `--muted` | `--neutral-weak` | 新增 |
+| 取消中 cancelling | `--warn` | `--warn-weak` | 新增,文案"取消中";过渡态(等待 agent 确认/平台 5 分钟兜底),流水线任务取消(6.3) |
+| 取消 cancelled | `--muted` | `--neutral-weak` | 新增,文案"已取消" |
 
 所有状态一律走 `.badge` 胶囊(现有样式:`border-radius:999px; padding:3px 9px; font-size:12px; font-weight:600`)。新增状态只加类,不改组件。
 
@@ -179,7 +180,7 @@
 - 禁止渐变按钮、禁止图标+长文字混排按钮。
 - Primary"每区块 1 个"的裁定(2026-09-20,合并包管理页):同屏可有"打包"+双卡"下载"三个 Primary——分属不同决策区块、动作类型不同(发起构建 vs 获取产物),合规;真正的红线是**同一决策区块内不得有两个 Primary**,列表行内操作永远 ghost/Danger 文字链,不因本例外破例。新增 Primary 前先对照本条。
 - ~~`.link-danger` 危险文字链~~(**2026-09-22 退役**):行内删除已由 `.icon-btn.danger` 全面取代(eb8d8cf,全站 0 残留),确认弹窗流程不变;本条留档,新代码勿再引入。
-- 行内图标按钮 `.icon-btn`(2026-09-22 用户指令收编):28x26 定宽 inline-flex 居中,内联 SVG 14px/stroke-width:2/描边 currentColor/fill:none,圆角 8px 沿用全局 button;变体 `.danger`=`--bad` 字+hover `--bad` 边;disabled 透明度 .45+not-allowed。**图标集白名单 7 枚**(24 viewBox 线性描边风格,统一在 page.html `ICON` 常量):edit/trash/play/download/qr/log/list——新增图标先报设计审;不做图标字体、不引图标库(与"明确不做"清单一致),内容区不加装饰图标;图标按钮**必须带 title**(无文字,靠 title 说明+可及性);有引用不可删的场景用 disabled+title 说明(模块删除先例)。list(Lucide list:三行每行一点一横,2026-09-22 用户指定样式)用于套件页"用例管理"入口——原文字 ghost 按钮改为 icon-btn,title="用例管理"。
+- 行内图标按钮 `.icon-btn`(2026-09-22 用户指令收编):28x26 定宽 inline-flex 居中,内联 SVG 14px/stroke-width:2/描边 currentColor/fill:none,圆角 8px 沿用全局 button;变体 `.danger`=`--bad` 字+hover `--bad` 边;disabled 透明度 .45+not-allowed。**图标集白名单 8 枚**(24 viewBox 线性描边风格,统一在 page.html `ICON` 常量):edit/trash/play/download/qr/log/list/circle-x——新增图标先报设计审;不做图标字体、不引图标库(与"明确不做"清单一致),内容区不加装饰图标;图标按钮**必须带 title**(无文字,靠 title 说明+可及性);有引用不可删的场景用 disabled+title 说明(模块删除先例)。list(Lucide list:三行每行一点一横,2026-09-22 用户指定样式)用于套件页"用例管理"入口——原文字 ghost 按钮改为 icon-btn,title="用例管理"。circle-x(Lucide circle-x:圆+对角双线,2026-09-22)用于流水线任务取消入口(6.3),走 `.danger` 变体;SVG:`<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" x2="9" y1="9" y2="15"/><line x1="9" x2="15" y1="9" y2="15"/></svg>`。
 
 ### 4.2 表格
 
@@ -309,6 +310,12 @@
 - P1 启用列由文本改小型开关(switch:36×20,选中 `--brand`);禁用样式离线做,不引组件库。
 - P1 "最近执行"表加状态筛选胶囊;时间线视图暂不做(数据量不需要)。
 - P1 配置详情区加 Permalinks 语义锚点行(竞品 Jenkins job 页 Permalinks,见 auto/jenkins-native.md):`最近成功 #N · x 分钟前 / 最近失败 #N · x 小时前 / 最近执行`——一条查询的直达链接,失败回查不筛选不翻页;不加"Last Success/Failure 双列"(runs/流水线列表列数已到 7±2 上限,锚点行承担同一职责)。
+- **任务取消**(2026-09-22 立项,计划书 docs/流水线任务取消功能计划书.md,M-A 定稿):
+  - 入口:pl-job-rows 操作列(4.2 已固定最右)行尾 circle-x 图标按钮,**仅 pending/running 行渲染**,`.danger` 变体(4.1),title="取消任务";排在 Jenkins 日志按钮之前,日志按钮保留不动(计划书 §5.5)。
+  - 确认:走 cfm-modal/`confirmAction`(4.5),文案按行状态两支——pending:"取消任务 JOB-XXX?任务尚未开始,取消后不再下发";running:"取消任务 JOB-XXX?运行中的用例将中断,已产出结果保留"。标题=动作、正文=后果,JOB-XXX 写实际 job_id(计划书 §5.2 单支文案的细化:两态后果不同,正文必须如实)。
+  - 状态胶囊(2.2 已收编):cancelling=`--warn`/`--warn-weak` 文案"取消中"——过渡态(等待 agent 确认或 5 分钟平台兜底),warn 族语义=「非正常推进的中间态」,与等待/阻塞同族;cancelled=`--muted`/`--neutral-weak` 文案"已取消"——终态归中性灰。两者均为**纯状态徽章**(`.badge`,不可点、无 hover 反馈)。
+  - 行内呈现:pending 行取消→状态直接变"已取消"(无过渡态,不下发);running 行取消→按钮转 disabled+title="取消请求已发出,等待执行端确认",直至终态;终态行不再渲染取消按钮。
+  - run 收尾:被取消任务对应执行会话以"已取消"呈现——runs 页零改动(2.2 cancelled 行已定义,badge(status) 通用渲染)。
 
 ### 6.4 测试套件(suites)
 - **P0** 用例数列可点击直接开成员抽屉;套件 ID/名称点击行为与用例管理对齐(点 ID 开详情)。

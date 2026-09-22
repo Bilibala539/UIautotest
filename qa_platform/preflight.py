@@ -10,7 +10,7 @@
 
 检查项:
   1. adb 可用 + 目标设备在线(ANDROID_DEVICE_SERIAL 若设置则必须命中)
-  2. otp-gateway 健康(OTP_GATEWAY_URL,默认 http://192.168.12.166:18080)
+  2. otp-gateway 健康(OTP_GATEWAY_URL,默认 http://127.0.0.1:18080(167 本机,2026-09-22 迁移自 .166))
   3. 平台服务可达(DASHBOARD_URL,设置时才检查)
   4. output 所在磁盘剩余 ≥ 2GB
   5. 被测包已安装(SWAN_PACKAGE 设置时才检查)
@@ -30,7 +30,7 @@ from datetime import datetime, timezone
 # 阻塞级:不解决就不许开跑
 BLOCKING_CHECKS = {"adb_available", "device_online", "otp_gateway", "disk_space"}
 
-GATEWAY_URL = os.environ.get("OTP_GATEWAY_URL", "http://192.168.12.166:18080").rstrip("/")
+GATEWAY_URL = os.environ.get("OTP_GATEWAY_URL", "http://127.0.0.1:18080").rstrip("/")
 DASHBOARD_URL = os.environ.get("DASHBOARD_URL", "").rstrip("/")
 TARGET_SERIAL = os.environ.get("ANDROID_DEVICE_SERIAL", "").strip()
 SWAN_PACKAGE = os.environ.get("SWAN_PACKAGE", "").strip()

@@ -299,8 +299,8 @@
         <button class="primary" id="pl-new">＋ 新建流水线配置</button>
       </div>
       <section class="card table-card"><table><thead><tr><th>配置 ID</th><th>名称</th><th>套件</th><th>含打包</th><th>频率</th><th>上次执行</th><th>下次执行</th><th>启用</th><th>操作</th></tr></thead><tbody id="pl-rows"><tr><td colspan="9" class="empty">加载中…</td></tr></tbody></table></section>
-      <h2 style="margin:22px 0 10px;font-size:17px">最近执行（定时触发，最近 10 条）</h2>
-      <section class="card table-card"><table><thead><tr><th>任务 ID</th><th>平台</th><th>执行目标</th><th>状态</th><th>创建时间</th><th>结束时间</th></tr></thead><tbody id="pl-job-rows"><tr><td colspan="6" class="empty">加载中…</td></tr></tbody></table></section>
+      <h2 style="margin:22px 0 10px;font-size:17px">最近执行（最近 10 条）</h2>
+      <section class="card table-card"><table><thead><tr><th>任务 ID</th><th>平台</th><th>执行目标</th><th>状态</th><th>创建时间</th><th>结束时间</th><th>Jenkins</th></tr></thead><tbody id="pl-job-rows"><tr><td colspan="7" class="empty">加载中…</td></tr></tbody></table></section>
       <p class="hint">配置可关联测试套件，触发时按套件成员聚合执行目标；“立即执行”等同到点触发。任务由执行 agent 认领执行，结果见“执行会话”页。</p>
     </section>
     <section class="page" id="page-suites">
@@ -1835,13 +1835,15 @@
       plLoadRecentJobs();
     }
     async function plLoadRecentJobs() {
-      // 定时触发的最近任务(source=schedule),从 jobs 列表里过滤
+      // 最近任务:定时/手动都显示(手动触发的任务同样需要 Jenkins 日志入口)
       const data = await (await fetch('/api/pipeline/jobs?limit=100')).json();
-      const jobs = (data.items || []).filter(j => j.trigger_source === 'schedule').slice(0, 10);
+      const jobs = (data.items || []).slice(0, 10);
       const tbody = $('pl-job-rows'); tbody.innerHTML = '';
-      if (!jobs.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty">暂无定时触发的执行记录</td></tr>'; return; }
+      if (!jobs.length) { tbody.innerHTML = '<tr><td colspan="7" class="empty">暂无执行记录</td></tr>'; return; }
       jobs.forEach(j => { const row = document.createElement('tr');
-        row.innerHTML = `<td>${safe(j.job_id)}</td><td>${safe((j.platform || '').toUpperCase())}</td><td>${safe(j.case_filter || '-')}</td><td><span class="badge ${PL_JOB_CLASS[j.status] || ''}">${PL_JOB_STATUS[j.status] || safe(j.status)}</span></td><td>${safe(formatDate(j.created_at))}</td><td>${j.finished_at ? safe(formatDate(j.finished_at)) : '-'}</td>`;
+        const jkBtn = j.jenkins_log_url ? `<button class="ghost" data-act="jk">Jenkins 日志</button>` : ''; // 未派发 Jenkins 的本地兜底任务不渲染
+        row.innerHTML = `<td>${safe(j.job_id)}</td><td>${safe((j.platform || '').toUpperCase())}</td><td>${safe(j.case_filter || '-')}</td><td><span class="badge ${PL_JOB_CLASS[j.status] || ''}">${PL_JOB_STATUS[j.status] || safe(j.status)}</span></td><td>${safe(formatDate(j.created_at))}</td><td>${j.finished_at ? safe(formatDate(j.finished_at)) : '-'}</td><td>${jkBtn}</td>`;
+        row.querySelectorAll('button[data-act="jk"]').forEach(b => { b.onclick = () => window.open(j.jenkins_log_url, '_blank', 'noopener'); });
         tbody.appendChild(row); });
     }
     async function plOpenForm(configId) {

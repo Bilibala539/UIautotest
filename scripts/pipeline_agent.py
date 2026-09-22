@@ -395,6 +395,11 @@ def process_once(job_id: str = "") -> bool:
     _log(f"claimed job={job['job_id']} source={job['trigger_source']} "
          f"branch={job['branch'] or '-'}")
     outcome = execute_job(job)
+    # Jenkins 构建内运行时环境自带任务名/构建号,回报给平台回填 jenkins_build,
+    # 流水线列表据此渲染"Jenkins 日志"按钮;本地兜底执行无这些变量,自然跳过
+    if os.environ.get("BUILD_NUMBER"):
+        outcome["jenkins_build"] = os.environ["BUILD_NUMBER"]
+        outcome["jenkins_job"] = os.environ.get("JOB_NAME", "")
     try:
         _post(f"/api/pipeline/jobs/{job['job_id']}/finish", outcome)
     except RuntimeError as error:

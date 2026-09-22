@@ -189,7 +189,7 @@ def _download_apk(apk_id: str, dest: Path) -> Path:
 # 安装确认弹窗适配:不同厂商路径不同(荣耀两道屏/小米授权框/…)。
 # 只认控件属性与按钮文字,不写死坐标;新机型换确认路径时在此加规则即可
 _INSTALL_POSITIVE_TEXT = ("继续安装", "继续", "仍要安装", "确定", "好", "OK")
-_INSTALL_NEGATIVE_TEXT = ("取消", "应用市场", "商店")
+_INSTALL_NEGATIVE_TEXT = ("取消", "应用市场", "商店", "打开")
 _INSTALL_DIALOG_TIMEOUT = 900  # 传输+弹窗点通的总兜底(179MB 约 1 分钟)
 
 
@@ -283,6 +283,25 @@ def _install_apk(serial: str, apk_path: Path, apk_id: str) -> None:
     # 装成功后写标记,下次同 apk_id 不重装(大包安装要 1-3 分钟)
     subprocess.run(["adb", "-s", serial, "shell", f"echo {apk_id} > {APK_MARKER_PATH}"],
                    capture_output=True, text=True, timeout=15)
+    # 收尾清理:荣耀装完停在 完成/打开 页(不点会污染下一轮起始画面);
+    # 只点 完成,打开 绝不代点(App 由用例自己启动);页面不认识就回 HOME
+    for _ in range(2):
+        done_tapped = False
+        for node in re.findall(r"<node[^>]*>", _ui_dump(serial)):
+            if _xml_attr(node, "text") == "完成" and _xml_attr(node, "clickable") == "true":
+                center = _xml_center(node)
+                if center:
+                    subprocess.run(["adb", "-s", serial, "shell", "input", "tap",
+                                    str(center[0]), str(center[1])],
+                                   capture_output=True, text=True, timeout=15)
+                    done_tapped = True
+                break
+        if done_tapped:
+            break
+        time.sleep(1)
+    else:
+        subprocess.run(["adb", "-s", serial, "shell", "input", "keyevent", "3"],
+                       capture_output=True, text=True, timeout=15)
 
 
 def ensure_apk_installed(job: dict) -> str | None:

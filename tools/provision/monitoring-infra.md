@@ -180,3 +180,10 @@ sudo systemctl daemon-reload && sudo systemctl enable --now grafana-server
    15s→1s(改前备份 .bak-1s,promtool SUCCESS 后 restart,targets 全 up)。两机规模代价:exporter
    单次抓取毫秒级、每机每秒 1 次,TSDB 入库量×15 仍为个位数 GB/天级,15d 保留期可承受;
    页面 summary 轮询同步 5s→1s(page.html MC_POLL_MS),数字粒度与页面刷新对齐 1s。
+
+## 实装勘误 v1.3(2026-09-22 CPU 型号展示)
+
+7. 监控页需展示 CPU 型号(node_exporter 标准采集器无此指标):两机 textfile collector 各落
+   `/var/lib/prometheus/node-exporter/cpu_model.prom`(lscpu Model name 生成,静态不变),
+   指标 `node_cpu_model_info{model=...}`(167=AMD Ryzen 7 4700G,176=i5-13400F);
+   server /api/metrics/summary 增 cpu_model 字段,前端 CPU 格"核数 · 型号"展示。

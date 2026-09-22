@@ -189,6 +189,7 @@
     .mc-value small { font-size:13px; font-weight:400; color:var(--muted); }
     .mc-second { font-size:15px; font-weight:600; margin-bottom:2px; }
     .mc-meta { color:var(--muted); font-size:12px; }
+    .mc-model { display:inline-block; max-width:150px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; vertical-align:bottom; }
     .mc-up { color:var(--brand); } .mc-down { color:var(--ink); }
     .mc-spark { width:100%; height:34px; display:block; margin-top:6px; }
     .mc-disk-row { display:flex; align-items:center; gap:8px; margin-top:14px; }
@@ -2135,6 +2136,7 @@
       const days = Math.floor(seconds / 86400);
       return days >= 1 ? `已运行 ${days} 天` : `已运行 ${Math.floor(seconds / 3600)} 小时`;
     }
+    function mcModel(raw) { return raw ? raw.replace(/\((R|TM)\)/g, '').trim() : ''; }  // 去 (R)/(TM) 商标记号,全称悬停看 title
 
     function mcStart() {  // 进页签:立即拉一轮并开轮询
       mcLoadMachines();
@@ -2225,13 +2227,16 @@
             + `<span class="mc-bar"><i style="width:${p == null ? 0 : p.toFixed(1)}%;background:${color}"></i></span>`
             + `<span class="mc-pct">${p == null ? '—' : p.toFixed(0) + '%'}</span></div>`;
         }).join('');
+        // CPU 格 meta=核数+型号(型号超长省略号截断,悬停看全称);型号缺失(未布 textfile)只显核数
+        const cpuMeta = (m.cpu_cores == null ? '' : m.cpu_cores + ' 核')
+          + (m.cpu_model ? `${m.cpu_cores == null ? '' : ' · '}<span class="mc-model" title="${safe(m.cpu_model)}">${safe(mcModel(m.cpu_model))}</span>` : '');
         body = `<div class="mc-grid">
           <div class="mc-cell"><div class="mc-label">CPU</div>
             <div class="mc-value">${m.cpu_percent == null ? '—' : m.cpu_percent.toFixed(1) + '%'}</div>
-            <div class="mc-meta">${m.cpu_cores == null ? '' : m.cpu_cores + ' 核'}</div>
+            <div class="mc-meta">${cpuMeta}</div>
             <svg class="mc-spark" id="mc-sp-${id}-cpu"></svg></div>
           <div class="mc-cell"><div class="mc-label">内存</div>
-            <div class="mc-value">${mcGB(m.mem_used_bytes)}<small> / ${mcGB(m.mem_total_bytes)}</small></div>
+            <div class="mc-value">${mcGB(m.mem_used_bytes)}<small> / 总容量 ${mcGB(m.mem_total_bytes)}</small></div>
             <div class="mc-meta">${pct == null ? '—' : pct.toFixed(0) + '%'}</div>
             <svg class="mc-spark" id="mc-sp-${id}-mem"></svg></div>
           <div class="mc-cell"><div class="mc-label">磁盘</div>${disks || '<div class="mc-meta">—</div>'}</div>

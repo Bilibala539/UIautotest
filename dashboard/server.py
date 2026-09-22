@@ -2875,12 +2875,14 @@ def _metrics_promql(kind: str, instance: str) -> str:
     """白名单 PromQL 模板(instance 精确匹配,值只来自白名单,无注入面)。
 
     返回口径:cpu=占用率 %;mem_used/mem_total=字节;disks=按 device+挂载点字节(同设备去重);
-    net_up/net_down=字节/秒;load1/5/15=原值;uptime_s=秒;cpu_cores=核数。"""
+    net_up/net_down=字节/秒;load1/5/15=原值;uptime_s=秒;cpu_cores=核数;cpu_model=型号字符串(textfile 静态)。"""
     inst = f'instance="{instance}"'
     if kind == "cpu":
         return f'100 - avg(rate(node_cpu_seconds_total{{{inst},mode="idle"}}[5m])) * 100'
     if kind == "cpu_cores":
         return f'count(count(node_cpu_seconds_total{{{inst},mode="idle"}}) by (cpu))'
+    if kind == "cpu_model":  # 型号来自两机 textfile collector 静态指标(monitoring-infra.md 勘误 v1.3),未布的机器为 None
+        return f'node_cpu_model_info{{{inst}}}'
     if kind == "mem_used":
         return f'node_memory_MemTotal_bytes{{{inst}}} - node_memory_MemAvailable_bytes{{{inst}}}'
     if kind == "mem_total":
@@ -3019,10 +3021,14 @@ def _collect_machine(instance: str) -> dict[str, Any]:
         percent = round(used / total * 100, 1) if (used is not None and total) else None
         disks.append({"mount": mount, "used_bytes": used, "total_bytes": total, "percent": percent})
     disks.sort(key=lambda row: row["mount"])
+    # CPU 型号:textfile 静态指标按 model label 取值(未布 textfile 的机器为 None,前端不显示型号段)
+    model_map = _prom_instant_map(_metrics_promql("cpu_model", instance), "model")
+    cpu_model = next(iter(model_map), None)
     return {
         "up_reached": reached,
         "cpu_percent": cpu,
         "cpu_cores": val("cpu_cores"),
+        "cpu_model": cpu_model,
         "mem_percent": val("mem_percent"),
         "mem_used_bytes": mem_used,
         "mem_total_bytes": mem_total,

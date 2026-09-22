@@ -2114,7 +2114,7 @@
 
     // ==================== 机器监控(machines,设计稿 docs/机器监控页设计.md;原生 SVG sparkline,不引图表库) ====================
     const MC_GRAFANA_URL = 'http://192.168.12.167:3000';  // Grafana 独立大盘(部署计划 §7.5),仅入口链接不内嵌
-    const MC_POLL_MS = 5000, MC_HISTORY_MS = 30000;       // summary 5s、走势 30s 一拉(设计稿 §3.2 推荐省流量)
+    const MC_POLL_MS = 2000, MC_HISTORY_MS = 30000;       // summary 2s(2026-09-22 提速,原 5s)、走势 30s 一拉;页面轮询与两机采集解耦,数字粒度受 15s scrape_interval 限制
     const MC_STALE_SECONDS = 30;                          // 数据滞后阈值:summary.timestamp 与本地时间差,前端判定(设计稿 §四,主会话裁决 2026-09-21)
     const MC_ROLE_TEXT = { platform: '平台机', build: '构建机' };
     let mcMachineIds = ['167', '176'];

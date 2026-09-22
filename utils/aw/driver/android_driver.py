@@ -163,6 +163,15 @@ class AndroidAdbDriver(BasePlatformDriver):
         return [n for n in self.dump_nodes()
                 if self._node_id_matches(n["resource_id"], resource_id)]
 
+    def find_nodes_by_text(self, text: str) -> list[dict]:
+        """返回 text/content_desc 精确等于 text 的语义节点列表。
+
+        用于定位没有 resource-id 的控件(首启隐私弹窗、系统权限弹窗的
+        按钮等);与 find_nodes 同为精确匹配语义,不写坐标。
+        """
+        return [n for n in self.dump_nodes()
+                if text in (n["text"], n["content_desc"])]
+
     def accessibility_exists(self, resource_id: str) -> bool:
         """判断 resource_id 对应的语义节点是否存在。"""
         return bool(self.find_nodes(resource_id))

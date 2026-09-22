@@ -63,6 +63,13 @@ class TestCaseDriver(BaseTest):
         self.user = self.users("swan")
         self.aw = self.user.aw
         self.package = os.environ.get("SWAN_PACKAGE", "com.swan.network").strip()
+        # 每条用例开始:确保 App 在前台 + 首启弹窗自动处置
+        # (2026-09-22 用户拍板:打开 App 后框架级检测弹窗;新装包首启的
+        # 隐私协议弹窗不点掉,登录页语义树虽在但不可交互)
+        starter = getattr(self.user.driver, "start_app", None)
+        if starter is not None:
+            starter(self.package)
+            self.aw.dismiss_app_popups()
 
     # ---------- 插值上下文 ----------
 

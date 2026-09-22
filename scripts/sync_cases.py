@@ -11,7 +11,7 @@
 
 用法:
   python scripts/sync_cases.py                       # 同步到 http://127.0.0.1:8080
-  python scripts/sync_cases.py --url http://192.168.12.166:8080 --dry-run
+  python scripts/sync_cases.py --url http://192.168.12.167:8080 --dry-run
 """
 from __future__ import annotations
 

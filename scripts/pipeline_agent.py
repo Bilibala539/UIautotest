@@ -2,11 +2,12 @@
 
 职责:
   1. 向平台 claim 一个 pending 任务(没有就退出/等待)
-  2. 预检门禁:失败 → 任务标记 env_blocked(环境问题按 bug 处理,不计用例失败)
-  3. 执行 pytest(PREFLIGHT=1 + EVIDENCE=1 + 设备池自动领取)
-  4. 门禁重试(步骤 12):用例失败自动重跑一次(--lf 只跑失败项);
+  2. 装包环节:任务指定 apk_id 时,执行用例前检查并安装被测包(失败按环境阻塞)
+  3. 预检门禁:失败 → 任务标记 env_blocked(环境问题按 bug 处理,不计用例失败)
+  4. 执行 pytest(PREFLIGHT=1 + EVIDENCE=1 + 设备池自动领取)
+  5. 门禁重试(步骤 12):用例失败自动重跑一次(--lf 只跑失败项);
      重跑通过视为通过;环境阻塞不重跑、不计失败
-  5. 把结果回报给平台(finish),运行记录/证据由 pytest_plugin 与证据体系落库
+  6. 把结果回报给平台(finish),运行记录/证据由 pytest_plugin 与证据体系落库
 
 触发双通道:
   - webhook:平台 POST /api/pipeline/trigger(供 git.hivi.com webhook 调用)
@@ -26,6 +27,7 @@ import subprocess
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
@@ -93,6 +95,8 @@ def _run_pytest(job: dict, run_id: str, rerun: bool = False) -> int:
     # job 未指定时主动清掉外层残留值,保证 run 的包关联严格等于任务指定的包
     if str(job.get("apk_id") or "").strip():
         env["SWAN_APK_ID"] = str(job["apk_id"]).strip()
+        # 装包环节已保证包就位;把包名传给 preflight,让 app_installed 检查生效
+        env["SWAN_PACKAGE"] = _resolve_package()
     else:
         env.pop("SWAN_APK_ID", None)
     command = [sys.executable, "-m", "pytest"]
@@ -115,6 +119,121 @@ def _run_pytest(job: dict, run_id: str, rerun: bool = False) -> int:
     return result.returncode
 
 
+def _finish_env_blocked(run_id: str, summary: str) -> dict:
+    """环境阻塞收尾:pytest.exit(3)/装包失败都绕过 conftest 的 sessionfinish
+    上报,run 记录会永远停在 running——这里补一条 error 收尾,保证终态一致。"""
+    try:
+        _post(f"/api/runs/{run_id}/complete", {
+            "status": "error",
+            "ended_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "summary": summary,
+        })
+    except RuntimeError as error:
+        _log(f"WARNING run 收尾上报失败(执行会话可能停留 running): {error}")
+    return {"status": "env_blocked", "result": {"run_id": run_id, "exit_code": 3}}
+
+
+# 被测包名:装包检查与 preflight 的 app_installed 共用(SWAN_PACKAGE 可覆盖)
+DEFAULT_SWAN_PACKAGE = "com.swan.network"
+# 装包标记:设备侧记录最后一次成功安装的 apk_id,包变更时触发重装
+APK_MARKER_PATH = "/data/local/tmp/swan_installed_apk_id.txt"
+
+
+def _resolve_package() -> str:
+    return os.environ.get("SWAN_PACKAGE", "").strip() or DEFAULT_SWAN_PACKAGE
+
+
+def _adb_online_serials() -> list[str]:
+    """当前 adb 在线(device 状态)的设备序列号。"""
+    proc = subprocess.run(["adb", "devices"], capture_output=True, text=True, timeout=15)
+    return [parts[0] for line in proc.stdout.splitlines()[1:]
+            if len(parts := line.split()) == 2 and parts[1] == "device"]
+
+
+def _device_state(serial: str, package: str) -> tuple[bool, str]:
+    """返回 (包是否已安装, 设备侧装包标记的 apk_id)。"""
+    proc = subprocess.run(["adb", "-s", serial, "shell", "pm", "list", "packages", package],
+                          capture_output=True, text=True, timeout=30)
+    installed = package in proc.stdout
+    marker = ""
+    if installed:
+        mark = subprocess.run(["adb", "-s", serial, "shell", "cat", APK_MARKER_PATH],
+                              capture_output=True, text=True, timeout=15)
+        marker = mark.stdout.strip()
+    return installed, marker
+
+
+def _download_apk(apk_id: str, dest: Path) -> Path:
+    """从平台归档下载 APK 到本地缓存(dest),缓存已存在则直接复用。
+
+    平台 download 端点自带两级回退(登记 file_path → 归档副本),跨机安全。
+    """
+    if dest.is_file() and dest.stat().st_size > 0:
+        return dest
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    request = urllib.request.Request(
+        f"{PLATFORM_URL}/api/apks/{urllib.parse.quote(apk_id, safe='')}/download")
+    tmp = dest.with_name(dest.name + ".part")
+    try:
+        with urllib.request.urlopen(request, timeout=600) as response:
+            with open(tmp, "wb") as fh:
+                while chunk := response.read(1024 * 1024):
+                    fh.write(chunk)
+        os.replace(tmp, dest)
+    finally:
+        tmp.unlink(missing_ok=True)
+    return dest
+
+
+def _install_apk(serial: str, apk_path: Path, apk_id: str) -> None:
+    proc = subprocess.run(["adb", "-s", serial, "install", "-r", str(apk_path)],
+                          capture_output=True, text=True, timeout=1800)
+    out = (proc.stdout + proc.stderr).strip()
+    if proc.returncode != 0 or "Success" not in proc.stdout:
+        raise RuntimeError(f"adb install 失败: {out[-300:]}")
+    # 装成功后写标记,下次同 apk_id 不重装(大包安装要 1-3 分钟)
+    subprocess.run(["adb", "-s", serial, "shell", f"echo {apk_id} > {APK_MARKER_PATH}"],
+                   capture_output=True, text=True, timeout=15)
+
+
+def ensure_apk_installed(job: dict) -> str | None:
+    """用例执行前的装包环节:job 指定 apk_id 时,确保在线真机装的是这个包。
+
+    检查逻辑 = 包已安装 且 设备标记的 apk_id 与任务一致,否则安装 -r 重装
+    (新构建包变更后自动换包)。返回 None=无需装包或全部成功;
+    返回错误文案=环境阻塞(按 bug 处理,不计用例失败)。
+    """
+    apk_id = str(job.get("apk_id") or "").strip()
+    if not apk_id:
+        return None
+    package = _resolve_package()
+    serials = _adb_online_serials()
+    if not serials:
+        return "装包检查:无在线设备"
+    try:
+        apk_path = _download_apk(apk_id, PROJECT_ROOT / "output" / "apk_cache" / f"{apk_id}.apk")
+    except Exception as error:  # noqa: BLE001 — 下载失败按环境阻塞处理
+        return f"装包检查:APK {apk_id} 下载失败: {error}"
+    _log(f"job={job.get('job_id')} 装包检查: apk={apk_id}"
+         f"({apk_path.stat().st_size / 1048576:.0f}MB) package={package} devices={','.join(serials)}")
+    errors = []
+    for serial in serials:
+        try:
+            installed, marker = _device_state(serial, package)
+            if installed and marker == apk_id:
+                _log(f"  [{serial}] {package} 已是任务包({apk_id}),跳过安装")
+                continue
+            state = "包变更,重装" if installed else "未安装"
+            _log(f"  [{serial}] {package} {state},开始安装(约 1-3 分钟)")
+            _install_apk(serial, apk_path, apk_id)
+            _log(f"  [{serial}] 安装成功")
+        except Exception as error:  # noqa: BLE001 — 单设备失败汇总为环境阻塞
+            errors.append(f"[{serial}] {error}")
+    if errors:
+        return "装包检查失败: " + "; ".join(errors)
+    return None
+
+
 def execute_job(job: dict) -> dict:
     """执行一个任务,返回 finish 载荷。门禁语义:
     - pytest 退出码 3(ENV_BLOCKED)→ env_blocked,不重跑不计失败
@@ -122,20 +241,16 @@ def execute_job(job: dict) -> dict:
     - 其他非零(收集错误/用法错误)→ error,不重跑
     """
     run_id = f"pipe-{job['job_id']}"
+    # 步骤 2 装包环节:任务指定 apk_id 时,执行用例前确保真机装上该包;
+    # 失败与门禁同语义,按环境阻塞处理(不重跑、不计用例失败)
+    install_error = ensure_apk_installed(job)
+    if install_error:
+        _log(f"job={job['job_id']} ENV_BLOCKED(装包环节失败)")
+        return _finish_env_blocked(run_id, install_error)
     first_rc = _run_pytest(job, run_id)
     if first_rc == 3:
         _log(f"job={job['job_id']} ENV_BLOCKED(环境门禁未过,按 bug 处理)")
-        # 门禁走 pytest.exit(3),绕过了 conftest 的 sessionfinish 上报,
-        # run 记录会永远停在 running——这里补一条 error 收尾,保证执行会话终态一致
-        try:
-            _post(f"/api/runs/{run_id}/complete", {
-                "status": "error",
-                "ended_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-                "summary": "环境门禁未通过(env_blocked),未执行用例",
-            })
-        except RuntimeError as error:
-            _log(f"WARNING run 收尾上报失败(执行会话可能停留 running): {error}")
-        return {"status": "env_blocked", "result": {"run_id": run_id, "exit_code": 3}}
+        return _finish_env_blocked(run_id, "环境门禁未通过(env_blocked),未执行用例")
     if first_rc == 0:
         _log(f"job={job['job_id']} succeeded")
         return {"status": "succeeded", "result": {"run_id": run_id, "exit_code": 0}}

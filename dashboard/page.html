@@ -9,7 +9,8 @@
     * { box-sizing:border-box; } body { margin:0; color:var(--ink); background:var(--bg); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif; }
     header { background:var(--ink); color:#fff; padding:22px max(24px,calc((100% - 1240px)/2)) 0; }
     header h1 { margin:0 0 4px; font-size:23px; } header p { margin:0 0 14px; opacity:.78; }
-    nav { display:flex; gap:4px; } nav button { border:none; border-radius:10px 10px 0 0; background:rgba(255,255,255,.12); color:#fff; padding:10px 22px; font-size:14px; cursor:pointer; }
+    nav { display:flex; gap:4px; } nav button { border:none; border-radius:10px 10px 0 0; background:transparent; color:rgba(255,255,255,.72); padding:10px 22px; font-size:14px; cursor:pointer; }
+    nav button:hover { color:#fff; }
     nav button.active { background:var(--bg); color:var(--ink); font-weight:600; }
     main { max-width:1240px; margin:0 auto; padding:22px 20px 48px; }
     section.page { display:none; } section.page.active { display:block; }
@@ -64,7 +65,7 @@
     .cfm-box h3 { margin:0 0 10px; font-size:15px; } #cfm-text { margin:0; font-size:13px; }
     .cfm-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:16px; }
     #cfm-ok { background:var(--bad); border-color:var(--bad); color:#fff; }
-    .h-block { margin:22px 0 10px; font-size:17px; }
+    .h-block { margin:0 0 4px; font-size:17px; } .h-section { margin:22px 0 10px; font-size:17px; }
     /* 下包页重置高亮(规范 5.2:有激活筛选时描边变 --brand 提示可清除) */
     #dl-reset.active { border-color:var(--brand); color:var(--brand); }
     /* 规范 4.6:表单校验错误写到字段下方 12px 红字(不再只塞底部 msg) */
@@ -247,7 +248,7 @@
     </section>
     <section class="page" id="page-apks">
       <section class="card" style="margin-bottom:16px">
-        <h2 style="margin:0 0 4px;font-size:17px">主动打包</h2>
+        <h2 class="h-block">主动打包</h2>
         <p class="hint" style="margin:0 0 10px">触发 Jenkins 构建，完成后安装包自动登记到下方列表，无需手动登记</p>
         <div class="form-grid" style="margin-top:0">
           <div>
@@ -285,7 +286,7 @@
         <button class="ghost" id="dl-refresh">刷新</button>
       </div>
       <section class="card" id="dl-latest" style="margin-bottom:16px">
-        <h2 style="margin:0 0 4px;font-size:17px">最新可用安装包</h2>
+        <h2 class="h-block">最新可用安装包</h2>
         <p class="hint" style="margin:0 0 12px">按服别取文件仍可下载的最新包；全部历史见下表</p>
         <div class="dl-cards" id="dl-cards"><p class="meta">加载中…</p></div>
       </section>
@@ -306,7 +307,7 @@
         <button class="primary" id="pl-new">＋ 新建流水线配置</button>
       </div>
       <section class="card table-card"><table><thead><tr><th>配置 ID</th><th>名称</th><th>套件</th><th>含打包</th><th>频率</th><th>上次执行</th><th>下次执行</th><th>启用</th><th>操作</th></tr></thead><tbody id="pl-rows"><tr><td colspan="9" class="empty">加载中…</td></tr></tbody></table></section>
-      <h2 class="h-block">最近执行（最近 10 条）</h2>
+      <h2 class="h-section">最近执行（最近 10 条）</h2>
       <section class="card table-card"><table><thead><tr><th>任务 ID</th><th>平台</th><th>执行目标</th><th>状态</th><th>创建时间</th><th>结束时间</th><th>Jenkins</th></tr></thead><tbody id="pl-job-rows"><tr><td colspan="7" class="empty">加载中…</td></tr></tbody></table></section>
       <p class="hint">配置可关联测试套件，触发时按套件成员聚合执行目标；“立即执行”等同到点触发。任务由执行 agent 认领执行，结果见“执行会话”页。</p>
     </section>
@@ -331,7 +332,7 @@
         <h2 id="case-history-title" style="margin:0 0 12px;font-size:17px"></h2>
         <div class="timeline" id="case-timeline"></div>
       </section>
-      <p class="hint">先搜索关键词得到用例 ID，点选后查执行历史；看从什么时候开始错的、近 20 次结果。</p>
+      <p class="hint">先搜索关键词得到用例 ID，点选后查执行历史；从什么时候开始错的、近 20 次结果直接列出。</p>
     </section>
     <section class="page" id="page-casedefs">
       <section class="stats">
@@ -372,7 +373,7 @@
         </label>
         <span class="meta">表头可拖拽排序、右缘拖动调宽，"列设置"控制显隐</span>
       </div>
-      <p class="hint">未搜索时展示全部用例。点用例编号或关联 chip 查看详情（右侧抽屉）；文字用例与自动化用例互跳；bug 单来源自动取自用例 tags。仓库用例批量入库：python scripts/sync_cases.py。</p>
+      <p class="hint">未搜索时展示全部用例。点用例编号或关联 chip 查看详情（右侧抽屉）；文字用例与自动化用例可互转；bug 单来源自动取自用例 tags。仓库用例批量入库：python scripts/sync_cases.py。</p>
     </section>
     <section class="page" id="page-captcha">
       <section class="card captcha-card">

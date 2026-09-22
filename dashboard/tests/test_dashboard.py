@@ -146,7 +146,7 @@ def test_gitlab_webhook_auto_build():
             # 非 push 事件 / 映射外分支 → 恒 200 skip,不碰 Jenkins
             status, body = post("/api/webhooks/gitlab", push(kind="note"))
             assert status == 200 and body["action"] == "skipped"
-            status, body = post("/api/webhooks/gitlab", push(ref="refs/heads/master"))
+            status, body = post("/api/webhooks/gitlab", push(ref="refs/heads/harmony"))
             assert status == 200 and body["action"] == "skipped"
             status, body = post("/api/webhooks/gitlab", push(after="0" * 40))
             assert status == 200 and body["action"] == "skipped"
@@ -158,6 +158,12 @@ def test_gitlab_webhook_auto_build():
             assert body["job"] == "swan-audio-build"
             assert body["commit"] == FULL_SHA[:7]
             assert captured[-1] == {"BRANCH": "dev", "SERVER_TYPE": "test",
+                                    "COMMIT": FULL_SHA, "NOTES": "webhook%3Awujianneng"}
+
+            # master 合入推送 → formal(正式服/release)自动打包
+            status, body = post("/api/webhooks/gitlab", push(ref="refs/heads/master"))
+            assert status == 200 and body["action"] == "triggered"
+            assert captured[-1] == {"BRANCH": "master", "SERVER_TYPE": "formal",
                                     "COMMIT": FULL_SHA, "NOTES": "webhook%3Awujianneng"}
 
             # pusher 带命令特殊字符 → 不进 notes,回退固定前缀(坑 15 注入面)

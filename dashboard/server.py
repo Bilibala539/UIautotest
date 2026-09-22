@@ -61,9 +61,10 @@ VALID_PLATFORMS = {"android", "ios", "flutter", "pc", "web"}
 # 安装包服务器类型：formal = 正式服包，test = 测试服包(存量库默认 test)
 VALID_SERVER_TYPES = ("formal", "test")
 # GitLab push webhook → 自动打包映射(repo 的 path_with_namespace → 分支 → server_type)。
-# 表外组合一律 skip;扩分支/出正式包在此加行(如 master→formal),GitLab 侧分支过滤仅省流。
+# 表外组合一律 skip;dev→test(测试服/profile)、master→formal(正式服/release,2026-09-22
+# 用户拍板只监听这两分支),GitLab 侧分支过滤仅省流(两分支填不进一个过滤框,留空即可)。
 WEBHOOK_BUILD_MAP = {
-    "swan-app/swan-audio/hivi-network-flutterapp": {"dev": "test"},
+    "swan-app/swan-audio/hivi-network-flutterapp": {"dev": "test", "master": "formal"},
 }
 
 

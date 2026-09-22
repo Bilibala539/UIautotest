@@ -515,11 +515,10 @@ class OtpGateway(ThreadingHTTPServer):
   <style>
     :root { --ink:#172033; --muted:#667085; --line:#e6e9ef; --bg:#f5f7fb; --card:#fff; --good:#087f5b; --good-weak:#e6fcf5; --warn:#ad6800; --warn-weak:#fff9db; --neutral-weak:#f1f3f8; --hover:#f8f9ff; }
     * { box-sizing:border-box; }
-    body { margin:0; padding:18px 20px 28px; background:var(--bg); color:var(--ink); font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif; }
+    body { margin:0; padding:18px 20px 28px; background:var(--card); color:var(--ink); font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif; }
     main { max-width:1240px; margin:0 auto; }
     .otp-head { display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; margin-bottom:12px; }
     .otp-head .meta { color:var(--muted); font-size:12px; }
-    .card { background:var(--card); border:1px solid var(--line); border-radius:12px; box-shadow:0 2px 10px rgba(23,32,51,.03); overflow:hidden; }
     table { width:100%; border-collapse:collapse; }
     th { padding:8px 12px; text-align:left; color:var(--muted); background:#fafbfc; font-size:12px; font-weight:600; border-bottom:1px solid var(--line); }
     td { padding:9px 12px; border-bottom:1px solid var(--line); font-size:13px; text-align:left; }

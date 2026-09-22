@@ -7,7 +7,9 @@
   4. 执行 pytest(PREFLIGHT=1 + EVIDENCE=1 + 设备池自动领取)
   5. 门禁重试(步骤 12):用例失败自动重跑一次(--lf 只跑失败项);
      重跑通过视为通过;环境阻塞不重跑、不计失败
-  6. 把结果回报给平台(finish),运行记录/证据由 pytest_plugin 与证据体系落库
+  6. 取消看门狗:执行期间每 5s 轮询任务旗标,见 cancel_requested 即终止
+     pytest 进程组并回报 status=cancelled(设备由平台 finish 统一释放)
+  7. 把结果回报给平台(finish),运行记录/证据由 pytest_plugin 与证据体系落库
 
 触发双通道:
   - webhook:平台 POST /api/pipeline/trigger(供 git.hivi.com webhook 调用)
@@ -23,9 +25,11 @@ import argparse
 import json
 import os
 import re
+import signal
 import socket
 import subprocess
 import sys
+import threading
 import time
 import urllib.error
 import urllib.parse
@@ -77,12 +81,27 @@ def _post(path: str, payload: dict) -> dict:
         raise RuntimeError(f"POST {path} -> HTTP {error.code}: {detail}") from error
 
 
+def _get(path: str) -> dict:
+    request = urllib.request.Request(f"{PLATFORM_URL}{path}", method="GET")
+    try:
+        with urllib.request.urlopen(request, timeout=15) as response:
+            return json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as error:
+        detail = error.read().decode("utf-8", "replace")
+        raise RuntimeError(f"GET {path} -> HTTP {error.code}: {detail}") from error
+
+
 def _log(message: str) -> None:
     print(f"[pipeline-agent {datetime.now(timezone.utc).isoformat(timespec='seconds')}] {message}", flush=True)
 
 
-def _run_pytest(job: dict, run_id: str, rerun: bool = False) -> int:
-    """跑一轮 pytest,返回 pytest 退出码(3=环境阻塞)。"""
+def _run_pytest(job: dict, run_id: str, rerun: bool = False,
+                proc_box: dict | None = None) -> int:
+    """跑一轮 pytest,返回 pytest 退出码(3=环境阻塞)。
+
+    proc_box:取消看门狗的进程句柄容器(dict),pytest 启动后写入 "proc" 供其
+    杀进程组用;POSIX 下 pytest 独立成进程组(start_new_session),整组可杀。
+    """
     env = os.environ.copy()
     env.update({
         "PLATFORM": job.get("platform") or "flutter",
@@ -115,9 +134,66 @@ def _run_pytest(job: dict, run_id: str, rerun: bool = False) -> int:
         log_file.write(f"\n===== attempt {1 if not rerun else 2} "
                        f"({'--lf rerun' if rerun else 'first'}) "
                        f"{datetime.now(timezone.utc).isoformat(timespec='seconds')} =====\n")
-        result = subprocess.run(command, cwd=str(PROJECT_ROOT), env=env,
-                                stdout=log_file, stderr=subprocess.STDOUT)
-    return result.returncode
+        # start_new_session:pytest 及其子进程(adb 等)独立进程组,取消看门狗整组杀;
+        # Windows 无会话语义,置 False 退化为单进程 terminate
+        proc = subprocess.Popen(command, cwd=str(PROJECT_ROOT), env=env,
+                                stdout=log_file, stderr=subprocess.STDOUT,
+                                start_new_session=(os.name == "posix"))
+        if proc_box is not None:
+            proc_box["proc"] = proc
+        proc.wait()
+    return proc.returncode
+
+
+# 取消看门狗轮询间隔(秒):旗标从平台置位到 pytest 被杀的最大延迟≈一个轮询周期
+CANCEL_POLL_SECONDS = 5
+
+
+def _terminate_proc_group(proc: subprocess.Popen) -> None:
+    """SIGTERM 整个 pytest 进程组,8 秒后仍存活升级 SIGKILL(adb 卡死兜底)。"""
+    try:
+        os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+    except (AttributeError, ProcessLookupError, PermissionError):
+        # Windows 无 killpg / 进程组已退出:退化为单进程 terminate
+        try:
+            proc.terminate()
+        except OSError:
+            pass
+        return
+    for _ in range(8):
+        if proc.poll() is not None:
+            return
+        time.sleep(1)
+    try:
+        os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+    except (AttributeError, ProcessLookupError, PermissionError, OSError):
+        try:
+            proc.kill()
+        except OSError:
+            pass
+
+
+def _watch_cancel(job_id: str, proc_box: dict, cancel_event: threading.Event,
+                  stop: threading.Event) -> None:
+    """取消看门狗:执行期间每 5s 轮询任务详情,见 cancel_requested=1 即终止 pytest。
+
+    进程组终止后主流程按 cancel_event 分流回报 status=cancelled;轮询自身任何
+    异常仅记日志降级(不响应取消),由平台 cancelling 超时兜底强制取消。
+    """
+    while not stop.wait(CANCEL_POLL_SECONDS):
+        try:
+            info = _get(f"/api/pipeline/jobs/{job_id}")
+        except Exception as error:  # noqa: BLE001 — 轮询失败降级,不影响主流程
+            _log(f"取消看门狗轮询失败(降级忽略): {error}")
+            continue
+        if not int(info.get("cancel_requested") or 0):
+            continue
+        _log(f"job={job_id} 检测到取消旗标,终止 pytest 进程组")
+        cancel_event.set()
+        proc = proc_box.get("proc")
+        if proc is not None and proc.poll() is None:
+            _terminate_proc_group(proc)
+        return
 
 
 def _finish_env_blocked(run_id: str, summary: str) -> dict:
@@ -132,6 +208,35 @@ def _finish_env_blocked(run_id: str, summary: str) -> dict:
     except RuntimeError as error:
         _log(f"WARNING run 收尾上报失败(执行会话可能停留 running): {error}")
     return {"status": "env_blocked", "result": {"run_id": run_id, "exit_code": 3}}
+
+
+# 取消时 run 收尾的上报状态:runs 侧状态枚举暂无 cancelled,先按 error 上报
+# (保证已上报用例结果保留、会话不留僵尸 running);执行与证据模块扩完枚举后
+# 改这一行为 "cancelled" 即可切换
+RUN_COMPLETE_STATUS_ON_CANCEL = "error"
+
+
+def _finish_cancelled(job_id: str, run_id: str, note: str = "") -> dict:
+    """取消收尾:按 finish 通道回报 status=cancelled,设备由平台 finish 统一释放
+    (pytest 被杀时 conftest 的 sessionfinish 不会执行,设备归还走平台侧)。
+
+    run 若已创建(设备领取后)补一条收尾防会话停留 running——状态值取
+    RUN_COMPLETE_STATUS_ON_CANCEL(runs 枚举扩 cancelled 后一行切换);run 尚未
+    创建(pytest 未启动即取消)时 complete 404,忽略即可。
+    """
+    try:
+        _post(f"/api/runs/{run_id}/complete", {
+            "status": RUN_COMPLETE_STATUS_ON_CANCEL,
+            "ended_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "summary": f"任务 {job_id} 被用户取消,pytest 进程组已终止,"
+                       f"取消前已上报的用例结果保留{'(' + note + ')' if note else ''}",
+        })
+    except RuntimeError as error:
+        if "404" not in str(error):  # run 尚未创建属正常(取消发生在 pytest 启动前)
+            _log(f"WARNING run 收尾上报失败(执行会话可能停留 running): {error}")
+    return {"status": "cancelled", "result": {
+        "run_id": run_id, "cancelled": True, **({"note": note} if note else {}),
+    }}
 
 
 # 被测包名:装包检查与 preflight 的 app_installed 共用(SWAN_PACKAGE 可覆盖)
@@ -347,32 +452,55 @@ def execute_job(job: dict) -> dict:
     - pytest 退出码 3(ENV_BLOCKED)→ env_blocked,不重跑不计失败
     - 退出码 1(有用例失败)→ 自动重跑一次(--lf);重跑通过=通过
     - 其他非零(收集错误/用法错误)→ error,不重跑
+    - 执行期间平台置 cancel_requested → 看门狗杀 pytest 进程组 → cancelled
     """
     run_id = f"pipe-{job['job_id']}"
-    # 步骤 2 装包环节:任务指定 apk_id 时,执行用例前确保真机装上该包;
-    # 失败与门禁同语义,按环境阻塞处理(不重跑、不计用例失败)
-    install_error = ensure_apk_installed(job)
-    if install_error:
-        _log(f"job={job['job_id']} ENV_BLOCKED(装包环节失败)")
-        return _finish_env_blocked(run_id, install_error)
-    first_rc = _run_pytest(job, run_id)
-    if first_rc == 3:
-        _log(f"job={job['job_id']} ENV_BLOCKED(环境门禁未过,按 bug 处理)")
-        return _finish_env_blocked(run_id, "环境门禁未通过(env_blocked),未执行用例")
-    if first_rc == 0:
-        _log(f"job={job['job_id']} succeeded")
-        return {"status": "succeeded", "result": {"run_id": run_id, "exit_code": 0}}
-    if first_rc == 1:
-        _log(f"job={job['job_id']} first run failed (rc=1), auto-rerun --lf")
-        rerun_rc = _run_pytest(job, run_id, rerun=True)
-        status = "succeeded" if rerun_rc == 0 else "failed"
-        _log(f"job={job['job_id']} rerun rc={rerun_rc} -> {status}")
-        return {"status": status, "result": {
-            "run_id": run_id, "exit_code": rerun_rc,
-            "rerun": True, "first_exit_code": 1,
-        }}
-    _log(f"job={job['job_id']} error (pytest rc={first_rc},收集/用法问题不重跑)")
-    return {"status": "error", "result": {"run_id": run_id, "exit_code": first_rc}}
+    # 取消看门狗:贯穿装包+pytest 全程,轮询任务详情,见旗标即杀 pytest 进程组;
+    # stop 事件保证主流程结束时线程至多一个轮询周期内退出
+    cancel_event = threading.Event()
+    stop_watch = threading.Event()
+    proc_box: dict = {}
+    watcher = threading.Thread(
+        target=_watch_cancel, args=(job["job_id"], proc_box, cancel_event, stop_watch),
+        name=f"watch-cancel-{job['job_id']}", daemon=True)
+    watcher.start()
+    try:
+        # 步骤 2 装包环节:任务指定 apk_id 时,执行用例前确保真机装上该包;
+        # 失败与门禁同语义,按环境阻塞处理(不重跑、不计用例失败)
+        install_error = ensure_apk_installed(job)
+        if install_error:
+            _log(f"job={job['job_id']} ENV_BLOCKED(装包环节失败)")
+            return _finish_env_blocked(run_id, install_error)
+        if cancel_event.is_set():  # 装包期间收到取消:不启动 pytest
+            _log(f"job={job['job_id']} cancelled(装包阶段收到取消旗标)")
+            return _finish_cancelled(job["job_id"], run_id, "装包阶段")
+        first_rc = _run_pytest(job, run_id, proc_box=proc_box)
+        if cancel_event.is_set():
+            _log(f"job={job['job_id']} cancelled(pytest 已被看门狗终止)")
+            return _finish_cancelled(job["job_id"], run_id)
+        if first_rc == 3:
+            _log(f"job={job['job_id']} ENV_BLOCKED(环境门禁未过,按 bug 处理)")
+            return _finish_env_blocked(run_id, "环境门禁未通过(env_blocked),未执行用例")
+        if first_rc == 0:
+            _log(f"job={job['job_id']} succeeded")
+            return {"status": "succeeded", "result": {"run_id": run_id, "exit_code": 0}}
+        if first_rc == 1:
+            _log(f"job={job['job_id']} first run failed (rc=1), auto-rerun --lf")
+            rerun_rc = _run_pytest(job, run_id, rerun=True, proc_box=proc_box)
+            if cancel_event.is_set():
+                _log(f"job={job['job_id']} cancelled(--lf 重跑中被看门狗终止)")
+                return _finish_cancelled(job["job_id"], run_id, "重跑阶段")
+            status = "succeeded" if rerun_rc == 0 else "failed"
+            _log(f"job={job['job_id']} rerun rc={rerun_rc} -> {status}")
+            return {"status": status, "result": {
+                "run_id": run_id, "exit_code": rerun_rc,
+                "rerun": True, "first_exit_code": 1,
+            }}
+        _log(f"job={job['job_id']} error (pytest rc={first_rc},收集/用法问题不重跑)")
+        return {"status": "error", "result": {"run_id": run_id, "exit_code": first_rc}}
+    finally:
+        stop_watch.set()
+        watcher.join(timeout=CANCEL_POLL_SECONDS * 2)
 
 
 def process_once(job_id: str = "") -> bool:

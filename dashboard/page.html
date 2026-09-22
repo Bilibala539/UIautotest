@@ -247,7 +247,7 @@
         <div class="card"><div class="stat-label">最近一次状态</div><div class="stat-value" id="latest-status">-</div></div>
         <div class="card"><div class="stat-label">最近一次耗时</div><div class="stat-value" id="latest-duration">-</div></div>
       </section>
-      <section class="card table-card"><table><thead><tr><th>执行 ID</th><th>平台</th><th>包体</th><th>设备</th><th>状态</th><th class="num">通过率</th><th>用例数</th><th>耗时</th><th>开始时间</th></tr></thead><tbody id="runs"><tr><td colspan="9" class="empty">加载中…</td></tr></tbody></table></section>
+      <section class="card table-card"><table><thead><tr><th>平台</th><th>包体</th><th>设备</th><th>状态</th><th class="num">通过率</th><th>用例数</th><th>耗时</th><th>开始时间</th></tr></thead><tbody id="runs"><tr><td colspan="8" class="empty">加载中…</td></tr></tbody></table></section>
       <div id="run-drawer" hidden>
         <div class="cd-drawer-mask" onclick="closeRunDrawer()"></div>
         <aside class="cd-drawer">
@@ -324,9 +324,9 @@
         <span class="meta">定时配置由调度器（pipeline_scheduler，每 30 秒）轮询触发，到点自动创建流水线任务</span>
         <button class="primary" id="pl-new">＋ 新建流水线配置</button>
       </div>
-      <section class="card table-card"><table><thead><tr><th>配置 ID</th><th>名称</th><th>套件</th><th>含打包</th><th>频率</th><th>上次执行</th><th>下次执行</th><th>启用</th><th>操作</th></tr></thead><tbody id="pl-rows"><tr><td colspan="9" class="empty">加载中…</td></tr></tbody></table></section>
+      <section class="card table-card"><table><thead><tr><th>名称</th><th>套件</th><th>含打包</th><th>频率</th><th>上次执行</th><th>下次执行</th><th>启用</th><th>操作</th></tr></thead><tbody id="pl-rows"><tr><td colspan="8" class="empty">加载中…</td></tr></tbody></table></section>
       <h2 class="h-section">最近执行（最近 10 条）</h2>
-      <section class="card table-card"><table><thead><tr><th>任务 ID</th><th>平台</th><th>执行目标</th><th>状态</th><th>创建时间</th><th>结束时间</th><th>Jenkins</th></tr></thead><tbody id="pl-job-rows"><tr><td colspan="7" class="empty">加载中…</td></tr></tbody></table></section>
+      <section class="card table-card"><table><thead><tr><th>平台</th><th>执行目标</th><th>状态</th><th>创建时间</th><th>结束时间</th><th>Jenkins</th></tr></thead><tbody id="pl-job-rows"><tr><td colspan="6" class="empty">加载中…</td></tr></tbody></table></section>
       <p class="hint">配置可关联测试套件，触发时按套件成员聚合执行目标；“立即执行”等同到点触发。任务由执行 agent 认领执行，结果见“执行会话”页。</p>
     </section>
     <section class="page" id="page-suites">
@@ -804,9 +804,9 @@
       $('latest-status').innerHTML = runs.length ? badge(runs[0].status) : '-';
       $('latest-duration').textContent = runs.length ? formatDuration(runs[0].duration_seconds) : '-';
       const tbody = $('runs'); tbody.innerHTML = '';
-      if (!runs.length) { tbody.innerHTML = '<tr><td colspan="9" class="empty">暂无执行记录</td></tr>'; return; }
+      if (!runs.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty">暂无执行记录</td></tr>'; return; }
       runs.forEach(r => { const row = document.createElement('tr'); row.className = 'clickable';
-        row.innerHTML = `<td>${safe(r.run_id)}</td><td>${safe(r.platform.toUpperCase())}</td><td>${safe(r.apk_id||'-')}</td><td>${safe(r.device||'-')}</td><td>${badge(r.status)}</td><td class="num"${r.total_cases ? ` style="color:${rateColor(r.pass_rate)}"` : ''}>${r.total_cases ? r.pass_rate.toFixed(1)+'%' : '-'}</td><td>${r.total_cases}</td><td>${formatDuration(r.duration_seconds)}</td><td>${safe(formatDate(r.started_at))}</td>`;
+        row.innerHTML = `<td>${safe(r.platform.toUpperCase())}</td><td>${safe(r.apk_id||'-')}</td><td>${safe(r.device||'-')}</td><td>${badge(r.status)}</td><td class="num"${r.total_cases ? ` style="color:${rateColor(r.pass_rate)}"` : ''}>${r.total_cases ? r.pass_rate.toFixed(1)+'%' : '-'}</td><td>${r.total_cases}</td><td>${formatDuration(r.duration_seconds)}</td><td>${safe(formatDate(r.started_at))}</td>`;
         row.onclick = () => showRun(r.run_id); tbody.appendChild(row); });
     }
     function rateColor(p) { return p >= 90 ? 'var(--good)' : p < 60 ? 'var(--bad)' : 'var(--ink)'; } // 6.1 通过率三档:数字文字色不动底
@@ -1952,13 +1952,13 @@
       const data = await (await fetch('/api/pipeline-configs')).json();
       plItems = data.items || [];
       const tbody = $('pl-rows'); tbody.innerHTML = '';
-      if (!plItems.length) { tbody.innerHTML = '<tr><td colspan="9" class="empty">还没有流水线配置——点右上"＋ 新建流水线配置"</td></tr>'; }
+      if (!plItems.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty">还没有流水线配置——点右上"＋ 新建流水线配置"</td></tr>'; }
       plItems.forEach(c => { const row = document.createElement('tr');
         const isBuild = c.kind === 'build';
         const target = isBuild
           ? '<span class="badge running">打包</span> ' + safe((c.build || {}).branch || '') + ' → ' + ((c.build || {}).server_type === 'formal' ? '正式服' : '测试服')
           : safe(c.suite_id || '-');
-        row.innerHTML = `<td>${safe(c.config_id)}</td><td>${safe(c.name)}${c.description ? `<div class="cd-case-title">${safe(c.description)}</div>` : ''}</td><td>${target}</td><td>${isBuild ? '—' : (c.include_build ? '是' : '—')}</td><td>${safe(plScheduleText(c))}</td><td>${c.last_run_at ? safe(formatDate(c.last_run_at)) : '-'}</td><td>${c.next_run_at ? safe(formatDate(c.next_run_at)) : '-'}</td>
+        row.innerHTML = `<td>${safe(c.name)}${c.description ? `<div class="cd-case-title">${safe(c.description)}</div>` : ''}</td><td>${target}</td><td>${isBuild ? '—' : (c.include_build ? '是' : '—')}</td><td>${safe(plScheduleText(c))}</td><td>${c.last_run_at ? safe(formatDate(c.last_run_at)) : '-'}</td><td>${c.next_run_at ? safe(formatDate(c.next_run_at)) : '-'}</td>
           <td><input type="checkbox" ${c.enabled ? 'checked' : ''} onchange="plToggleEnabled(decodeURIComponent('${encodeURIComponent(c.config_id)}'), this.checked)"></td>
           <td><button class="icon-btn" onclick="plRunNow(decodeURIComponent('${encodeURIComponent(c.config_id)}'))" title="立即执行">${ICON.play}</button> <button class="icon-btn" onclick="plOpenForm(decodeURIComponent('${encodeURIComponent(c.config_id)}'))" title="编辑">${ICON.edit}</button> <button class="icon-btn danger" onclick="plDeleteConfig(decodeURIComponent('${encodeURIComponent(c.config_id)}'))" title="删除">${ICON.trash}</button></td>`;
         tbody.appendChild(row); });
@@ -1969,7 +1969,7 @@
       const data = await (await fetch('/api/pipeline/jobs?limit=100')).json();
       const jobs = (data.items || []).slice(0, 10);
       const tbody = $('pl-job-rows'); tbody.innerHTML = '';
-      if (!jobs.length) { tbody.innerHTML = '<tr><td colspan="7" class="empty">暂无执行记录</td></tr>'; return; }
+      if (!jobs.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty">暂无执行记录</td></tr>'; return; }
       jobs.forEach(j => { const row = document.createElement('tr');
         const cancelable = j.status === 'pending' || j.status === 'running'; // 规范 6.3:仅 pending/running 行渲染取消入口,终态行不渲染
         const cancelBtn = cancelable ? `<button class="icon-btn danger" data-act="cancel" title="取消任务">${ICON.circleX}</button>` : '';
@@ -1977,7 +1977,7 @@
         const target = j.trigger_source === 'build'
           ? '打包 ' + safe(j.branch || '') + (((j.result || {}).build || {}).server_type === 'formal' ? ' → 正式服' : ' → 测试服')
           : safe(j.case_filter || '-');
-        row.innerHTML = `<td>${safe(j.job_id)}</td><td>${safe((j.platform || '').toUpperCase())}</td><td>${target}</td><td><span class="badge ${PL_JOB_CLASS[j.status] || ''}">${PL_JOB_STATUS[j.status] || safe(j.status)}</span></td><td>${safe(formatDate(j.created_at))}</td><td>${j.finished_at ? safe(formatDate(j.finished_at)) : '-'}</td><td>${[cancelBtn, jkBtn].filter(Boolean).join(' ')}</td>`;
+        row.innerHTML = `<td>${safe((j.platform || '').toUpperCase())}</td><td>${target}</td><td><span class="badge ${PL_JOB_CLASS[j.status] || ''}">${PL_JOB_STATUS[j.status] || safe(j.status)}</span></td><td>${safe(formatDate(j.created_at))}</td><td>${j.finished_at ? safe(formatDate(j.finished_at)) : '-'}</td><td>${[cancelBtn, jkBtn].filter(Boolean).join(' ')}</td>`;
         row.querySelectorAll('button[data-act="cancel"]').forEach(b => { b.onclick = () => plCancelJob(j.job_id, j.status, b); });
         row.querySelectorAll('button[data-act="jk"]').forEach(b => { b.onclick = () => window.open(j.jenkins_log_url, '_blank', 'noopener'); });
         tbody.appendChild(row); });

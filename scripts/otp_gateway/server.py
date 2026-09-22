@@ -525,7 +525,6 @@ class OtpGateway(ThreadingHTTPServer):
     tbody tr:last-child td { border-bottom:0; }
     tbody tr:hover { background:var(--hover); }
     code.otp { font-family:ui-monospace,Consolas,monospace; font-size:16px; font-weight:700; color:var(--ink); letter-spacing:2px; background:var(--neutral-weak); padding:3px 10px; border-radius:8px; }
-    .rid { font-family:ui-monospace,Consolas,monospace; font-size:12px; color:var(--muted); }
     .badge { display:inline-block; border-radius:999px; padding:3px 9px; font-size:12px; font-weight:600; }
     .badge.available { color:var(--good); background:var(--good-weak); }
     .badge.consumed { color:var(--muted); background:var(--neutral-weak); }
@@ -540,8 +539,8 @@ class OtpGateway(ThreadingHTTPServer):
 <main>
   <div class="otp-head"><span class="meta">每 2 秒自动刷新 · 显示最近取码记录（含已消费/已过期）</span></div>
   <table>
-    <thead><tr><th>手机号</th><th>验证码</th><th>生成时间</th><th>过期时间</th><th>请求 ID</th><th>状态</th></tr></thead>
-    <tbody id="items"><tr><td class="empty" colspan="6">加载中…</td></tr></tbody>
+    <thead><tr><th>手机号</th><th>验证码</th><th>生成时间</th><th>过期时间</th><th>状态</th></tr></thead>
+    <tbody id="items"><tr><td class="empty" colspan="5">加载中…</td></tr></tbody>
   </table>
 </main>
 <script>
@@ -591,7 +590,7 @@ async function refresh() {
     if (!data.items.length) {
       const row = document.createElement('tr');
       const empty = element('td', 'empty', '暂无验证码记录，用例触发取码后约 2 秒自动出现');
-      empty.colSpan = 6; row.appendChild(empty); items.appendChild(row); return;
+      empty.colSpan = 5; row.appendChild(empty); items.appendChild(row); return;
     }
     for (const item of data.items) {
       const row = document.createElement('tr');
@@ -600,16 +599,14 @@ async function refresh() {
       codeCell.appendChild(element('code', 'otp', item.code));
       const statusCell = document.createElement('td');
       statusCell.appendChild(element('span', 'badge ' + (item.status || ''), BADGE_TEXT[item.status] || item.status || ''));
-      const ridCell = document.createElement('td');
-      ridCell.appendChild(element('span', 'rid', item.requestId));
-      row.append(cell(item.phone), codeCell, relativeCell(item.createdAt), expireCell(item.expireAt), ridCell, statusCell);
+      row.append(cell(item.phone), codeCell, relativeCell(item.createdAt), expireCell(item.expireAt), statusCell);
       items.appendChild(row);
     }
   } catch (error) {
     items.replaceChildren();
     const row = document.createElement('tr');
     const empty = element('td', 'empty', '加载失败：' + error.message + '（每 2 秒自动重试）');
-    empty.colSpan = 6; row.appendChild(empty); items.appendChild(row);
+    empty.colSpan = 5; row.appendChild(empty); items.appendChild(row);
   }
 }
 refresh(); setInterval(refresh, 2000);

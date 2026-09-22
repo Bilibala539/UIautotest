@@ -3,6 +3,7 @@
 > 用途:会话重启(/resume)或新会话时,主会话(调度者)读本文件即可恢复团队全貌。
 > 角色定义文件在 `C:\Users\menglz.SWANSPEAKERS\.claude\agents\`;开发任务进度详见 `docs/测试套件管理计划.md`(总体计划 v2)。
 > **拓扑备忘(2026-09-22)**:.166 已退网;现 .167=平台机(dashboard :8080、Jenkins master :8082、Prometheus/Grafana/otp-gateway 同机)、.176=打包机(Jenkins remoting agent);本文历史记录中的 .166 均为旧口径。
+> **两级编排(2026-09-22 起)**:.167/.176 各有常驻小领导(m167-leader/m176-leader,tmux `leader` 会话交互式 claude),承担运行面日常操作(诊断/日志/服务维护/laya judge);派活 scp 到 `~/leader/inbox/`+send-keys,结果读 `~/leader/outbox/`,章程在 `~/leader/LEADER.md`。本地 teammate 纪律不变:不 ssh 运行面,运行面工作经主会话转派;部署与 .176 的 Jenkins 仍主会话专属(小领导章程禁碰 Jenkins)。POC 产物在 laya-poc 分支 `poc-laya/`。
 
 ## 协作模式
 

@@ -84,9 +84,10 @@ description: 启动 agent 团队（agent teams teammate 形态）的多模式入
 ### 运行面(.167 平台机 / .176 打包机)在本模式中的角色(teammate 一律不碰运行面)
 
 - **本机 = 开发面**：6 个开发 teammate 只改本地仓库代码，自测用临时端口+临时 db；产品设计师只产出 docs/、不碰代码；硬性纪律（见 docs/agent团队名册.md）：不 ssh 运行面(.167/.176)、不杀进程、不动 systemd、不提交 git——部署与提交由主会话统一做
-- **.167 = 平台机 = 运行面,主会话专属操作**：验收后走部署节奏 `commit → push → ssh autotest@192.168.12.167 git -C /opt/uiautotest pull --rebase → sudo systemctl restart uiautotest-dashboard → curl 验证 8080`；凭据只在 .167 的 /opt/uiautotest/.env.local;运行面绝不 kill 全部进程,只杀指定 PID
-- **(已废,随 .166 退网).166 的 Claude 分调度**：主会话按需经 remote-166 skill 派任务（scp task.txt → ClaudeTaskWindow 弹窗 → 轮询 result.txt），一次一个任务；它是独立会话，不在本团队里
-- **打包联调中转**：打包构建 teammate 的真打包验证发生在 .176(Jenkins swan-audio-build job 在打包机执行)——默认由主会话中转执行并回传结果;经用户明确授权后可放开直连,但仅限构建命令,仍禁止碰进程/systemd/8080 服务
+- **运行面日常操作由各机小领导承担（2026-09-22 起的两级编排）**：.167/.176 各有常驻小领导 m167-leader / m176-leader（tmux `leader` 会话内交互式 claude，bypassPermissions，可自起本地 teammate）。派活：scp 任务文件到 `~/leader/inbox/` + `tmux send-keys`；收结果：读 `~/leader/outbox/`。章程（职责范围+硬性边界）在各机 `~/leader/LEADER.md`。本地 teammate 纪律不变——运行面工作经主会话转派给小领导，teammate 不得自行 ssh
+- **.167 平台部署仍由主会话执行**：验收后走部署节奏 `commit → push → ssh autotest@192.168.12.167 git -C /opt/uiautotest pull --rebase → sudo systemctl restart uiautotest-dashboard → curl 验证 8080`；小领导对平台库严格只读、不重启服务、不改 /opt/uiautotest
+- **.176 打包机**：小领导可维护 laya judge 服务（~/laya-judge，端口 8089）与 NVIDIA 驱动；硬边界：绝不碰 Jenkins（进程//opt/build-env/systemd 单元）、不重启机器
+- **(已废,随 .166 退网).166 的 Claude 分调度**：已被上述小领导机制替代
 
 ### 纪律
 

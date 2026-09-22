@@ -688,9 +688,11 @@
       download: '<svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>',
       qr: '<svg viewBox="0 0 24 24"><rect width="5" height="5" x="3" y="3" rx="1"/><rect width="5" height="5" x="16" y="3" rx="1"/><rect width="5" height="5" x="3" y="16" rx="1"/><path d="M21 16h-3a2 2 0 0 0-2 2v3"/><path d="M21 21v.01"/><path d="M14 14v.01"/><path d="M14 21v.01"/><path d="M17 21v.01"/><path d="M21 14v.01"/></svg>',
       log: '<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>',
+      list: '<svg viewBox="0 0 24 24"><line x1="8" x2="21" y1="6" y2="6"/><line x1="8" x2="21" y1="12" y2="12"/><line x1="8" x2="21" y1="18" y2="18"/><line x1="3" x2="3.01" y1="6" y2="6"/><line x1="3" x2="3.01" y1="12" y2="12"/><line x1="3" x2="3.01" y1="18" y2="18"/></svg>',
     };
     // 全站列表列宽拖拽(用例管理表同款交互推广:拖某列右缘,左缘不动、其他列不动;localStorage 持久化)
-    function makeTableResizable(tbl, storeKey) {
+    // pinLast=true 时最后一列(操作按钮列)固定最右不提供拖拽(规范 4.2:按钮列固定)
+    function makeTableResizable(tbl, storeKey, pinLast) {
       const thead = tbl.querySelector('thead');
       if (!thead || !thead.children.length) return;
       const tr = thead.children[0];
@@ -709,6 +711,7 @@
       };
       if (Array.isArray(saved) && saved.length === ths.length) lock();  // 有存档直接锁宽;否则保持自动布局,首次拖动再锁
       ths.forEach((th, i) => {
+        if (pinLast && i === ths.length - 1) return;  // 操作列固定,不挂拖拽
         const grip = document.createElement('span');
         grip.className = 'cd-col-grip';
         th.appendChild(grip);
@@ -1131,6 +1134,8 @@
       } else {
         cdCols = CD_COLUMNS.map(c => ({ ...c }));
       }
+      const ai = cdCols.findIndex(c => c.key === 'actions');
+      if (ai >= 0 && ai !== cdCols.length - 1) cdCols.push(cdCols.splice(ai, 1)[0]);  // 旧存档可能把操作列排到中间:强制归位最右
     }
     function cdSaveCols() { try { localStorage.setItem('cd-cols-v1', JSON.stringify(cdCols)); } catch (e) {} }
     cdLoadCols();
@@ -1195,7 +1200,9 @@
       // 动态表头 + colgroup(可见列)
       const vis = cdVisibleCols();
       $('cd-thead').innerHTML = vis.map(c =>
-        `<th draggable="true" data-key="${c.key}" style="width:${c.width}px"><span class="cd-th-label">${safe(c.label)}</span><span class="cd-col-grip" data-key="${c.key}"></span></th>`).join('');
+        c.key === 'actions'
+          ? `<th data-key="${c.key}" style="width:${c.width}px"><span class="cd-th-label">${safe(c.label)}</span></th>`  // 操作列固定最右:不可拖拽换序、不可调宽
+          : `<th draggable="true" data-key="${c.key}" style="width:${c.width}px"><span class="cd-th-label">${safe(c.label)}</span><span class="cd-col-grip" data-key="${c.key}"></span></th>`).join('');
       $('cd-cols').innerHTML = vis.map(c => `<col style="width:${c.width}px">`).join('');
       $('cd-table-el').style.width = vis.reduce((s, c) => s + c.width, 0) + 'px';
       // 行
@@ -1235,6 +1242,7 @@
     function bindThEvents() {
       $('cd-thead').querySelectorAll('th').forEach(th => {
         const key = th.dataset.key;
+        if (key === 'actions') return;  // 操作列固定:不参与拖拽换序与调宽
         th.addEventListener('dragstart', e => e.dataTransfer.setData('text/plain', key));
         th.addEventListener('dragover', e => { e.preventDefault(); th.classList.add('drag-over'); });
         th.addEventListener('dragleave', () => th.classList.remove('drag-over'));
@@ -2062,7 +2070,7 @@
         row.innerHTML = `<td>${safe(s.suite_id)}</td><td>${safe(s.name)}${s.description ? `<div class="cd-case-title">${safe(s.description)}</div>` : ''}</td>
           <td><span class="badge su-type-${safe(s.suite_type)}">${SU_TYPE_CN[s.suite_type] || safe(s.suite_type)}</span></td>
           <td>${s.case_count}</td><td>${safe(formatDate(s.created_at))}</td>
-          <td><button class="ghost" onclick="suOpenMembers(decodeURIComponent('${encodeURIComponent(s.suite_id)}'))">用例管理</button> <button class="icon-btn" onclick="suOpenForm(decodeURIComponent('${encodeURIComponent(s.suite_id)}'))" title="编辑">${ICON.edit}</button> <button class="icon-btn danger" onclick="suDeleteSuite(decodeURIComponent('${encodeURIComponent(s.suite_id)}'))" title="删除">${ICON.trash}</button></td>`;
+          <td><button class="icon-btn" onclick="suOpenMembers(decodeURIComponent('${encodeURIComponent(s.suite_id)}'))" title="用例管理">${ICON.list}</button> <button class="icon-btn" onclick="suOpenForm(decodeURIComponent('${encodeURIComponent(s.suite_id)}'))" title="编辑">${ICON.edit}</button> <button class="icon-btn danger" onclick="suDeleteSuite(decodeURIComponent('${encodeURIComponent(s.suite_id)}'))" title="删除">${ICON.trash}</button></td>`;
         tbody.appendChild(row); });
     }
     async function suOpenForm(suiteId) {
@@ -2225,8 +2233,8 @@
     $('case-load').onclick = loadCaseHistory; $('case-id').onkeydown = e => { if (e.key==='Enter') loadCaseHistory(); };
     loadRuns().catch(e => { $('runs').innerHTML = `<tr><td colspan="9" class="empty">加载失败：${e}</td></tr>`; });
     // 全站列表启用列宽拖拽(用例管理表 cd-table 自带实现,不在其列)
-    [['runs','tw-runs'],['dl-rows','tw-dl'],['pl-rows','tw-plcfg'],['pl-job-rows','tw-pljob'],['su-rows','tw-su'],['cd-mods-rows','tw-mods']]
-      .forEach(([id, key]) => { const t = $(id) && $(id).closest('table'); if (t) makeTableResizable(t, key); });
+    [['runs','tw-runs',false],['dl-rows','tw-dl',true],['pl-rows','tw-plcfg',true],['pl-job-rows','tw-pljob',true],['su-rows','tw-su',true],['cd-mods-rows','tw-mods',true]]
+      .forEach(([id, key, pin]) => { const t = $(id) && $(id).closest('table'); if (t) makeTableResizable(t, key, pin); });
 
     // ==================== 机器监控(machines,设计稿 docs/机器监控页设计.md;原生 SVG sparkline,不引图表库) ====================
     const MC_GRAFANA_URL = 'http://192.168.12.167:3000';  // Grafana 独立大盘(部署计划 §7.5),仅入口链接不内嵌

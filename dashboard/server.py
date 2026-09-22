@@ -132,6 +132,18 @@ def _running_cutoff() -> str:
             - timedelta(hours=RUNNING_TIMEOUT_HOURS)).isoformat(timespec="seconds")
 
 
+# cancelling 任务等待 agent 回报 cancelled 的超时(分钟),可用环境变量覆盖。
+# 依据:watchdog 5s 轮询一次旗标 + pytest 进程组终止秒级完成,5 分钟≈60 倍余量;
+# agent 离线不回报时由 _force_cancel_stale 按此兜底强制取消
+CANCEL_STALE_MINUTES = float(os.environ.get("CANCEL_STALE_MINUTES") or "5")
+
+
+def _cancel_stale_cutoff() -> str:
+    """cancelling 任务强制取消阈值:CANCEL_STALE_MINUTES 分钟前(ISO 字符串可直接比较)。"""
+    return (datetime.now(timezone.utc)
+            - timedelta(minutes=CANCEL_STALE_MINUTES)).isoformat(timespec="seconds")
+
+
 def _reap_log(message: str, filename: str = "pipeline_reaper.log") -> None:
     """流水线执行侧独立日志文件(常驻/无控制台下 stdout 不可靠)。"""
     log_dir = PROJECT_ROOT / "logs"
@@ -174,6 +186,50 @@ def try_jenkins_dispatch(store, job: dict) -> dict:
     return updated
 
 
+def resolve_build_pipeline_jobs(store) -> None:
+    """打包型流水线(trigger_source='build')任务的惰性收尾。
+
+    build 任务无 agent 回报,靠列表读取时向 Jenkins 回查闭环:
+      - 有构建号 → 查构建结果,终态落库;
+      - 只有 queue_id(还在排队)→ 先查队列拿构建号回填,结果下次读取再查。
+    查询失败静默跳过,下次列表再试,不阻塞页面;只扫最近 50 条内的 pending。
+    """
+    if not jenkins_client.config():
+        return
+    for job in store.list_pipeline_jobs(status="pending", limit=50):
+        if job.get("trigger_source") != "build":
+            continue
+        jenkins_job = str(job.get("jenkins_job") or "")
+        if not jenkins_job:
+            continue  # 触发失败的任务触发时就落 failed,这里只会是历史脏数据
+        try:
+            build = job.get("jenkins_build")
+            if not build:
+                queue_id = (job.get("result") or {}).get("jenkins_queue_id")
+                if not queue_id:
+                    continue
+                item = jenkins_client.queue_item(queue_id)
+                if not (item.get("ok") and item.get("build")):
+                    continue  # 还在排队
+                build = item["build"]
+                store.mark_jenkins_dispatch(job["job_id"], jenkins_job=jenkins_job,
+                                            jenkins_build=build)
+            status = jenkins_client.job_status(jenkins_job, build)
+            if not status.get("ok") or status.get("building"):
+                continue  # 查不到/构建中 → 下次再看
+            outcome = str(status.get("result") or "")
+            if outcome == "SUCCESS":
+                store.finish_build_pipeline_job(job["job_id"], "succeeded",
+                                                dict(job.get("result") or {}))
+            elif outcome in ("FAILURE", "UNSTABLE", "ABORTED"):
+                store.finish_build_pipeline_job(
+                    job["job_id"], "failed",
+                    {**(job.get("result") or {}), "error": f"Jenkins 构建结果: {outcome}"})
+        except Exception as error:  # noqa: BLE001 — 单任务查询失败不影响列表
+            _reap_log(f"resolve build job={job.get('job_id')} 失败: {error}",
+                      filename="jenkins_dispatch.log")
+
+
 def _reap_timeout_jobs(connection: sqlite3.Connection) -> list[dict[str, Any]]:
     """把 running 超过阈值的任务标记 error 并释放其占用设备(幂等,可重复调用)。
 
@@ -208,13 +264,50 @@ def _reap_timeout_jobs(connection: sqlite3.Connection) -> list[dict[str, Any]]:
     return [dict(row) for row in stale]
 
 
+def _force_cancel_stale(connection: sqlite3.Connection) -> list[dict[str, Any]]:
+    """把 cancelling 超时无回报的任务强制落 cancelled 并释放设备(幂等,可重复调用)。
+
+    取消兜底:agent 离线/崩溃时收不到它的 finish(status=cancelled),按
+    CANCEL_STALE_MINUTES 超时由平台强制取消。触发时机与 _reap_timeout_jobs 同
+    (claim 前惰性回收)。UPDATE 带状态条件,与 agent 迟到的 finish 竞态先到先得,
+    后到方无副作用。
+    """
+    cutoff = _cancel_stale_cutoff()
+    stale = connection.execute(
+        """SELECT job_id, claimed_by, cancel_requested_at FROM pipeline_jobs
+           WHERE status='cancelling' AND cancel_requested_at < ?""",
+        (cutoff,),
+    ).fetchall()
+    for row in stale:
+        job_id = row["job_id"]
+        connection.execute(
+            """UPDATE pipeline_jobs SET status='cancelled', finished_at=?, result_json=?
+               WHERE job_id=? AND status='cancelling'""",
+            (utc_now(), json.dumps({
+                "forced_cancel": True,
+                "reason": f"取消中超时(>{CANCEL_STALE_MINUTES:g} 分钟无 agent 回报)被平台强制取消",
+                "claimed_by": row["claimed_by"],
+                "cancel_requested_at": row["cancel_requested_at"],
+            }, ensure_ascii=False), job_id),
+        )
+        released = connection.execute(
+            """UPDATE devices SET status='online_idle', current_run='', busy_since=NULL,
+               last_heartbeat=? WHERE status='busy' AND current_run=?""",
+            (utc_now(), f"pipe-{job_id}"),
+        ).rowcount
+        _reap_log(f"job={job_id} cancelling 超时强制取消(cancel_requested_at="
+                  f"{row['cancel_requested_at']}),释放设备 {released} 台")
+    return [dict(row) for row in stale]
+
+
 # ---- runs 会话孤儿收尾:执行 agent 失联时,由平台代管把卡死的 running 会话收尾 ----
 
 # 执行 agent 上报的 run_id 约定为 pipe-{job_id}(scripts/pipeline_agent.py 经
 # DASHBOARD_RUN_ID 落库),runs 侧据此反查所属 pipeline job,不依赖 job 侧改动。
 _PIPELINE_RUN_ID_PREFIX = "pipe-"
-# job 终态集合:与 finish_pipeline_job 的校验一致;error 亦含 _reap_timeout_jobs 超时抢回
-PIPELINE_JOB_FINISHED_STATUSES = ("succeeded", "failed", "env_blocked", "error")
+# job 终态集合:与 finish_pipeline_job 的校验一致;error 亦含 _reap_timeout_jobs 超时抢回,
+# cancelled 含用户取消与 _force_cancel_stale 强制取消(任务取消功能 M-B)
+PIPELINE_JOB_FINISHED_STATUSES = ("succeeded", "failed", "env_blocked", "error", "cancelled")
 
 
 def _sweep_log(message: str) -> None:
@@ -308,16 +401,45 @@ def validate_pipeline_config(payload: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(param, dict):
         raise ValueError("schedule_param 必须是 JSON 对象")
     validate_schedule_param(schedule_type, param)
+    # kind=suite 测试流水线(原语义);kind=build 打包流水线:到点直接触发打包 job,
+    # build_param 记 分支/环境;套件/平台/执行前先打包对打包流水线无意义,一律置空
+    kind = str(payload.get("kind") or "suite").strip().lower()
+    if kind not in ("suite", "build"):
+        raise ValueError("kind 必须是 suite/build 之一")
+    build_param = "{}"
+    if kind == "build":
+        raw_build = payload.get("build_param")
+        if isinstance(raw_build, str):
+            try:
+                build = json.loads(raw_build or "{}")
+            except json.JSONDecodeError:
+                raise ValueError("build_param 不是合法 JSON") from None
+        else:
+            build = raw_build or {}
+        if not isinstance(build, dict):
+            raise ValueError("build_param 必须是 JSON 对象")
+        build_branch = str(build.get("branch") or "dev").strip()
+        # 与 /api/builds 同一白名单:BRANCH 原样拼进打包机批处理命令行,防注入(坑 15)
+        if not re.fullmatch(r"[A-Za-z0-9._/\-]+", build_branch):
+            raise ValueError("branch 只允许字母/数字/._/与-字符")
+        build_server = str(build.get("server_type") or "test").strip().lower()
+        if build_server not in VALID_SERVER_TYPES:
+            raise ValueError(f"server_type 必须是 {'/'.join(VALID_SERVER_TYPES)} 之一")
+        build_param = json.dumps({"branch": build_branch, "server_type": build_server},
+                                 ensure_ascii=False)
     return {
         "config_id": config_id,
         "name": name,
         "description": str(payload.get("description") or "").strip(),
-        "suite_id": str(payload.get("suite_id") or "").strip(),
-        "include_build": 1 if payload.get("include_build") in (1, True, "1", "true", "on") else 0,
+        "suite_id": "" if kind == "build" else str(payload.get("suite_id") or "").strip(),
+        "include_build": 0 if kind == "build" else (
+            1 if payload.get("include_build") in (1, True, "1", "true", "on") else 0),
         "schedule_type": schedule_type,
         "schedule_param": json.dumps(param, ensure_ascii=False),
         "enabled": 0 if payload.get("enabled") in (0, False, "0", "false", "off") else 1,
         "platform": platform,
+        "kind": kind,
+        "build_param": build_param,
     }
 
 
@@ -563,6 +685,8 @@ class DashboardStore:
                     finished_at TEXT,
                     jenkins_job TEXT NOT NULL DEFAULT '',
                     jenkins_build INTEGER,
+                    cancel_requested INTEGER NOT NULL DEFAULT 0,
+                    cancel_requested_at TEXT,
                     result_json TEXT NOT NULL DEFAULT '{}'
                 );
                 CREATE INDEX IF NOT EXISTS idx_pipeline_jobs_status ON pipeline_jobs(status);
@@ -614,6 +738,27 @@ class DashboardStore:
             if "platform" not in existing_cols:
                 connection.execute(
                     "ALTER TABLE pipeline_configs ADD COLUMN platform TEXT NOT NULL DEFAULT 'flutter'"
+                )
+            # kind/build_param 为后加列(打包型流水线):kind=suite 测试流水线(原语义),
+            # kind=build 到点直接触发打包 job 出包,build_param 记 分支/环境
+            if "kind" not in existing_cols:
+                connection.execute(
+                    "ALTER TABLE pipeline_configs ADD COLUMN kind TEXT NOT NULL DEFAULT 'suite'"
+                )
+            if "build_param" not in existing_cols:
+                connection.execute(
+                    "ALTER TABLE pipeline_configs ADD COLUMN build_param TEXT NOT NULL DEFAULT '{}'"
+                )
+            # cancel_requested/cancel_requested_at 为后加列:任务取消功能(M-B),
+            # 后者为 cancelling 超时强制取消的计时起点(_force_cancel_stale)
+            existing_cols = {row[1] for row in connection.execute("PRAGMA table_info(pipeline_jobs)")}
+            if "cancel_requested" not in existing_cols:
+                connection.execute(
+                    "ALTER TABLE pipeline_jobs ADD COLUMN cancel_requested INTEGER NOT NULL DEFAULT 0"
+                )
+            if "cancel_requested_at" not in existing_cols:
+                connection.execute(
+                    "ALTER TABLE pipeline_jobs ADD COLUMN cancel_requested_at TEXT"
                 )
             # 测试套件(M4 P1):套件定义 + 套件↔用例多对多成员(seq 决定执行顺序)
             connection.executescript(
@@ -1177,6 +1322,7 @@ class DashboardStore:
         # 惰性回收放独立事务:无 pending 时 claim 抛 LookupError 会回滚当前事务,抢回不能跟着陪葬
         with self.transaction() as connection:
             _reap_timeout_jobs(connection)
+            _force_cancel_stale(connection)
         with self.transaction() as connection:
             if wanted_job_id:
                 row = connection.execute(
@@ -1190,6 +1336,7 @@ class DashboardStore:
                 row = connection.execute(
                     """SELECT job_id FROM pipeline_jobs
                        WHERE status='pending' AND (jenkins_job='' OR jenkins_job IS NULL)
+                       AND trigger_source != 'build'
                        ORDER BY created_at LIMIT 1"""
                 ).fetchone()
                 if row is None:
@@ -1205,7 +1352,7 @@ class DashboardStore:
 
     def finish_pipeline_job(self, job_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         status = str(payload.get("status") or "").strip()
-        valid = {"succeeded", "failed", "env_blocked", "error"}
+        valid = set(PIPELINE_JOB_FINISHED_STATUSES)
         if status not in valid:
             raise ValueError(f"status must be one of {sorted(valid)}")
         # Jenkins 构建内运行的 agent 会随 finish 回报 JOB_NAME/BUILD_NUMBER:派发时
@@ -1222,21 +1369,88 @@ class DashboardStore:
             ).fetchone()
             if row is None:
                 raise KeyError(f"pipeline job not found: {job_id}")
-            connection.execute(
+            # 状态条件更新(先到先得):仅 running/cancelling 可落终态——
+            # 取消 vs 正常完成竞态(如平台已强制取消,agent 迟到的 finish)后到方无副作用
+            updated = connection.execute(
                 """UPDATE pipeline_jobs SET status=?, finished_at=?, result_json=?,
                    jenkins_job=CASE WHEN IFNULL(jenkins_job,'')='' THEN ? ELSE jenkins_job END,
                    jenkins_build=CASE WHEN jenkins_build IS NULL THEN ? ELSE jenkins_build END
-                   WHERE job_id=?""",
+                   WHERE job_id=? AND status IN ('running', 'cancelling')""",
                 (status, utc_now(),
                  json.dumps(payload.get("result") or {}, ensure_ascii=False),
                  backfill_job, backfill_build, job_id),
-            )
+            ).rowcount
+            # cancelled 收尾:pytest 被看门狗杀掉时 conftest 的 sessionfinish 不会执行,
+            # 设备占用残留——由平台按 run 归属统一释放(SIGTERM/SIGKILL 下均如此)
+            if updated and status == "cancelled":
+                released = connection.execute(
+                    """UPDATE devices SET status='online_idle', current_run='', busy_since=NULL,
+                       last_heartbeat=? WHERE status='busy' AND current_run=?""",
+                    (utc_now(), f"pipe-{job_id}"),
+                ).rowcount
+                if released:
+                    _reap_log(f"job={job_id} 已取消,释放设备 {released} 台")
+        return self.get_pipeline_job(job_id)
+
+    def finish_build_pipeline_job(self, job_id: str, status: str,
+                                  result: dict[str, Any]) -> dict[str, Any]:
+        """打包型流水线任务终态回写:pending 直接落终态。
+
+        finish_pipeline_job 只收 running/cancelling(agent 状态机),build 任务没有
+        认领环节,状态机独立:仅 pending 且 trigger_source='build' 可落,先到先得。
+        """
+        if status not in set(PIPELINE_JOB_FINISHED_STATUSES):
+            raise ValueError(f"status must be one of {sorted(PIPELINE_JOB_FINISHED_STATUSES)}")
+        with self.transaction() as connection:
+            updated = connection.execute(
+                """UPDATE pipeline_jobs SET status=?, finished_at=?, result_json=?
+                   WHERE job_id=? AND status='pending' AND trigger_source='build'""",
+                (status, utc_now(), json.dumps(result, ensure_ascii=False), job_id),
+            ).rowcount
+            if not updated:
+                raise KeyError(f"build pipeline job not pending: {job_id}")
+        return self.get_pipeline_job(job_id)
+
+    def cancel_pipeline_job(self, job_id: str) -> dict[str, Any]:
+        """用户取消流水线任务(状态机见 docs/流水线任务取消功能计划书.md 第四节)。
+
+        pending → 直接 cancelled(claim 只领 pending,天然不再下发);
+        running → 置 cancel_requested=1 + status='cancelling'(agent watchdog 轮询
+          旗标杀 pytest 进程组后回报 cancelled;agent 离线由 _force_cancel_stale 兜底);
+        cancelling → 幂等返回现状;其余终态 → ValueError(handler 转 409)。
+        全部 UPDATE 带状态条件:取消 vs finish/强制兜底竞态先到先得。
+        """
+        now = utc_now()
+        with self.transaction() as connection:
+            row = connection.execute(
+                "SELECT status FROM pipeline_jobs WHERE job_id=?", (job_id,)
+            ).fetchone()
+            if row is None:
+                raise KeyError(f"pipeline job not found: {job_id}")
+            current = row["status"]
+            if current == "pending":
+                connection.execute(
+                    """UPDATE pipeline_jobs SET status='cancelled', finished_at=?, result_json=?
+                       WHERE job_id=? AND status='pending'""",
+                    (now, json.dumps({"cancel_requested": True,
+                                      "reason": "pending 状态取消,未下发执行"},
+                                     ensure_ascii=False), job_id),
+                )
+            elif current == "running":
+                connection.execute(
+                    """UPDATE pipeline_jobs SET status='cancelling', cancel_requested=1,
+                       cancel_requested_at=? WHERE job_id=? AND status='running'""",
+                    (now, job_id),
+                )
+            elif current != "cancelling":
+                raise ValueError(f"任务状态为 {current},仅 pending/running 可取消")
         return self.get_pipeline_job(job_id)
 
     def mark_jenkins_dispatch(self, job_id: str, jenkins_job: str = "",
                               jenkins_build: int | None = None,
                               queue_id: int | None = None,
-                              trigger_error: str = "") -> dict[str, Any]:
+                              trigger_error: str = "",
+                              result_extra: dict[str, Any] | None = None) -> dict[str, Any]:
         """回填 Jenkins 派发结果(M3)。
 
         触发成功:jenkins_job 置名 + jenkins_build(拿到时) + result_json.jenkins_queue_id;
@@ -1252,6 +1466,8 @@ class DashboardStore:
             result = json.loads(row["result_json"] or "{}")
             if trigger_error:
                 result["jenkins_trigger_failed"] = trigger_error
+            if result_extra:
+                result.update(result_extra)  # 打包型任务:分支/环境/来源配置等元数据
             if queue_id is not None:
                 result["jenkins_queue_id"] = queue_id
             connection.execute(
@@ -1725,6 +1941,11 @@ class DashboardStore:
         except json.JSONDecodeError:
             schedule = {}
         item["schedule"] = schedule if isinstance(schedule, dict) else {}
+        try:
+            build = json.loads(item.get("build_param") or "{}")
+        except json.JSONDecodeError:
+            build = {}
+        item["build"] = build if isinstance(build, dict) else {}
         item["next_run_at"] = compute_next_run_at(
             str(item.get("schedule_type") or ""), item.get("schedule_param") or "{}"
         )
@@ -1743,11 +1964,13 @@ class DashboardStore:
             connection.execute(
                 """INSERT INTO pipeline_configs (
                     config_id, name, description, suite_id, include_build,
-                    schedule_type, schedule_param, enabled, platform, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    schedule_type, schedule_param, enabled, platform, kind, build_param,
+                    created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (fields["config_id"], fields["name"], fields["description"],
                  fields["suite_id"], fields["include_build"], fields["schedule_type"],
-                 fields["schedule_param"], fields["enabled"], fields["platform"], now, now),
+                 fields["schedule_param"], fields["enabled"], fields["platform"],
+                 fields["kind"], fields["build_param"], now, now),
             )
         return self.get_pipeline_config(fields["config_id"])
 
@@ -1785,16 +2008,18 @@ class DashboardStore:
                 "schedule_param": payload.get("schedule_param", row["schedule_param"]),
                 "enabled": payload.get("enabled", row["enabled"]),
                 "platform": payload.get("platform", row["platform"]),
+                "kind": payload.get("kind", row["kind"]),
+                "build_param": payload.get("build_param", row["build_param"]),
             }
             fields = validate_pipeline_config(merged)
             connection.execute(
                 """UPDATE pipeline_configs SET name=?, description=?, suite_id=?,
                    include_build=?, schedule_type=?, schedule_param=?, enabled=?,
-                   platform=?, updated_at=? WHERE config_id=?""",
+                   platform=?, kind=?, build_param=?, updated_at=? WHERE config_id=?""",
                 (fields["name"], fields["description"], fields["suite_id"],
                  fields["include_build"], fields["schedule_type"],
                  fields["schedule_param"], fields["enabled"], fields["platform"],
-                 utc_now(), config_id),
+                 fields["kind"], fields["build_param"], utc_now(), config_id),
             )
         return self.get_pipeline_config(config_id)
 
@@ -1819,6 +2044,16 @@ class DashboardStore:
           3) 套件无可用成员 / 未关联套件 → 留空,执行 agent 回落默认 target。
         """
         config = self.get_pipeline_config(config_id)  # 不存在抛 KeyError → 404
+        if str(config.get("kind") or "suite") == "build":
+            # 打包型流水线:不建用例执行任务,直接触发打包 job;任务行仅作执行记录
+            job = self._run_build_pipeline(config)
+            with self.transaction() as connection:
+                connection.execute(
+                    "UPDATE pipeline_configs SET last_run_at=? WHERE config_id=?",
+                    (utc_now(), config_id),
+                )
+            return {"config": self.get_pipeline_config(config_id), "job": job,
+                    "case_filter_source": "build"}
         payload_case_filter = str(payload.get("case_filter") or "").strip()
         if payload_case_filter:
             # 覆盖语义:运行时显式指定的 case_filter 优先于套件聚合
@@ -1849,6 +2084,44 @@ class DashboardStore:
             "job": job,
             "case_filter_source": filter_source or "default",
         }
+
+    def _run_build_pipeline(self, config: dict[str, Any]) -> dict[str, Any]:
+        """打包型流水线(kind=build)执行:触发 swan-audio-build 出包,不跑用例。
+
+        任务行 trigger_source='build' 仅作执行记录:轮询认领在 SQL 里排除 build 来源,
+        终态由读取路径的 resolve_build_pipeline_jobs 向 Jenkins 惰性回查(排队中无构建号,
+        构建号由 resolver 从 queue_id 补拿)。触发即失败(Jenkins 未配置/触发报错)直接落
+        failed,不留 pending。
+        """
+        build = config.get("build") or {}
+        branch = str(build.get("branch") or "dev")
+        server_type = str(build.get("server_type") or "test")
+        config_id = str(config.get("config_id") or "")
+        result = {"build": {"branch": branch, "server_type": server_type,
+                            "pipeline": config_id}}
+        job = self.create_pipeline_job({
+            "trigger_source": "build",
+            "platform": str(config.get("platform") or "flutter"),
+            "branch": branch,
+            "case_filter": "",
+            "apk_id": "",
+        })
+        if not jenkins_client.config():
+            return self.finish_build_pipeline_job(
+                job["job_id"], "failed",
+                {**result, "error": "Jenkins 未配置(JENKINS_BASE_URL/JENKINS_USER/JENKINS_API_TOKEN)"})
+        build_job = os.environ.get("JENKINS_BUILD_JOB", "").strip() or "swan-audio-build"
+        # NOTES 与 /api/builds 同规:URL 编码后传,build_swan_apk.py 侧 unquote 解码
+        outcome = jenkins_client.trigger(build_job, {
+            "BRANCH": branch, "SERVER_TYPE": server_type,
+            "NOTES": quote(f"pipeline:{config_id}")})
+        if not outcome.get("ok"):
+            return self.finish_build_pipeline_job(
+                job["job_id"], "failed",
+                {**result, "error": f"Jenkins 触发失败: {outcome.get('error')}"})
+        return self.mark_jenkins_dispatch(
+            job["job_id"], jenkins_job=build_job,
+            queue_id=outcome.get("queue_id"), result_extra=result)
 
     # ==================== 测试套件(M4 P1) ====================
 
@@ -2400,6 +2673,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
             except ValueError:
                 self.send_error_json("limit must be an integer", HTTPStatus.BAD_REQUEST)
                 return
+            resolve_build_pipeline_jobs(self.store)  # 打包型任务惰性回查 Jenkins 终态
             items = self.store.list_pipeline_jobs(status=status, limit=limit)
             # jenkins_log_url 给浏览器跳转用(流水线列表"Jenkins 日志"按钮),与 APK 列表
             # 同规则:优先 JENKINS_PUBLIC_URL(对外可达),回退 JENKINS_BASE_URL(服务端
@@ -2538,6 +2812,17 @@ class DashboardHandler(BaseHTTPRequestHandler):
                     self.store.run_pipeline_config(config_id, self.read_optional_json()),
                     HTTPStatus.CREATED,
                 )
+                return
+            # 任务取消(M-B):允许空请求体,同样先于 read_json 分流。
+            # 不存在 404 / 非 pending/running 409(单独映射,不走外层 ValueError→400)
+            if parsed.path.startswith("/api/pipeline/jobs/") and parsed.path.endswith("/cancel"):
+                job_id = parsed.path.removeprefix("/api/pipeline/jobs/").removesuffix("/cancel").strip("/")
+                try:
+                    self.send_json(self.store.cancel_pipeline_job(job_id))
+                except KeyError as error:
+                    self.send_error_json(str(error), HTTPStatus.NOT_FOUND)
+                except ValueError as error:
+                    self.send_error_json(str(error), HTTPStatus.CONFLICT)
                 return
             # APK 归档上传:构建机登记成功后把产物字节推给平台(原始 octet-stream,
             # 须先于 read_json 分流)。扫码下载跨机回源走 output/apks/<apk_id>.apk。

@@ -28,7 +28,7 @@
     table { border-collapse:collapse; width:100%; } th,td { padding:12px 15px; border-bottom:1px solid var(--line); text-align:left; white-space:nowrap; } th { color:var(--muted); background:#fafbfc; font-size:12px; font-weight:600; }
     .num { text-align:right; font-variant-numeric:tabular-nums; }
     tbody tr.clickable { cursor:pointer; } tbody tr.clickable:hover { background:#f8f9ff; }
-    .badge { border-radius:999px; padding:3px 9px; font-size:12px; font-weight:600; display:inline-block; } .passed { color:var(--good); background:#e6fcf5; } .failed,.error { color:var(--bad); background:#fff5f5; } .running { color:var(--brand); background:#edf2ff; } .skipped { color:var(--warn); background:#fff9db; }
+    .badge { border-radius:999px; padding:3px 9px; font-size:12px; font-weight:600; display:inline-block; } .passed { color:var(--good); background:#e6fcf5; } .failed,.error { color:var(--bad); background:#fff5f5; } .running { color:var(--brand); background:#edf2ff; } .skipped { color:var(--warn); background:#fff9db; } .cancelling { color:var(--warn); background:var(--warn-weak); } .cancelled { color:var(--muted); background:var(--neutral-weak); }
     .empty { padding:44px; text-align:center; color:var(--muted); } .meta { color:var(--muted); font-size:13px; }
     .detail-head { display:flex; justify-content:space-between; gap:12px; align-items:start; } #run-drawer h2 { margin:0 0 14px; font-size:18px; }
     .case { border:1px solid var(--line); border-radius:10px; margin:10px 0; padding:13px 15px; background:#fff; } .case summary { cursor:pointer; list-style:none; } .case summary::-webkit-details-marker { display:none; } .case summary::before { content:"▸"; margin-right:8px; color:var(--muted); } .case[open] summary::before { content:"▾"; }
@@ -557,11 +557,18 @@
       <div class="form-grid">
         <div><label for="pl-f-name">名称 *</label><input id="pl-f-name" style="width:100%" placeholder="每日冒烟"></div>
         <div><label for="pl-f-id">配置 ID *</label><input id="pl-f-id" style="width:100%" placeholder="PIPE-SMOKE-DAILY"></div>
-        <div><label for="pl-f-suite">关联套件</label>
+        <div style="grid-column:span 2"><label>类型 *</label>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;padding-top:6px">
+            <label style="display:flex;gap:4px;align-items:center"><input type="radio" name="pl-kind" value="suite" checked>测试流水线</label>
+            <label style="display:flex;gap:4px;align-items:center"><input type="radio" name="pl-kind" value="build">打包流水线</label>
+          </div>
+          <div class="hint">打包流水线:到点直接触发 Jenkins 出对应环境安装包,不跑用例;包见"包管理"页</div>
+        </div>
+        <div id="pl-f-suite-div"><label for="pl-f-suite">关联套件</label>
           <select id="pl-f-suite" style="width:100%"><option value="">— 不关联 —</option></select>
           <div class="hint">可选;套件在"测试套"页维护,执行时按成员 seq 顺序跑用例</div>
         </div>
-        <div><label for="pl-f-platform">平台</label>
+        <div id="pl-f-platform-div"><label for="pl-f-platform">平台</label>
           <select id="pl-f-platform" style="width:100%">
             <option value="flutter">Flutter</option>
             <option value="web">Web</option>
@@ -569,6 +576,17 @@
             <option value="pc">PC</option>
           </select>
           <div class="hint">执行任务使用的平台,默认 Flutter;Web 跑浏览器用例</div>
+        </div>
+        <div style="grid-column:span 2" id="pl-f-build-fields" hidden><label>打包参数</label>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding-top:6px">
+            <span class="meta">分支</span><input id="pl-f-branch" value="dev" style="width:130px" placeholder="dev">
+            <span class="meta">环境</span>
+            <select id="pl-f-server" style="width:160px">
+              <option value="test">测试服 (profile)</option>
+              <option value="formal">正式服 (release)</option>
+            </select>
+          </div>
+          <div class="hint">test=测试服(debug 签名) / formal=正式服(release 锁服)</div>
         </div>
         <div><label>频率 *</label>
           <div style="display:flex;gap:10px;flex-wrap:wrap;padding-top:6px" id="pl-freq-radios">
@@ -600,7 +618,7 @@
             <input type="time" id="pl-f-weekly-time" value="22:00">
           </div>
         </div>
-        <div><label style="display:flex;gap:6px;align-items:center;margin-top:8px"><input type="checkbox" id="pl-f-build"> 执行前先打包</label></div>
+        <div id="pl-f-build-div"><label style="display:flex;gap:6px;align-items:center;margin-top:8px"><input type="checkbox" id="pl-f-build"> 执行前先打包</label></div>
         <div><label style="display:flex;gap:6px;align-items:center;margin-top:8px"><input type="checkbox" id="pl-f-enabled" checked> 启用</label></div>
         <div class="form-actions"><button class="primary" id="pl-save">保存</button><button class="ghost" id="pl-cancel">取消</button><span class="meta" id="pl-msg"></span></div>
       </div>
@@ -689,6 +707,7 @@
       qr: '<svg viewBox="0 0 24 24"><rect width="5" height="5" x="3" y="3" rx="1"/><rect width="5" height="5" x="16" y="3" rx="1"/><rect width="5" height="5" x="3" y="16" rx="1"/><path d="M21 16h-3a2 2 0 0 0-2 2v3"/><path d="M21 21v.01"/><path d="M14 14v.01"/><path d="M14 21v.01"/><path d="M17 21v.01"/><path d="M21 14v.01"/></svg>',
       log: '<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>',
       list: '<svg viewBox="0 0 24 24"><line x1="8" x2="21" y1="6" y2="6"/><line x1="8" x2="21" y1="12" y2="12"/><line x1="8" x2="21" y1="18" y2="18"/><line x1="3" x2="3.01" y1="6" y2="6"/><line x1="3" x2="3.01" y1="12" y2="12"/><line x1="3" x2="3.01" y1="18" y2="18"/></svg>',
+      circleX: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" x2="9" y1="9" y2="15"/><line x1="9" x2="15" y1="9" y2="15"/></svg>',
     };
     // 全站列表列宽拖拽(用例管理表同款交互推广:拖某列右缘,左缘不动、其他列不动;localStorage 持久化)
     // pinLast=true 时最后一列(操作按钮列)固定最右不提供拖拽(规范 4.2:按钮列固定)
@@ -1894,8 +1913,8 @@
     let plItems = [];
     let plEditing = null;   // 编辑中的 config_id,新建为 null
     const PL_WEEK_CN = ['日','一','二','三','四','五','六'];  // 下标即 weekdays 值,0=周日
-    const PL_JOB_STATUS = {pending:'待执行', running:'执行中', succeeded:'成功', failed:'失败', env_blocked:'环境阻塞', error:'错误'};
-    const PL_JOB_CLASS = {pending:'', running:'running', succeeded:'passed', failed:'failed', env_blocked:'skipped', error:'error'};
+    const PL_JOB_STATUS = {pending:'待执行', running:'执行中', cancelling:'取消中', cancelled:'已取消', succeeded:'成功', failed:'失败', env_blocked:'环境阻塞', error:'错误'};
+    const PL_JOB_CLASS = {pending:'', running:'running', cancelling:'cancelling', cancelled:'cancelled', succeeded:'passed', failed:'failed', env_blocked:'skipped', error:'error'};
 
     // 频率的中文友好显示:每天 01:33 / 每 2 天 09:00 / 每周一·五 22:00 / 单次 2026-09-20 14:00
     function plScheduleText(c) {
@@ -1913,6 +1932,14 @@
       const pick = n => Array.from({length: n}, () => L[Math.floor(Math.random() * L.length)]).join('');
       return `PIPE-${pick(3)}-${pick(4)}`;
     }
+    function plKindChanged() {
+      const kind = (document.querySelector('input[name="pl-kind"]:checked') || {}).value || 'suite';
+      const isBuild = kind === 'build';
+      $('pl-f-suite-div').hidden = isBuild;
+      $('pl-f-platform-div').hidden = isBuild;
+      $('pl-f-build-fields').hidden = !isBuild;
+      $('pl-f-build-div').hidden = isBuild;
+    }
     function plFreqChanged() {
       const freq = (document.querySelector('input[name="pl-freq"]:checked') || {}).value || 'daily';
       $('pl-param-once').hidden = freq !== 'once';
@@ -1926,7 +1953,11 @@
       const tbody = $('pl-rows'); tbody.innerHTML = '';
       if (!plItems.length) { tbody.innerHTML = '<tr><td colspan="9" class="empty">还没有流水线配置——点右上"＋ 新建流水线配置"</td></tr>'; }
       plItems.forEach(c => { const row = document.createElement('tr');
-        row.innerHTML = `<td>${safe(c.config_id)}</td><td>${safe(c.name)}${c.description ? `<div class="cd-case-title">${safe(c.description)}</div>` : ''}</td><td>${safe(c.suite_id || '-')}</td><td>${c.include_build ? '是' : '—'}</td><td>${safe(plScheduleText(c))}</td><td>${c.last_run_at ? safe(formatDate(c.last_run_at)) : '-'}</td><td>${c.next_run_at ? safe(formatDate(c.next_run_at)) : '-'}</td>
+        const isBuild = c.kind === 'build';
+        const target = isBuild
+          ? '<span class="badge running">打包</span> ' + safe((c.build || {}).branch || '') + ' → ' + ((c.build || {}).server_type === 'formal' ? '正式服' : '测试服')
+          : safe(c.suite_id || '-');
+        row.innerHTML = `<td>${safe(c.config_id)}</td><td>${safe(c.name)}${c.description ? `<div class="cd-case-title">${safe(c.description)}</div>` : ''}</td><td>${target}</td><td>${isBuild ? '—' : (c.include_build ? '是' : '—')}</td><td>${safe(plScheduleText(c))}</td><td>${c.last_run_at ? safe(formatDate(c.last_run_at)) : '-'}</td><td>${c.next_run_at ? safe(formatDate(c.next_run_at)) : '-'}</td>
           <td><input type="checkbox" ${c.enabled ? 'checked' : ''} onchange="plToggleEnabled(decodeURIComponent('${encodeURIComponent(c.config_id)}'), this.checked)"></td>
           <td><button class="icon-btn" onclick="plRunNow(decodeURIComponent('${encodeURIComponent(c.config_id)}'))" title="立即执行">${ICON.play}</button> <button class="icon-btn" onclick="plOpenForm(decodeURIComponent('${encodeURIComponent(c.config_id)}'))" title="编辑">${ICON.edit}</button> <button class="icon-btn danger" onclick="plDeleteConfig(decodeURIComponent('${encodeURIComponent(c.config_id)}'))" title="删除">${ICON.trash}</button></td>`;
         tbody.appendChild(row); });
@@ -1939,10 +1970,30 @@
       const tbody = $('pl-job-rows'); tbody.innerHTML = '';
       if (!jobs.length) { tbody.innerHTML = '<tr><td colspan="7" class="empty">暂无执行记录</td></tr>'; return; }
       jobs.forEach(j => { const row = document.createElement('tr');
+        const cancelable = j.status === 'pending' || j.status === 'running'; // 规范 6.3:仅 pending/running 行渲染取消入口,终态行不渲染
+        const cancelBtn = cancelable ? `<button class="icon-btn danger" data-act="cancel" title="取消任务">${ICON.circleX}</button>` : '';
         const jkBtn = j.jenkins_log_url ? `<button class="icon-btn" data-act="jk" title="Jenkins 日志">${ICON.log}</button>` : ''; // 未派发 Jenkins 的本地兜底任务不渲染
-        row.innerHTML = `<td>${safe(j.job_id)}</td><td>${safe((j.platform || '').toUpperCase())}</td><td>${safe(j.case_filter || '-')}</td><td><span class="badge ${PL_JOB_CLASS[j.status] || ''}">${PL_JOB_STATUS[j.status] || safe(j.status)}</span></td><td>${safe(formatDate(j.created_at))}</td><td>${j.finished_at ? safe(formatDate(j.finished_at)) : '-'}</td><td>${jkBtn}</td>`;
+        const target = j.trigger_source === 'build'
+          ? '打包 ' + safe(j.branch || '') + (((j.result || {}).build || {}).server_type === 'formal' ? ' → 正式服' : ' → 测试服')
+          : safe(j.case_filter || '-');
+        row.innerHTML = `<td>${safe(j.job_id)}</td><td>${safe((j.platform || '').toUpperCase())}</td><td>${target}</td><td><span class="badge ${PL_JOB_CLASS[j.status] || ''}">${PL_JOB_STATUS[j.status] || safe(j.status)}</span></td><td>${safe(formatDate(j.created_at))}</td><td>${j.finished_at ? safe(formatDate(j.finished_at)) : '-'}</td><td>${[cancelBtn, jkBtn].filter(Boolean).join(' ')}</td>`;
+        row.querySelectorAll('button[data-act="cancel"]').forEach(b => { b.onclick = () => plCancelJob(j.job_id, j.status, b); });
         row.querySelectorAll('button[data-act="jk"]').forEach(b => { b.onclick = () => window.open(j.jenkins_log_url, '_blank', 'noopener'); });
         tbody.appendChild(row); });
+    }
+    // 任务取消(规范 6.3):cfm-modal 确认文案按行状态两支;running 行点击后按钮转 disabled 直至终态
+    async function plCancelJob(jobId, status, btn) {
+      const text = status === 'pending'
+        ? `取消任务 ${jobId}?任务尚未开始,取消后不再下发`
+        : `取消任务 ${jobId}?运行中的用例将中断,已产出结果保留`;
+      if (!(await confirmAction(text))) return;
+      const row = btn ? btn.closest('tr') : null;
+      if (row) row.querySelectorAll('button[data-act="cancel"]').forEach(b => { b.disabled = true; b.title = '取消请求已发出,等待执行端确认'; });
+      const res = await fetch(`/api/pipeline/jobs/${encodeURIComponent(jobId)}/cancel`, { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { showToast((data && data.error) || '取消失败', true); return; }
+      showToast(status === 'pending' ? '任务已取消' : '取消请求已发出,等待执行端确认');
+      plLoadConfigs(); // 重拉最近任务表,pending 行直接变"已取消"/running 行变"取消中"
     }
     async function plOpenForm(configId) {
       plEditing = configId || null;
@@ -1976,6 +2027,11 @@
       sel.value = (c && c.suite_id) || '';
       // 平台回显:老配置没有 platform 值时回落 flutter
       $('pl-f-platform').value = (c && c.platform) || 'flutter';
+      const kind = (c && c.kind) || 'suite';
+      document.querySelectorAll('input[name="pl-kind"]').forEach(r => { r.checked = r.value === kind; });
+      $('pl-f-branch').value = (c && c.build && c.build.branch) || 'dev';
+      $('pl-f-server').value = (c && c.build && c.build.server_type) || 'test';
+      plKindChanged();
       plFreqChanged();
       $('pl-modal').hidden = false;
     }
@@ -2013,11 +2069,17 @@
       if (!configId) { $('pl-msg').textContent = '配置 ID 必填'; return; }
       const built = plCollectParam();
       if (built.error) { $('pl-msg').textContent = built.error; return; }
-      const payload = { name, config_id: configId, suite_id: $('pl-f-suite').value || '',
-        include_build: $('pl-f-build').checked ? 1 : 0,
+      const kind = (document.querySelector('input[name="pl-kind"]:checked') || {}).value || 'suite';
+      const payload = { name, config_id: configId, kind,
+        suite_id: kind === 'build' ? '' : ($('pl-f-suite').value || ''),
+        include_build: (kind !== 'build' && $('pl-f-build').checked) ? 1 : 0,
         schedule_type: built.freq, schedule_param: built.param,
         enabled: $('pl-f-enabled').checked ? 1 : 0,
-        platform: $('pl-f-platform').value || 'flutter' };
+        platform: kind === 'build' ? 'flutter' : ($('pl-f-platform').value || 'flutter') };
+      if (kind === 'build') {
+        payload.build_param = { branch: $('pl-f-branch').value.trim() || 'dev',
+                                server_type: $('pl-f-server').value };
+      }
       const url = plEditing ? '/api/pipeline-configs/' + encodeURIComponent(plEditing) : '/api/pipeline-configs';
       const resp = await fetch(url, { method: plEditing ? 'PUT' : 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
       const data = await resp.json().catch(() => ({}));
@@ -2045,6 +2107,7 @@
     $('pl-save').onclick = plSaveConfig;
     $('pl-cancel').onclick = () => { $('pl-modal').hidden = true; };
     document.querySelectorAll('input[name="pl-freq"]').forEach(r => r.onchange = plFreqChanged);
+    document.querySelectorAll('input[name="pl-kind"]').forEach(r => r.onchange = plKindChanged);
 
     // ---------- 测试套件(M4 P1) ----------
     let suItems = [];              // 套件列表缓存

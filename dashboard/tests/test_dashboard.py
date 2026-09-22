@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import gc
 import json
 import os
 import tempfile
@@ -191,4 +192,143 @@ def test_gitlab_webhook_auto_build():
             server.server_close()
             jenkins_server.shutdown()
             jenkins_server.server_close()
+            gc.collect()  # 例外/回溯帧可能循环引用 sqlite 连接;Windows 删库文件需句柄已关
 
+
+
+def test_build_pipeline_config():
+    """打包型流水线(kind=build):配置校验 / run 触发打包 job / agent 不认领 /
+    列表读取时向 Jenkins 惰性回查终态。"""
+    with tempfile.TemporaryDirectory() as temporary_directory:
+        captured = []
+        build_result = {"building": False, "result": "SUCCESS"}
+
+        class MockJenkins(BaseHTTPRequestHandler):
+            def do_POST(self):
+                length = int(self.headers.get("Content-Length", "0") or 0)
+                captured.append(dict(urllib.parse.parse_qsl(self.rfile.read(length).decode("utf-8"))))
+                self.send_response(201)
+                self.send_header("Location", "http://mock-jenkins/queue/item/88/")
+                self.end_headers()
+
+            def do_GET(self):
+                def reply(payload):
+                    body = json.dumps(payload).encode("utf-8")
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json")
+                    self.send_header("Content-Length", str(len(body)))
+                    self.end_headers()
+                    self.wfile.write(body)
+                if "/queue/item/88/" in self.path:
+                    reply({"executable": {"number": 9}})
+                elif "/job/swan-audio-build/9/" in self.path:
+                    reply(build_result)
+                else:
+                    self.send_response(404)
+                    self.end_headers()
+
+            def log_message(self, *args):
+                pass
+
+        jenkins_server = ThreadingHTTPServer(("127.0.0.1", 0), MockJenkins)
+        threading.Thread(target=jenkins_server.serve_forever, daemon=True).start()
+        env_keys = ("JENKINS_BASE_URL", "JENKINS_USER", "JENKINS_API_TOKEN")
+        env_backup = {key: os.environ.get(key) for key in env_keys}
+        os.environ.update({
+            "JENKINS_BASE_URL": f"http://127.0.0.1:{jenkins_server.server_address[1]}",
+            "JENKINS_USER": "mock",
+            "JENKINS_API_TOKEN": "mock",
+        })
+        server = create_server("127.0.0.1", 0, Path(temporary_directory) / "dashboard.sqlite3")
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        base_url = f"http://127.0.0.1:{server.server_address[1]}"
+
+        def create(payload: dict):
+            # 400 属预期分支,request() 不捕 HTTPError,这里照 webhook 测试自行捕
+            try:
+                return request(base_url, "/api/pipeline-configs", "POST", payload)
+            except urllib.error.HTTPError as error:
+                return error.code, None, error.read()
+
+        try:
+            # 校验:server_type 非法 / branch 带命令字符(坑 15)→ 400
+            status, _, _ = create({
+                "config_id": "PIPE-BUILD-BAD", "name": "bad", "kind": "build",
+                "schedule_type": "daily", "schedule_param": {"time": "04:17"},
+                "build_param": {"branch": "dev", "server_type": "staging"}})
+            assert status == 400
+            status, _, _ = create({
+                "config_id": "PIPE-BUILD-BAD", "name": "bad", "kind": "build",
+                "schedule_type": "daily", "schedule_param": {"time": "04:17"},
+                "build_param": {"branch": "dev & dir", "server_type": "test"}})
+            assert status == 400
+
+            # 合法创建:suite_id/include_build 强制置空,build_param 回显
+            status, _, body = create({
+                "config_id": "PIPE-BUILD-TEST", "name": "每日打包-测试服", "kind": "build",
+                "schedule_type": "daily", "schedule_param": {"time": "04:17"},
+                "build_param": {"branch": "dev", "server_type": "test"}})
+            assert status == 201
+            config = json.loads(body)
+            assert config["kind"] == "build" and config["suite_id"] == ""
+            assert config["include_build"] == 0
+            assert config["build"] == {"branch": "dev", "server_type": "test"}
+            assert config["next_run_at"]  # 调度器靠它到点触发
+
+            # run:触发 swan-audio-build(NOTES 编码同 /api/builds),任务行 build 来源
+            status, _, body = request(base_url, "/api/pipeline-configs/PIPE-BUILD-TEST/run",
+                                      "POST", {})
+            assert status == 201  # run 端点惯例返回 CREATED
+            job = json.loads(body)["job"]
+            assert captured[-1] == {"BRANCH": "dev", "SERVER_TYPE": "test",
+                                    "NOTES": "pipeline%3APIPE-BUILD-TEST"}
+            assert job["trigger_source"] == "build" and job["status"] == "pending"
+            assert job["jenkins_job"] == "swan-audio-build"  # 派发已回填
+            assert job["result"]["build"]["pipeline"] == "PIPE-BUILD-TEST"
+
+            # 轮询认领不碰 build 任务(无 agent 跑用例)→ 无可认领任务
+            try:
+                request(base_url, "/api/pipeline/claim", "POST", {"agent": "t"})
+                claim_status = 200
+            except urllib.error.HTTPError as error:
+                claim_status = error.code
+            assert claim_status == 404
+
+            # 列表读取 → resolver 惰性回查:queue→构建号 9 → SUCCESS → succeeded
+            status, _, body = request(base_url, "/api/pipeline/jobs?limit=30")
+            assert status == 200
+            jobs = json.loads(body)["items"]
+            target = next(j for j in jobs if j["trigger_source"] == "build")
+            assert target["status"] == "succeeded" and target["jenkins_build"] == 9
+            assert target["finished_at"]
+
+            # 构建失败同样闭环:FAILURE → failed
+            build_result.update({"result": "FAILURE"})
+            status, _, body = request(base_url, "/api/pipeline-configs/PIPE-BUILD-TEST/run",
+                                      "POST", {})
+            assert status == 201  # run 端点惯例返回 CREATED
+            status, _, body = request(base_url, "/api/pipeline/jobs?limit=30")
+            jobs = json.loads(body)["items"]
+            failed_job = next(j for j in jobs if j["trigger_source"] == "build"
+                              and j["status"] != "succeeded")
+            assert failed_job["status"] == "failed"
+            assert "FAILURE" in failed_job["result"]["error"]
+
+            # 测试流水线行为不变:kind 缺省 suite,run 照旧走执行任务通道
+            status, _, body = create({
+                "config_id": "PIPE-SUITE-OK", "name": "普通", "kind": "suite",
+                "schedule_type": "once", "schedule_param": {"run_at": "2099-01-01T09:00"}})
+            assert status == 201
+            config = json.loads(body)
+            assert config["kind"] == "suite" and config["build"] == {}
+        finally:
+            for key, value in env_backup.items():
+                if value is None:
+                    os.environ.pop(key, None)
+                else:
+                    os.environ[key] = value
+            server.shutdown()
+            server.server_close()
+            jenkins_server.shutdown()
+            jenkins_server.server_close()
+            gc.collect()  # 例外/回溯帧可能循环引用 sqlite 连接;Windows 删库文件需句柄已关

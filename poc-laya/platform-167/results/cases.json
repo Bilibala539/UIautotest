@@ -1,0 +1,986 @@
+[
+ {
+  "case_id": "COLLECT-L2-NEG-001",
+  "title": "收藏↔取消往返幂等：星标三连往返终态正确、无脏分发",
+  "domain": null,
+  "content": "case_id: COLLECT-L2-NEG-001\nname: 收藏↔取消往返幂等：星标三连往返终态正确、无脏分发\nepic: SwanAudio-App\nfeature: 收藏与曲库\nstory: 收藏状态机往返\ntags:\n- L2\n- negative\n- BLOCKED-pending-exploration\nchannels:\n- assertion\nprecondition: 依赖 COLLECT-L2-POS-004 的入口探索回填；账号型 A\nsteps:\n- do: 对同一条目执行 收藏→取消→收藏 三连往返\n  expect: 每次操作后条目态与『我喜欢』计数严格联动（+1/-1/+1），终态=已收藏，计数=基线+1\n- do: 取消收尾并复测\n  expect: 终态=未收藏，计数=基线；无重复条目/无幽灵计数（dispatcher 分发不残留）\nrecovery: 以未收藏态收尾\nnotes: 与 FR-NEG-LIB-002（1s 内连点 3 次 latest-wins）互补：那条测并发决策， 本条测状态机往返一致性；两者都不重复。"
+ },
+ {
+  "case_id": "COLLECT-L2-NEG-002",
+  "title": "歌单页第三方 Tab 空态文案判据：『暂未授权』(从未授权) 与『授权已过期』(曾授权) 互斥",
+  "domain": null,
+  "content": "case_id: COLLECT-L2-NEG-002\nname: 歌单页第三方 Tab 空态文案判据：『暂未授权』(从未授权) 与『授权已过期』(曾授权) 互斥\nepic: SwanAudio-App\nfeature: 收藏与曲库\nstory: 第三方授权态判据\ntags:\n- L2\n- negative\n- judgement\nchannels:\n- assertion\nui_contract:\n  ocr:\n  - 暂未授权\n  - 授权已过期\n  - 授权后再使用哦～\n  - 去授权\nprecondition: 歌单页可达；账号型 B 或含未授权第三方平台的账号\nsteps:\n- do: 歌单页切到从未授权的第三方 tab（基线形态：Apple Music）\n  expect: 空态首行=『暂未授权』+『授权后再使用哦～/去授权』（从未授权判据）\n- do: 如账号存在曾授权过期的平台（基线形态：QQ音乐过期态），切到该 tab\n  expect: 空态首行=『授权已过期』（曾授权判据）；两文案在同一 tab 不同时出现（互斥）\n- do: 对任一未授权 tab 断言后不执行任何操作\n  expect: ⛔『去授权』按钮不点击（授权链路禁入）；停留观察无自动跳转\nrecovery: 纯只读，无清理\nnotes: 判据来源：2026-09-17 差分——同一页面两类空态文案可作授权历史状态机判据 （从未授权 vs 授权过期），可反哺授权域负向用例设计。"
+ },
+ {
+  "case_id": "COLLECT-L2-NEG-003",
+  "title": "我喜欢页渲染态互斥：TOKEN过期错误态 XOR 正常数据态，不得混合渲染",
+  "domain": null,
+  "content": "case_id: COLLECT-L2-NEG-003\nname: 我喜欢页渲染态互斥：TOKEN过期错误态 XOR 正常数据态，不得混合渲染\nepic: SwanAudio-App\nfeature: 收藏与曲库\nstory: 我喜欢页状态收敛\ntags:\n- L2\n- negative\n- judgement\nchannels:\n- assertion\nui_contract:\n  ocr:\n  - QQ音乐登录TOKEN过期,请重新授权!\n  - 重试\n  - 暂无内容\n  - 播放全部\nprecondition: 我喜欢页可达；账号型 A 或 B（执行时判定账号型并断言对应态）\nsteps:\n- do: 进入我喜欢页，判定当前渲染态\n  expect: 态判定唯一：B 型=错误态『QQ音乐登录TOKEN过期,请重新授权!』+『重试』按钮（⛔不点）；A 型=正常列表（来源分组+歌曲行），无 TOKEN\n    错误文案\n- do: 对当前态做互斥断言\n  expect: 错误态文案与正常数据列表不得同时渲染（混合=缺陷）；A 型下 TOKEN 文案出现=授权残留缺陷，B 型下出现可点击歌曲列表=空态收敛缺陷\n- do: 返回并复进一次（状态刷新收敛）\n  expect: 两次进入态判定一致（无随机翻转；flaky 登记表口径：同一会话内翻转≥2 次才记 flaky）\nrecovery: 纯只读，无清理\nnotes: 基线账号的 TOKEN 过期错误是授权过期残留态（差分佐证：非页面稳定 UI）， 本条将其从\"已知噪音\"升级为可执行判据；⛔ 重试按钮永远不点。"
+ },
+ {
+  "case_id": "COLLECT-L2-NEG-004",
+  "title": "收藏分组详情·来源筛选 tab 首次切换：过滤正确性与收敛（KB 未验证项首测）",
+  "domain": null,
+  "content": "case_id: COLLECT-L2-NEG-004\nname: 收藏分组详情·来源筛选 tab 首次切换：过滤正确性与收敛（KB 未验证项首测）\nepic: SwanAudio-App\nfeature: 收藏与曲库\nstory: 来源筛选切换\ntags:\n- L2\n- negative\n- exploration-first\nchannels:\n- assertion\nui_contract:\n  ocr:\n  - 全部 (N)\n  - QQ音乐 (n)\n  - 网易云音乐 (n)\n  - 酷狗音乐 (n)\nprecondition: 账号型 A 且目标分组内含多来源歌曲（至少 2 个来源 tab 计数>0）。 ⚠️ KB 明确记录『来源筛选 tab 切换后列表变化未验证』——本条为该缺口的首测\n  用例，执行时先按探索纪律记录实际行为，再回填断言。\nsteps:\n- do: 在含歌分组详情页记录『全部 (N)』计数\n  expect: 基线计数取得（播放全部行内『N首歌』与『全部 (N)』一致）\n- do: 点『QQ音乐 (n1)』tab（n1>0 的来源）\n  expect: 列表收敛为该来源条目；条目数 ≤ N 且与 n1 一致；无崩溃、无空白卡死\n- do: 切回『全部 (N)』\n  expect: 列表恢复全量 N 条；选中态回『全部』\n- do: 对一个 n=0 的来源 tab 执行切换\n  expect: 空态收敛（『暂无内容』或等价空态），不残留上一来源条目\nrecovery: 切回『全部』收尾\nnotes: 空态版本曾因全 0 首无法验证切换（flow_收藏_查看分组空态 ⚠️ 项）， 本条即其数据态补测；执行结果需回写 KB 页面文档『缺口』节。"
+ },
+ {
+  "case_id": "COLLECT-L2-POS-001",
+  "title": "SWAN收藏分组详情·数据态结构渲染（分组头/播放全部计数/来源筛选/歌曲行）",
+  "domain": null,
+  "content": "case_id: COLLECT-L2-POS-001\nname: SWAN收藏分组详情·数据态结构渲染（分组头/播放全部计数/来源筛选/歌曲行）\nepic: SwanAudio-App\nfeature: 收藏与曲库\nstory: 收藏分组查看链路（数据态）\ntags:\n- L2\n- data-state\n- readonly\nchannels:\n- assertion\nui_contract:\n  image_constants:\n  - SWAN_FAV_FAMILY_GROUP_ROW\n  - SWAN_FAV_MUSIC_GROUP_ROW\n  - SWAN_FAV_ADD_PLAYLIST_BUTTON\n  ocr:\n  - SWAN收藏\n  - 我的家庭\n  - 播放全部\n  - N首歌\n  - 已完成全量拉取\nprecondition: 账号型 A（至少一个收藏分组内有 ≥1 首既有歌曲）；我的页可达\nsteps:\n- do: 我的页 → 点 OCR\"SWAN收藏\" 进入收藏页\n  expect: 收藏页生效：分组列表渲染（分组行数=既有分组数，含 我的家庭/我的音乐 与用户自建分组）+ 底部『添加新的收藏歌单』按钮可见（SWAN_FAV_ADD_PLAYLIST_BUTTON）\n- do: 点开含歌分组行（OCR 分组名）\n  expect: 进入收藏分组详情页：标题=分组名（y≈92-140 判据，与分组行同名 y≈192-238 区分）+ 分组头封面名称在位\n- do: 断言『播放全部 N首歌』行（只读，⛔不点）\n  expect: N 与分组既有歌曲数一致（N>0）；计数为动态值断言格式『\\d+首歌』，不固化具体数字\n- do: 断言来源筛选 tab 行（全部/QQ音乐/网易云音乐/酷狗音乐）\n  expect: 四个 tab 可见；各 tab 计数之和 = 全部 tab 计数（隐藏一致性断言）\n- do: 滚动至歌曲列表首项，断言歌曲行结构\n  expect: 歌曲行渲染（标题+来源标识）；行尾操作钮只断言存在（🗑⊕ 形态以执行时实际为准，⛔不点）；列表尾出现『已完成全量拉取』脚注（数据态特有判据）\n- do: press_back 返回收藏页\n  expect: 『SWAN收藏』标题复现，『添加新的收藏歌单』按钮复现\nrecovery: 纯只读，无清理\nnotes: 本页空态版已验证（flow_收藏_查看分组空态）；数据态结构以 2026-09-17 差分为准 （歌曲行🗑⊕未点、脚注『已完成全量拉取』）。右上角无\n  ⋮ 更多按钮（与歌单详情页 两套行为的反证判据：SWAN_PD_MORE_BTN 图不存在），本用例顺带反证断言。"
+ },
+ {
+  "case_id": "COLLECT-L2-POS-002",
+  "title": "我喜欢页·数据态渲染（我喜欢N首/来源分组折叠/tab计数=分组条目数）",
+  "domain": null,
+  "content": "case_id: COLLECT-L2-POS-002\nname: 我喜欢页·数据态渲染（我喜欢N首/来源分组折叠/tab计数=分组条目数）\nepic: SwanAudio-App\nfeature: 收藏与曲库\nstory: 我喜欢列表（数据态）\ntags:\n- L2\n- data-state\n- readonly\nchannels:\n- assertion\nui_contract:\n  image_constants:\n  - SWAN_FAVORITE_PLAY_ALL\n  - SWAN_PD_MORE_BTN\n  ocr:\n  - 我喜欢\n  - 宝藏音乐，随心收藏\n  - 播放全部\n  - QQ音乐·\n  - 收起\nprecondition: 账号型 A（我喜欢列表有既有歌曲，首页推荐 Tab『我喜欢』卡显示『我喜欢\\nN首』）\nsteps:\n- do: 首页推荐 Tab → 记录『我喜欢』卡片计数文案（我喜欢\\nN首）\n  expect: 卡片渲染且 N 为非负数值（口径与全回归 FR-POS 一致，本步为后续对比基线）\n- do: 点『我喜欢』卡片进入我喜欢页\n  expect: 生效断言：标题『我喜欢』（y≈92-140）+ 歌单头副标题『宝藏音乐，随心收藏』（本页特有判据）\n- do: 断言『播放全部 N首歌』（SWAN_FAVORITE_PLAY_ALL，⛔不点）\n  expect: N 与步骤 1 卡片计数一致（首页卡片 ↔ 列表页计数同源）\n- do: 断言来源筛选 tab（全部(N)/QQ音乐(n1)/网易云音乐(n2)/酷狗音乐(n3)）\n  expect: 各来源 tab 计数之和 = 全部计数（收藏条目来源归类完备性）\n- do: 断言来源分组折叠条（『QQ音乐·n1首歌』+ 收起）\n  expect: 数据态特有结构出现：按来源分组的折叠条渲染，分组歌曲条目数与 tab 计数一致\n- do: 反证断言右上角更多按钮\n  expect: SWAN_PD_MORE_BTN 图不存在（与歌单详情页的两套行为判据保持）\nrecovery: 纯只读，无清理\nnotes: 基线空态账号的对比态（TOKEN 过期错误 + 0 首）由 COLLECT-L2-NEG-003 覆盖， 两态互斥断言见该条。"
+ },
+ {
+  "case_id": "COLLECT-L2-POS-003",
+  "title": "歌单页·已授权第三方 Tab 云歌单渲染（酷狗：收藏/创建 chips + 云歌单列表）",
+  "domain": null,
+  "content": "case_id: COLLECT-L2-POS-003\nname: 歌单页·已授权第三方 Tab 云歌单渲染（酷狗：收藏/创建 chips + 云歌单列表）\nepic: SwanAudio-App\nfeature: 收藏与曲库\nstory: 第三方云歌单同步态\ntags:\n- L2\n- data-state\n- readonly\nchannels:\n- assertion\nui_contract:\n  ocr:\n  - 歌单\n  - 酷狗音乐\n  - 收藏\n  - 创建\n  - 我喜欢\n  - 默认收藏\n  - 我的歌单\nprecondition: 账号型 A 且酷狗已授权（首页平台图标行酷狗带 ✓ 角标）\nsteps:\n- do: 首页 → 歌单页 → 横向滑到『酷狗音乐』tab 并点击\n  expect: Tab 切换生效：出现『收藏/创建』两个 chips；『创建』下渲染云歌单列表（实测形态：我喜欢/默认收藏/我的歌单 三个，列表内容以执行时实际为准）\n- do: 断言云歌单条目可数（只读）\n  expect: 条目≥1 且与账号实际云歌单数一致（只记录，不进入歌单详情）\nrecovery: 纯只读，无清理\nnotes: 与差分记录的『未授权空态』对照由 NEG-002 覆盖；⛔ 云歌单条目不点击， 涉及第三方内容加载，超出本用例断言范围。"
+ },
+ {
+  "case_id": "COLLECT-L2-POS-004",
+  "title": "收藏一首歌：条目星标收藏 → 我喜欢计数+1 → 取消收藏恢复（写操作族·添加位）",
+  "domain": null,
+  "content": "case_id: COLLECT-L2-POS-004\nname: 收藏一首歌：条目星标收藏 → 我喜欢计数+1 → 取消收藏恢复（写操作族·添加位）\nepic: SwanAudio-App\nfeature: 收藏与曲库\nstory: 歌曲收藏写操作\ntags:\n- L2\n- write\n- BLOCKED-pending-exploration\nchannels:\n- assertion\nui_contract:\n  hivi_test_ids: []\n  note: 收藏星标 locator 未入 KB，本条为占位契约，探索补齐后回填\nprecondition: ⚠️ BLOCKED：KB 缺口——歌曲收藏星标入口未验证（2026-09-17 差分实测歌曲行仅 🗑⊕ 两钮，无星标；已记录的候选入口=第三方歌单详情\n  ★收藏(⛔已记录未点)、 搜索/歌单页可达条目星标（NEG 回归 precondition 引用）、播放页有任务态红心 （播放页有任务态布局未复验）。需先由 explorer\n  完成『收藏动作入口』Wave 探索 并转正页面文档后，本条才能执行。\nsteps:\n- do: （待回填）在 <待探索入口页> 对任一可收藏歌曲条目点击收藏星标\n  expect: 星标置为已收藏态；无崩溃（若走 favorite_change_dispatcher，终态事件恰一次）\n- do: 进入我喜欢页，读取『播放全部 N首歌』计数\n  expect: N = 收藏前基线 +1；新歌出现在列表（来源分组归属与歌曲实际来源一致）\n- do: 回到原条目，再次点击星标取消收藏\n  expect: 星标回到未收藏态；我喜欢计数回退到基线 N\n- do: 复测首页『我喜欢』卡片计数\n  expect: 卡片计数与列表页一致（三处计数同源：首页卡/列表页/条目态）\nrecovery: 取消收藏恢复原态（TEST-SYNTHETIC 数据可复原）；若中途失败，以最终一次星标操作为准恢复\nnotes: 全回归 FR-NEG-LIB-002 已覆盖连点 latest-wins；本条覆盖单次写路径与计数联动， 是收藏域『专项四态结构』中\"添加\"位的正式用例。探索入口时禁止点播放控制类元素。"
+ },
+ {
+  "case_id": "COLLECT-L2-POS-005",
+  "title": "收藏分组写操作链：新建收藏歌单 → 添加歌曲 → 移除 → 删除分组（全自清理）",
+  "domain": null,
+  "content": "case_id: COLLECT-L2-POS-005\nname: 收藏分组写操作链：新建收藏歌单 → 添加歌曲 → 移除 → 删除分组（全自清理）\nepic: SwanAudio-App\nfeature: 收藏与曲库\nstory: 收藏分组生命周期（写操作族）\ntags:\n- L2\n- write\n- BLOCKED-pending-exploration\n- self-cleanup\nchannels:\n- assertion\nui_contract:\n  image_constants:\n  - SWAN_FAV_ADD_PLAYLIST_BUTTON\n  note: 新建弹窗/加歌/删除分组流程均未入 KB（feature 文档『添加收藏歌单流程未探索』），占位契约\nprecondition: ⚠️ BLOCKED：『添加新的收藏歌单』按钮已转正（定位可断言），但其后续弹窗、 加歌入口、删除分组入口未探索。需 explorer\n  先行，且删除分组/移除歌曲属 测试环境可点的写操作（feature_收藏管理.md 边界条款），用例必须自清理。\nsteps:\n- do: 收藏页点『添加新的收藏歌单』（SWAN_FAV_ADD_PLAYLIST_BUTTON）\n  expect: （待回填）新建弹窗出现，输入名称创建成功，新分组行出现在列表\n- do: 进入新分组，执行添加歌曲（入口待回填）\n  expect: （待回填）分组详情计数 0→1，来源筛选计数联动\n- do: 移除该歌曲（歌曲行操作，入口待回填）\n  expect: （待回填）计数回 0，空态文案『暂无内容/快添加歌曲吧～』复现\n- do: 删除该测试分组（入口待回填）\n  expect: （待回填）分组从收藏页列表消失，收藏页回到用例前分组集合\nrecovery: 整链自清理：删除测试分组；失败时按步骤 4 手动兜底，并在执行记录标注残留\nnotes: 禁止对既有分组（我的家庭/我的音乐/用户自建）执行任何删除/移除操作"
+ },
+ {
+  "case_id": "FR-L2-POS-001",
+  "title": "快照升级安装后冷启动：登录态保留直进主界面（snapshot 验收项）",
+  "domain": "启动与隐私",
+  "content": "case_id: FR-L2-POS-001\nname: 快照升级安装后冷启动：登录态保留直进主界面（snapshot 验收项）\ntags:\n- smoke\n- L2\n- snapshot-acceptance\nprecondition_class: 需登录态\nprecondition: emulator-5554 已有旧版登录态 userdata；snapshot-20260911 经 adb install -r 升级安装（不卸载）\nautomation:\n  maestro: 可行（纯可见性断言）\n  notes: 冷启动用 adb shell am force-stop + monkey/am start；assertVisible 轮询 AppShell\n    首屏锚点（跨平台搜索音乐），禁 sleep（splash 瞬态 2-3s）\nevidence:\n- startup__appshell__direct-login.png\n- startup__version__about-check.png（版本标识交叉核对见 FR-L2-POS-038）\nsteps:\n- do: force-stop 后冷启动 App\n  expect: 不弹隐私弹窗、不停留登录页：splash 瞬态（SWAN logo）后直达 AppShell 首页（断言『跨平台搜索音乐』搜索栏 + 底部四 Tab\n    可见）——token 恢复直进主界面行为在快照上保持（模块卡片-login：token 恢复不校验有效性）\n- do: 切到我的 Tab（tab_me）确认会话数据渲染\n  expect: 我的页用户昵称与手机号行渲染（既有账号），非登录页、非空壳——升级安装未丢登录态\ndevice: android-emulator"
+ },
+ {
+  "case_id": "FR-L2-POS-002",
+  "title": "清数据首启：隐私弹窗同意 → 登录页（privacy→login 状态机）",
+  "domain": "启动与隐私",
+  "content": "case_id: FR-L2-POS-002\nname: 清数据首启：隐私弹窗同意 → 登录页（privacy→login 状态机）\ntags:\n- smoke\n- L2\nprecondition_class: 免登录\nprecondition: 执行后需 pm clear 或重装恢复 userdata 登录态——**放在整轮回归最后执行**（清数据破坏 FR-POS-001 的前置）\nautomation:\n  maestro: 可行\n  notes: 隐私弹窗 PopScope(canPop:false)，禁用 back 键逃逸路径；文本定位『同意』\nevidence:\n- privacy__dialog__initial.png\n- privacy__agree__login_page.png\nsteps:\n- do: pm clear com.swan.network 后冷启动\n  expect: 登录页底图上覆盖隐私弹窗，系统返回键无法关闭弹窗（canPop:false 契约保持）\n- do: 点击『同意』\n  expect: 弹窗关闭进入登录页（login_page 可见）；二次冷启动不再弹隐私（is_first_launch 取反语义落盘）\ndevice: android-emulator"
+ },
+ {
+  "case_id": "FR-L2-POS-010",
+  "title": "短信两步登录主链路：手机号+协议→发码→4 格验证码自动提交→AppShell",
+  "domain": "会话与登录",
+  "content": "case_id: FR-L2-POS-010\nname: 短信两步登录主链路：手机号+协议→发码→4 格验证码自动提交→AppShell\ntags:\n- smoke\n- L2\nprecondition_class: credential-required\nprecondition: stage=loginRequired；测试短信号码可用（任务卡人工中断点：短信验证码经主对话向用户收集）；当前登录态用例执行前须先登出场景由主对话编排（本通道禁触登出双钮——用清数据/备用设备达成免登录态）\nautomation:\n  maestro: 半自动（验证码需人工投喂：runScript 暂停或分段执行）\n  notes: 发码跳转 3~60s（O-7 实测）必须 extendedWaitUntil timeout≥60s 断言 login_code_field；验证码渲染为\n    4 个独立输入格，第 4 位输入后自动提交（禁再点提交键）；输入值 13800000002=TEST-SYNTHETIC\nevidence:\n- login__phone_field__filled_ready_submit.png\n- codepage__initial.png\n- appshell__home__loaded.png\n- logcat-loginLog-once.png\nsteps:\n- do: login_phone_field 输入 13800000002，确认区号 +86\n  expect: 输入回显，无 login_error_text；下一步按钮由灰变黑启用\n- do: 勾选 login_agreement_checkbox，点击 login_submit_button\n  expect: extendedWaitUntil（≤60s）切到验证码页：提示『验证码已经发送至 +86 …』，login_code_field 可见\n- do: 输入用户提供的 4 位验证码\n  expect: 满 4 位自动提交登录，无需再点击；extendedWaitUntil（≤15s）AppShell 首页渲染（『跨平台搜索音乐』+四 Tab）\n- do: adb logcat 过滤 /user/loginLog\n  expect: 登录收口后日活上报请求发出（type:1，自然日一次）——详断言见 FR-L2-POS-039\ndevice: android-emulator"
+ },
+ {
+  "case_id": "FR-L2-POS-011",
+  "title": "密码登录主链路：合法凭据一次提交成功",
+  "domain": "会话与登录",
+  "content": "case_id: FR-L2-POS-011\nname: 密码登录主链路：合法凭据一次提交成功\ntags:\n- smoke\n- L2\nprecondition_class: credential-required\nprecondition: stage=loginRequired；测试环境存在密码账号（凭据见 05g-凭据清单，TEST-SYNTHETIC）\nautomation:\n  maestro: 可行\n  notes: 密码框键盘遮挡『登录』按钮上沿（states-matrix §4）——inputText 后先收键盘/pressKey BACK 再 tapOn，避免\n    ghost tap；maxLength:16 契约保持\nevidence:\n- loginpwd__password_field__filled_masked_settled.png\n- loginpwd__filled_visible.png\n- appshell__home__loaded.png\nsteps:\n- do: 点击 login_use_password_button 切密码模式，输入手机号与合法密码\n  expect: login_password_field 密文回显；输入超 16 位被截断（maxLength 契约）\n- do: 点击可见性切换图标\n  expect: 明文⇄密文正确切换（切换前后各一帧证据）\n- do: 勾选协议，点击『登录』（login_submit_button，desc=登录）\n  expect: 登录成功进 AppShell；密码模式无第三方图标区（states-matrix §11#8 契约保持）\ndevice: android-emulator"
+ },
+ {
+  "case_id": "FR-L2-POS-012",
+  "title": "协议勾选三处联动：主按钮 + 第三方图标灰置（快照契约回归）",
+  "domain": "会话与登录",
+  "content": "case_id: FR-L2-POS-012\nname: 协议勾选三处联动：主按钮 + 第三方图标灰置（快照契约回归）\ntags:\n- L2\n- contract-regression\nprecondition_class: 免登录\nprecondition: stage=loginRequired，短信模式（清数据冷启动或等价状态）\nautomation:\n  maestro: 可行\n  notes: '断言 enabled 状态用 tapOn {text: 下一步, enabled: true} 组合 assertVisible；联动结论对齐\n    states-matrix §2（unchecked → 主按钮禁用 + 微信/微博图标同步变灰）'\nevidence:\n- login__agreement__unchecked__submit_disabled.png\n- login__agreement__checked__submit_enabled.png\nsteps:\n- do: 输入合法手机号 13800000002（TEST-SYNTHETIC），协议保持未勾选\n  expect: 下一步置灰禁用；微信/微博第三方图标同步灰色禁用（协议框同时控制两处入口——快照契约）\n- do: 勾选协议\n  expect: 下一步变黑启用，第三方图标恢复可点态\n- do: 改输入为非法 '123'\n  expect: 协议已勾选但下一步仍置灰（号码有效性优先于协议状态，states-matrix §2#3）\ndevice: android-emulator"
+ },
+ {
+  "case_id": "FR-L2-POS-013",
+  "title": "模式互切与字段生命周期：密码值不跨模式保留、手机号保留、进程重启模式重置",
+  "domain": "会话与登录",
+  "content": "case_id: FR-L2-POS-013\nname: 模式互切与字段生命周期：密码值不跨模式保留、手机号保留、进程重启模式重置\ntags:\n- L2\n- state-regression\nprecondition_class: 免登录\nprecondition: stage=loginRequired，默认验证码模式\nautomation:\n  maestro: 半自动（进程重启环节用 force-stop + am start 编排）\n  notes: 对齐 states-matrix §4/§8/§11#12：切回验证码模式时密码值被清、手机号保留；进程重启后模式重置为验证码模式\nevidence:\n- login__use_sms_button__back_to_sms.png\n- login__mode__after-relaunch.png\nsteps:\n- do: 验证码模式输入手机号 → 切密码模式输入密码（均不提交）\n  expect: 密码模式出现 login_password_field 与『登录』按钮，无第三方图标区\n- do: 点 login_use_sms_button 切回验证码模式\n  expect: 回到手机号步，手机号值保留，密码值不残留（已清除）\n- do: 在密码模式停驻时 force-stop 重启 App\n  expect: 重启后默认验证码模式（模式不持久化）\ndevice: android-emulator"
+ },
+ {
+  "case_id": "FR-L2-POS-014",
+  "title": "区号选择页：热门区 + A-Z 索引 + 行选中回带区号",
+  "domain": "会话与登录",
+  "content": "case_id: FR-L2-POS-014\nname: 区号选择页：热门区 + A-Z 索引 + 行选中回带区号\ntags:\n- L2\nprecondition_class: 免登录\nprecondition: stage=loginRequired\nautomation:\n  maestro: 半自动（列表行无 text/id，靠 content-desc=国家名+换行+区号 定位——O-4 终结论；索引拖拽单字母点击会穿透到行，自动化禁用索引点击，用\n    swipeScroll 到目标段）\n  notes: 对齐 states-matrix §10：235 国实测、无 X 段（25 字母）\nevidence:\n- area__list__p0_top.png\n- ui-login-after-area.xml（区号回带后语义树）\nsteps:\n- do: 点击 login_area_code_button\n  expect: 进入新页『选择归属地』（非弹窗）：热门分组（+86/+852/+853/+886）+ 右侧 A-Z 索引条\n- do: 滚动到任一国家行并点击（content-desc 定位）\n  expect: 行点击=选中并返回登录页，区号按钮 content-desc 回带所选区号\ndevice: android-emulator"
+ },
+ {
+  "case_id": "FR-L2-POS-015",
+  "title": "已知 BUG F-1 复验（正向）：微博登录点击是否仍崩溃（libwind.so）",
+  "domain": "会话与登录 / BUG回归",
+  "content": "case_id: FR-L2-POS-015\nname: 已知 BUG F-1 复验（正向）：微博登录点击是否仍崩溃（libwind.so）\ntags:\n- L2\n- bug-regression\n- SWAN-BUG-20260910-001\n- F-1\nprecondition_class: 免登录\nprecondition: stage=loginRequired，协议已勾选（第三方图标可点态）；模拟器未装微博客户端为既有环境事实\nautomation:\n  maestro: 半自动（崩溃判定依赖 adb logcat 侧写：开后台 logcat 抓 FATAL/UnsatisfiedLinkError 后再点击）\n  notes: 基线行为（dev@4d1ed7b）：点击微博图标 → WeiboSsoSdk 类初始化 System.loadLibrary('wind') →\n    UnsatisfiedLinkError → FATAL 进程死亡退桌面，疑确定性复现（states-matrix §12#1）。复验判据：若快照已修复 →\n    无崩溃，出现行内提示或正常授权流；若未修复 → 复现（进程死亡本身无数据破坏，允许执行）\nevidence:\n- login__third_party_weibo__tapped_recheck.png\n- logcat-app-death-timestamp.txt\n- logcat-weibo-stack.txt（若复现）\nsteps:\n- do: 启动后台 logcat 抓取（filter FATAL EXCEPTION/UnsatisfiedLinkError/SwanThirdPartyLogin）\n  expect: logcat 会话就绪\n- do: 点击微博图标（协议已勾选）\n  expect: '【修复通过判据】无进程死亡：App 保持前台，出现行内提示（复用 login_error_text 槽位）或拉起授权流。【复现判据】FATAL\n    UnsatisfiedLinkError: dlopen failed: library ''libwind.so'' not found，进程退桌面——将结论连同\n    logcat 落 BUG 库（F-1 复现确认）'\n- do: 若 App 存活：冷启动确认可恢复登录页\n  expect: 无残留损坏状态\ndevice: android-emulator"
+ },
+ {
+  "case_id": "FR-L2-POS-016",
+  "title": "已知 BUG F-2 复验（正向）：密码登录长度校验是否补齐（短密码 + 点击 ANR 候选）",
+  "domain": "会话与登录 / BUG回归",
+  "content": "case_id: FR-L2-POS-016\nname: 已知 BUG F-2 复验（正向）：密码登录长度校验是否补齐（短密码 + 点击 ANR 候选）\ntags:\n- L2\n- bug-regression\n- SWAN-BUG-20260910-002\n- F-2\nprecondition_class: 免登录\nprecondition: stage=loginRequired，切密码模式；测试环境密码账号存在与否不影响本用例（不依赖登录成功）\nautomation:\n  maestro: 半自动（ANR 判定依赖 logcat/ANR dump 侧写）；**风险标注：基线行为是点击即主线程 ANR 循环——执行时若 5s 无响应立即终止并采\n    ANR 证据，严禁反复重试点击**\n  notes: 基线行为（dev@4d1ed7b）：6 位短密码『下一步』即启用（无前端长度校验，states-matrix §11#10），点击登录触发 ANR（ErrorId\n    57f0fd98）。正向复验判据：快照若修复 → 短密码提交被前端拦截（行内红字）或服务端返回明确业务码错误文案，无 ANR\nevidence:\n- loginpwd__submit__ready_shortpwd.png\n- anr-dialog-timestamp.png（若复现）\n- logcat-login-tap.txt\nsteps:\n- do: 输入合法手机号 + 6 位短密码（如 '123456'，TEST-SYNTHETIC），勾选协议\n  expect: 记录『登录』按钮是否启用（若快照已补长度校验 → 按钮对短密码置灰，F-2 前半修复确认）\n- do: 按钮若启用：点击一次『登录』并计时\n  expect: 【修复通过判据】≤5s 内出现行内错误文案（密码过短/密码错误类）且页面可继续交互。【复现判据】无响应 ≥5s 且输入事件无回显 → 采 ANR\n    trace（dumpsys dropbox / data_app_anr），立即停止点击，结论落 BUG 库（F-2 复现确认）\ndevice: android-emulator"
+ },
+ {
+  "case_id": "FR-L2-POS-020",
+  "title": "底部四 Tab 切换与状态保持（含频道状态跨 Tab 保持契约）",
+  "domain": "主框架与导航",
+  "content": "case_id: FR-L2-POS-020\nname: 底部四 Tab 切换与状态保持（含频道状态跨 Tab 保持契约）\ntags:\n- smoke\n- L2\n- L3\nprecondition_class: 需登录态\nprecondition: AppShell 已渲染（FR-POS-001 通过后的常态）\nautomation:\n  maestro: 可行\n  notes: Tab testId=tabRecommend/tabPlatform/tabDevice/tabMe（routeName homeMain/platform/device/me）；Tab\n    切换有动画 → waitForAnimationToEnd；断言每 Tab 页根锚点（platform_page/device_page/me_page）\nevidence:\n- tabs__recommend__selected.png\n- tabs__platform__selected.png\n- tabs__device__selected.png\n- tabs__me__selected.png\nsteps:\n- do: 依次点击 平台 → 设备 → 我的 Tab，再回首页 Tab\n  expect: 每 Tab 页根锚点可见（platform_page/device_page/me_page/首页搜索栏）；选中态视觉随点击切换\n- do: 在首页切到电台频道后切去『我的』再回首页\n  expect: 回首页时仍停留在电台频道（频道选中状态跨 Tab 保持——states-matrix §25 契约）；底部播放条与四 Tab 状态恒定不受切换影响\ndevice: android-emulator"
+ },
+ {
+  "case_id": "FR-L2-POS-021",
+  "title": "底部播放条常驻回归：可播放集合页显示、播放无关页行为一致",
+  "domain": "主框架与导航 / 播放条",
+  "content": "case_id: FR-L2-POS-021\nname: 底部播放条常驻回归：可播放集合页显示、播放无关页行为一致\ntags:\n- L2\nprecondition_class: 需登录态\nprecondition: AppShell 已渲染\nautomation:\n  maestro: 可行（纯可见性断言，零播放触发）\n  notes: bottom_player 锚点 [0,1571][1080,1742]（states-matrix §15）；禁点击播放/投屏按钮本体——仅断言存在与文案\nevidence:\n- playerbar__home__visible.png\n- playerbar__me__visible.png\nsteps:\n- do: 在首页与我的页分别断言底部播放条\n  expect: bottom_player 区域恒驻于两 Tab（含播放/列表/投屏控件占位），文案区渲染无异常占位\n- do: 进入搜索结果页再返回\n  expect: 返回后播放条仍在（搜索结果页在 _bottomPlayerRouteNames 集合——模块卡片-search 契约保持）\ndevice: android-emulator"
+ },
+ {
+  "case_id": "FR-L2-POS-030",
+  "title": "首页频道条五频道切换三重联动（内容区/搜索 placeholder/背景色）",
+  "domain": "首页",
+  "content": "case_id: FR-L2-POS-030\nname: 首页频道条五频道切换三重联动（内容区/搜索 placeholder/背景色）\ntags:\n- L2\n- L3\nprecondition_class: 需登录态\nprecondition: AppShell 已渲染，首页频道条可见\nautomation:\n  maestro: 可行\n  notes: 对齐 states-matrix §25：三重联动=内容区+搜索栏 placeholder+（AI 频道）整页背景色；频道切换有动画 → waitForAnimationToEnd\nevidence:\n- home__channel_music.png\n- home__channel_ai.png\n- home__channel_speaker.png\n- home__channel_radio.png\nsteps:\n- do: 依次切换 音乐 → AI → 可视音箱 → 电台 频道，各断言首屏\n  expect: 音乐=平台分组歌单流；AI=浅蓝底+角色轮播+历史记录；可视音箱=不可用空态（『暂未添加可视音箱，此功能不可使用』）；电台=搜索栏变『搜索电台』+全国电台列表\n- do: 回推荐频道\n  expect: 推荐首屏=平台捷径（QQ/网易/酷狗带✓角标、Apple/Qobuz）+ 我喜欢/歌单/小薇卡 + 最近播放区；搜索栏 placeholder\n    回默认\ndevice: android-emulator"
+ },
+ {
+  "case_id": "FR-L2-POS-031",
+  "title": "首页音乐 Tab Spotify 过滤契约回归（首页无 Spotify、平台页有）",
+  "domain": "首页 / 音乐平台聚合",
+  "content": "case_id: FR-L2-POS-031\nname: 首页音乐 Tab Spotify 过滤契约回归（首页无 Spotify、平台页有）\ntags:\n- L2\n- contract-regression\nprecondition_class: 需登录态\nprecondition: AppShell 已渲染\nautomation:\n  maestro: 可行（assertNotVisible Spotify + assertVisible Spotify 组合）\n  notes: 对齐功能地图 O-14/Spotify 入口裁决：catalog_mapper 明确过滤\nevidence:\n- home__music__no-spotify.png\n- platform__spotify__present.png\nsteps:\n- do: 首页切音乐频道，检索 Spotify\n  expect: 首页音乐 Tab 平台区块不含 Spotify 卡（assertNotVisible）\n- do: 切平台 Tab 检索 Spotify\n  expect: 平台页存在 Spotify 行（未授权态白底 + 号）——首页过滤/平台页保留的双侧契约同时成立\ndevice: android-emulator"
+ },
+ {
+  "case_id": "FR-L2-POS-032",
+  "title": "音乐权益初始化一次性弹窗（清数据首装路径）",
+  "domain": "首页",
+  "content": "case_id: FR-L2-POS-032\nname: 音乐权益初始化一次性弹窗（清数据首装路径）\ntags:\n- L2\n- conditional\nprecondition_class: credential-required\nprecondition: '**条件执行**：仅清数据首装（privacy 同意→登录成功）后的首次进首页可触发；init_music_right_shown 标记已写的常态环境下跳过。与\n  FR-POS-002 同批次执行'\nautomation:\n  maestro: 可行（触发时机受 AppShell IndexedStack 预构建约束，弹窗走 root Navigator——断言顶层弹层可见即可）\n  notes: 功能地图 ⚠：可引导平台为空时不弹也不写标记——若测试账号无可引导平台，记『不触发（契约内）』而非失败\nevidence:\n- home__init-music-right__prompt.png（若触发）\nsteps:\n- do: 清数据→同意隐私→登录成功→首次落首页\n  expect: 出现音乐权益初始化引导弹层（一次性）\n- do: 关闭引导后再次冷启动进首页\n  expect: 不再弹出（init_music_right_shown 标记持久化生效）\ndevice: android-emulator"
+ },
+ {
+  "case_id": "FR-L2-POS-040",
+  "title": "搜索主链路回归：入口→ASCII 关键词→结果页 6 Tab/平台分组→清空→返回",
+  "domain": "搜索",
+  "content": "case_id: FR-L2-POS-040\nname: 搜索主链路回归：入口→ASCII 关键词→结果页 6 Tab/平台分组→清空→返回\ntags:\n- smoke\n- L2\n- L3\nprecondition_class: 需登录态\nprecondition: AppShell 已渲染；复用 02-用例库/module-17-search 既有 14 条 L2 的主路径子集做回归（本轮只跑主链路，全量复验归执行层）\nautomation:\n  maestro: 可行（有关键限制）\n  notes: CJK 输入 NPE → 关键词用 ASCII 'hivi'（TEST-SYNTHETIC 虚拟词）；逐字符输入可能被并入空格（'hi vi'，states-matrix\n    §31 已知行为）——断言放宽为『结果页可达且六 Tab 存在』，不绑定精确命中数；返回栈无根防护（O-23）为已知行为：断言只到『回到首页』为止，**严禁再按一次返回验证退出**\nevidence:\n- search__page__initial.png\n- search__results_hivi.png（六 Tab+平台分组）\n- search__cleared.png\nsteps:\n- do: 点击首页搜索栏（跨平台搜索音乐）\n  expect: 搜索页打开，输入框自动聚焦，placeholder=搜索歌曲或艺术家等\n- do: 输入 'hivi' 并提交\n  expect: 结果页出现：六结果 Tab（单曲/艺人/专辑/歌单/电台/播客，单曲默认选中）+ 平台分组结构（网易云音乐组/QQ音乐组含懒加载渐显）\n- do: 切到电台 Tab 再切回单曲\n  expect: Tab 切换正常（PageView keep-alive 契约）\n- do: 清空关键词（× 钮）后返回\n  expect: 回搜索页空态；再返回回首页；播放条断言见 FR-POS-021（结果页属可播放集合）\ndevice: android-emulator"
+ },
+ {
+  "case_id": "FR-L2-POS-050",
+  "title": "迷你播放器重启保留回归（暂停态断言，零播放触发）",
+  "domain": "播放器 / 播放条",
+  "content": "case_id: FR-L2-POS-050\nname: 迷你播放器重启保留回归（暂停态断言，零播放触发）\ntags:\n- L2\n- L3\n- contract-regression\nprecondition_class: 需登录态\nprecondition: 上一轮 states-matrix §32 止损后 mini-player 保留『石家庄交通广播（暂停态 ▶）』——若该状态已被清（新装），本用例降级为『播放条空态渲染』（bottom_player=扬声器-\n  -），两种结果均记入红绿灯\nautomation:\n  maestro: 可行（纯可见性断言）\n  notes: '**严禁点击播放键**（无实体扬声器，播放必失败并自动切台，污染状态）；force-stop 重启属安全操作'\nevidence:\n- playerbar__after-relaunch__paused.png\n- playerbar__empty_state.png（若空态路径）\nsteps:\n- do: force-stop 后冷启动（登录态保留）\n  expect: mini-player 保留最近播放内容为暂停态（▶ 可见，标题为上次电台）——状态恢复契约保持；若为空态则 bottom_player=『扬声器-\n    -』渲染正常\n- do: 切 Tab 数次\n  expect: mini-player 状态跨 Tab 恒定不变\ndevice: android-emulator"
+ },
+ {
+  "case_id": "FR-L2-POS-051",
+  "title": "全屏播放页结构断言（自暂停态进入，不触播放控件）",
+  "domain": "播放器",
+  "content": "case_id: FR-L2-POS-051\nname: 全屏播放页结构断言（自暂停态进入，不触播放控件）\ntags:\n- L2\nprecondition_class: 需登录态\nprecondition: mini-player 为暂停态（FR-POS-050 后）；若空态则本用例 BLOCKED(env)（无播放内容无法进入全屏页）\nautomation:\n  maestro: 可行（进入后只读断言）；音频客观指标（实际发声）= device-divergence 不在断言范围\n  notes: 禁点暂停键（暂停态点击=恢复播放→流失败切台）；禁点切台/上一首下一首\nevidence:\n- player__page__structure.png（暂停键+唱片+进度条）\nsteps:\n- do: 点击 mini-player 非播放区进入全屏播放页 /player\n  expect: 全屏页渲染：标题+电台 logo 唱片+暂停键（当前态）+进度条；返回后 mini-player 状态不变\ndevice: android-emulator"
+ },
+ {
+  "case_id": "FR-L2-POS-052",
+  "title": "播放队列 sheet 打开与关闭",
+  "domain": "播放器",
+  "content": "case_id: FR-L2-POS-052\nname: 播放队列 sheet 打开与关闭\ntags:\n- L2\n- experimental\nprecondition_class: 需登录态\nprecondition: mini-player 存在（暂停态）\nautomation:\n  maestro: 可行；若点击列表钮引发非预期播放行为立即止损（force-stop）并升级为缺陷候选\n  notes: current_queue_bottom_sheet 为只读列表组件，预期无播放副作用——标记 experimental 首跑验证\nevidence:\n- player__queue_sheet__opened.png\nsteps:\n- do: 点击 mini-player 列表（队列）按钮\n  expect: 播放队列 bottom sheet 打开，渲染队列列表；关闭后回原页无状态变化\ndevice: android-emulator"
+ },
+ {
+  "case_id": "FR-L2-POS-060",
+  "title": "平台页授权状态联动回归：6 行样式与账号名（禁 − 钮）",
+  "domain": "音乐平台聚合 / 平台授权联动",
+  "content": "case_id: FR-L2-POS-060\nname: 平台页授权状态联动回归：6 行样式与账号名（禁 − 钮）\ntags:\n- smoke\n- L2\n- L3\n- high-risk\nprecondition_class: 需登录态\nprecondition: AppShell 已渲染；测试账号三音乐平台+AI 段+电台段为既有授权态（states-matrix §20 基准）\nautomation:\n  maestro: 可行（文本与可见性断言）；**− 钮零点击**——断言其可见即止；列表滚动后waitForAnimationToEnd\nevidence:\n- platform__rows__authorized.png\n- platform__rows__unauthorized.png\n- platform__list__scrolled_bottom.png（到底标识）\nsteps:\n- do: 平台 Tab 逐行断言音乐段 6 行\n  expect: QQ/网易/酷狗=已授权态（底色+账号名+− 钮；网易金底+VIP 角标为账号既有维度）；Spotify/Apple/Qobuz=未授权白底+未授权文案+\n    + 钮；**所有 − 钮仅断言可见，不点击**\n- do: 左轨点击 电台 段锚点滚动\n  expect: 滚动定位到电台段（全国/90 年代/80 年代电台已授权行）；列表末尾『已经到底啦～』到底标识可见\n- do: 未授权行（Spotify/Apple）行体点击\n  expect: 无响应（行体点击仅对已授权平台生效——states-matrix §20 联动结论）\ndevice: android-emulator"
+ },
+ {
+  "case_id": "FR-L2-POS-061",
+  "title": "三平台详情首屏结构差异回归（QQ/网易/酷狗非统一模板）",
+  "domain": "音乐平台聚合 / 平台授权联动",
+  "content": "case_id: FR-L2-POS-061\nname: 三平台详情首屏结构差异回归（QQ/网易/酷狗非统一模板）\ntags:\n- L2\n- L3\n- high-risk\nprecondition_class: 需登录态\nprecondition: 三音乐平台已授权（既有态）\nautomation:\n  maestro: 可行；详情页内容列表**全部只读**——禁点任何歌曲/播放/投放执行钮（投放钮仅断言可见）\nevidence:\n- platform__qq_detail__opened.png\n- platform__netease_detail__opened.png\n- platform__kugou_detail__opened.png\nsteps:\n- do: 点 QQ 音乐行体进详情\n  expect: 标题+右上投放钮+搜索+私人推荐+用户收藏+排行榜结构在位\n- do: 返回后点网易云行体进详情\n  expect: 搜索+私人漫游 banner+用户收藏 4 项（含我的播客）+每日推荐；无投放钮（差异契约保持）\n- do: 返回后点酷狗行体进详情\n  expect: 搜索+排行榜+歌手推荐+推荐歌单；无投放钮无私人推荐（差异契约保持）\ndevice: android-emulator"
+ },
+ {
+  "case_id": "FR-L2-POS-062",
+  "title": "未授权平台 + 钮引导分支回归（Spotify 下载引导 vs Apple 授权弹窗，不真授权）",
+  "domain": "音乐平台聚合 / 平台授权联动",
+  "content": "case_id: FR-L2-POS-062\nname: 未授权平台 + 钮引导分支回归（Spotify 下载引导 vs Apple 授权弹窗，不真授权）\ntags:\n- L2\n- high-risk\nprecondition_class: 需登录态\nprecondition: Spotify/Apple Music 为未授权态（既有）；模拟器未装 Spotify 客户端为环境事实\nautomation:\n  maestro: 可行；**边界：断言弹层出现即关闭，严禁点击『授权登录』/『免费下载』实质按钮**（真授权=写操作、下载引导会跳出 App）\nevidence:\n- platform__spotify_plus__download_sheet.png\n- platform__apple_plus__auth_dialog.png\nsteps:\n- do: 点击 Spotify 行 + 钮\n  expect: 底部弹层：Spotify logo+『准备播放一些音乐』+下载引导（因本机未装，走下载拦截分支而非授权）——关闭弹层\n- do: 点击 Apple Music 行 + 钮\n  expect: 居中弹窗『请先登录 Apple Music…』+授权登录钮可见——**不点授权钮**，关闭弹窗后行恢复未授权态\ndevice: android-emulator"
+ },
+ {
+  "case_id": "FR-L2-POS-063",
+  "title": "平台二级页族可达性抽样（统一入口降级机制回归）",
+  "domain": "音乐平台聚合",
+  "content": "case_id: FR-L2-POS-063\nname: 平台二级页族可达性抽样（统一入口降级机制回归）\ntags:\n- L2\n- L3\nprecondition_class: 需登录态\nprecondition: 三音乐平台+Qobuz 已授权/可达；抽样代表：网易云 daily-recommend、QQ playlist-classify、Qobuz\n  home、AppleMusic 榜单\nautomation:\n  maestro: 可行；二级页为内容列表——只读断言，禁点内容项\n  notes: 覆盖 pushNamed 失败降级 rootNavigator.pushNamed 的统一入口机制（platform_page.dart:522）；AppleMusic\n    详情 6 路由收敛 AppleMusicDetailRoutePage 按 pageType 分型——抽 1 型验证\nevidence:\n- secondary__netease_daily.png\n- secondary__qobuz_home.png\n- secondary__apple_chart.png\nsteps:\n- do: 网易云详情 → 每日推荐二级页\n  expect: 二级页可达渲染，返回路径完好\n- do: 平台页进 Qobuz 首页（首页/流派/奖榜/曲库四区块）\n  expect: Qobuz home 渲染（Qobuz 走 /main/search 别名搜索入口——路由不统一已知行为，不判失败）\n- do: AppleMusic 榜单 → 任一 detail 型页\n  expect: 收敛详情页按 pageType 渲染，返回完好\ndevice: android-emulator"
+ },
+ {
+  "case_id": "FR-L2-POS-070",
+  "title": "电台频道列表渲染回归（全行禁点击——P-9-1 红线）",
+  "domain": "电台/播客",
+  "content": "case_id: FR-L2-POS-070\nname: 电台频道列表渲染回归（全行禁点击——P-9-1 红线）\ntags:\n- L2\n- contract-regression\n- danger-line\nprecondition_class: 需登录态\nprecondition: AppShell 已渲染\nautomation:\n  maestro: 可行（纯可见性断言）；**红线：电台行体与 → 钮任何点击=自动播放（P-9-1 实证），本用例全部步骤为断言，无一个 tapOn 落在行上**\n  notes: 对齐 states-matrix §25/§32：搜索栏 placeholder=搜索电台、4 行全国电台、行带 → 跳转钮仅断言可见\nevidence:\n- home__radio_list.png（4 行+placeholder）\n- radio__rows__no_tap.png\nsteps:\n- do: 首页切电台频道\n  expect: 搜索栏 placeholder=『搜索电台』；全国电台分组 4 行渲染（北京交通广播1039/河北交通广播FM99.2/怀旧金曲964/石家庄交通广播946），行右\n    → 跳转钮可见——**不点击**\n- do: 滚动列表\n  expect: 列表滚动正常，无缺行/重叠渲染\ndevice: android-emulator"
+ },
+ {
+  "case_id": "FR-L2-POS-080",
+  "title": "AI 频道与角色主页结构回归（轮播/历史/添加入口）",
+  "domain": "AI 助手",
+  "content": "case_id: FR-L2-POS-080\nname: AI 频道与角色主页结构回归（轮播/历史/添加入口）\ntags:\n- L2\nprecondition_class: 需登录态\nprecondition: AppShell 已渲染；账号既有 AI 对话 2 条、角色若干（states-matrix §25 基准）\nautomation:\n  maestro: 可行（结构断言）；发消息=写操作不在本轮——AI 网关保持未考古，只验 UI 边界\nevidence:\n- home__channel_ai.png\n- ai__roles__carousel.png\nsteps:\n- do: 首页 AI 频道\n  expect: 整页浅蓝底（背景色联动契约）；AI 角色轮播（6 页圆点）+问候气泡+『添加更多AI角色』+历史对话记录区（既有 2 条渲染）\n- do: 轮播滑动一页\n  expect: 圆点指示随滑动更新\ndevice: android-emulator"
+ },
+ {
+  "case_id": "FR-L2-POS-081",
+  "title": "小薇独立全屏聊天页形态断言（不发送消息）",
+  "domain": "AI 助手",
+  "content": "case_id: FR-L2-POS-081\nname: 小薇独立全屏聊天页形态断言（不发送消息）\ntags:\n- L2\nprecondition_class: 需登录态\nprecondition: 首页推荐频道可见小薇卡\nautomation:\n  maestro: 可行；**禁发送**（发送=写对话记录，且 AI 网关行为未考古）\nevidence:\n- home__xiaowei_entry__opened2.png（头部三 icon+欢迎语+输入框+AI 生成脚注）\nsteps:\n- do: 点首页小薇卡\n  expect: 进入独立全屏聊天页（非弹层/悬浮窗）：返回+头像+名称小薇+副标题+电话/文字/语音播报三 icon；中部欢迎语；底部输入框+语音钮+『内容由AI生成』脚注\n- do: 返回\n  expect: 回首页推荐频道，Swan 悬浮球仍在\ndevice: android-emulator"
+ },
+ {
+  "case_id": "FR-L2-POS-090",
+  "title": "可视音箱频道功能不可用空态回归",
+  "domain": "可视音箱 Vision",
+  "content": "case_id: FR-L2-POS-090\nname: 可视音箱频道功能不可用空态回归\ntags:\n- L2\nprecondition_class: 需登录态\nprecondition: AppShell 已渲染；未绑定可视音箱实体（既有环境）\nautomation:\n  maestro: 可行（空态断言）\n  notes: Vision 其余子页（壁纸/唤醒词/语音包/高级设置）入口位于绑定后的设备语境，空态下 UI 不可达——不产出不可达用例，登记覆盖边界\nevidence:\n- home__channel_speaker__empty_state.png\nsteps:\n- do: 首页切可视音箱频道\n  expect: 空态渲染：添加可视音响引导卡+『暂未添加可视音箱，此功能不可使用』文案（空态样板契约保持，非崩溃非白屏）\ndevice: android-emulator"
+ },
+ {
+  "case_id": "FR-L2-POS-100",
+  "title": "设备页五分区渲染与空态样板回归",
+  "domain": "设备管理与配网",
+  "content": "case_id: FR-L2-POS-100\nname: 设备页五分区渲染与空态样板回归\ntags:\n- smoke\n- L2\n- L3\n- high-risk\nprecondition_class: 需登录态\nprecondition: AppShell 已渲染；无已绑定实体设备（既有环境）\nautomation:\n  maestro: 可行（滚动断言需 waitForAnimationToEnd——分区轨随滚动自动选中）\n  notes: 对齐 states-matrix §22；WIFI 段占位文案复用音乐域（暂无歌曲/暂无艺术家）为已知观察 O-16，登记不判定\nevidence:\n- device__page__initial.png\n- device__page__dsp_section.png（到底标识）\nsteps:\n- do: 设备 Tab 逐段滚动断言\n  expect: 分区轨 WIFI/本机/Apple/低音炮/DSP 五段齐：WIFI=『暂无WIFI设备』空态；本机=占位设备卡（扬声器 --:--）；Apple=连接引导卡；低音炮=空态+『添加低音炮』钮；DSP=空态+『添加DSP』钮+『已经到底啦～』\n- do: 点分区轨 WIFI\n  expect: 锚点滚动回 WIFI 段（滚动定位非独立页机制保持）\ndevice: android-emulator"
+ },
+ {
+  "case_id": "FR-L2-POS-101",
+  "title": "添加设备权限链路与配网入口双卡片回归（不进配网流程）",
+  "domain": "设备管理与配网",
+  "content": "case_id: FR-L2-POS-101\nname: 添加设备权限链路与配网入口双卡片回归（不进配网流程）\ntags:\n- L2\n- L3\n- high-risk\nprecondition_class: 需登录态\nprecondition: 设备页可达；若权限已在先前授予（userdata 保留），弹窗步骤自动跳过——按实际状态分支断言\nautomation:\n  maestro: 可行（系统权限弹窗为原生控件，文本定位『仅在使用该应用时允许』等）；**边界：『如何配网？』『前往设备』定位不点击**（不深入配网）\nevidence:\n- device__add_page__final.png（双卡片+帮助链接）\n- permission__location.png / permission__nearby.png（若触发）\nsteps:\n- do: 点右上 ⊕ 添加设备\n  expect: 首次执行：依次弹位置权限（含精确度选项）→ 附近设备（蓝牙）权限弹窗，允许后进添加设备页；非首次：直达添加设备页\n- do: 断言添加设备页结构\n  expect: 蓝牙配网卡（持续自动搜索中…/正在检查蓝牙权限）+ Wifi配网卡 + 右上『如何配网？』链接可见（不点击）+ 底部『前往设备』钮可见（不点击）\n- do: 返回设备页\n  expect: 返回路径完好（device_page 锚点）\ndevice: android-emulator"
+ },
+ {
+  "case_id": "FR-L2-POS-102",
+  "title": "实配网/蓝牙发现全链路（BLE/WiFi 热点）",
+  "domain": "设备管理与配网",
+  "content": "case_id: FR-L2-POS-102\nname: 实配网/蓝牙发现全链路（BLE/WiFi 热点）\ntags:\n- BLOCKED-env\n- device-divergence\n- registration-only\nprecondition_class: 需登录态\nprecondition: ——本条为登记条目，无执行步骤——\nautomation:\n  maestro: 不可行：模拟器无蓝牙适配器/无真实热点，BLE 扫描与 hotspot 配网物理不可达\n  notes: 判 BLOCKED(env) + device-divergence（真机人工 checklist 由主对话裁决排期）；软件层可回归部分已由 FR-POS-101\n    覆盖（入口/权限/页面结构）\nevidence:\n- （登记）设备池真机需求条目\nsteps:\n- do: （登记）\n  expect: BLE 配网执行、WiFi 热点配网执行、蓝牙设备发现——待真机 checklist\ndevice: real-device-pending"
+ },
+ {
+  "case_id": "FR-L2-POS-110",
+  "title": "SWAN 收藏歌单列表渲染回归（添加入口定位不新增）",
+  "domain": "收藏与曲库",
+  "content": "case_id: FR-L2-POS-110\nname: SWAN 收藏歌单列表渲染回归（添加入口定位不新增）\ntags:\n- L2\nprecondition_class: 需登录态\nprecondition: 我的页可达；账号既有歌单若干（states-matrix §17#2 基准）\nautomation:\n  maestro: 半自动（**子页语义树 null-root 通病**——dump 常为空，Maestro 靠文本断言兜底；若文本断言也失败改截图人工核对，登记\n    automation 降级）\n  notes: 『添加新的收藏歌单+』仅定位不点击（新增=写操作，且属专项四态结构范围）\nevidence:\n- collects__playlist__list.png\n- collects__add_entry__located.png\nsteps:\n- do: 我的页 → SWAN收藏\n  expect: 歌单列表渲染既有条目（数量以执行时实际为准）+底部『添加新的收藏歌单+』入口可见\n- do: 返回\n  expect: 回我的页完好\ndevice: android-emulator"
+ },
+ {
+  "case_id": "FR-L2-POS-111",
+  "title": "我喜欢/最近播放既有数据只读断言",
+  "domain": "收藏与曲库 / 首页",
+  "content": "case_id: FR-L2-POS-111\nname: 我喜欢/最近播放既有数据只读断言\ntags:\n- L2\n- L3\nprecondition_class: 需登录态\nprecondition: AppShell 已渲染；账号既有收藏与播放历史数据\nautomation:\n  maestro: 可行（可见性断言）；卡片内容数据为账号既有真实数据——断言『非空渲染』不绑定具体数值（数值随账号状态漂移，防 flaky）\nevidence:\n- home__myfavorites_card.png\n- home__recent_play_section.png\nsteps:\n- do: 断言首页推荐频道『我喜欢』卡\n  expect: 『我喜欢\\nN首』格式渲染且 N 为非负数值（既有数据维度回归）\n- do: 断言最近播放区\n  expect: 『最近播放』区渲染（已播歌曲/歌手/专辑统计行 + 横向封面流非空）\ndevice: android-emulator"
+ },
+ {
+  "case_id": "FR-L2-POS-120",
+  "title": "我的页 9 个一级入口到达遍历回归",
+  "domain": "个人中心",
+  "content": "case_id: FR-L2-POS-120\nname: 我的页 9 个一级入口到达遍历回归\ntags:\n- L2\n- L3\n- high-risk\nprecondition_class: 需登录态\nprecondition: 我的 Tab 可达\nautomation:\n  maestro: 可行（列表行 text 定位；音质设置是底部弹层非跳页，关闭后继续）；扫一扫断言止于错误态（env 限制）\n  notes: 到达即断言即返回（对齐 states-matrix §17 采证规程）；**账号绑定管理入口只在 FR-POS-121 语义树定位，本用例不进入**\nevidence:\n- tabme__entry__<各入口>__opened.png ×9\n- ui-tabme.xml\nsteps:\n- do: 依次点击：用户信息入口/充值与消费记录/家庭管理/SWAN收藏/设备管理/音质设置/帮助与反馈/关于与升级\n  expect: 前 7 项到达对应页（person_info/recharge 流水/family/收藏列表/device_page 空态/帮助页/about\n    页）；音质设置=底部弹层四选项\n- do: 点击扫一扫\n  expect: 相机权限（若已授权则直达）→ 扫码页渲染，模拟器显示『相机不可用』错误态=预期（device-divergence，虚拟相机无视频流，非缺陷）\ndevice: android-emulator"
+ },
+ {
+  "case_id": "FR-L2-POS-121",
+  "title": "person_info 页结构回归 + 双禁区按钮语义树核对（零点击）",
+  "domain": "个人中心",
+  "content": "case_id: FR-L2-POS-121\nname: person_info 页结构回归 + 双禁区按钮语义树核对（零点击）\ntags:\n- L2\n- high-risk\n- danger-line\nprecondition_class: 需登录态\nprecondition: 我的页可达；**本用例全程零危险点击**——注销/退出两钮仅语义树核对\nautomation:\n  maestro: 可行（可见性断言）；红线：person_info_cancel_account_button / person_info_logout_button\n    只允许 assertVisible，任何 tapOn 指向这两钮=违规\n  notes: 对齐 states-matrix §18/§28；头像/昵称/密码/账号绑定管理为写链路或待裁决——不进入\nevidence:\n- personinfo__page__full.png\n- ui-personinfo-full.xml（双钮 resource-id 语义核对）\nsteps:\n- do: 我的页 → 用户信息入口进 person_info\n  expect: 标题『个人信息修改』；头像/昵称(现值)/密码(******)/手机号(明文行，无箭头=只读契约)四行渲染\n- do: 语义树核对末位两行\n  expect: 注销账号(person_info_cancel_account_button)与退出登入(person_info_logout_button)以既有\n    resource-id 存在且位于列表末位——**仅断言存在，零点击**；账号绑定管理行可见（不进入）\n- do: 返回我的页\n  expect: 返回路径完好，会话状态无变化（仍在登录态）\ndevice: android-emulator"
+ },
+ {
+  "case_id": "FR-L2-POS-122",
+  "title": "资料编辑族页面可达回归（进入不提交）",
+  "domain": "个人中心",
+  "content": "case_id: FR-L2-POS-122\nname: 资料编辑族页面可达回归（进入不提交）\ntags:\n- L2\nprecondition_class: 需登录态\nprecondition: person_info 页可达\nautomation:\n  maestro: 可行；**边界：编辑页只断言结构与既有值回显，禁提交/禁清空既有值**（提交=账号数据写）\nevidence:\n- edit__nickname__page.png\n- edit__password__page.png\n- edit__phone__page.png\n- edit__email__page.png\nsteps:\n- do: 依次进入 编辑昵称/编辑密码/编辑手机号/编辑邮箱（各返即回）\n  expect: 各编辑页可达，既有值正确回显（昵称=Miao 等）；输入框可聚焦；全部不提交直接返回，返回后 person_info 数据无变化\ndevice: android-emulator"
+ },
+ {
+  "case_id": "FR-L2-POS-123",
+  "title": "音质设置底部弹层四选项回归（不改选择）",
+  "domain": "个人中心",
+  "content": "case_id: FR-L2-POS-123\nname: 音质设置底部弹层四选项回归（不改选择）\ntags:\n- L2\nprecondition_class: 需登录态\nprecondition: 我的页可达\nautomation:\n  maestro: 可行（弹层动画 → waitForAnimationToEnd）；**只断言选中态，不点其它选项**（改音质=偏好写操作，留专项）\nevidence:\n- soundquality__sheet__four_options.png\nsteps:\n- do: 我的页 → 音质设置\n  expect: 底部弹层渲染：流畅/标准/HQ高品质/SQ无损 四单选项 + 红字『完成』；当前选中态可见（基线为标准，以执行时实际为准）\n- do: 点『完成』关闭弹层\n  expect: 弹层关闭，选中项未变更\ndevice: android-emulator"
+ },
+ {
+  "case_id": "FR-L2-POS-130",
+  "title": "充值消费记录页只读回归（Tab/筛选/流水渲染）",
+  "domain": "支付与会员",
+  "content": "case_id: FR-L2-POS-130\nname: 充值消费记录页只读回归（Tab/筛选/流水渲染）\ntags:\n- L2\n- finance-readonly\nprecondition_class: 需登录态\nprecondition: 我的页可达；账号既有流水数据（基线 ¥10-30 苹果/微信/支付宝若干笔）\nautomation:\n  maestro: 可行（只读断言）；**财务域红线：充值按钮/任何支付入口零点击**\nevidence:\n- recharge__record__tabs.png\n- recharge__record__list.png\nsteps:\n- do: 我的页 → 充值与消费记录\n  expect: 充值/消费 双 Tab + 筛选控件 + 流水列表渲染（既有笔目，断言非空不绑定金额）\n- do: 切换充值⇄消费 Tab\n  expect: 两 Tab 数据区各自渲染，切换无崩溃无白屏\ndevice: android-emulator"
+ },
+ {
+  "case_id": "FR-L2-POS-131",
+  "title": "退款/发票/订单权益/充值记录页可达抽样（只读）+ 平台页 VIP 资产卡",
+  "domain": "支付与会员",
+  "content": "case_id: FR-L2-POS-131\nname: 退款/发票/订单权益/充值记录页可达抽样（只读）+ 平台页 VIP 资产卡\ntags:\n- L2\n- finance-readonly\nprecondition_class: 需登录态\nprecondition: 我的页与平台页可达\nautomation:\n  maestro: 可行；全部只读，断言即返\n  notes: 真实支付/退款结算链路 BLOCKED（需支付通道，超本轮范围——主对话裁决）\nevidence:\n- finance__refund__opened.png\n- finance__invoice__opened.png\n- finance__order_equity__opened.png\n- platform__vip_card.png\nsteps:\n- do: 到达 退款/发票/订单权益/充值记录 页（经各自入口，逐返）\n  expect: 四页可达渲染（若某页需既有单据才出内容，记实际态不判失败）\n- do: 平台 Tab 断言 VIP 资产卡\n  expect: 总资产（惠币）数值渲染且格式合法（非负小数）+『充值』按钮可见——**不点击**\ndevice: android-emulator"
+ },
+ {
+  "case_id": "FR-L2-POS-140",
+  "title": "帮助与反馈 4 子项到达回归",
+  "domain": "帮助/关于/反馈",
+  "content": "case_id: FR-L2-POS-140\nname: 帮助与反馈 4 子项到达回归\ntags:\n- L2\nprecondition_class: 需登录态\nprecondition: 我的页 → 帮助与反馈可达\nautomation:\n  maestro: 可行；可适配音箱型号为远程内容页加载慢（O-19）→ assertVisible 轮询放宽超时，加载圈不判失败；用户反馈 ⊕ 新建入口定位不点击（新建表单=写操作，属模拟器待裁决项）\nevidence:\n- help__models__loading.png\n- help__manual__opened.png\n- help__userfeedback__opened.png\n- help__faq__opened.png\nsteps:\n- do: 依次进入 可适配音箱型号/使用说明/用户反馈/常见问题（各返即回）\n  expect: 使用说明=8 主题列表；用户反馈=历史反馈列表+右上 ⊕ 定位；常见问题=设备连接/音乐播放两分类+右上 EN 切换钮可见（不切）\ndevice: android-emulator"
+ },
+ {
+  "case_id": "FR-L2-POS-141",
+  "title": "关于页快照版本标识核对 + 四协议入口 + 升级行定位禁点",
+  "domain": "帮助/关于/反馈 / 版本",
+  "content": "case_id: FR-L2-POS-141\nname: 关于页快照版本标识核对 + 四协议入口 + 升级行定位禁点\ntags:\n- smoke\n- L2\n- snapshot-acceptance\n- danger-line\nprecondition_class: 需登录态\nprecondition: 我的页 → 关于与升级可达\nautomation:\n  maestro: 可行（文本断言）；**红线：『软件升级』行零点击（检查更新禁区）——仅语义树/截图核对其存在与版本文案**；协议链接会外跳 Chrome（含首启向导摩擦），本轮只做\n    about 页内断言，外跳验证标 experimental 可选步骤\nevidence:\n- about__version__5.3.0-build32.png\n- about__rows__3entries.png\n- about__software_upgrade_row__located_not_tapped.png\nsteps:\n- do: 进入关于与升级页\n  expect: '**快照标识核对（任务卡验收项）：版本文案=5.3.0 (build 32) debug**（与快照基线一致，非 debug-test 混淆）'\n- do: 断言三行入口+第四行\n  expect: 关于我们/使用政策/隐私政策协议三行可见；软件升级行可见（语义树可能不入树——以截图+坐标区核对存在性，不点击）\n- do: （可选·experimental）点击《使用政策》\n  expect: 外跳 Chrome URL=network.hivi.com/privacy（O-12 四入口同 URL 契约）——若 Chrome 首启向导挡路，采证后返回，不深究\n    Web 域\ndevice: android-emulator"
+ },
+ {
+  "case_id": "FR-L2-POS-150",
+  "title": "日活上报自然日节流回归（adb logcat 半自动）",
+  "domain": "推送/日活/版本",
+  "content": "case_id: FR-L2-POS-150\nname: 日活上报自然日节流回归（adb logcat 半自动）\ntags:\n- L2\n- adb-assisted\nprecondition_class: 需登录态\nprecondition: 登录态有效；当日尚未上报（若当日已上报，预期为不发——两种结果判据不同，执行前核对）\nautomation:\n  maestro: 半自动（logcat 侧写非 Maestro 能力）：Maestro 负责冷启动编排，断言经 adb logcat 过滤完成\n  notes: DailyActiveReporter 按 HVDailyActiveLastReportDate 自然日节流、先落盘再请求（daily_active_reporter.dart:14）\nevidence:\n- logcat-loginLog-once.png\n- daily-active__throttle__second-launch.png\nsteps:\n- do: 冷启动 App，logcat 过滤 user/loginLog\n  expect: 当日首次启动出现恰一次 POST /user/loginLog body={type:1}\n- do: force-stop 再次冷启动\n  expect: 第二次启动无 loginLog 请求（自然日节流契约保持）\ndevice: android-emulator"
+ },
+ {
+  "case_id": "FR-L2-POS-151",
+  "title": "推送到达链路——登记条目：no-op 空实现，无正向用例可设计",
+  "domain": "推送/日活/版本",
+  "content": "case_id: FR-L2-POS-151\nname: 推送到达链路——登记条目：no-op 空实现，无正向用例可设计\ntags:\n- BLOCKED-struct\n- registration-only\nprecondition_class: 需登录态\nprecondition: ——本条为结构性登记，无执行步骤——\nautomation:\n  maestro: 不可行：推送 Port 纯 Flutter 端为 no-op 空实现（register() 空体、inboundStream 永不发事件）——推送到达链路在本基线不存在，推送类断言严禁依赖真推送（任务卡红线）\n  notes: 消息中心红点/角标不来自真推送（功能地图 v2 裁决）——若回归中发现红点行为异常，按消息中心本地逻辑归因，不归因推送\nevidence:\n- （登记）功能地图推送节 ⚠ + pure_flutter_push_notification_port.dart:8\nsteps:\n- do: （登记）\n  expect: 推送 SDK 接入为待测绘清单项；任何『推送到达』类正向断言在本基线 = 设计无效\ndevice: android-emulator"
+ },
+ {
+  "case_id": "FR-L2-POS-160",
+  "title": "设置/切服 UI 无挂载回归断言（全 dump 文本检索）",
+  "domain": "设置/切服/平台通道",
+  "content": "case_id: FR-L2-POS-160\nname: 设置/切服 UI 无挂载回归断言（全 dump 文本检索）\ntags:\n- L2\n- contract-regression\nprecondition_class: 需登录态\nprecondition: 登录态 AppShell；对齐 states-matrix §33：本基线『设置/切服/平台通道』无 UI 入口\nautomation:\n  maestro: 半自动（需 adb uiautomator dump 或 Maestro 层级导出后文本检索；切服若意外出现入口=**禁点**，只上报）\n  notes: 回归语义：若快照新增了 UI 入口 → 按新入口登记用例缺口并上报主对话（严禁直接操作切服）；若仍无入口 → 契约保持绿\nevidence:\n- settings-sweep__me-page__dump.xml\n- settings-sweep__personinfo__dump.xml\nsteps:\n- do: 我的页与 person_info 页各做全量 dump，检索『设置』『切服』『通道』关键词\n  expect: 仅命中『音质设置』（既有），无独立设置页/切服/平台通道 UI 入口（无挂载契约保持）\ndevice: android-emulator"
+ },
+ {
+  "case_id": "FR-L2-POS-170",
+  "title": "视频分类/播放页入口可达抽样（条件执行）+ 投屏 BLOCKED(env) 登记",
+  "domain": "视频与投屏",
+  "content": "case_id: FR-L2-POS-170\nname: 视频分类/播放页入口可达抽样（条件执行）+ 投屏 BLOCKED(env) 登记\ntags:\n- L2\n- conditional\n- BLOCKED-env\nprecondition_class: 需登录态\nprecondition: 入口未在 states-matrix 单独实测（/music_platform/qq/video-classify 经 QQ 详情域推断）——**执行时先定位真实入口，找不到入口记『入口未达（登记）』不判失败**\nautomation:\n  maestro: 半自动；视频播放页若打开：**断言播放器控件渲染即止，禁触发实际播放**（无音频硬件 device-divergence）；投屏浮窗/设备选择\n    sheet 无实体设备可达 = BLOCKED(env)\nevidence:\n- video__classify__opened.png（若入口可达）\n- （登记）投屏真机需求条目\nsteps:\n- do: 在 QQ 音乐详情域定位视频分类入口并进入（若存在）\n  expect: 视频分类页可达渲染\n- do: 进入任一视频播放页（若可达）\n  expect: 播放页控件结构渲染；实际播放/投屏断言 BLOCKED(env) 登记\ndevice: android-emulator"
+ },
+ {
+  "case_id": "FR-NEG-AI-001",
+  "title": "AI 对话空输入/超长输入边界（输入链路 ANR 纪律）",
+  "domain": null,
+  "content": "case_id: FR-NEG-AI-001\nepic: AI 助手\ndimension: 空值\nname: AI 对话空输入/超长输入边界（输入链路 ANR 纪律）\nexpected_type: expected\nmethod_design:\n  boundary_values:\n  - field: 输入\n    value: 空/纯空格\n    expected: 发送禁用或点击无请求\n  - field: 输入\n    value: 2000 字超长\n    expected: 截断或服务端收敛，无 ANR/崩溃\nprecondition: authenticated 态 /ai/chat 可达；文本输入不挂录屏、逐字符 >=0.5s（P-003 输入链路嫌疑纪律）\nsteps:\n- do: 空输入点发送\n  expect: 无请求发出（AI 网关零调用）\n- do: 整串注入 2000 字 TEST-SYNTHETIC 文本发送\n  expect: 流式响应或错误收敛均不崩溃；ANR 症状即触发预案并记 suspected-defect（输入链路佐证）\nlocators:\n  hivi_test_ids: []\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: 2000x''测'''\nrepro_points: AI 网关/仓库保持未考古——流式中断表现只记 notes；历史页与角色编辑边界见 AI-002\nrecovery: 清空输入\ntags:\n- L3\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "FR-NEG-AI-002",
+  "title": "AI 网关断网收敛 + 角色编辑空名/超长名保存拦截",
+  "domain": null,
+  "content": "case_id: FR-NEG-AI-002\nepic: AI 助手\ndimension: 断网\nname: AI 网关断网收敛 + 角色编辑空名/超长名保存拦截\nexpected_type: expected\nmethod_design:\n  equivalence_classes:\n  - class: 断网发消息\n    input: 飞行模式\n    expected: 错误收敛文案，对话页可返回重试\n  - class: 角色空名\n    input: 名字为空保存\n    expected: 拦截提示，不产生脏数据\n  - class: 角色超长名\n    input: 100 字名\n    expected: 截断或拦截\nprecondition: authenticated 态\nsteps:\n- do: 断网在 /ai/chat 发送 TEST-SYNTHETIC 消息\n  expect: 错误收敛非英文原文；恢复网络可重发\n- do: /ai/role/create 空名与超长名保存\n  expect: 空名拦截不落库；超长名按上限处理；/ai/history 与 /ai/role/manage 列表无脏条目\nlocators:\n  hivi_test_ids: []\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: 空串 / 100x''名'''\nrepro_points: 写操作仅限 AI 角色域（低风险测试数据），支付/反馈写操作另有守门条目\nrecovery: 删除测试角色（若产生）\ntags:\n- L3\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "FR-NEG-AI-003",
+  "title": "实时通话中途退出：会话中断无残留（音频部分 BLOCKED(env)）",
+  "domain": null,
+  "content": "case_id: FR-NEG-AI-003\nepic: AI 助手\ndimension: 中断\nname: 实时通话中途退出：会话中断无残留（音频部分 BLOCKED(env)）\nexpected_type: expected\nmethod_design:\n  error_guessing: 进入实时通话后立即返回——中断链路无崩溃、无残留通话态\nprecondition: authenticated 态；通话语音部分 BLOCKED(env)（模拟器无真实音频），仅验证页面进出与状态清理\nsteps:\n- do: 进入 /ai/realtime-call 后 2s 内直接返回\n  expect: 无崩溃、返回后 AI 页状态正常、无残留通话浮层/计时器（logcat 无持续音频心跳）\n- do: 再次进入并重复 3 次\n  expect: 重复进出无状态累积（每次干净初始化）\nlocators:\n  hivi_test_ids: []\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: 无'\nrepro_points: swan_ai_audio 包边界（L1）——音频通道异常记 notes 不深挖\nrecovery: 返回/冷重启\ntags:\n- L3\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "FR-NEG-DEV-001",
+  "title": "BLE/蓝牙 BLOCKED(env) 守门 + 设备发现空结果边界",
+  "domain": null,
+  "content": "case_id: FR-NEG-DEV-001\nepic: 设备管理与配网\ndimension: 权限缺失\nname: BLE/蓝牙 BLOCKED(env) 守门 + 设备发现空结果边界\nexpected_type: expected\nmethod_design:\n  error_guessing: 模拟器无蓝牙——发现服务应空结果收敛而非崩溃；定位权限拒绝场景等效观察\nprecondition: authenticated 态设备页；蓝牙客观指标 BLOCKED(env)（真机人工 checklist 另行安排）\nsteps:\n- do: 进入 /device/add 触发设备发现（BLE/mDNS/UPnP）\n  expect: 模拟器上空结果或能力不可用提示，无崩溃；扫描可停止可退出\n- do: 发现期间直接返回\n  expect: 扫描终止无残留（无持续扫描心跳）\nlocators:\n  hivi_test_ids: []\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: 无'\nrepro_points: swan_ble_transport/swan_bluetooth_discovery_ohos 为 L1 边界——原生层异常记 notes；本条同时是\n  P-003 观察面（扫描回调链路）\nrecovery: 返回\ntags:\n- L3\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "FR-NEG-DEV-002",
+  "title": "配网 WiFi 密码空值/超长/特殊字符（ble_wifi_password_store 边界）",
+  "domain": null,
+  "content": "case_id: FR-NEG-DEV-002\nepic: 设备管理与配网\ndimension: 空值\nname: 配网 WiFi 密码空值/超长/特殊字符（ble_wifi_password_store 边界）\nexpected_type: expected\nmethod_design:\n  equivalence_classes:\n  - class: 空密码\n    input: 空串\n    expected: 拦截，不进入配网流程\n  - class: 超长密码\n    input: 64+ 字符\n    expected: 截断或拦截\n  - class: 特殊字符密码\n    input: 中文/emoji/引号\n    expected: 原样透传或明确报错，无崩溃\nprecondition: authenticated 态配网页可达；无真实设备时流程止于密码校验层（无设备提交即空转收敛——记录实际表现）\nsteps:\n- do: WiFi 配网页逐类输入密码（输入纪律：不挂录屏、整串注入）\n  expect: 前端拦截/服务端收敛，无崩溃无 ANR\n- do: BLE 配网页同样三分类\n  expect: 同收敛语义（模拟器无蓝牙则记 SKIP(env-state)）\nlocators:\n  hivi_test_ids: []\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: 空/64x''p''/带 emoji 串'\nrepro_points: 热点配网策略（hotspot_provisioning_policy）行为未深考古——异常记 notes\nrecovery: 清空输入返回\ntags:\n- L3\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "FR-NEG-DEV-003",
+  "title": "配网中途取消/断网重试：无状态残留可重来",
+  "domain": null,
+  "content": "case_id: FR-NEG-DEV-003\nepic: 设备管理与配网\ndimension: 中断\nname: 配网中途取消/断网重试：无状态残留可重来\nexpected_type: expected\nmethod_design:\n  state_transition:\n  - from: 配网进行中\n    event: back_press_or_断网\n    to: 流程终止+状态清理\n    guard: 无设备完成写入\nprecondition: authenticated 态；模拟器无真实设备——验证取消/断网分支即达目的（成功路径属正向通道与真机 checklist）\nsteps:\n- do: 配网流程进行中（密码已提交等待连接）直接返回\n  expect: 流程终止、无残留 loading/浮层，可重新进入\n- do: 配网中断网\n  expect: 超时收敛错误态，重试入口可用；无半写设备数据（设备页无幽灵设备）\nlocators:\n  hivi_test_ids: []\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: 无'\nrepro_points: 断网重试幂等：重复取消/重试 3 轮无状态累积；幽灵设备残留是本条核心断言\nrecovery: 返回/冷重启\ntags:\n- L3\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "FR-NEG-DEV-004",
+  "title": "设备名称编辑边界：空/超长/emoji（/device/name-edit）",
+  "domain": null,
+  "content": "case_id: FR-NEG-DEV-004\nepic: 设备管理与配网\ndimension: 超长\nname: 设备名称编辑边界：空/超长/emoji（/device/name-edit）\nexpected_type: expected\nmethod_design:\n  boundary_values:\n  - field: 设备名\n    value: 空/纯空格\n    expected: 拦截，保留原名\n  - field: 设备名\n    value: 超长 100 字\n    expected: 截断或拦截\n  - field: 设备名\n    value: emoji+中文混合\n    expected: 正常保存或明确报错\nprecondition: authenticated 态；无设备时改名入口不可达 → 记 SKIP(env-state)（无设备可造，禁止伪造设备数据）\nsteps:\n- do: （有入口时）逐类输入并保存\n  expect: 边界拦截生效；保存后列表/详情名称一致（latest-wins）\nlocators:\n  hivi_test_ids: []\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: 空/100x''名''/emoji 串'\nrepro_points: 写操作仅限名称（可复原），不触设备删除/解绑\nrecovery: 改回原名\ntags:\n- L3\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "FR-NEG-HELP-001",
+  "title": "O-12 回归：协议 4 入口同指未部署 URL 的降级表现",
+  "domain": null,
+  "content": "case_id: FR-NEG-HELP-001\nepic: 帮助/关于/反馈\ndimension: 服务降级\nname: O-12 回归：协议 4 入口同指未部署 URL 的降级表现\nexpected_type: suspected-defect\nmethod_design:\n  error_guessing: v2 发现：协议 4 入口同指未部署 URL——点击后 WebView/浏览器 404/超时表现\nprecondition: authenticated 态；协议入口可达（登录页/关于页等 4 处）\nsteps:\n- do: 逐一点击 4 处协议入口\n  expect: 记录每处表现：404 页/超时/空白 WebView 均记 suspected-defect 候选（O-12 未修复）；App 自身不崩溃、可返回\n- do: 断网点击协议入口\n  expect: 失败收敛，无崩溃（WebView 异常不拖垮宿主）\nlocators:\n  hivi_test_ids:\n  - login_agreement_checkbox\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: 无'\nrepro_points: 关于页与登录页协议 URL 一致性核对（O-12 同指事实回归）；常见问题 EN 切换（O-20）归 HELP-003\nrecovery: 返回\ntags:\n- L3\n- negative\n- regression\nchannels:\n- assertion\n- visual"
+ },
+ {
+  "case_id": "FR-NEG-HELP-002",
+  "title": "意见反馈空表单提交拦截（不产生写操作）",
+  "domain": null,
+  "content": "case_id: FR-NEG-HELP-002\nepic: 帮助/关于/反馈\ndimension: 空值\nname: 意见反馈空表单提交拦截（不产生写操作）\nexpected_type: expected\nmethod_design:\n  boundary_values:\n  - field: 反馈内容\n    value: 空/纯空格\n    expected: 提交拦截，服务端零写入\n  - field: 反馈内容\n    value: 超长 5000 字\n    expected: 截断或拦截\nprecondition: authenticated 态 /me/feedback 可达；功能地图待裁决项（新建表单写操作）——本卡裁决：仅验证拦截分支，合法提交不执行\nsteps:\n- do: 空内容点提交\n  expect: 拦截提示，logcat 无提交请求\n- do: 超长内容观察输入框行为\n  expect: 截断/计数限制生效；不提交\nlocators:\n  hivi_test_ids: []\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: 空/500x''馈'''\nrepro_points: 反馈未读红点（pure_flutter_user_feedback_unread_port）不因空提交误亮\nrecovery: 无\ntags:\n- L3\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "FR-NEG-HELP-003",
+  "title": "三语切换（zh/zh_Hant/en）中断与状态残留（含 O-20 常见问题 EN）",
+  "domain": null,
+  "content": "case_id: FR-NEG-HELP-003\nepic: 帮助/关于/反馈\ndimension: 状态残留\nname: 三语切换（zh/zh_Hant/en）中断与状态残留（含 O-20 常见问题 EN）\nexpected_type: expected\nmethod_design:\n  state_transition:\n  - from: 语言A\n    event: 切换语言B后立即返回\n    to: 语言落盘一致或回滚一致\n    guard: 无半切状态\nprecondition: authenticated 态；系统语言切换入口可达（模拟器设置或应用内）\nsteps:\n- do: zh → en → zh_Hant 循环切换各停留 3s\n  expect: 全 UI 文案跟随、无混排残留；冷重启后语言保持（落盘验证）\n- do: 切到 en 查看常见问题页（O-20）\n  expect: EN 文案正常（O-12 关联事实回归）；无缺翻译 key 字面量\n- do: 切换动画中立即返回再进\n  expect: 无半切状态/无崩溃\nlocators:\n  hivi_test_ids: []\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: 无'\nrepro_points: l10n 三语实测（功能地图）——缺 key 崩溃是本条破坏目标\nrecovery: 切回 zh\ntags:\n- L3\n- negative\nchannels:\n- assertion\n- visual"
+ },
+ {
+  "case_id": "FR-NEG-HOME-001",
+  "title": "音乐权益初始化页一次性标记边界（init_music_right_shown）",
+  "domain": null,
+  "content": "case_id: FR-NEG-HOME-001\nepic: 首页\ndimension: 状态残留\nname: 音乐权益初始化页一次性标记边界（init_music_right_shown）\nexpected_type: expected\nmethod_design:\n  boundary_values:\n  - field: 一次性标记\n    value: 已弹出后杀进程重启\n    expected: 不重复弹（标记已落盘）\n  - field: 一次性标记\n    value: 可引导平台为空时\n    expected: 不弹也不写标记（卡片 ⚠ 契约）\nprecondition: authenticated 态；可清应用数据复位首启态（会同时复位隐私态，连带执行 FR-NEG-START-002 成本合并）\nsteps:\n- do: 首启触发权益初始化弹窗（蒙层走 root Navigator）\n  expect: 弹窗可关闭、关闭后不阻塞主界面；杀进程重启不再弹\n- do: 无任何可引导平台账号态下复位标记重启\n  expect: 不弹窗且 init_music_right_shown 未写入（下次满足条件仍可弹）\nlocators:\n  hivi_test_ids: []\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: 无'\nrepro_points: AppShell IndexedStack 预构建隐藏 Tab 是触发时机约束（功能地图 ⚠）——弹窗出现时机本身即回归观察点；清数据复位成本高，与\n  START-002 合并为同一复位序列\nrecovery: 无\ntags:\n- L3\n- negative\nchannels:\n- assertion\n- visual"
+ },
+ {
+  "case_id": "FR-NEG-HOME-002",
+  "title": "五顶 Tab 连点 + 音乐/电台搜索入口 Hero tag 并发",
+  "domain": null,
+  "content": "case_id: FR-NEG-HOME-002\nepic: 首页\ndimension: 并发\nname: 五顶 Tab 连点 + 音乐/电台搜索入口 Hero tag 并发\nexpected_type: expected\nmethod_design:\n  boundary_values:\n  - field: 顶 Tab 连点\n    value: 1s 内 10 次五 Tab 循环\n    expected: latest-wins 停最后 Tab；Hero tag 无冲突崩溃\nprecondition: authenticated 态\nsteps:\n- do: 五顶 Tab（推荐/音乐/电台/AI/可视音箱）快速连点 2 轮\n  expect: 无 ANR/无 Hero 冲突异常/页面与 Tab 高亮一致\n- do: 音乐 Tab 与电台 Tab 快速交替点搜索入口\n  expect: 搜索页最多入栈一次（防双 push），返回栈深度一致\nlocators:\n  hivi_test_ids: []\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: 无'\nrepro_points: 音乐 Tab 平台区块过滤 Spotify（catalog_mapper 注释）——回归断言首页不出现 Spotify 区块\nrecovery: 无\ntags:\n- L3\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "FR-NEG-LIB-001",
+  "title": "批量操作空选边界（0 选中 / 全选后清空）",
+  "domain": null,
+  "content": "case_id: FR-NEG-LIB-001\nepic: 收藏与曲库\ndimension: 空值\nname: 批量操作空选边界（0 选中 / 全选后清空）\nexpected_type: expected\nmethod_design:\n  boundary_values:\n  - field: 选中数\n    value: '0'\n    expected: 批量操作入口禁用或空选拦截\n  - field: 选中数\n    value: 全选后逐一取消至 0\n    expected: 计数归零、入口回到禁用态\nprecondition: authenticated 态统一音乐库/批量操作页可达（/player/bulk-operate）\nsteps:\n- do: 0 选中状态尝试触发批量操作\n  expect: 拦截，无空集请求发出\n- do: 全选→全取消循环 2 次\n  expect: 计数准确、无崩溃、无残留选中态\nlocators:\n  hivi_test_ids: []\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: 无'\nrepro_points: 统一音乐库 4875 行（v2 实测）——大页内存表现随行观察 ANR 症状\nrecovery: 退出批量模式\ntags:\n- L3\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "FR-NEG-LIB-002",
+  "title": "收藏星标快速连点：latest-wins 决策回归（DEC-001）",
+  "domain": null,
+  "content": "case_id: FR-NEG-LIB-002\nepic: 收藏与曲库\ndimension: 并发\nname: 收藏星标快速连点：latest-wins 决策回归（DEC-001）\nexpected_type: expected\nmethod_design:\n  boundary_values:\n  - field: 星标连点\n    value: 1s 内同条目连点 3 次\n    expected: 终态=最后一次点击（latest-wins），收藏变更分发恰一次终态事件\nprecondition: authenticated 态且有可收藏条目（搜索/歌单页可达条目；不点播放）\nsteps:\n- do: 对同一条目收藏星标快速连点 3 次\n  expect: 终态与最后一次点击一致（latest-wins，NEG-CONCURRENCY-001 决策回归）；无重复收藏/无脏分发\n- do: 两个不同条目交替连点\n  expect: 两条目状态各自正确互不串扰（pure_flutter_favorite_change_dispatcher 分发隔离）\nlocators:\n  hivi_test_ids: []\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: 无'\nrepro_points: 收藏变更属服务端写操作（TEST-SYNTHETIC 数据可复原）；Qobuz 星标持久缓存（qobuz.detail_collection_state.v1）与服务端终态一致性是隐藏断言\nrecovery: 恢复原收藏态\ntags:\n- L3\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "FR-NEG-LIB-003",
+  "title": "离线打开收藏/播放历史：缓存态与空态边界",
+  "domain": null,
+  "content": "case_id: FR-NEG-LIB-003\nepic: 收藏与曲库\ndimension: 断网\nname: 离线打开收藏/播放历史：缓存态与空态边界\nexpected_type: expected\nmethod_design:\n  equivalence_classes:\n  - class: 断网+有历史缓存\n    input: 飞行模式进 /me/play-history\n    expected: 缓存渲染或空态，无崩溃\n  - class: 断网+我的收藏\n    input: 飞行模式进 /me/my-collects\n    expected: 同上\nprecondition: authenticated 态；先联网确认两页有数据（无数据则记数据态）\nsteps:\n- do: 飞行模式分别打开两页\n  expect: 缓存/空态收敛，可返回；恢复网络刷新即回正常\n- do: 断网下尝试刷新下拉\n  expect: 刷新失败收敛，不破坏已渲染缓存\nlocators:\n  hivi_test_ids: []\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: 无'\nrepro_points: 播放类条目仍禁点（P-9-1）；歌单详情页（/player/playlist-detail）断网空态一并覆盖\nrecovery: 恢复网络\ntags:\n- L3\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "FR-NEG-LOGIN-001",
+  "title": "错误验证码 4 位自动提交 + 同码防重（_lastFailedSmsCode 设计行为边界）",
+  "domain": null,
+  "content": "case_id: FR-NEG-LOGIN-001\nepic: 会话与登录\ndimension: 重复提交\nname: 错误验证码 4 位自动提交 + 同码防重（_lastFailedSmsCode 设计行为边界）\nexpected_type: expected\nmethod_design:\n  error_guessing: 4 位即自动提交；同错误码重试被防重钩子跳过——自动化视角的『无反应』边界\nprecondition: 登录页验证码步已到达（手机号步成功发码）；验证码可从主对话获取（人工中断点）或注入失败响应\nsteps:\n- do: 输入 4 位错误验证码（逐字符 >=0.5s 间隔，不挂录屏）\n  expect: 满 4 位即自动提交，行内 login_error_text 出现失败文案，不崩溃\n- do: 原样重输同一错误码（先清空再输入）\n  expect: 首次重试提交后若再次失败，_lastFailedSmsCode 生效：同一码第三次重复提交被跳过（页面无新请求），属设计行为非卡死——用 logcat\n    确认无重复 /user/login 请求\n- do: 修改其中一位再提交\n  expect: 恢复提交（防重仅对同一失败码）\nlocators:\n  hivi_test_ids:\n  - login_code_field\n  - login_error_text\n  value_keys:\n  - login-code-field\ntest_data: 'TEST-SYNTHETIC: 错误码 0000 / 0001（任意非真值4位）'\nrepro_points: 输入纪律：不挂录屏、逐字符 >=0.5s；自动提交与防重并发由 _smsLoginInFlight 兜底，观察 busy 态期间输入不被吞出双请求\nrecovery: 返回手机号步重进\ntags:\n- L3\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "FR-NEG-LOGIN-002",
+  "title": "验证码过期/失效响应注入：行内错误收敛不崩溃",
+  "domain": null,
+  "content": "case_id: FR-NEG-LOGIN-002\nepic: 会话与登录\ndimension: 状态跳跃\nname: 验证码过期/失效响应注入：行内错误收敛不崩溃\nexpected_type: expected\nmethod_design:\n  equivalence_classes:\n  - class: 服务端验证码过期业务码\n    input: 代理注入过期码响应\n    expected: 行内错误文案，停留验证码步\n  - class: 非法响应体（非 Map）\n    input: 代理注入非 JSON/空体\n    expected: _post 包装 success:false + sanitized message，不透出英文异常原文\nprecondition: 验证码步已到达；代理工具可拦截 /user/login 响应\nsteps:\n- do: 代理将 /user/login 响应改写为验证码过期/错误业务码\n  expect: login_error_text 出现本地化文案；输入变化即清旧错误（clearLoginError 语义）\n- do: 代理返回 500/非 Map 响应体\n  expect: sanitizeApiFailureMessage 收敛为 networkNotConnected 类文案，无堆栈/英文原文透出，页面可继续操作\nlocators:\n  hivi_test_ids:\n  - login_code_field\n  - login_error_text\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: 代理注入 {code: 验证码失效业务码} / 非 JSON body'\nrepro_points: 断言错误文案与输入框联动清除；DioException 响应体为 Map 时业务码语义保留（卡片错误处理路径契约）\nrecovery: 关闭代理重新发码\ntags:\n- L2\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "FR-NEG-LOGIN-003",
+  "title": "60s 倒计时内存态三边界：杀进程冷却丢失/同号复用/改号清零（卡片已知坑4）",
+  "domain": null,
+  "content": "case_id: FR-NEG-LOGIN-003\nepic: 会话与登录\ndimension: 边界值\nname: 60s 倒计时内存态三边界：杀进程冷却丢失/同号复用/改号清零（卡片已知坑4）\nexpected_type: expected\nmethod_design:\n  boundary_values:\n  - field: 冷却剩余时间\n    value: 杀进程重进\n    expected: 冷却丢失，可立即再发码（服务端获取短信频繁限制兜底）\n  - field: 冷却剩余时间\n    value: 同号返回手机号步再进验证码步\n    expected: 复用剩余时间，不重发\n  - field: 冷却剩余时间\n    value: 改手机号\n    expected: 清零重发\nprecondition: 需真实短信验证码（人工中断点 acct-swan-mobile）；未收集到即 BLOCKED(credential-required)\nsteps:\n- do: 发码进入验证码步，等待约 30s 后杀进程冷重启，同号重进验证码步\n  expect: 倒计时从头开始（内存态不落盘），可立即点重发；若服务端回『获取短信频繁』类文案，行内收敛展示\n- do: 返回手机号步（保留号码）再进验证码步\n  expect: 倒计时复用剩余时间，无新发码请求（logcat 无第二次 /user/captcha）\n- do: 改手机号再进\n  expect: 倒计时清零并正常发码\nlocators:\n  hivi_test_ids:\n  - login_phone_field\n  - login_code_field\n  value_keys:\n  - login-resend-code-button\ntest_data: 'TEST-SYNTHETIC: 双测试手机号（TEST-SYNTHETIC 标记）'\nrepro_points: 验证码消耗短信资源，一轮内合并三步连续执行；服务端频繁限制文案属预期兜底非缺陷\nrecovery: 等待冷却结束\ntags:\n- L3\n- negative\n- flaky\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "FR-NEG-LOGIN-004",
+  "title": "F-2 回归：密码 6 位假值点亮登录键 + 点击 ANR（SWAN-BUG-20260910-002）",
+  "domain": null,
+  "content": "case_id: FR-NEG-LOGIN-004\nepic: 会话与登录\ndimension: 非法格式\nname: F-2 回归：密码 6 位假值点亮登录键 + 点击 ANR（SWAN-BUG-20260910-002）\nexpected_type: suspected-defect\nmethod_design:\n  error_guessing: 已知缺陷回归：前端无长度校验，6 位假密码提交触发主线程 ANR 循环\nprecondition: 登录页密码模式（login_use_password_button 切换）；ANR 预案待命；文本输入期间不挂录屏\nsteps:\n- do: 逐字符输入 6 位 123456（间隔 >=0.5s）\n  expect: 记录登录键是否点亮（BUG-002 现象：无长度校验即点亮）\n- do: 点击登录键\n  expect: 若快照已修复：行内错误文案（密码校验/服务端错误），无 ANR；若未修复：5s 内 ANR 对话框 → 触发 ANR 预案（等待x1→force-stop→冷重启）并记\n    suspected-defect（F-2 未修复）\n- do: ANR 后核对服务端到达（可选，留报告从定级）：测试服查 13800138000/123456 登录到达记录\n  expect: 到达与否仅作证据补充，不影响本条判定\nlocators:\n  hivi_test_ids:\n  - login_password_field\n  - login_submit_button\n  - login_error_text\n  value_keys:\n  - login-password-field\ntest_data: 'TEST-SYNTHETIC: {password: 123456, tel: 13800138000}'\nrepro_points: 与 BUG-002 证据链对齐（states-matrix §11-12）；ANR 复现时归档 dropbox trace 与录屏（ANR\n  确认后再录，输入期间禁录）；对照组见 FR-NEG-LOGIN-006（验证码模式非法号段有行内校验）\nrecovery: ANR 预案：等待x1 → force-stop → 冷重启\ntags:\n- L3\n- negative\n- regression\nchannels:\n- assertion\n- visual"
+ },
+ {
+  "case_id": "FR-NEG-LOGIN-005",
+  "title": "密码框 maxLength 16 / 空值 / 明文切换边界",
+  "domain": null,
+  "content": "case_id: FR-NEG-LOGIN-005\nepic: 会话与登录\ndimension: 边界值\nname: 密码框 maxLength 16 / 空值 / 明文切换边界\nexpected_type: expected\nmethod_design:\n  boundary_values:\n  - field: 密码长度\n    value: 16 位\n    expected: 可输入满（maxLength 上界）\n  - field: 密码长度\n    value: 17 位尝试\n    expected: 截断为 16 位\n  - field: 密码内容\n    value: 空/全空格\n    expected: 登录键不点亮或点击行内报错，不发请求\nprecondition: 登录页密码模式；不挂录屏\nsteps:\n- do: 输入 17 位字符\n  expect: 实际落 16 位（maxLength:16 契约）\n- do: 清空后输入全空格，点登录\n  expect: 无请求发出或行内错误；无崩溃\n- do: 明文/密文切换往返 3 次\n  expect: 内容不变、光标位置合理、无重建丢字（输入纪律：整串注入后切换）\nlocators:\n  hivi_test_ids:\n  - login_password_field\n  value_keys:\n  - login-password-field\ntest_data: 'TEST-SYNTHETIC: 16 位 TEST-SYNTHETIC 假密码'\nrepro_points: 对照 F-2：若 6 位即可点亮而空值不点亮，校验语义仅为非空——差异记录供报告从定级参考\nrecovery: 清空输入\ntags:\n- L2\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "FR-NEG-LOGIN-006",
+  "title": "手机号非法号段等价类（验证码模式有校验对照组）",
+  "domain": null,
+  "content": "case_id: FR-NEG-LOGIN-006\nepic: 会话与登录\ndimension: 非法格式\nname: 手机号非法号段等价类（验证码模式有校验对照组）\nexpected_type: expected\nmethod_design:\n  equivalence_classes:\n  - class: 不足11位\n    input: '1380013800'\n    expected: 不点亮/点击行内提示，不发码\n  - class: 恰11位非法号段\n    input: 00000000000 / 19999999999 类 TEST-SYNTHETIC 假号\n    expected: 行内红字 login_error_text，不发码（BUG-002 对照组行为）\n  - class: 含字母/符号\n    input: 138abc00138\n    expected: 拦截或行内错误，不发码\n  - class: 超11位\n    input: '138001380001'\n    expected: 截断 11 位或行内错误\nprecondition: 登录页短信模式手机号步\nsteps:\n- do: 逐类输入并点击获取验证码（logcat 监控 /user/captcha）\n  expect: 所有非法类均不发码（无 /user/captcha 请求）且行内错误收敛展示；输入变化清旧错误\nlocators:\n  hivi_test_ids:\n  - login_phone_field\n  - login_error_text\n  - login_submit_button\n  value_keys:\n  - login-phone-field\n  - login-submit-button\ntest_data: 'TEST-SYNTHETIC: 上述等价类假号'\nrepro_points: 本条同时是 F-2 的对照组证据：验证码模式只校验位数不校验号段（BUG-002 记录），回归确认快照行为一致\nrecovery: 清空输入\ntags:\n- L3\n- negative\n- regression\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "FR-NEG-LOGIN-007",
+  "title": "协议未勾选：三主按钮 + 第三方图标全入口拦截",
+  "domain": null,
+  "content": "case_id: FR-NEG-LOGIN-007\nepic: 会话与登录\ndimension: 权限缺失\nname: 协议未勾选：三主按钮 + 第三方图标全入口拦截\nexpected_type: expected\nmethod_design:\n  decision_table:\n  - conditions:\n    - 协议未勾选\n    - 点短信主按钮\n    actions: 不发码，协议拦截提示\n  - conditions:\n    - 协议未勾选\n    - 点密码主按钮\n    actions: 不提交，协议拦截提示\n  - conditions:\n    - 协议未勾选\n    - 点第三方图标\n    actions: 不拉起授权（可点仅由协议决定）\n  - conditions:\n    - 协议勾选\n    - 点第三方图标\n    actions: 授权中不置灰（防微信中途返回永久卡死的设计）\nprecondition: 登录页首屏；模拟器无微信/微博宿主（对照组环境已知）\nsteps:\n- do: 不勾选协议依次点短信/密码主按钮与第三方图标\n  expect: 全部被拦截，无网络请求、无授权拉起、无崩溃\n- do: 勾选协议后点第三方图标，授权未完成期间观察图标状态\n  expect: 授权中不置灰（可再次点击触发 isInProgress 稍候提示，见 FR-NEG-LOGIN-009）\nlocators:\n  hivi_test_ids:\n  - login_agreement_checkbox\n  - login_submit_button\n  - login_third_party_wechat_button\n  - login_third_party_weibo_button\n  value_keys:\n  - login-agreement-checkbox\ntest_data: 'TEST-SYNTHETIC: 无'\nrepro_points: 第三方图标可见性与可点性是两套门禁（可见由平台决定、可点仅由协议决定）——OHOS 隐藏逻辑不在本模拟器范围\nrecovery: 无\ntags:\n- L3\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "FR-NEG-LOGIN-008",
+  "title": "F-1/P-004 回归：微博 SDK libwind.so 缺失容错（先查库再点击）",
+  "domain": null,
+  "content": "case_id: FR-NEG-LOGIN-008\nepic: 会话与登录\ndimension: 服务降级\nname: F-1/P-004 回归：微博 SDK libwind.so 缺失容错（先查库再点击）\nexpected_type: suspected-defect\nmethod_design:\n  error_guessing: P-004 执行纪律：第三方入口先查包内 .so 存在性再点击；缺失时点击预期 UnsatisfiedLinkError 崩溃（BUG-20260910-001\n    未修复回归）\nprecondition: 协议已勾选；快照 APK 路径可知（adb shell pm path com.swan.network）\nsteps:\n- do: 拉取 APK 并检查 lib/<abi>/libwind.so 是否存在\n  expect: 记录存在性——若已修复出包含库新包则转正常授权路径（模拟器无微博宿主，预期行内报错不崩）；若缺失继续下一步\n- do: 库缺失时点微博图标\n  expect: '若崩溃退桌面（UnsatisfiedLinkError: libwind.so not found）→ suspected-defect，F-1\n    未修复，归档 logcat 完整栈 + dropbox data_app_crash；若不崩（已容错）→ 记改进证据'\n- do: 对照组：点微信图标（未装微信）\n  expect: 仅行内报错『未安装微信客户端』类文案，不崩溃（BUG-001 对照组行为保持）\nlocators:\n  hivi_test_ids:\n  - login_third_party_weibo_button\n  - login_third_party_wechat_button\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: 无'\nrepro_points: 崩溃后进程消失即本条证据闭环，无需 ANR 预案；崩溃证据与 BUG-001 crash-weibo-fatal-stack.txt 链路（SwanThirdPartyLoginPlugin.startWeiboAuthorization:119\n  → UMShareAPI → WeiboSsoSdk → System.loadLibrary）比对是否同一栈\nrecovery: 冷重启（崩溃无 ANR 预案需求）\ntags:\n- L2\n- negative\n- regression\nchannels:\n- assertion\n- visual"
+ },
+ {
+  "case_id": "FR-NEG-LOGIN-009",
+  "title": "第三方登录连点防重入（_thirdPartyLoginInFlight + isInProgress 语义）",
+  "domain": null,
+  "content": "case_id: FR-NEG-LOGIN-009\nepic: 会话与登录\ndimension: 并发\nname: 第三方登录连点防重入（_thirdPartyLoginInFlight + isInProgress 语义）\nexpected_type: expected\nmethod_design:\n  boundary_values:\n  - field: 授权进行中重复点击\n    value: 连点同图标x3\n    expected: 仅一次授权拉起，后续 isInProgress 提示稍候\n  - field: 授权进行中切图标\n    value: 授权中点另一第三方图标\n    expected: 同 isInProgress 拦截或排队，无双授权页\nprecondition: 协议已勾选；模拟器无微信/微博宿主——拉起即行内报错场景下验证重入门禁仍然生效\nsteps:\n- do: 快速连点微信图标 3 次\n  expect: 行内报错最多一次拉起语义、无重复弹层/无崩溃；inFlight 门禁期间点击被吞\n- do: 授权中切点 Apple 图标\n  expect: 无并发双授权流程（isInProgress 或静默吞并）；isCancelled 静默分支不产生错误 Toast（模拟器上以行内报错等效观察）\nlocators:\n  hivi_test_ids:\n  - login_third_party_wechat_button\n  - login_third_party_apple_button\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: 无'\nrepro_points: ghost_tap 纪律：Maestro tapOn 带 retryTapIfNoChange:false（本条故意制造连点，反向使用防\n  flaky 参数）\nrecovery: 返回重进登录页\ntags:\n- L3\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "FR-NEG-LOGIN-010",
+  "title": "断网登录双模式：文案收敛为 networkNotConnected，无英文原文透出",
+  "domain": null,
+  "content": "case_id: FR-NEG-LOGIN-010\nepic: 会话与登录\ndimension: 断网\nname: 断网登录双模式：文案收敛为 networkNotConnected，无英文原文透出\nexpected_type: expected\nmethod_design:\n  equivalence_classes:\n  - class: 断网+短信发码\n    input: 断网点获取验证码\n    expected: 行内 networkNotConnected 本地化文案\n  - class: 断网+密码提交\n    input: 断网点密码登录\n    expected: 同上，无英文异常\n  - class: 弱网超时\n    input: 代理延迟 >8s\n    expected: 超时收敛同断网文案，可重试\nprecondition: 登录页可达；可切模拟器飞行模式或代理断流\nsteps:\n- do: 飞行模式开启，短信模式输入 TEST-SYNTHETIC 手机号点发码\n  expect: 行内错误文案为本地化『网络未连接』类，无 Dio/Socket 英文原文\n- do: 切密码模式输入 TEST-SYNTHETIC 手机号+16 位假密码点登录\n  expect: 同文案收敛；关闭飞行模式后输入变化清错误，可正常重试\nlocators:\n  hivi_test_ids:\n  - login_error_text\n  - login_phone_field\n  - login_password_field\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: {tel: 13800138000, password: TestSynthetic12345}'\nrepro_points: sanitizeApiFailureMessage 契约：连接类错误不透出英文原文；断网期间不挂录屏（密码输入纪律）\nrecovery: 关闭飞行模式\ntags:\n- L3\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "FR-NEG-LOGIN-011",
+  "title": "会话失效码注入回归：30003/30001/40006 等价类 + 2s 去重（硬前置）",
+  "domain": null,
+  "content": "case_id: FR-NEG-LOGIN-011\nepic: 会话与登录\ndimension: 状态跳跃\nname: 会话失效码注入回归：30003/30001/40006 等价类 + 2s 去重（硬前置）\nexpected_type: expected\nmethod_design:\n  equivalence_classes:\n  - class: 失效码 30003\n    input: '{code:30003}'\n    expected: 登出+清栈+Toast 登录状态过时\n  - class: 失效码 30001\n    input: '{code:30001}'\n    expected: 同 30003\n  - class: 失效码 40006\n    input: '{code:40006}'\n    expected: 同 30003\n  - class: 同码 2s 内重复\n    input: '{code:30003} x2 within 2s'\n    expected: 去重，仅一次登出一次 Toast\nprecondition: 硬前置：真实登录建立有效会话且 token 三处落盘非空；代理可注入业务响应。前置不满足 → BLOCKED(credential-required)\nsteps:\n- do: authenticated 态注入 30003/30001/40006 各一次（每码前重新登录）\n  expect: 三码均触发 AppSessionInvalidationCoordinator 登出清栈落登录页；_clearSessionState 清 lastUserInfoResponeBean/Qobuz\n    星标缓存/auth_token/fallback token/Dio header\n- do: 重新登录后 2s 内注入两次 30003\n  expect: 去重窗口生效：仅一次登出一次 Toast，无重复清栈\nlocators:\n  hivi_test_ids:\n  - login_page\n  - me_page\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: 代理注入 {code:30003|30001|40006}'\nrepro_points: Coordinator 必须在 runApp 前订阅（首帧前失效码也应生效）；断言 token 三处存储全空；登出为服务端失效注入非手动登出，不触禁区按钮\nrecovery: 重新登录\ntags:\n- L2\n- negative\n- regression\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "FR-NEG-LOGIN-012",
+  "title": "区号列表外部服务（MXNZP）降级回退内置热门区号（卡片已知坑1）",
+  "domain": null,
+  "content": "case_id: FR-NEG-LOGIN-012\nepic: 会话与登录\ndimension: 服务降级\nname: 区号列表外部服务（MXNZP）降级回退内置热门区号（卡片已知坑1）\nexpected_type: expected\nmethod_design:\n  error_guessing: 外部硬编码 app_id/app_secret 的第三方接口不可达 → 8s 超时 → 内置热门区号（中港澳门台）兜底，不阻断登录\nprecondition: 可代理拦截 https://www.mxnzp.com/api/phone_code/list 或全局断外网（保持测试服可达）\nsteps:\n- do: 代理对 MXNZP 域名返回超时/404\n  expect: 区号选择页仍可进（内置热门区号渲染），无崩溃无白屏\n- do: 选中内置区号继续短信流程\n  expect: 登录链路不因区号源降级而阻断\nlocators:\n  hivi_test_ids:\n  - login_area_code_button\n  value_keys:\n  - login-area-code-button\ntest_data: 'TEST-SYNTHETIC: 无'\nrepro_points: 8s 超时期间页面不得死等卡死（观察 loading 收敛）；仅测试服环境（debug 包默认 base http://8.129.106.82/api，开跑前核对实际\n  base URL，卡片已知坑2）\nrecovery: 关闭代理\ntags:\n- L2\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "FR-NEG-LOGIN-013",
+  "title": "50015 未绑定手机号分支 → /login/bind-phone（环境预标 BLOCKED）",
+  "domain": null,
+  "content": "case_id: FR-NEG-LOGIN-013\nepic: 会话与登录\ndimension: 状态跳跃\nname: 50015 未绑定手机号分支 → /login/bind-phone（环境预标 BLOCKED）\nexpected_type: expected\nmethod_design:\n  state_transition:\n  - from: 第三方登录响应\n    event: code==50015\n    to: /login/bind-phone（携 BindPhoneRouteArgs）\n    guard: 真实第三方凭据\nprecondition: 需真实第三方登录凭据（微信/微博/Apple 任一）+ 服务端未绑定态测试账号；模拟器上不可达即 BLOCKED(env)+BLOCKED(credential-required)，禁止伪造绕过\nsteps:\n- do: （可执行时）第三方授权返回 50015\n  expect: push /login/bind-phone 携 loginType/thirdPartyId/thirdPartyName；绑定成功复用同一\n    token 收口进 authenticated\n- do: 绑定页参数边界\n  expect: fallback loginType:'2'（卡片已知坑6）；Android 微信/微博请求体含昵称\nlocators:\n  hivi_test_ids:\n  - login_page\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: 第三方 TEST-SYNTHETIC 账号'\nrepro_points: 本条保留定义作全量回归覆盖对照，执行依赖主对话协调真实第三方凭据；勿用已绑定账号（服务端状态不可控）\nrecovery: 重新登录\ntags:\n- L2\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "FR-NEG-ME-001",
+  "title": "资料编辑族边界：昵称/邮箱非法输入拦截（密码/手机号编辑预标 BLOCKED）",
+  "domain": null,
+  "content": "case_id: FR-NEG-ME-001\nepic: 个人中心\ndimension: 非法格式\nname: 资料编辑族边界：昵称/邮箱非法输入拦截（密码/手机号编辑预标 BLOCKED）\nexpected_type: expected\nmethod_design:\n  equivalence_classes:\n  - class: 昵称空/超长/emoji\n    input: 空串 / 100x'名' / emoji\n    expected: 拦截或截断\n  - class: 邮箱非法格式\n    input: abc / a@b / 中文@x.com\n    expected: 格式校验拦截\nprecondition: authenticated 态 /me/person-info 及编辑族可达；硬禁区：person_info 末位两按钮（退出登入/注销账号）全程禁触\nsteps:\n- do: /me/edit-nickname 逐类输入保存\n  expect: 边界拦截；非法输入不落库（返回再进核对）\n- do: /me/edit-email 非法格式保存\n  expect: 格式校验拦截，无请求或服务端错误收敛\n- do: /me/edit-password、/me/edit-phone 触达性确认\n  expect: 若涉及短信验证码流程 → BLOCKED(credential-required) 终止，不执行提交\nlocators:\n  hivi_test_ids:\n  - person_info_page\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: 上述等价类'\nrepro_points: 写操作可复原（保存前记录原值，测后还原）；testId person_info_page 可用而末位两按钮 testId 仅作禁区坐标警戒不操作\nrecovery: 还原原值\ntags:\n- L3\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "FR-NEG-ME-002",
+  "title": "消息中心空态 + detail 无 id 状态跳跃",
+  "domain": null,
+  "content": "case_id: FR-NEG-ME-002\nepic: 个人中心\ndimension: 空值\nname: 消息中心空态 + detail 无 id 状态跳跃\nexpected_type: expected\nmethod_design:\n  equivalence_classes:\n  - class: 空消息列表\n    input: 无消息账号进入 /me/messages\n    expected: 空态渲染，无崩溃\n  - class: detail 缺参\n    input: 无 id 进 /me/messages/detail\n    expected: 兜底/返回，不崩溃（深链通道前置同 NAV-001）\nprecondition: authenticated 态\nsteps:\n- do: 进入 /me/messages 观察列表态\n  expect: 空态或列表正常；红点语义与推送 no-op 一致（非真推送驱动，联动 PUSH-001）\n- do: 缺参进 detail（通道可用时）\n  expect: 兜底空态或自动返回，无空指针崩溃\nlocators:\n  hivi_test_ids: []\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: 无'\nrepro_points: 消息中心红点/角标不来自真推送（功能地图 ⚠ 重大边界事实）——本条断言含『无真推送依赖』确认\nrecovery: 返回\ntags:\n- L3\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "FR-NEG-ME-003",
+  "title": "扫码页虚拟相机 BLOCKED(env) 守门 + 二维码/家庭页空态",
+  "domain": null,
+  "content": "case_id: FR-NEG-ME-003\nepic: 个人中心\ndimension: 状态跳跃\nname: 扫码页虚拟相机 BLOCKED(env) 守门 + 二维码/家庭页空态\nexpected_type: expected\nmethod_design:\n  error_guessing: 虚拟相机无视频流——扫码页应能力不足提示/黑屏兜底而非崩溃\nprecondition: authenticated 态；相机预览 BLOCKED(env)（模拟器限制非缺陷）\nsteps:\n- do: 进入 /me/scan-qr-code\n  expect: 页面打开无崩溃；预览区黑屏/提示属预期（记 BLOCKED(env) 证据），返回正常\n- do: /me/my-qrcode 与 /me/family 空态进入\n  expect: 二维码正常渲染；家庭页空态收敛，无崩溃\nlocators:\n  hivi_test_ids: []\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: 无'\nrepro_points: pad 扫码登录确认页（/me/scan/pad-login-confirm）仅可达性确认，不构造登录码（扫码域深挖待主对话裁决）\nrecovery: 返回\ntags:\n- L3\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "FR-NEG-NAV-001",
+  "title": "5 条死路由运行时表现（pushNamed → buildPage default null）",
+  "domain": null,
+  "content": "case_id: FR-NEG-NAV-001\nepic: 主框架与导航\ndimension: 非法格式\nname: 5 条死路由运行时表现（pushNamed → buildPage default null）\nexpected_type: suspected-defect\nmethod_design:\n  error_guessing: 死路由 /main、/main/home、/music_platform/vip、/music_platform/vip/pay、/music_platform/manage-one\n    逐条注入\nprecondition: 深链/路由注入通道可用（A 线确认深链 scheme 与 pushNamed 可达性后执行）；通道未确认 → BLOCKED(archaeology-required)，禁止为执行而改代码\nsteps:\n- do: 逐条 push 死路由\n  expect: 记录实际表现：预期无崩溃；若白屏/黑屏/导航死锁/空指针崩溃 → suspected-defect（功能地图 ⚠：buildPage default\n    返回 null 运行时表现未考古）\n- do: 死路由页上按返回\n  expect: 能正常返回来源页（若可达）\nlocators:\n  hivi_test_ids: []\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: 5 条死路由名'\nrepro_points: 与 A 线差异考古结论联动：若快照已删死路由则本条转 expected（常量不存在）并回报功能地图\nrecovery: 返回/冷重启\ntags:\n- L2\n- negative\n- experimental\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "FR-NEG-NAV-002",
+  "title": "四 Tab 快速连点：IndexedStack 缓存与可见性暂停无副作用",
+  "domain": null,
+  "content": "case_id: FR-NEG-NAV-002\nepic: 主框架与导航\ndimension: 并发\nname: 四 Tab 快速连点：IndexedStack 缓存与可见性暂停无副作用\nexpected_type: expected\nmethod_design:\n  boundary_values:\n  - field: Tab 切换频率\n    value: 1s 内连点 8 次（推荐/音乐/设备/我的循环）\n    expected: 最终停在最后一次点击 Tab（latest-wins），无重复初始化/无崩溃\nprecondition: authenticated 态（真实登录）；ANR 预案待命\nsteps:\n- do: 底部四 Tab 快速连点循环 2 轮\n  expect: 无 ANR、无白屏、Tab 高亮与内容一致（latest-wins 判定）；返回各 Tab 内容状态保留（缓存语义）\n- do: 连点后立即返回键\n  expect: 返回行为确定（退出确认或回根），不崩溃\nlocators:\n  hivi_test_ids:\n  - me_page\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: 无'\nrepro_points: routeName=homeMain/platform/device/me；Tab 缓存 keep-alive 与可见性暂停（app_shell.dart:569）是状态残留观察点\nrecovery: 无\ntags:\n- L3\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "FR-NEG-NAV-003",
+  "title": "根页（splash/recommend 同 case）返回键边界",
+  "domain": null,
+  "content": "case_id: FR-NEG-NAV-003\nepic: 主框架与导航\ndimension: 状态跳跃\nname: 根页（splash/recommend 同 case）返回键边界\nexpected_type: expected\nmethod_design:\n  state_transition:\n  - from: 根页\n    event: back_press\n    to: 退出或无操作\n    guard: 无上层路由\nprecondition: authenticated 态停留根页\nsteps:\n- do: 根页连按返回键 2 次\n  expect: 行为确定（退出或二次确认），无越级清栈到登录页、无崩溃\nlocators:\n  hivi_test_ids: []\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: 无'\nrepro_points: 对照 O-23（搜索返回栈无根防护，见 FR-NEG-SEARCH-004）：根页返回不应意外触发登出\nrecovery: 冷重启\ntags:\n- L3\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "FR-NEG-PAY-001",
+  "title": "充值页写操作守门：不下单仅空态/页面边界（待裁决项从简）",
+  "domain": null,
+  "content": "case_id: FR-NEG-PAY-001\nepic: 支付与会员\ndimension: 边界\nname: 充值页写操作守门：不下单仅空态/页面边界（待裁决项从简）\nexpected_type: expected\nmethod_design:\n  error_guessing: 功能地图待裁决项：消费明细/新建表单写操作——本卡裁决：模拟器不产生真实订单，只验证页面可达与守门\nprecondition: authenticated 态；真实支付/下单严禁触发\nsteps:\n- do: 进入 /me/recharge 与 /me/recharge-record\n  expect: 页面可达、商品目录或记录列表渲染正常，不点击任何支付按钮\n- do: 进入 /me/refund、/me/invoice、/me/order-equity\n  expect: 空态/列表收敛，无崩溃；财务页异常只记 notes\nlocators:\n  hivi_test_ids: []\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: 无'\nrepro_points: 支付协调器（payment_network_recovery_coordinator/payment_settlement_notifier）行为未深考古——本条只做\n  UI 边界；支付包 swan_payment L1 边界\nrecovery: 返回\ntags:\n- L3\n- negative\n- gate\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "FR-NEG-PAY-002",
+  "title": "商品目录断网加载失败与恢复（回退可用）",
+  "domain": null,
+  "content": "case_id: FR-NEG-PAY-002\nepic: 支付与会员\ndimension: 断网\nname: 商品目录断网加载失败与恢复（回退可用）\nexpected_type: expected\nmethod_design:\n  equivalence_classes:\n  - class: 断网进充值页\n    input: 飞行模式\n    expected: 目录加载失败空态/重试入口，无崩溃\n  - class: 恢复网络\n    input: 关闭飞行模式刷新\n    expected: 目录恢复（payment_network_recovery 语义）\nprecondition: authenticated 态；不触发下单\nsteps:\n- do: 断网进入充值页\n  expect: 失败收敛非白屏；重试入口可用\n- do: 恢复网络点重试\n  expect: 目录正常加载，无重复请求轰炸（幂等）\nlocators:\n  hivi_test_ids: []\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: 无'\nrepro_points: 本条不验证结算/回调（服务端链路超范围）\nrecovery: 恢复网络\ntags:\n- L3\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "FR-NEG-PLAT-001",
+  "title": "50017 unboundAllPlatforms 注入：平台目录联动重置（硬前置）",
+  "domain": null,
+  "content": "case_id: FR-NEG-PLAT-001\nepic: 音乐平台聚合\ndimension: 状态跳跃\nname: 50017 unboundAllPlatforms 注入：平台目录联动重置（硬前置）\nexpected_type: expected\nmethod_design:\n  state_transition:\n  - from: authenticated\n    event: 业务码 50017\n    to: 平台全部解绑态（UI 联动）\n    guard: BusinessCodeDispatcher 分发\nprecondition: 硬前置：真实登录建立有效会话 + 代理可注入业务码。前置不满足 → BLOCKED(credential-required)。严禁用平台授权页取消授权−钮达成同态（禁区）\nsteps:\n- do: 平台页停留时代理注入 {code:50017}\n  expect: 平台授权状态全清（PlatformCatalogNotifier 联动重置），平台页各平台回到未授权态，Toast 按语义收敛，无崩溃\n- do: 注入后进入平台内容页\n  expect: 未授权空态/授权引导态，不出现幽灵已授权数据（状态残留检查）\nlocators:\n  hivi_test_ids: []\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: 代理注入 {code:50017}'\nrepro_points: 50015/50017 为第三方/平台业务码对；首页音乐 Tab 平台区块随目录重置的过滤行为（Spotify 过滤保持）一并断言\nrecovery: 重新登录（50017 可能连带会话处理，观察是否叠加登出——叠加则按 30003 语义合并判定）\ntags:\n- L2\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "FR-NEG-PLAT-002",
+  "title": "Spotify 未安装：下载引导拦截，不进入绑定",
+  "domain": null,
+  "content": "case_id: FR-NEG-PLAT-002\nepic: 音乐平台聚合\ndimension: 服务降级\nname: Spotify 未安装：下载引导拦截，不进入绑定\nexpected_type: expected\nmethod_design:\n  error_guessing: 授权前检测本机安装——模拟器必然未装 Spotify，验证拦截分支\nprecondition: authenticated 态平台页可达\nsteps:\n- do: 点平台页 Spotify 卡片\n  expect: 仅弹下载引导拦截，不发起授权/绑定，无崩溃（spotify_authorize_install_gate 契约）\n- do: 回归对照：首页音乐 Tab 不出现 Spotify 区块\n  expect: 首页过滤保持（O-14 闭合结论回归）\nlocators:\n  hivi_test_ids: []\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: 无'\nrepro_points: Spotify 无独立路由（v2 裁决）——任何深链 Spotify 路由尝试应落死路由处理（联动 NAV-001）\nrecovery: 关闭引导弹窗\ntags:\n- L3\n- negative\n- regression\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "FR-NEG-PLAT-003",
+  "title": "平台卡片/二级页连点防双 push（pushNamed 失败降级 rootNavigator 链路）",
+  "domain": null,
+  "content": "case_id: FR-NEG-PLAT-003\nepic: 音乐平台聚合\ndimension: 并发\nname: 平台卡片/二级页连点防双 push（pushNamed 失败降级 rootNavigator 链路）\nexpected_type: expected\nmethod_design:\n  boundary_values:\n  - field: 卡片连点\n    value: 1s 内同卡片连点 3 次\n    expected: 目标页入栈一次（防双 push），latest-wins\nprecondition: authenticated 态平台页\nsteps:\n- do: 快速连点 QQ/网易云/酷狗/Qobuz 卡片各 3 次\n  expect: 每卡片目标页栈深 +1 而非 +3；pushNamed 失败降级 rootNavigator.pushNamed 分支（platform_page.dart:522）无异常日志\n- do: 二级页族快速进退（QQ 私荐/新歌/分类 3 页循环）\n  expect: 返回栈一致，无重复页面残留\nlocators:\n  hivi_test_ids: []\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: 无'\nrepro_points: 未授权平台进入内容页可能触发授权 Toast（pendingAuthEvent）——与本条并发观察时区分 Toast 来源，禁触授权/取消按钮\nrecovery: 连续返回复位\ntags:\n- L3\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "FR-NEG-PLAT-004",
+  "title": "未授权平台内容页授权提示边界（不触授权/取消入口）",
+  "domain": null,
+  "content": "case_id: FR-NEG-PLAT-004\nepic: 音乐平台聚合\ndimension: 权限缺失\nname: 未授权平台内容页授权提示边界（不触授权/取消入口）\nexpected_type: expected\nmethod_design:\n  equivalence_classes:\n  - class: 未授权平台内容页\n    input: 进入任一未授权平台内容页\n    expected: 授权引导 Toast/提示收敛，内容空态不崩溃\n  - class: 断网+未授权\n    input: 断网进内容页\n    expected: 双重缺失收敛，无崩溃\nprecondition: authenticated 态且该平台未授权（不得通过取消授权−钮制造未授权态，用全新未授权账号或既有未授权平台）\nsteps:\n- do: 进入未授权平台内容页，观察授权提示\n  expect: 提示可关闭、不阻塞返回、无重复轰炸（pendingAuthEvent 单次语义）\n- do: 断网再进\n  expect: 空态/网络态收敛，无崩溃\nlocators:\n  hivi_test_ids: []\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: 无'\nrepro_points: 本条全程不点击任何授权/去授权按钮——只观察提示语义；平台 VIP 播放提示（platform_vip_playback_hint）因播放禁点仅做存在性观察\nrecovery: 返回\ntags:\n- L3\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "FR-NEG-PLAYER-001",
+  "title": "播放越界规范守门（P-9-1 止损先例）+ 无会话队列/歌词空态",
+  "domain": null,
+  "content": "case_id: FR-NEG-PLAYER-001\nepic: 播放器\ndimension: 状态跳跃\nname: 播放越界规范守门（P-9-1 止损先例）+ 无会话队列/歌词空态\nexpected_type: expected\nmethod_design:\n  error_guessing: P-9-1：电台行体点击=自动播放已实证——播放类 UI 一律禁点；本条固化守门断言并验证无播放会话时的空态边界\nprecondition: authenticated 态；执行从已读 P-9-1 越界规范（播放/行体/播放键全禁点）\nsteps:\n- do: 无播放会话状态打开播放队列 sheet 与歌词视图（经 UI 入口，不点任何播放控件）\n  expect: 空态渲染不崩溃；队列空文案/歌词空文案正常\n- do: 守门断言：全用例执行期间无任何播放触发（logcat 无播放相关方法通道调用）\n  expect: 零播放副作用；音频客观表现 BLOCKED(env) 不在本模拟器判定\nlocators:\n  hivi_test_ids: []\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: 无'\nrepro_points: 任何步骤产生声音/播放会话即视为越界事故，立即记录并中止本域执行（P-9-1 止损先例）；播放会话状态机 9 文件未深考古——异常表现只记\n  notes 不深挖\nrecovery: 无\ntags:\n- L3\n- negative\n- gate\nchannels:\n- assertion\n- visual"
+ },
+ {
+  "case_id": "FR-NEG-PLAYER-002",
+  "title": "/player 深链无播放会话状态跳跃",
+  "domain": null,
+  "content": "case_id: FR-NEG-PLAYER-002\nepic: 播放器\ndimension: 状态跳跃\nname: /player 深链无播放会话状态跳跃\nexpected_type: expected\nmethod_design:\n  state_transition:\n  - from: 无播放会话\n    event: push /player\n    to: 空态播放页\n    guard: 深链通道可用\nprecondition: 深链/路由注入通道可用（同 NAV-001 前置，未确认则 BLOCKED(archaeology-required)）；播放类控件仍全禁点\nsteps:\n- do: 无播放会话直接 push /player\n  expect: 页面可达且为空态/兜底态，不崩溃；迷你底栏与全屏页状态一致（无幽灵播放条）\n- do: 播放页按返回\n  expect: 正常返回来源页，栈无残留\nlocators:\n  hivi_test_ids: []\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: 无'\nrepro_points: 路由工厂底部播放器包裹规则（pure_flutter_router.dart:339）——/player 是否被底栏包裹是观察点\nrecovery: 返回\ntags:\n- L2\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "FR-NEG-PUSH-001",
+  "title": "推送 no-op 边界回归守门：消息中心不依赖真推送（真推送禁依赖确认）",
+  "domain": null,
+  "content": "case_id: FR-NEG-PUSH-001\nepic: 推送/日活/版本\ndimension: 服务降级\nname: 推送 no-op 边界回归守门：消息中心不依赖真推送（真推送禁依赖确认）\nexpected_type: expected\nmethod_design:\n  error_guessing: 推送 Port 为 no-op 空实现（register 空体、inboundStream 永不发事件）——回归断言该边界在快照未变化\nprecondition: authenticated 态；A 线差异考古结论可对照\nsteps:\n- do: 检查消息中心红点/角标来源（UI 观察 + A 线结论对照）\n  expect: 红点变化仅来自应用内数据源，无真推送等待逻辑（本域全部用例不设计任何真推送依赖步骤）\n- do: A 线差异考古联动\n  expect: 若快照引入真推送 SDK → 本条转差异上报（重大边界变化），通知主对话重估该域用例\nlocators:\n  hivi_test_ids: []\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: 无'\nrepro_points: 检查更新入口严禁点击（禁区）——app_update_coordinator 行为不在本卡执行范围\nrecovery: 无\ntags:\n- L2\n- negative\n- gate\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "FR-NEG-PUSH-002",
+  "title": "日活上报边界：断网先落盘再请求 + 自然日节流",
+  "domain": null,
+  "content": "case_id: FR-NEG-PUSH-002\nepic: 推送/日活/版本\ndimension: 边界值\nname: 日活上报边界：断网先落盘再请求 + 自然日节流\nexpected_type: expected\nmethod_design:\n  boundary_values:\n  - field: 上报时网络\n    value: 断网启动\n    expected: 落盘成功请求失败仅记日志（HVDailyActiveLastReportDate 契约）\n  - field: 节流\n    value: 同日二次冷启动\n    expected: 不再上报（自然日节流）\nprecondition: authenticated 态；logcat 可观察 /user/loginLog 请求\nsteps:\n- do: 断网冷启动 App 登录\n  expect: 无崩溃；loginLog 失败静默（仅日志）\n- do: 恢复网络同日再次冷启动\n  expect: 是否补报记录实际表现（先落盘语义下同日不应重复上报——差异记 notes）\nlocators:\n  hivi_test_ids: []\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: 无'\nrepro_points: daily_active_reporter.dart:14 锚点；上报失败不阻断登录链路是核心断言\nrecovery: 无\ntags:\n- L2\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "FR-NEG-RADIO-001",
+  "title": "FM 数据断网/城市列表空态收敛",
+  "domain": null,
+  "content": "case_id: FR-NEG-RADIO-001\nepic: 电台/播客\ndimension: 断网\nname: FM 数据断网/城市列表空态收敛\nexpected_type: expected\nmethod_design:\n  equivalence_classes:\n  - class: 断网进全国电台\n    input: 飞行模式\n    expected: 空态/错误态收敛，无崩溃\n  - class: 城市选择空数据\n    input: 断网进城市选择\n    expected: 空列表兜底，可返回\nprecondition: authenticated 态；播放行体禁点（P-9-1）\nsteps:\n- do: 断网依次进 /music_platform/radio/country 与 /music_platform/radio/select-city\n  expect: 空态收敛、可返回；恢复网络后数据正常加载\n- do: 80s/90s 页（FmHarmonyRadioPage kind 分型）断网进入\n  expect: 同收敛语义，两 kind 行为一致\nlocators:\n  hivi_test_ids: []\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: 无'\nrepro_points: fm_radio_http_service 失败路径未深考古——异常表现记 notes；播客收藏态 store 为持久层，断言不误写收藏\nrecovery: 恢复网络\ntags:\n- L3\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "FR-NEG-RADIO-002",
+  "title": "stationTerraceType 分型边界：非法 kind 注入（深链通道前置同 NAV-001）",
+  "domain": null,
+  "content": "case_id: FR-NEG-RADIO-002\nepic: 电台/播客\ndimension: 非法格式\nname: stationTerraceType 分型边界：非法 kind 注入（深链通道前置同 NAV-001）\nexpected_type: expected\nmethod_design:\n  boundary_values:\n  - field: stationTerraceType\n    value: 合法 0/5/6\n    expected: 分组过滤正确（全国/90s/80er）\n  - field: stationTerraceType\n    value: 非法 99/-1/空\n    expected: 空分组或全量兜底，不崩溃（未传时保留全部 FM 分组为对照）\nprecondition: 深链/路由注入通道可用；未确认 → BLOCKED(archaeology-required)\nsteps:\n- do: 以非法 kind 注入电台页参数\n  expect: 页面空态/兜底渲染，无越界崩溃；对照合法 kind 过滤正确性\nlocators:\n  hivi_test_ids: []\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: kind=99 / -1 / 空'\nrepro_points: 未传 kind 的首页电台搜索保留全部分组（卡片契约）作对照组\nrecovery: 返回\ntags:\n- L2\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "FR-NEG-SEARCH-001",
+  "title": "关键词空值/超长/特殊字符等价类（含不发空请求契约）",
+  "domain": null,
+  "content": "case_id: FR-NEG-SEARCH-001\nepic: 搜索\ndimension: 空值\nname: 关键词空值/超长/特殊字符等价类（含不发空请求契约）\nexpected_type: expected\nmethod_design:\n  equivalence_classes:\n  - class: 空关键词\n    input: 仅空格\n    expected: trim 后为空 → 空快照直接返回，不发请求\n  - class: 超长\n    input: 500 字符\n    expected: 可提交则服务端收敛空态，或客户端截断——无崩溃\n  - class: 特殊字符\n    input: emoji/引号/SQL 串 TEST-SYNTHETIC\n    expected: 原样透传或安全转义，无崩溃\nprecondition: authenticated 态搜索页可达（启动探针已过）\nsteps:\n- do: 输入空格提交（logcat 监控 music/search）\n  expect: 无 /music/search 请求（空关键词不发请求，卡片契约）\n- do: 输入 500 字符与特殊字符串提交\n  expect: 结果页空态或正常结果，无崩溃；历史写入经 trim/去重\nlocators:\n  hivi_test_ids: []\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: 500x''a'' / \"'' OR 1=1--\" / emoji 串'\nrepro_points: 输入纪律：整串注入不逐键；结果页在底部播放器集合而输入页不在（返回栈行为差异见 SEARCH-004）\nrecovery: 清空历史\ntags:\n- L3\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "FR-NEG-SEARCH-002",
+  "title": "搜索后端异常收敛空态：断网/500/超时三分类",
+  "domain": null,
+  "content": "case_id: FR-NEG-SEARCH-002\nepic: 搜索\ndimension: 断网\nname: 搜索后端异常收敛空态：断网/500/超时三分类\nexpected_type: expected\nmethod_design:\n  equivalence_classes:\n  - class: 断网\n    input: 飞行模式搜索\n    expected: 结果页空态，无崩溃（卡片：后端异常收敛空态）\n  - class: 服务端 500\n    input: 代理注入 500\n    expected: 空态收敛，不透出原始错误\n  - class: 超时\n    input: 代理延迟 8s+\n    expected: loading 收敛为空态，可重试\nprecondition: authenticated 态；代理/飞行模式可用\nsteps:\n- do: 三分类逐一执行搜索\n  expect: 均收敛空态且页面可返回/重试；注意不能仅凭空列表判断无数据（卡片边界）——断言需含触发条件记录\n- do: 恢复网络重搜\n  expect: 结果正常返回（回退可用）\nlocators:\n  hivi_test_ids: []\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: keyword=TEST-SYNTHETIC'\nrepro_points: 六 Tab 仅活动 Tab 首次请求 + keep-alive——异常态下切 Tab 回来是否复请求是回归观察点；搜索在途失效码联动见\n  SEARCH-005\nrecovery: 恢复网络\ntags:\n- L3\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "FR-NEG-SEARCH-003",
+  "title": "搜索历史上限 20 条边界：trim/去重/挤出最旧",
+  "domain": null,
+  "content": "case_id: FR-NEG-SEARCH-003\nepic: 搜索\ndimension: 边界值\nname: 搜索历史上限 20 条边界：trim/去重/挤出最旧\nexpected_type: expected\nmethod_design:\n  boundary_values:\n  - field: 历史条数\n    value: 第 20 条\n    expected: 全部保留\n  - field: 历史条数\n    value: 第 21 条\n    expected: 最旧一条被挤出\n  - field: 重复关键词\n    value: 再搜已有词\n    expected: 去重置顶，不新增\nprecondition: authenticated 态；可清 search_history 起点干净\nsteps:\n- do: 连续搜索 20 个不同 TEST-SYNTHETIC 关键词\n  expect: 历史恰 20 条按时间倒序\n- do: 搜第 21 个新词，再重搜其中一个旧词\n  expect: 21 条时保持 20 条上限；重搜词置顶不重复\nlocators:\n  hivi_test_ids: []\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: kw-frneg-001..021'\nrepro_points: 历史 key=search_history 落 SharedPreferences；清空历史走 SearchPort（断言清空后不可恢复）\nrecovery: 清空历史\ntags:\n- L2\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "FR-NEG-SEARCH-004",
+  "title": "O-23 回归：搜索返回栈无根防护（连续返回是否越出 AppShell）",
+  "domain": null,
+  "content": "case_id: FR-NEG-SEARCH-004\nepic: 搜索\ndimension: 状态跳跃\nname: O-23 回归：搜索返回栈无根防护（连续返回是否越出 AppShell）\nexpected_type: suspected-defect\nmethod_design:\n  error_guessing: v2 探索发现：搜索返回栈无根防护——多级搜索入口反复进出后连续返回\nprecondition: authenticated 态\nsteps:\n- do: 经 3 个不同入口（音乐 Tab/电台 Tab/平台内容页）各进搜索一次并返回\n  expect: 每次返回均落回正确来源页，栈深一致\n- do: 结果页连续按返回 5 次\n  expect: 若越过 AppShell 直接退出/落登录页 → suspected-defect（O-23 未修复）；预期应止于根页\nlocators:\n  hivi_test_ids: []\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: keyword=TEST-SYNTHETIC'\nrepro_points: 结果页在 _bottomPlayerRouteNames（pure_flutter_router.dart:406）而输入页不在——底栏播放器有无随栈变化的视觉回归一并用\n  visual 通道记录\nrecovery: 冷重启\ntags:\n- L3\n- negative\n- regression\nchannels:\n- assertion\n- visual"
+ },
+ {
+  "case_id": "FR-NEG-SEARCH-005",
+  "title": "搜索在途回包携失效码：全局登出清栈触发（硬前置）",
+  "domain": null,
+  "content": "case_id: FR-NEG-SEARCH-005\nepic: 搜索\ndimension: 状态跳跃\nname: 搜索在途回包携失效码：全局登出清栈触发（硬前置）\nexpected_type: expected\nmethod_design:\n  error_guessing: 搜索走 AuthApi.get 同一业务码分发链——在途搜索响应带回 30003 应触发全局登出（suppressGlobalPlatformAuthPrompt\n    只抑制平台授权 Toast 不抑制会话失效）\nprecondition: 硬前置：真实登录建立有效会话（token 三处落盘非空）+ 代理可延迟/改写 music/search 响应。前置不满足 → BLOCKED(credential-required)\nsteps:\n- do: 代理延迟 music/search 5s 并改写响应体注入 30003；发起搜索后立即返回首页\n  expect: 回包到达时仍触发登出清栈落登录页 + Toast（不因离开搜索页而丢失）\n- do: 观察是否误现平台授权提示\n  expect: 无平台授权 Toast（抑制语义保持）；会话失效 Toast 恰一次\nlocators:\n  hivi_test_ids:\n  - login_page\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: 代理注入 {code:30003}'\nrepro_points: 断言 token 三处清空；单平台 vs 全平台搜索的授权提示抑制差异是本条隐藏断言面（卡片：全平台/电台搜索抑制全局授权提示）\nrecovery: 重新登录\ntags:\n- L2\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "FR-NEG-SET-001",
+  "title": "切服/平台通道 UI 无挂载守门：入口浮现即差异上报（严禁点击）",
+  "domain": null,
+  "content": "case_id: FR-NEG-SET-001\nepic: 设置/切服/平台通道\ndimension: 状态跳跃\nname: 切服/平台通道 UI 无挂载守门：入口浮现即差异上报（严禁点击）\nexpected_type: expected\nmethod_design:\n  error_guessing: v2 结论：切服/平台通道在本基线无 UI 入口（全量 dump 检索仅命中『音质设置』）——回归该边界，入口浮现即回归差异\nprecondition: authenticated 态；A 线差异考古结论可对照\nsteps:\n- do: 全量 UI dump 检索切服/平台通道/服务器切换类文案\n  expect: 无入口命中（若命中 → suspected-defect/回归差异上报，且该入口保持禁点不验证）\n- do: 音质设置入口存在性核对\n  expect: 唯一命中项行为正常，与 v2 记录一致\nlocators:\n  hivi_test_ids: []\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: 无'\nrepro_points: 切服一次写三地址（API/AI HTTP/AI WebSocket）的逻辑严禁触达；Release 禁切分支不在 debug 包验证范围\nrecovery: 无\ntags:\n- L2\n- negative\n- gate\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "FR-NEG-SET-002",
+  "title": "音量键连按接管边界（volume_key_bootstrap + swan_system_volume）",
+  "domain": null,
+  "content": "case_id: FR-NEG-SET-002\nepic: 设置/切服/平台通道\ndimension: 并发\nname: 音量键连按接管边界（volume_key_bootstrap + swan_system_volume）\nexpected_type: expected\nmethod_design:\n  boundary_values:\n  - field: 音量键\n    value: 1s 内连按 8 次\n    expected: 接管语义一致（App 内接管/系统音量）无崩溃无 ANR\nprecondition: authenticated 态；音量键接管 bootstrap 已生效（功能地图 L1）\nsteps:\n- do: App 内音量键连按 8 次，观察 UI 音量反馈\n  expect: 行为确定且一致，无卡顿累积；对比 App 外（桌面）音量键走系统语义\nlocators:\n  hivi_test_ids: []\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: 无'\nrepro_points: 方法通道 volume_key 在 13 条实测通道之列；无音频输出下音量 UI 反馈即全部证据（音频 BLOCKED(env)）\nrecovery: 无\ntags:\n- L3\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "FR-NEG-START-001",
+  "title": "启动 ANR 探针（P-003 反哺）：冷启动层级可达性门禁",
+  "domain": null,
+  "content": "case_id: FR-NEG-START-001\nepic: 启动与隐私\ndimension: 中断\nname: 启动 ANR 探针（P-003 反哺）：冷启动层级可达性门禁\nexpected_type: expected\nmethod_design:\n  error_guessing: 冷启动后 10s 内 UI 层级可达性检查；ANR 症状即触发预案\nprecondition: 快照 APK 已安装（adb install -r 升级安装保留 userdata）；设备空闲\nsteps:\n- do: force-stop 后冷启动 com.swan.network，10s 内 dump UI hierarchy\n  expect: 层级可达（隐私弹窗/登录页/AppShell 任一），无 isn't responding 对话框\n- do: 若 ANR 对话框出现：等待x1（不超过10s）→ 无恢复即 force-stop → 冷重启，归档 dropbox trace\n  expect: 冷重启后层级可达；ANR 复现记 suspected-defect（对齐 BUG-20260904-004/BUG-20260910-002 嫌疑链）\nlocators:\n  hivi_test_ids:\n  - privacy_dialog\n  - login_page\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: 无业务数据'\nrepro_points: 本条是全文件所有业务用例的执行前置门禁（P-003 执行从纪律）；ANR 复现先挂起后续交互用例并通知主对话\nrecovery: force-stop 冷重启\ntags:\n- L2\n- negative\n- gate\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "FR-NEG-START-002",
+  "title": "隐私弹窗 PopScope 禁返回 + 拒绝即 exitApp 边界",
+  "domain": null,
+  "content": "case_id: FR-NEG-START-002\nepic: 启动与隐私\ndimension: 状态跳跃\nname: 隐私弹窗 PopScope 禁返回 + 拒绝即 exitApp 边界\nexpected_type: expected\nmethod_design:\n  state_transition:\n  - from: privacyRequired\n    event: back_press\n    to: privacyRequired(原地)\n    guard: PopScope canPop:false\n  - from: privacyRequired\n    event: tap_disagree\n    to: exitApp\nprecondition: 清除应用数据后首启（隐私态）；注意本条会真实退出进程，放每轮可执行用例组首位\nsteps:\n- do: 隐私弹窗上按系统返回键\n  expect: 弹窗不关闭、不退出、不进登录页（canPop:false 生效），无崩溃\n- do: 点不同意按钮\n  expect: AppSystemPort.exitApp() 触发，进程退出桌面（设计行为）；冷重启后弹窗重现\nlocators:\n  hivi_test_ids:\n  - privacy_dialog\n  - privacy_disagree_button\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: 清除 app data 后执行'\nrepro_points: 重启后为 privacyRequired 态——后续用例若依赖已同意态需重新点同意；确认不同意不产生半写状态（is_first_launch\n  取反语义，卡片已知坑9）\nrecovery: 冷重启 → 点同意\ntags:\n- L3\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "FR-NEG-START-003",
+  "title": "auth_token 篡改冷启动：直进 authenticated 后首请求暴露失效（卡片已知坑3）",
+  "domain": null,
+  "content": "case_id: FR-NEG-START-003\nepic: 启动与隐私\ndimension: 状态跳跃\nname: auth_token 篡改冷启动：直进 authenticated 后首请求暴露失效（卡片已知坑3）\nexpected_type: expected\nmethod_design:\n  error_guessing: token 恢复不校验有效性的破坏验证：注入垃圾 token 冷启动\nprecondition: 硬前置：真实登录建立有效会话且验证 token 三处落盘非空（先登录成功）；adb 可写 SharedPreferences（run-as\n  不可用 debug 包可直接 adb shell）。前置不满足 → BLOCKED(credential-required)\nsteps:\n- do: 登录成功后将 auth_token 值篡改为 Bearer invalid-token-frneg003\n  expect: 写入成功（明文可改即坐实卡片已知坑3 的存储事实）\n- do: force-stop 冷启动\n  expect: 直进 authenticated（AppShell 可达），首屏不发校验请求\n- do: 触发任一业务请求（如进入搜索发一次查询）\n  expect: 服务端回失效业务码（30003/30001/40006 之一）→ 全局登出清栈落登录页，Toast 登录状态过时；全程无白屏/崩溃\nlocators:\n  hivi_test_ids:\n  - login_page\n  - me_page\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: {auth_token: Bearer invalid-token-frneg003}'\nrepro_points: 启动直进 authenticated 的瞬间断言不发网络校验（logcat 过滤 HTTP）；失效码回包落登录页耗一次有效会话，排在此域用例组末位\nrecovery: 重新登录\ntags:\n- L3\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "FR-NEG-VIDEO-001",
+  "title": "投屏设备选择空列表兜底（真实投屏 BLOCKED(env)）",
+  "domain": null,
+  "content": "case_id: FR-NEG-VIDEO-001\nepic: 视频与投屏\ndimension: 空值\nname: 投屏设备选择空列表兜底（真实投屏 BLOCKED(env)）\nexpected_type: expected\nmethod_design:\n  equivalence_classes:\n  - class: 无投屏设备\n    input: 模拟器局域网无目标设备\n    expected: 选择 sheet 空列表/扫描中收敛，无崩溃\nprecondition: authenticated 态；真实投屏/视频播放 BLOCKED(env)（仅 UI 边界断言；视频页若有播放键遵循 P-9-1 禁点）\nsteps:\n- do: 进入视频投屏设备选择 sheet（经 UI 入口，不点播放）\n  expect: 空列表或扫描态收敛；取消可退出；upnp/UPnP 扫描无残留进程\n- do: 重复开关 sheet 3 次\n  expect: 扫描正常启停，无状态累积\nlocators:\n  hivi_test_ids: []\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: 无'\nrepro_points: upnp_scan 通道属 13 条实测方法通道；扫描中途退出（操作中断）是 P-003 观察面\nrecovery: 关闭 sheet\ntags:\n- L3\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "FR-NEG-VIDEO-002",
+  "title": "视频分类页断网空态 + 浮窗中途关闭（操作中断）",
+  "domain": null,
+  "content": "case_id: FR-NEG-VIDEO-002\nepic: 视频与投屏\ndimension: 断网\nname: 视频分类页断网空态 + 浮窗中途关闭（操作中断）\nexpected_type: expected\nmethod_design:\n  equivalence_classes:\n  - class: 断网进视频分类\n    input: 飞行模式进 /music_platform/qq/video-classify\n    expected: 空态收敛\n  - class: 浮窗中断\n    input: 投屏浮窗出现即关闭\n    expected: 无残留浮窗/无崩溃\nprecondition: authenticated 态；视频播放本体禁点（P-9-1）\nsteps:\n- do: 断网进视频分类页\n  expect: 空态/错误态收敛，可返回；恢复网络正常\n- do: 浮窗出现后立即关闭/返回\n  expect: 浮窗销毁干净（platform_video_cast_floating 无残留 view），无崩溃\nlocators:\n  hivi_test_ids: []\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: 无'\nrepro_points: 浮窗走 root overlay 的残留是本条核心断言（对照权益初始化蒙层同类风险）\nrecovery: 返回/冷重启\ntags:\n- L3\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "FR-NEG-VISION-001",
+  "title": "未绑定设备态进入 Vision 各页：允许预览与空态边界",
+  "domain": null,
+  "content": "case_id: FR-NEG-VISION-001\nepic: 可视音箱 Vision\ndimension: 状态跳跃\nname: 未绑定设备态进入 Vision 各页：允许预览与空态边界\nexpected_type: expected\nmethod_design:\n  equivalence_classes:\n  - class: 未绑定设备+壁纸页\n    input: 进入 /vision/wallpaper\n    expected: 允许未绑定预览（地图契约），无崩溃\n  - class: 未绑定设备+其余页\n    input: 唤醒词/语音包/高级设置\n    expected: 空态/引导态收敛\nprecondition: authenticated 态且无绑定设备（不得用注销/解绑制造该态）\nsteps:\n- do: 逐页进入 /vision/wallpaper、/vision/wake-words、/vision/voice-pack、/vision/advanced-settings\n  expect: 壁纸预览可用；其余页空态/引导态，可返回，无崩溃\n- do: /vision/ai-roles 空态进入\n  expect: 空列表渲染正常\nlocators:\n  hivi_test_ids: []\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: 无'\nrepro_points: Vision 数据层保持未考古——空态异常只记 notes\nrecovery: 无\ntags:\n- L3\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "FR-NEG-VISION-002",
+  "title": "Vision 配置空值/非法输入保存拦截（唤醒词/高级设置）",
+  "domain": null,
+  "content": "case_id: FR-NEG-VISION-002\nepic: 可视音箱 Vision\ndimension: 非法格式\nname: Vision 配置空值/非法输入保存拦截（唤醒词/高级设置）\nexpected_type: expected\nmethod_design:\n  equivalence_classes:\n  - class: 唤醒词空/纯符号\n    input: 空串 / @@@\n    expected: 拦截或服务端校验错误收敛\n  - class: 方案编辑空配置\n    input: scheme-editor 空保存\n    expected: 拦截，不落脏方案\nprecondition: authenticated 态；Vision 页可达（无设备时空配置入口可能不可达——不可达即记 SKIP(env-state) 非缺陷）\nsteps:\n- do: 唤醒词输入空串与纯符号保存\n  expect: 拦截或错误收敛，无崩溃\n- do: 高级设置方案编辑器空配置保存\n  expect: 同上；再次进入无残留半成品配置\nlocators:\n  hivi_test_ids: []\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: 空串/@@@'\nrepro_points: 三页同文件（vision_advanced_pages.dart）——一致性回归\nrecovery: 无\ntags:\n- L3\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "FR-NEG-X-001",
+  "title": "P-001 反哺：端口演进后替身契约同步检查（analyze 0 error 门禁）",
+  "domain": null,
+  "content": "case_id: FR-NEG-X-001\nepic: 横切-代码级\ndimension: 回退\nname: P-001 反哺：端口演进后替身契约同步检查（analyze 0 error 门禁）\nexpected_type: expected\nmethod_design:\n  error_guessing: P-001 出现 2 次（BUG-20260904-002/003）：Port 新增方法后 _Fake* 未同步实现级联报错——快照回归先过此门禁\nprecondition: 快照 Core 仓可本地执行 flutter 命令（E:/SwanApp/repos/flutter/hivi-network-snapshot-20260911\n  内操作，禁改 dev 检出）\nsteps:\n- do: Core 快照仓 flutter pub get + flutter analyze\n  expect: 0 error（warning/info 单列记录）；任何 missing override / 抽象方法未实现类 error 即 P-001\n    复现 → suspected-defect\n- do: grep 平台端口 Port 抽象类与 _Fake 实现类对照\n  expect: core/platform_ports/ 各 Port 与测试替身方法集一致；差异清单回报考古从补卡片\nlocators:\n  hivi_test_ids: []\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: 无'\nrepro_points: 本条是 L2 仓库级测试可执行的准入门禁；对齐任务卡 allowed_operations（快照目录内 pub get/build 允许）\nrecovery: 无（只读检查）\ntags:\n- L2\n- negative\n- gate\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "FR-NEG-X-002",
+  "title": "P-002 反哺：嵌套包独立构建与依赖声明检查（packages/ 13 包）",
+  "domain": null,
+  "content": "case_id: FR-NEG-X-002\nepic: 横切-代码级\ndimension: 回退\nname: P-002 反哺：嵌套包独立构建与依赖声明检查（packages/ 13 包）\nexpected_type: expected\nmethod_design:\n  boundary_values:\n  - field: 嵌套包解析\n    value: packages/ 13 包逐一 pub get\n    expected: 全部解析成功（dev 依赖声明齐全）\n  - field: 全量构建\n    value: App 快照 build apk（flavor=general, debug）\n    expected: 构建成功（任务卡验收前置）\nprecondition: 快照目录内操作（allowed_operations）；禁改 dev@4d1ed7b/core@402853ab 检出\nsteps:\n- do: 逐一检查 13 包（hivi_upnp_core/hivi_upnp_flutter/swan_ai_audio/swan_app_system/swan_apple_music_auth/swan_ble_transport/swan_bluetooth_discovery_ohos/swan_local_audio/swan_music_platform_sdk/swan_payment/swan_system_volume/swan_third_party_login/upnp2）pubspec\n    解析\n  expect: 无依赖未声明/解析失败（P-002 符号级联缺失特征）；失败包清单回报\n- do: App 快照构建 debug APK 并 adb install -r 到 emulator-5554\n  expect: 构建安装成功，关于页版本标识 5.3.0 build 32 快照标识核对通过（任务卡验收项）\nlocators:\n  hivi_test_ids: []\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: 无'\nrepro_points: P-002 出现第二次即升级独立排查任务（模式库规则）——本轮结果决定是否触发升级\nrecovery: 无\ntags:\n- L2\n- negative\n- gate\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "FR-NEG-X-003",
+  "title": "ANR 预案标准化演练：等待x1 → force-stop 冷重启恢复链（P-003 反哺第二例）",
+  "domain": null,
+  "content": "case_id: FR-NEG-X-003\nepic: 横切-代码级\ndimension: 中断\nname: ANR 预案标准化演练：等待x1 → force-stop 冷重启恢复链（P-003 反哺第二例）\nexpected_type: expected\nmethod_design:\n  state_transition:\n  - from: ANR 状态\n    event: 预案执行\n    to: 冷重启恢复\n    guard: 恢复到 loginRequired 或 authenticated\nprecondition: 以 FR-NEG-LOGIN-004 或 START-001 实际触发的 ANR 为演练对象（未触发则本条以人为慢速注入等效演练）；登录凭据可用（冷重启后可能需重登）\nsteps:\n- do: ANR 出现后严格执行预案：等待x1（不超过10s）→ force-stop com.swan.network → 冷启动\n  expect: 冷重启后 UI 层级可达（登录页/AppShell），无二次 ANR、无启动死循环\n- do: 预案全过程证据归档\n  expect: dropbox ANR trace、force-stop 前后 hierarchy、重启后截图齐备；预案耗时记录供轮次报告\nlocators:\n  hivi_test_ids:\n  - login_page\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: 无'\nrepro_points: 预案与登录页第一落点契约（卡片：登录页是 ANR 后验证恢复的第一落点）对齐；反复点『等待』属违规操作\nrecovery: 预案本身\ntags:\n- L3\n- negative\nchannels:\n- assertion\n- visual"
+ },
+ {
+  "case_id": "FR-NEG-X-004",
+  "title": "弱网在途回包落已退页面：延迟注入 + 快速返回（latest-wins 联动）",
+  "domain": null,
+  "content": "case_id: FR-NEG-X-004\nepic: 横切-代码级\ndimension: 并发\nname: 弱网在途回包落已退页面：延迟注入 + 快速返回（latest-wins 联动）\nexpected_type: expected\nmethod_design:\n  boundary_values:\n  - field: 回包时页面状态\n    value: 延迟 5s 回包 vs 页面已销毁\n    expected: 回包被安全丢弃，无对已退页面渲染、无崩溃\n  - field: 重复请求\n    value: 同接口 2 连发\n    expected: latest-wins：后者结果生效，前者丢弃无副作用\nprecondition: authenticated 态 + 代理可加延迟（登录/搜索/平台列表三类接口各选一）\nsteps:\n- do: 代理对搜索/平台列表加 5s 延迟，发起请求后立即返回上一页\n  expect: 回包到达无 crash（安全丢弃或状态守卫生效）；logcat 无对已销毁页 setState 类异常\n- do: 同接口连续发起两次（间隔 1s）\n  expect: 最终展示与第二次请求一致（latest-wins，DEC-001 回归）\nlocators:\n  hivi_test_ids: []\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: keyword=TEST-SYNTHETIC'\nrepro_points: 超时上限契约（validateStatus <500 保证业务码可解析）——注入 5xx 时确认仍走业务码分发而非 Dio error\nrecovery: 关闭代理\ntags:\n- L2\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "LOGIN-L2-POS-001",
+  "title": "冷启动首启：隐私弹窗同意后进入登录页",
+  "domain": null,
+  "content": "case_id: LOGIN-L2-POS-001\nname: 冷启动首启：隐私弹窗同意后进入登录页\nepic: SwanAudio-App\nfeature: 登录/会话\nstory: 隐私授权与启动状态机\ntags:\n- smoke\n- L2\nchannels:\n- assertion\n- visual\nmethod_design:\n  state_transition:\n  - from: initializing\n    event: 启动完成且 is_first_launch 取反为 false(未同意过隐私)\n    to: privacyRequired(登录页+隐私弹窗 overlay, PopScope(canPop:false))\n    guard: storagePort 无同意标记\n  - from: privacyRequired\n    event: 点击同意按钮\n    to: loginRequired(PureFlutterLoginPage 可见)\n    guard: 用户点击同意而非系统返回\nui_contract:\n  hivi_test_ids:\n  - privacy_dialog\n  - privacy_agree_button\n  - privacy_disagree_button\n  - login_page\n  value_keys: []\nprecondition: 应用为首次安装或已清除应用数据（is_first_launch 无记录）\nsteps:\n- do: 冷启动 App\n  expect: stage=privacyRequired：登录页底图上覆盖隐私弹窗（Semantics id=privacy_dialog），弹窗不可通过系统返回关闭（canPop:false）\n- do: 点击「同意」按钮（privacy_agree_button）\n  expect: 弹窗关闭，stage=loginRequired，登录页可见（Semantics id=login_page）；隐私同意标记落盘（is_first_launch\n    写入取反语义成立）\n- do: 再次冷启动 App\n  expect: 不再弹隐私弹窗，直接进入登录页（同意标记持久化生效）\ndevice: android-emulator"
+ },
+ {
+  "case_id": "LOGIN-L2-POS-002",
+  "title": "短信两步登录主路径：手机号+协议→验证码→登录成功进 AppShell",
+  "domain": null,
+  "content": "case_id: LOGIN-L2-POS-002\nname: 短信两步登录主路径：手机号+协议→验证码→登录成功进 AppShell\nepic: SwanAudio-App\nfeature: 登录/会话\nstory: 短信验证码登录\ntags:\n- smoke\n- L2\nchannels:\n- assertion\nmethod_design:\n  equivalence_classes:\n  - class: 合法手机号\n    input: 86/13800000002 (TEST-SYNTHETIC)\n    expected: 第一步通过, 发送验证码成功\n  state_transition:\n  - from: loginRequired(手机号步)\n    event: 勾选协议+点击主按钮且/captcha success\n    to: 验证码步(login_code_field 可见, 60s 倒计时启动)\n    guard: 协议已勾选且号码合法\n  - from: 验证码步\n    event: 输入4位验证码触发自动提交且/user/login success\n    to: authenticated(AppShell)\n    guard: data.token 非空\n  decision_table:\n  - conditions:\n    - 协议未勾选\n    - 主按钮点击\n    actions:\n    - 不发起请求(按钮不可点/无响应)\n  - conditions:\n    - 协议已勾选\n    - 号码合法\n    - /captcha success==true && code==200\n    actions:\n    - 切验证码步\nui_contract:\n  hivi_test_ids:\n  - login_page\n  - login_phone_field\n  - login_area_code_button\n  - login_agreement_checkbox\n  - login_submit_button\n  - login_code_field\n  - me_page\n  value_keys:\n  - login-phone-field\n  - login-area-code-button\n  - login-agreement-checkbox\n  - login-submit-button\n  - login-code-field\napi_contract:\n  captcha_request: POST {base}/user/captcha body={area:'86', tel:'13800000002'} (area\n    去+, tel trim)\n  login_request: POST {base}/user/login body={area:'86', tel:'13800000002', code:'2468',\n    loginType:'0', password:''} — 断言冗余字段 password:'' 存在（已知坑6为契约行为非缺陷）\n  success_criteria: success==true && code==200 && data.token 非空\nprecondition: 隐私已同意，stage=loginRequired；测试环境短信通道可用或服务端可回读下发验证码\nsteps:\n- do: 在 login_phone_field 输入 13800000002（TEST-SYNTHETIC），确认区号为 86（如需经 login_area_code_button\n    选择）\n  expect: 输入回显正常，无 login_error_text\n- do: 勾选协议（login_agreement_checkbox），点击主按钮（login_submit_button）\n  expect: POST /user/captcha 返回 success==true&&code==200；页面切到验证码步（login_code_field\n    出现），60s 倒计时开始\n- do: 输入测试环境下发的 4 位验证码\n  expect: 满 4 位自动触发登录，POST /user/login body 含 loginType:'0'、password:''、code=4位码\n- do: 观察登录收口\n  expect: data.token 非空 → token 加 Bearer 前缀写入 SharedPreferences(key=auth_token) +\n    内存 fallback + Dio header 三处同步；stage=authenticated，AppShell 首页可见（me_page 可达）；登录请求成功后触发日活上报\n    POST /user/loginLog body={type:1}\ndevice: android-emulator"
+ },
+ {
+  "case_id": "LOGIN-L2-POS-003",
+  "title": "密码登录主路径：手机号+密码一次提交成功",
+  "domain": null,
+  "content": "case_id: LOGIN-L2-POS-003\nname: 密码登录主路径：手机号+密码一次提交成功\nepic: SwanAudio-App\nfeature: 登录/会话\nstory: 密码登录\ntags:\n- smoke\n- L2\nchannels:\n- assertion\nmethod_design:\n  equivalence_classes:\n  - class: 合法密码(1-16位)\n    input: SynthPass01 (TEST-SYNTHETIC)\n    expected: /user/login success, token 下发\n  boundary_values:\n  - field: 密码长度 maxLength\n    value: 16 位合法密码 (TEST-SYNTHETIC)\n    expected: 可完整输入并提交成功\n  - field: 密码可见性切换\n    value: 明文/密文切换\n    expected: 图标切换后密文⇄明文正确回显\n  state_transition:\n  - from: loginRequired(密码模式)\n    event: 勾选协议+点击主按钮且/user/login success\n    to: authenticated(AppShell)\n    guard: 协议已勾选且凭据正确\nui_contract:\n  hivi_test_ids:\n  - login_page\n  - login_phone_field\n  - login_agreement_checkbox\n  - login_password_field\n  - login_submit_button\n  - me_page\n  value_keys:\n  - login-phone-field\n  - login-agreement-checkbox\n  - login-password-field\n  - login-submit-button\napi_contract:\n  login_request: POST {base}/user/login body={area:'86', tel:'13700000001', code:'',\n    loginType:'1', password:'SynthPass01'} — 断言冗余字段 code:'' 存在（已知坑6为契约行为非缺陷）\nprecondition: 隐私已同意；测试环境存在密码账号 13700000001/SynthPass01（TEST-SYNTHETIC）\nsteps:\n- do: 切到密码模式（login_use_password_button），输入手机号 13700000001 与密码 SynthPass01\n  expect: login_password_field 回显（密文）；密码输入上限 maxLength:16\n- do: 点击密码可见性切换图标\n  expect: 密码明文显示，再点恢复密文\n- do: 勾选协议，点击主按钮\n  expect: POST /user/login body 含 loginType:'1'、code:''；success 后 token 三处同步写入，stage=authenticated，AppShell\n    可见\ndevice: android-emulator"
+ },
+ {
+  "case_id": "LOGIN-L2-POS-004",
+  "title": "短信⇄密码模式互切：入口互逆、字段区正确切换",
+  "domain": null,
+  "content": "case_id: LOGIN-L2-POS-004\nname: 短信⇄密码模式互切：入口互逆、字段区正确切换\nepic: SwanAudio-App\nfeature: 登录/会话\nstory: 登录模式切换\ntags:\n- L2\nchannels:\n- assertion\nmethod_design:\n  state_transition:\n  - from: smsCode 模式\n    event: 点击 login_use_password_button\n    to: password 模式\n    guard: 无\n  - from: password 模式\n    event: 点击 login_use_sms_button\n    to: smsCode 模式(手机号步)\n    guard: 无\n  error_guessing: 切换时机覆盖：已输入内容时切换、有 login_error_text 时切换——切换后旧错误被清且不再残留旧模式字段（正向预期：输入变化即清错误的收敛行为）\nui_contract:\n  hivi_test_ids:\n  - login_page\n  - login_phone_field\n  - login_password_field\n  - login_code_field\n  - login_use_password_button\n  - login_use_sms_button\n  - login_error_text\n  value_keys:\n  - login-phone-field\n  - login-password-field\n  - login-code-field\nprecondition: stage=loginRequired，默认短信模式\nsteps:\n- do: 在短信模式输入手机号（不提交），点击 login_use_password_button\n  expect: 出现 login_password_field，login_code_field 不存在；login_error_text 无残留\n- do: 点击 login_use_sms_button 切回\n  expect: 回到短信手机号步；若此前处于验证码步倒计时中，切模式后倒计时清零重置（卡片：切模式才清倒计时）\ndevice: android-emulator"
+ },
+ {
+  "case_id": "LOGIN-L2-POS-005",
+  "title": "协议勾选联动：短信主按钮/密码主按钮/第三方图标三处联动",
+  "domain": null,
+  "content": "case_id: LOGIN-L2-POS-005\nname: 协议勾选联动：短信主按钮/密码主按钮/第三方图标三处联动\nepic: SwanAudio-App\nfeature: 登录/会话\nstory: 用户协议联动\ntags:\n- L2\nchannels:\n- assertion\nmethod_design:\n  decision_table:\n  - conditions:\n    - _agreementAccepted=false\n    - 第三方图标在本平台可见\n    actions:\n    - 短信/密码主按钮不可提交\n    - 第三方图标不可点(可见性由平台决定, 可点性仅由协议决定)\n  - conditions:\n    - _agreementAccepted=true\n    actions:\n    - 短信/密码主按钮可提交\n    - 第三方图标可点\n  - conditions:\n    - 第三方授权进行中\n    actions:\n    - 图标不置灰（避免微信中途返回后永久卡死，设计行为）\nui_contract:\n  hivi_test_ids:\n  - login_agreement_checkbox\n  - login_submit_button\n  - login_third_party_wechat_button\n  - login_third_party_weibo_button\n  - login_third_party_apple_button\n  value_keys:\n  - login-agreement-checkbox\nprecondition: stage=loginRequired；Android 真机/模拟器（第三方图标可见性受平台与 OhosRuntimeUiPolicy.hideThirdPartyLogin\n  影响）\nsteps:\n- do: 不勾选协议，观察三个提交入口\n  expect: 短信主按钮与密码主按钮均不可提交；第三方图标（本平台可见者）点击无授权发起\n- do: 勾选协议\n  expect: 短信/密码主按钮均变为可提交；第三方图标可点（不发真实授权，仅验证可点性）\ndevice: android-emulator"
+ },
+ {
+  "case_id": "LOGIN-L2-POS-006",
+  "title": "验证码倒计时：60s 递减、同号返回复用冷却、改号重新发码",
+  "domain": null,
+  "content": "case_id: LOGIN-L2-POS-006\nname: 验证码倒计时：60s 递减、同号返回复用冷却、改号重新发码\nepic: SwanAudio-App\nfeature: 登录/会话\nstory: 短信验证码倒计时\ntags:\n- L2\nchannels:\n- assertion\nmethod_design:\n  boundary_values:\n  - field: 倒计时初值\n    value: 发送成功瞬间\n    expected: 60s\n  - field: 倒计时终值\n    value: 计至 0\n    expected: 重发按钮恢复可点(login-resend-code-button)\n  state_transition:\n  - from: 验证码步(冷却中)\n    event: 返回手机号步并再次提交同一号码\n    to: 直接切回验证码步\n    guard: 同号且冷却未结束——不再发码(不调 /captcha)\n  - from: 验证码步(冷却中)\n    event: 返回手机号步改为新号码提交\n    to: 调 /captcha 重新发码并重置 60s\n    guard: 号码已变更\nui_contract:\n  hivi_test_ids:\n  - login_phone_field\n  - login_agreement_checkbox\n  - login_submit_button\n  - login_code_field\n  value_keys:\n  - login-resend-code-button\n  - login-phone-field\n  - login-code-field\napi_contract:\n  reuse_assertion: 同号冷却期内二次提交不产生新的 /user/captcha 请求（抓包/日志断言请求次数=1）\nprecondition: 短信通道可用；已知倒计时仅内存不落盘（杀进程丢冷却属已知坑4，正向用例不断言该分支）\nsteps:\n- do: 输入 13800000002（TEST-SYNTHETIC），勾选协议，点击主按钮\n  expect: 进入验证码步，倒计时从 60 递减，重发不可点\n- do: 返回手机号步，不改号码再次点击主按钮\n  expect: 直接切回验证码步，倒计时显示剩余时间，/user/captcha 未被再次调用\n- do: 再返回手机号步，改为 13900000003（TEST-SYNTHETIC）提交\n  expect: 调 /captcha 发码成功，倒计时重置为 60\ndevice: android-emulator"
+ },
+ {
+  "case_id": "LOGIN-L2-POS-007",
+  "title": "验证码输入：满 4 位自动提交，3 位不提交",
+  "domain": null,
+  "content": "case_id: LOGIN-L2-POS-007\nname: 验证码输入：满 4 位自动提交，3 位不提交\nepic: SwanAudio-App\nfeature: 登录/会话\nstory: 验证码自动提交\ntags:\n- L2\nchannels:\n- assertion\nmethod_design:\n  boundary_values:\n  - field: 验证码长度\n    value: 3 位\n    expected: 不触发登录请求\n  - field: 验证码长度\n    value: 第 4 位输入完成\n    expected: 立即触发 /user/login 自动提交\n  state_transition:\n  - from: 验证码步(3位)\n    event: 输入第4位\n    to: 自动提交登录(_smsLoginInFlight 置位防并发)\n    guard: 码与 _lastFailedSmsCode 不同或输入已变化\nui_contract:\n  hivi_test_ids:\n  - login_code_field\n  - login_page\n  value_keys:\n  - login-code-field\napi_contract:\n  trigger_assertion: 3 位时 /user/login 请求数=0；第 4 位输入后请求数=1（自动提交，无需点按钮）\nprecondition: 已进入验证码步；验证码为测试环境真实下发码（以码为准，本用例关注触发时机而非正确性）\nsteps:\n- do: 输入验证码前 3 位\n  expect: 无登录请求发出\n- do: 输入第 4 位\n  expect: 立即自动发起 /user/login（body loginType:'0'）；请求在途期间重复输入不产生并发第二个请求（_smsLoginInFlight）\ndevice: android-emulator"
+ },
+ {
+  "case_id": "LOGIN-L2-POS-008",
+  "title": "第三方登录：入口可见性正确，授权成功后走统一登录收口",
+  "domain": null,
+  "content": "case_id: LOGIN-L2-POS-008\nname: 第三方登录：入口可见性正确，授权成功后走统一登录收口\nepic: SwanAudio-App\nfeature: 登录/会话\nstory: 第三方账号登录\ntags:\n- L2\n- experimental\nchannels:\n- assertion\nthird_party_dependency:\n  requires: 设备安装微信/微博客户端或 Apple 登录可用；真实第三方授权 SDK 回调\n  execution_risk: 预期执行阶段可能 BLOCKED（依赖第三方真实授权环境）\n  scope_note: 仅验证入口与授权成功正向收口；授权中途取消/超时等破坏性场景不在本通道范围\nmethod_design:\n  equivalence_classes:\n  - class: 第三方渠道\n    input: wechat / weibo / apple\n    expected: SwanThirdPartyLogin.authorize 取得 credential → loginWithThirdParty 与短信共用收口\n  state_transition:\n  - from: loginRequired(协议已勾选)\n    event: 点击第三方图标且授权成功\n    to: authenticated(AppShell)\n    guard: /user/login 返回 code!=50015 且 token 非空\nui_contract:\n  hivi_test_ids:\n  - login_page\n  - login_agreement_checkbox\n  - login_third_party_wechat_button\n  - login_third_party_weibo_button\n  - login_third_party_apple_button\n  - me_page\n  value_keys: []\napi_contract:\n  login_request: POST {base}/user/login body={loginType, thirdPartyId, thirdPartyName?}\n    — Android 微信/微博含昵称；iOS Apple 首登 includeThirdPartyName=false（请求体不含 thirdPartyName）\n  inflight_guard: 授权中防重入（_thirdPartyLoginInFlight），重复点击不发起第二次授权\nprecondition: 协议已勾选；第三方依赖就绪（见 third_party_dependency）；平台可见性预期：Android=微信/微博，iOS=微信/微博/Apple，OHOS=整块隐藏（OhosRuntimeUiPolicy.hideThirdPartyLogin）\nsteps:\n- do: 勾选协议后观察本平台可见的第三方图标\n  expect: 图标可见性与平台策略一致（OHOS 上三者均不出现）\n- do: 点击可见的第三方图标（如微信）并完成真实授权\n  expect: 授权 credential 回传后 POST /user/login（第三方 body），success → token 三处同步，stage=authenticated，AppShell\n    可见；授权进行中重复点击图标不重入\ndevice: physical-device\nexecution_status_note: 'BLOCKED-risk: third-party-required'"
+ },
+ {
+  "case_id": "LOGIN-L2-POS-009",
+  "title": "第三方登录 50015 未绑定 → 绑定手机号成功后复用同一 token 进 AppShell",
+  "domain": null,
+  "content": "case_id: LOGIN-L2-POS-009\nname: 第三方登录 50015 未绑定 → 绑定手机号成功后复用同一 token 进 AppShell\nepic: SwanAudio-App\nfeature: 登录/会话\nstory: 第三方绑定手机号\ntags:\n- L2\n- experimental\nchannels:\n- assertion\nthird_party_dependency:\n  requires: 一个已注册但未绑定手机号的第三方账号（TEST-SYNTHETIC，测试环境预置）；第三方真实授权环境\n  execution_risk: 预期执行阶段可能 BLOCKED（依赖第三方真实授权 + 服务端预置数据）\nmethod_design:\n  state_transition:\n  - from: 第三方授权成功但服务端返回 code=50015\n    event: 页面识别 50015\n    to: push /login/bind-phone 携 BindPhoneRouteArgs(loginType, thirdPartyId, thirdPartyName)\n    guard: code==50015\n  - from: /login/bind-phone\n    event: 短信绑定成功(绑定 body = 短信 body + thirdPartyId/thirdPartyName, fallback loginType:'2')\n    to: authenticated(AppShell)\n    guard: 绑定接口返回同一 token 非空\nui_contract:\n  hivi_test_ids:\n  - login_page\n  - login_third_party_wechat_button\n  - login_phone_field\n  - login_code_field\n  value_keys: []\n  route: /login/bind-phone (深链别名同可达)\napi_contract:\n  bind_request: POST {base}/user/login body={area, tel, code, loginType:'2'(fallback),\n    password:'', thirdPartyId, thirdPartyName}\nprecondition: 第三方依赖就绪；测试环境存在未绑定手机号的第三方账号\nsteps:\n- do: 协议勾选后点击第三方图标完成授权\n  expect: 服务端返回 code=50015，页面识别后 push 绑定手机号页（/login/bind-phone）\n- do: 在绑定页完成手机号+验证码提交\n  expect: 绑定请求携带 thirdPartyId/thirdPartyName；成功后复用同一 token 收口，stage=authenticated，AppShell\n    可见\ndevice: physical-device\nexecution_status_note: 'BLOCKED-risk: third-party-required'"
+ },
+ {
+  "case_id": "LOGIN-L2-POS-010",
+  "title": "登录成功后进入 AppShell 且 token 恢复链路完整（冷启动免登）",
+  "domain": null,
+  "content": "case_id: LOGIN-L2-POS-010\nname: 登录成功后进入 AppShell 且 token 恢复链路完整（冷启动免登）\nepic: SwanApp-Audio\nfeature: 登录/会话\nstory: 会话恢复与 AppShell\ntags:\n- smoke\n- L2\nchannels:\n- assertion\nmethod_design:\n  state_transition:\n  - from: authenticated(上轮会话, token 已落盘)\n    event: 冷启动\n    to: 直接 authenticated(AppShell)，不弹隐私/登录页\n    guard: storagePort.readAuthToken() 非空 → adoptToken（注意：不校验 token 有效性，首屏不发校验请求，属设计行为）\nui_contract:\n  hivi_test_ids:\n  - me_page\n  - me_user_profile_entry\n  value_keys: []\ndata_flow_assertions:\n  token_restore: '冷启动后首个业务请求 header 含 Authorization: Bearer <token>（内存 fallback →\n    NetworkConfigPortScope.getHttpToken 注入）'\n  daily_active: 登录态下冷启动触发日活上报 POST {base}/user/loginLog body={type:1}，按 HVDailyActiveLastReportDate\n    自然日节流（同日二次冷启动不再上报）\nprecondition: 已通过 LOGIN-L2-POS-002 完成一次真实登录（token 已写入 SharedPreferences key=auth_token）\nsteps:\n- do: 登录成功后杀进程，冷启动\n  expect: 跳过隐私弹窗与登录页，直接进入 AppShell；验证 me_page / me_user_profile_entry 可达\n- do: 抓包观察首屏业务请求\n  expect: '请求头带 Authorization: Bearer 前缀 token；无前置 token 校验请求（设计行为）'\n- do: 同日再次冷启动\n  expect: /user/loginLog 当日仅上报一次（自然日节流，先落盘再请求）\ndevice: android-emulator"
+ },
+ {
+  "case_id": "LOGIN-L2-POS-011",
+  "title": "登出触发点1：个人信息页「退出登入」成功清理并回登录页",
+  "domain": null,
+  "content": "case_id: LOGIN-L2-POS-011\nname: 登出触发点1：个人信息页「退出登入」成功清理并回登录页\nepic: SwanApp-Audio\nfeature: 登录/会话\nstory: 手动登出-个人信息页\ntags:\n- smoke\n- L2\nchannels:\n- assertion\nmethod_design:\n  state_transition:\n  - from: authenticated\n    event: Me→个人信息页→退出登入 且 /user/logout success\n    to: loginRequired\n    guard: MeUserActionResult.success；无二次确认弹窗(设计行为)\nui_contract:\n  hivi_test_ids:\n  - me_page\n  - me_user_profile_entry\n  - person_info_page\n  - person_info_logout_button\n  - login_page\n  value_keys: []\ncleanup_assertions:\n- POST {base}/user/logout 返回 success\n- SharedPreferences key=auth_token 被清除（storagePort.clearAuthToken）\n- 内存 fallback token 清空，后续请求无 Authorization header\n- kvStorage 'lastUserInfoResponeBean' 移除\n- SessionCollectionStateStore.qobuz.clearAll()（Qobuz 星标缓存清除，防下个用户看到旧星标）\n- 路由栈清空 + PlatformCatalogNotifier.reset()（_clearRouteStackOnLogout）\nprecondition: 已登录（authenticated）；可先 push 至任一二级页以验证清栈\nsteps:\n- do: 进入 me_page → me_user_profile_entry → person_info_page，先 push 一个二级页\n  expect: 二级页正常展示\n- do: 返回 person_info_page 点击 person_info_logout_button\n  expect: 无二次确认直接登出：/user/logout success → 上述 6 项清理断言全部成立 → 回到登录页（即使停留在二级页也被 popUntil\n    清回根）\ndevice: android-emulator"
+ },
+ {
+  "case_id": "LOGIN-L2-POS-012",
+  "title": "登出触发点2：取消账号成功后触发登出清理",
+  "domain": null,
+  "content": "case_id: LOGIN-L2-POS-012\nname: 登出触发点2：取消账号成功后触发登出清理\nepic: SwanApp-Audio\nfeature: 登录/会话\nstory: 注销账号登出\ntags:\n- L2\nchannels:\n- assertion\nmethod_design:\n  state_transition:\n  - from: authenticated(person_info)\n    event: requestAccountUnbind() success\n    to: logout 清理链 → loginRequired\n    guard: 解绑接口返回成功\nui_contract:\n  hivi_test_ids:\n  - me_page\n  - me_user_profile_entry\n  - person_info_page\n  - person_info_cancel_account_button\n  - login_page\n  value_keys: []\nprecondition: 已登录；测试环境存在可安全注销的 TEST-SYNTHETIC 账号（注销不可逆，须使用一次性虚构账号）\nsteps:\n- do: person_info_page 点击 person_info_cancel_account_button，确认注销\n  expect: requestAccountUnbind 成功 → 走统一 _clearSessionState 清理（token 三处清除 + 用户缓存 +\n    Qobuz 星标缓存）→ 回登录页\ndevice: android-emulator"
+ },
+ {
+  "case_id": "LOGIN-L2-POS-013",
+  "title": "登出触发点3：服务端会话失效(30003)全局登出清栈并 Toast",
+  "domain": null,
+  "content": "case_id: LOGIN-L2-POS-013\nname: 登出触发点3：服务端会话失效(30003)全局登出清栈并 Toast\nepic: SwanApp-Audio\nfeature: 登录/会话\nstory: 会话失效登出\ntags:\n- L2\nchannels:\n- assertion\nmethod_design:\n  equivalence_classes:\n  - class: 会话失效业务码\n    input: '{30003, 30001, 40006} 任一（如 30003 loginTimeout）'\n    expected: 统一触发 logoutDueToSessionInvalidation\n  state_transition:\n  - from: authenticated(停留二级页)\n    event: 在途业务响应带回失效码\n    to: loginRequired + Toast loginStatusObsolete(登录状态过时)\n    guard: isAuthenticated==true 且该 code 2s 窗口内首次\nui_contract:\n  hivi_test_ids:\n  - me_page\n  - login_page\n  value_keys: []\ndata_flow_assertions:\n- AppSessionInvalidationCoordinator 已在 runApp() 前订阅（首帧前回包也能登出）\n- HTTP 401/403 不走 Dio error（validateStatus<500），业务码可从 body 解析触发\n- 同 code 2s 内重复事件去重；登出后 isAuthenticated=false，后续在途失效码不误报\nprecondition: 已登录并进入一个会发业务请求的页面；测试环境可控使某接口返回 30003（或等待服务端会话过期）\nsteps:\n- do: 在二级页触发一个返回业务码 30003 的请求\n  expect: 全局登出：token 三处清除 + 二级页被清栈回登录页 + PlatformCatalogNotifier.reset()；Toast 显示本地化「登录状态过时」\n- do: 2 秒内再触发同 code 事件\n  expect: 被去重吞掉，无第二次登出动作/Toast（且登出后 isAuthenticated=false 拦截后续在途失效码）\ndevice: android-emulator"
+ },
+ {
+  "case_id": "LOGIN-L2-POS-014",
+  "title": "登出触发点4：切换服务器直接清本地 token 回登录页",
+  "domain": null,
+  "content": "case_id: LOGIN-L2-POS-014\nname: 登出触发点4：切换服务器直接清本地 token 回登录页\nepic: SwanApp-Audio\nfeature: 登录/会话\nstory: 切服登出\ntags:\n- L2\nchannels:\n- assertion\nmethod_design:\n  state_transition:\n  - from: authenticated(关于我们页)\n    event: 确认切换服务器\n    to: 清本地 token → loginRequired\n    guard: 不请求旧服 /user/logout（对齐 iOS，服务端会话残留属预期，已知坑7）\nui_contract:\n  hivi_test_ids:\n  - me_page\n  - login_page\n  value_keys: []\ndata_flow_assertions:\n- 切服后抓包：无对旧环境的 /user/logout 请求\n- PureFlutterAuthApi._baseUrl 动态读 fallback：登录页不重建即命中新环境地址\n- 「关于我们」切服一次性写入 API/AI HTTP/AI WebSocket 三地址\nprecondition: 已登录；测试环境至少两个可达 server 地址（均为测试环境，禁止切线上）\nsteps:\n- do: 进入「关于我们」详情页，选择另一测试环境服务器并确认\n  expect: 不调旧服 logout，本地 token（三处）被直接清除，回登录页；随后登录请求自动发往新 base URL\ndevice: android-emulator"
+ },
+ {
+  "case_id": "NEG-ANR-001",
+  "title": "[P-003 反哺] 登录页主线程敏感点叠加：60s Timer + autofill 自动提交 + 第三方回调并发窗口",
+  "domain": null,
+  "content": "case_id: NEG-ANR-001\ndimension: 并发\nname: '[P-003 反哺] 登录页主线程敏感点叠加：60s Timer + autofill 自动提交 + 第三方回调并发窗口'\nexpected_type: suspected-defect\nmethod_design:\n  error_guessing: 三个已知主线程敏感点在最坏窗口叠加，做 hierarchy 可达性探针\nprecondition: 执行从先做启动 ANR 探针（模式库 P-003 反哺动作：hierarchy 可达性检查通过才进业务断言）\nsteps:\n- do: 短信发码后倒计时运行中（Timer 活跃），立即粘贴 4 位码触发自动提交，同时第三方授权回调到达（Mock 并发）\n  expect: UI 不冻结；1s 内 hierarchy 仍可达（登录页 locator 可查询）；登录请求正常收口\n- do: 若出现 'isn't responding' ANR 对话框\n  expect: 按 P-003 流程：捕捉 hierarchy/截图证据，登记 ANR 候选，不进业务断言、不提单（未稳定复现前）\nlocators:\n  hivi_test_ids:\n  - login_page\n  - login_code_field\n  value_keys:\n  - login-code-field\ntest_data: 'TEST-SYNTHETIC: tel=13800000001, code=1234'\nrepro_points: P-003 已有一次候选（SWAN-BUG-20260904-004）且 SWAN-20260904-005 复核时登录页是 ANR 后第一可达页面——本条把登录页三个敏感点主动叠加压测；任何一次\n  ANR 即升级反哺动作\nrecovery: 杀进程重启\ntags:\n- L2\n- negative\n- flaky?\n- experimental?\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "NEG-BIND-001",
+  "title": "绑定页异常输入：超长手机号/空验证码/非法区号",
+  "domain": null,
+  "content": "case_id: NEG-BIND-001\ndimension: 超长\nname: 绑定页异常输入：超长手机号/空验证码/非法区号\nexpected_type: expected\nmethod_design:\n  equivalence_classes:\n  - class: 超长手机号(>11 位)\n    input: '1380000000100000'\n    expected: 输入限制或提交后服务端拒绝，文案收敛\n  - class: 空验证码\n    input: code=''\n    expected: 记录客户端拦截 or 服务端拒绝\n  - class: 非法区号\n    input: area='++++'/'abc'\n    expected: area 去 + 后上送形态核对\nprecondition: 第三方登录返回 50015 进入 /login/bind-phone（Mock 第三方 credential + 服务端 50015 响应）\nsteps:\n- do: 绑定页依次输入各异常等价类并提交\n  expect: 无崩溃；请求体形态符合契约：短信 body + thirdPartyId/thirdPartyName，loginType fallback '2'，固定冗余\n    code/password 字段（代理断言）\n- do: 非法区号（含多个 +）提交\n  expect: area 去 '+' 处理后上送，观察服务端响应与文案收敛\nlocators:\n  hivi_test_ids:\n  - login_phone_field\n  - login_code_field\n  - login_error_text\n  value_keys:\n  - login-phone-field\n  - login-code-field\ntest_data: 'TEST-SYNTHETIC: thirdPartyId=''mock-third-party-001'', tel=13800000001'\nrepro_points: 绑定成功复用同一 token 收口——若绑定接口返回新 token 而客户端仍用旧 token，属状态跳跃破坏点（代理对比前后 token\n  值）\nrecovery: 修正输入\ntags:\n- L2\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "NEG-BIND-002",
+  "title": "绑定页深链直入无参数：BindPhoneRouteArgs 缺失时 fallback 行为",
+  "domain": null,
+  "content": "case_id: NEG-BIND-002\ndimension: 状态跳跃\nname: 绑定页深链直入无参数：BindPhoneRouteArgs 缺失时 fallback 行为\nexpected_type: suspected-defect\nmethod_design:\n  state_transition:\n  - from: 任意 stage\n    event: 深链 /login/bind-phone 无 args\n    to: 观察 fallback\n    guard: 命名路由别名可达\nprecondition: App 可响应深链（adb am start -d）\nsteps:\n- do: 未登录/未触发 50015 的情况下深链直达 /login/bind-phone\n  expect: 启动状态机应拦在 loginRequired/privacyRequired；若可达绑定页，记录 args 缺失时的 fallback（thirdPartyId\n    为空、loginType:'2'）实际表现\n- do: 若绑定页可达，直接提交空 thirdPartyId\n  expect: 观察服务端响应与客户端文案；无崩溃即记录，任何异常状态记 suspected-defect 信号\nlocators:\n  hivi_test_ids:\n  - login_page\n  value_keys:\n  - login-phone-field\n  - login-code-field\ntest_data: 'TEST-SYNTHETIC: 深链 scheme:///login/bind-phone'\nrepro_points: 卡片未决问题：绑定页参数 fallback loginType:'2' 的实际触发路径未逐行确认——本条目的就是把「深链无参」这条路径实际跑出来定性；登录请求体冗余字段（password:''/code:''）在绑定请求中的形态一并代理核对\nrecovery: 返回登录页\ntags:\n- L2\n- negative\n- experimental?\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "NEG-BIND-003",
+  "title": "绑定页内会话失效/返回中断：清栈与 token 收口的交叉",
+  "domain": null,
+  "content": "case_id: NEG-BIND-003\ndimension: 状态跳跃\nname: 绑定页内会话失效/返回中断：清栈与 token 收口的交叉\nexpected_type: expected\nmethod_design:\n  error_guessing: 绑定请求在途时注入失效码 / 用户中途返回\nprecondition: 已进入绑定页（50015 路径）\nsteps:\n- do: 绑定提交在途时代理注入 30003\n  expect: 全局失效链优先：清栈回登录页，绑定流程中止，无半绑定状态\n- do: 绑定页点返回（未提交）\n  expect: 返回登录页，第三方 credential 丢弃，再次第三方登录重新走 50015 流程，无状态残留\nlocators:\n  hivi_test_ids:\n  - login_page\n  value_keys:\n  - login-phone-field\n  - login-code-field\ntest_data: 'TEST-SYNTHETIC: thirdPartyId=''mock-third-party-002'''\nrepro_points: 绑定成功复用同一 token——若失效码在绑定响应后瞬间到达，验证 token 收口与登出清理的时序竞争（adoptToken 与 logout\n  顺序）无脏状态\nrecovery: 重新登录\ntags:\n- L2\n- negative\n- flaky?\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "NEG-CONC-001",
+  "title": "验证码自动提交在途时重复触发：_smsLoginInFlight 拦截第二次",
+  "domain": null,
+  "content": "case_id: NEG-CONC-001\ndimension: 并发\nname: 验证码自动提交在途时重复触发：_smsLoginInFlight 拦截第二次\nexpected_type: expected\nmethod_design:\n  error_guessing: 在途窗口内喂入第二次满 4 位事件（autofill/键入）\nprecondition: 代理延迟 /user/login 约 2-3s 构造在途窗口\nsteps:\n- do: 输入 4 位码触发自动提交，请求在途时再次喂入同/异 4 位码\n  expect: _smsLoginInFlight 拦截：代理断言仅一次 /user/login 请求；无第二次提交、无崩溃\n- do: 首个请求返回后再次输入\n  expect: 恢复可提交（in-flight 标志正确复位）\nlocators:\n  hivi_test_ids:\n  - login_code_field\n  value_keys:\n  - login-code-field\ntest_data: 'TEST-SYNTHETIC: 1234 与 5678'\nrepro_points: 在途窗口内输入异码 5678 后，请求返回失败时 _lastFailedSmsCode 记录的是首发码——随后 autofill 回填\n  5678 应可提交（与 NEG-SMS-001 防重逻辑的交叉边界，两标志交互要分别断言）\nrecovery: 正常流程\ntags:\n- L2\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "NEG-CONC-002",
+  "title": "第三方授权在途重入与取消：isInProgress 提示 / isCancelled 静默",
+  "domain": null,
+  "content": "case_id: NEG-CONC-002\ndimension: 并发\nname: 第三方授权在途重入与取消：isInProgress 提示 / isCancelled 静默\nexpected_type: expected\nmethod_design:\n  decision_table:\n  - conditions:\n    - 授权在途\n    - 再次点击图标\n    actions:\n    - _thirdPartyLoginInFlight 拦截，提示稍候\n  - conditions:\n    - 用户在第三方 SDK 取消授权\n    actions:\n    - ThirdPartyLoginException.isCancelled → 静默返回，无错误 Toast\n  - conditions:\n    - 授权在途\n    - 切后台再回前台\n    actions:\n    - 无重复授权请求、无状态错乱\nprecondition: 协议已勾选；微信/微博 SDK 环境可用（或 Mock SDK 回调）\nsteps:\n- do: 点微信图标，SDK 拉起期间返回 App 再点同图标\n  expect: 第二次被 in-flight 拦截，提示稍候（不置灰但不可重入）\n- do: 在第三方 SDK 侧取消授权\n  expect: 静默回登录页，无 errorMessage、无 Toast——isCancelled 分支\n- do: SDK 返回异常（非取消非在途）\n  expect: 有收敛的本地化错误提示\nlocators:\n  hivi_test_ids:\n  - login_third_party_wechat_button\n  - login_third_party_weibo_button\n  - login_third_party_apple_button\n  - login_page\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: 无真实第三方账号'\nrepro_points: 「授权中不置灰」是防止微信中途返回后永久卡死的设计决策——本条反面断言：取消后图标必须立即可再点（若永久禁用记 suspected-defect）；OHOS\n  平台第三方整块隐藏（OhosRuntimeUiPolicy），OHOS 真机另行验证待设备在环\nrecovery: 重新发起授权\ntags:\n- L2\n- negative\n- flaky?\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "NEG-CONC-003",
+  "title": "主按钮双击/连点：busy 态防重，单请求",
+  "domain": null,
+  "content": "case_id: NEG-CONC-003\ndimension: 重复提交\nname: 主按钮双击/连点：busy 态防重，单请求\nexpected_type: expected\nmethod_design:\n  boundary_values:\n  - field: 点击间隔\n    value: <300ms 双击\n    expected: 仅一次登录请求\n  - field: 点击间隔\n    value: 请求在途中再点\n    expected: 被 busy 拦截\nprecondition: 代理可观察请求计数；短信步/密码登录/第三方绑定的主按钮分别测\nsteps:\n- do: 快速双击短信手机号步主按钮\n  expect: 代理断言 /user/captcha 仅一次（首次冷启动同号场景）\n- do: 密码登录提交在途时再点主按钮\n  expect: busy 拦截，零新增请求；请求返回后按钮恢复\nlocators:\n  hivi_test_ids:\n  - login_submit_button\n  value_keys:\n  - login-submit-button\ntest_data: 'TEST-SYNTHETIC: tel=13800000001'\nrepro_points: 手机号步双击在「同号冷却中」与「首次发码」两种前置下行为不同（冷却中是切页不发码）——两种前置都要过\nrecovery: 正常流程\ntags:\n- L2\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "NEG-NET-001",
+  "title": "断网点登录：Dio 连接类错误文案收敛，不透出英文原文",
+  "domain": null,
+  "content": "case_id: NEG-NET-001\ndimension: 断网\nname: 断网点登录：Dio 连接类错误文案收敛，不透出英文原文\nexpected_type: expected\nmethod_design:\n  error_guessing: 飞行模式/断代理触发 SocketException 类 DioException\nprecondition: 登录页任一模式，输入合法 TEST-SYNTHETIC 数据；设备可开关飞行模式\nsteps:\n- do: 开启飞行模式，点登录主按钮\n  expect: _post 捕获 DioException → sanitizeApiFailureMessage → login_error_text 显示\n    networkNotConnected 本地化文案；无英文堆栈/原始异常串\n- do: 关闭飞行模式，修改任一输入字符\n  expect: 错误清除；重新提交走正常链路\nlocators:\n  hivi_test_ids:\n  - login_submit_button\n  - login_error_text\n  value_keys:\n  - login-submit-button\ntest_data: 'TEST-SYNTHETIC: tel=13800000001, code=1234'\nrepro_points: 短信/密码/第三方三条入口分别断网一次（第三方断网另有 SDK 自身超时，行为可能不同，分别记录）；响应体为非 Map 的 DioException\n  走包装分支 {success:false,message:sanitized,code:statusCode}——可用代理返回 HTML 错误页触发\nrecovery: 恢复网络\ntags:\n- L2\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "NEG-NET-002",
+  "title": "登录请求挂起超时：busy 态必须解除，按钮可恢复操作",
+  "domain": null,
+  "content": "case_id: NEG-NET-002\ndimension: 超时\nname: 登录请求挂起超时：busy 态必须解除，按钮可恢复操作\nexpected_type: expected\nmethod_design:\n  boundary_values:\n  - field: 服务端响应\n    value: 挂起至客户端超时\n    expected: Dio 超时异常 → 文案收敛，busy 复位\nprecondition: 代理可将 /user/login 挂起不响应\nsteps:\n- do: 提交登录，代理挂起响应直至客户端超时\n  expect: 超时后 errorMessage 置收敛文案；_setBusy 解除，主按钮不再禁用，可再次提交\n- do: 超时后立即再次提交\n  expect: 新请求正常发出（无 in-flight 残留卡死）\nlocators:\n  hivi_test_ids:\n  - login_submit_button\n  - login_error_text\n  value_keys:\n  - login-submit-button\ntest_data: 'TEST-SYNTHETIC: tel=13800000001'\nrepro_points: 对照 MXNZP 区号接口固定 8s 超时（NEG-NET-003）；本条验证登录主链路超时的 busy 复位——若超时后按钮永久禁用记\n  suspected-defect\nrecovery: 恢复代理直连\ntags:\n- L2\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "NEG-NET-003",
+  "title": "MXNZP 外部区号接口失败（断网/8s 超时/返回异常）回退内置热门区号",
+  "domain": null,
+  "content": "case_id: NEG-NET-003\ndimension: 服务降级\nname: MXNZP 外部区号接口失败（断网/8s 超时/返回异常）回退内置热门区号\nexpected_type: expected\nmethod_design:\n  decision_table:\n  - conditions:\n    - 断网\n    - 进区号选择页\n    actions:\n    - 回退内置热门区号(中港澳台)，登录不被阻断\n  - conditions:\n    - MXNZP 响应 >8s 超时\n    actions:\n    - 同上，8s 内区号页呈加载/降级态\n  - conditions:\n    - MXNZP 返回非预期结构\n    actions:\n    - 按失败处理回退内置列表\nprecondition: 可控制设备网络与代理（屏蔽 mxnzp.com）\nsteps:\n- do: 屏蔽 mxnzp.com 后进区号选择页（login_area_code_button）\n  expect: 展示内置热门区号（中国/香港/澳门/台湾），页面可用，返回后登录流程完全不受影响\n- do: 代理延迟 mxnzp 响应至 >8s\n  expect: 8s 超时触发回退，同样不阻断登录\nlocators:\n  hivi_test_ids:\n  - login_area_code_button\n  value_keys:\n  - login-area-code-button\ntest_data: 'TEST-SYNTHETIC: 无真实请求断言，仅可用性'\nrepro_points: 该外部接口硬编码 app_id/app_secret（area_code_service.dart:29-32）——secret 泄露面属安全注记，非本用例断言项；回退期间登录主链路零依赖外部接口是核心断言\nrecovery: 解除屏蔽后重新进区号页，记录外部列表恢复\ntags:\n- L2\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "NEG-NET-004",
+  "title": "HTTP 401/403 不走 Dio error：业务码语义必须从 body 保留解析",
+  "domain": null,
+  "content": "case_id: NEG-NET-004\ndimension: 服务降级\nname: HTTP 401/403 不走 Dio error：业务码语义必须从 body 保留解析\nexpected_type: expected\nmethod_design:\n  equivalence_classes:\n  - class: 401 + body 含 30003\n    input: HTTP 401, body {code:30003}\n    expected: 按会话失效处理（非通用错误）\n  - class: 403 + body 含非失效码\n    input: HTTP 403, body {code:xxx}\n    expected: 按业务码语义处理，不误登出\n  - class: 5xx + body 非 Map\n    input: HTTP 502, body HTML\n    expected: 包装 {success:false, message:sanitized, code:502}，文案收敛\nprecondition: 代理可改写状态码与响应体\nsteps:\n- do: 代理返回 401 + body {code:30003}\n  expect: validateStatus<500 保证进 body 解析分支，触发全局登出而非显示通用网络错误\n- do: 代理返回 502 + HTML body\n  expect: login_error_text 收敛文案（sanitize），无英文原文、无崩溃\nlocators:\n  hivi_test_ids:\n  - login_error_text\n  - login_page\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: 代理注入见等价类'\nrepro_points: http_client.dart validateStatus<500 是 401/403 能携带业务码的前提——若代码变更丢失该配置，本条首当其冲失败\nrecovery: 解除代理改写\ntags:\n- L2\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "NEG-OUT-001",
+  "title": "服务端登出失败：token 保留、停留原页、仅 Toast",
+  "domain": null,
+  "content": "case_id: NEG-OUT-001\ndimension: 断网\nname: 服务端登出失败：token 保留、停留原页、仅 Toast\nexpected_type: expected\nmethod_design:\n  decision_table:\n  - conditions:\n    - 断网点退出登入\n    actions:\n    - /user/logout 失败，仅 Toast，不清本地 token，停留 person_info\n  - conditions:\n    - 服务端 5xx 点退出登入\n    actions:\n    - 同上\nprecondition: 已登录进个人信息页；可断网或代理 5xx\nsteps:\n- do: 断网后点 person_info_logout_button\n  expect: 失败仅 Toast（无二次确认弹窗——设计如此）；不跳登录页；auth_token 仍在（三处存储均未清）\n- do: 恢复网络后刷新页面\n  expect: 用户仍为登录态（token 有效），数据正常\nlocators:\n  hivi_test_ids:\n  - person_info_page\n  - person_info_logout_button\n  - me_page\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: 已登录会话'\nrepro_points: 反面确认：登出失败后手动杀进程重进，token 仍恢复进 authenticated——「失败不清本地」的持久化后果；无二次确认直接登出成功路径的用户误触风险记\n  UX 注记非本条断言\nrecovery: 恢复网络重试登出\ntags:\n- L2\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "NEG-OUT-002",
+  "title": "切服登出不请求旧服 logout：服务端会话残留",
+  "domain": null,
+  "content": "case_id: NEG-OUT-002\ndimension: 服务降级\nname: 切服登出不请求旧服 logout：服务端会话残留\nexpected_type: expected\nmethod_design:\n  error_guessing: 切服路径的清理范围核查\nprecondition: 已登录（服 A）；「关于我们」页可达服 B 切换入口\nsteps:\n- do: 在「关于我们」切到服 B\n  expect: 客户端直接清本地 token 回登录页，全程零 /user/logout 请求（代理断言，对齐 iOS 设计行为）\n- do: 用抓包/服务端视角核对服 A\n  expect: 服 A 会话未注销（残留）——设计行为但记安全注记：共享设备场景旧会话在服务端仍有效，报告从可评估\n- do: 在服 B 登录页重新登录\n  expect: 登录页无需重建即命中新 base（_baseUrl 动态读 fallback），登录成功进服 B 会话\nlocators:\n  hivi_test_ids:\n  - login_page\n  - me_page\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: Debug 服 http://8.129.106.82/api ↔ 显式 HIVI_API_BASE_URL\n  覆盖地址（禁止使用生产 base）'\nrepro_points: 切服一次性写 API/AI HTTP/AI WebSocket 三地址——断言三地址都切换（WebSocket 残留旧地址是潜在破坏点）；切服后\n  Qobuz 星标缓存等 _clearSessionState 清理是否同样执行需核对（切服走的是清 token 还是完整 _clearSessionState，卡片未逐行确认，记录观察）\nrecovery: 切回原服\ntags:\n- L2\n- negative\n- security-recon\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "NEG-PERM-001",
+  "title": "协议未勾选：主按钮与第三方图标的可点性边界",
+  "domain": null,
+  "content": "case_id: NEG-PERM-001\ndimension: 权限缺失\nname: 协议未勾选：主按钮与第三方图标的可点性边界\nexpected_type: expected\nmethod_design:\n  decision_table:\n  - conditions:\n    - 协议未勾选\n    - 点短信主按钮\n    actions:\n    - 不提交，协议区域提示/抖动（记录实际表现），零请求\n  - conditions:\n    - 协议未勾选\n    - 点第三方图标\n    actions:\n    - 不拉起 SDK（可点仅由协议决定），零授权\n  - conditions:\n    - 协议勾选\n    - 第三方授权中\n    actions:\n    - 图标不置灰（防微信中途返回卡死）\nprecondition: 登录页首进，协议默认未勾选\nsteps:\n- do: 未勾选协议，分别点短信主按钮/密码主按钮/第三方图标\n  expect: 代理断言零 /user/captcha、/user/login、SDK 拉起；记录未勾选时的 UI 反馈形态\n- do: 勾选协议后重复上述操作\n  expect: 全部恢复正常链路\nlocators:\n  hivi_test_ids:\n  - login_agreement_checkbox\n  - login_submit_button\n  - login_third_party_wechat_button\n  value_keys:\n  - login-agreement-checkbox\n  - login-submit-button\ntest_data: 'TEST-SYNTHETIC: tel=13800000001'\nrepro_points: 「可见由平台决定、可点由协议决定」——OHOS 平台第三方隐藏时勾选协议也不出现图标（平台差异断言，待 OHOS 设备在环）\nrecovery: 勾选协议\ntags:\n- L2\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "NEG-PERM-002",
+  "title": "第三方 SDK 环境缺失：目标 App 未安装/SDK 初始化失败",
+  "domain": null,
+  "content": "case_id: NEG-PERM-002\ndimension: 权限缺失\nname: 第三方 SDK 环境缺失：目标 App 未安装/SDK 初始化失败\nexpected_type: expected\nmethod_design:\n  equivalence_classes:\n  - class: 微信未安装\n    input: 点微信图标\n    expected: SDK 异常 → 非 isCancelled/isInProgress 分支 → 收敛错误提示，无崩溃\n  - class: SDK 回调超时/无响应\n    input: 拉起后无回调\n    expected: 记录是否可恢复（图标可再点）或需杀进程\nprecondition: 设备卸载微信（保留微博/Apple 环境作对照）；协议已勾选\nsteps:\n- do: 未安装微信时点微信图标\n  expect: ThirdPartyLoginException 走「其它」分支：本地化错误提示，登录页状态正常可重试\n- do: 对比点微博图标（已安装）\n  expect: 正常拉起授权（或按测试环境 Mock），两分支行为差异清晰\nlocators:\n  hivi_test_ids:\n  - login_third_party_wechat_button\n  - login_third_party_weibo_button\n  - login_error_text\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: 无真实第三方账号'\nrepro_points: Apple 登录仅 iOS 平台可见（平台差异）；OHOS 整块隐藏——本条在 Android 模拟器/真机执行，其它平台待设备在环\nrecovery: 安装对应 App 或放弃第三方路径\ntags:\n- L2\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "NEG-PRIV-001",
+  "title": "隐私弹窗不同意 → exitApp 中断链路",
+  "domain": null,
+  "content": "case_id: NEG-PRIV-001\ndimension: 中断\nname: 隐私弹窗不同意 → exitApp 中断链路\nexpected_type: expected\nmethod_design:\n  error_guessing: 首装首次启动，直接走不同意分支\nprecondition: 清除应用数据保证首装态（is_first_launch 未写）\nsteps:\n- do: 首装冷启动，隐私弹窗点「不同意」（privacy_disagree_button）\n  expect: AppSystemPort.exitApp() 触发，应用退出；不进入登录页\n- do: 重新启动\n  expect: 隐私弹窗再次出现（未同意不落盘），仍停在 privacyRequired\nlocators:\n  hivi_test_ids:\n  - privacy_dialog\n  - privacy_disagree_button\n  - privacy_agree_button\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: 无账号参与'\nrepro_points: 同意标记复用 is_first_launch 取反语义（已知坑 9）——断言不同意后该 key 未被写 true；OHOS 平台托管声明时\n  Flutter 侧直接写 true 的分支属平台差异，另行记录\nrecovery: 重新启动\ntags:\n- L2\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "NEG-PRIV-002",
+  "title": "隐私弹窗 PopScope(canPop:false)：系统返回无法跳过",
+  "domain": null,
+  "content": "case_id: NEG-PRIV-002\ndimension: 状态跳跃\nname: 隐私弹窗 PopScope(canPop:false)：系统返回无法跳过\nexpected_type: expected\nmethod_design:\n  state_transition:\n  - from: privacyRequired\n    event: 系统返回键/返回手势\n    to: privacyRequired(不变)\n    guard: canPop:false\nprecondition: 首装态，隐私弹窗可见\nsteps:\n- do: 弹窗可见时按系统返回键/侧滑返回手势\n  expect: 弹窗不消失、不落入登录页、App 不退出到桌面后跳过隐私（记录平台实际表现：留在弹窗 or exitApp）\n- do: 弹窗可见时尝试深链 /login\n  expect: 启动状态机拦在 privacyRequired，深链无法绕过弹窗直达登录页（命名路由只是别名，home 由 stage 决定）\nlocators:\n  hivi_test_ids:\n  - privacy_dialog\n  - login_page\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: 深链 adb shell am start -d scheme:///login'\nrepro_points: 深链绕过是本条核心破坏点：AppStartupGate.home 覆盖命名路由——若深链能进登录页并提交登录，记 suspected-defect（隐私未同意即建立会话）\nrecovery: 正常同意或不同意\ntags:\n- L2\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "NEG-PWD-001",
+  "title": "密码 maxLength 16 边界：16 可输、17 截断",
+  "domain": null,
+  "content": "case_id: NEG-PWD-001\ndimension: 超长\nname: 密码 maxLength 16 边界：16 可输、17 截断\nexpected_type: expected\nmethod_design:\n  boundary_values:\n  - field: 密码长度\n    value: '15'\n    expected: 正常输入\n  - field: 密码长度\n    value: '16'\n    expected: 正常输入（上界）\n  - field: 密码长度\n    value: '17'\n    expected: 第 17 位被截断，实际仍 16 位\nprecondition: 登录页切密码模式（login_use_password_button）\nsteps:\n- do: 粘贴 20 位字符串进 login_password_field\n  expect: 输入框最终仅 16 位（maxLength 硬截断），上送请求体 password 为 16 位（代理断言）\n- do: 提交该 16 位密码（服务端若上限小于 16）\n  expect: 记录服务端真实上限行为与文案收敛——若客户端 16 上界与服务端不一致，记 suspected-defect 信号\nlocators:\n  hivi_test_ids:\n  - login_use_password_button\n  - login_password_field\n  - login_error_text\n  value_keys:\n  - login-password-field\ntest_data: 'TEST-SYNTHETIC: 20 位字符串 ''Aa1!Aa1!Aa1!Aa1!zzzz'''\nrepro_points: 粘贴路径（clipboard autofill）与逐字键入路径分别验证 maxLength；明文切换眼睛图标不影响长度限制\nrecovery: 清空\ntags:\n- L2\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "NEG-PWD-002",
+  "title": "密码非法字符（emoji/中文/前后空格）与错误密码",
+  "domain": null,
+  "content": "case_id: NEG-PWD-002\ndimension: 非法格式\nname: 密码非法字符（emoji/中文/前后空格）与错误密码\nexpected_type: expected\nmethod_design:\n  equivalence_classes:\n  - class: emoji 密码\n    input: 🎉🎉🎉🎉🎉🎉🎉🎉\n    expected: 记录是否可输入/上送，无崩溃\n  - class: 中文密码\n    input: 测试密码测试密码测试\n    expected: 同上\n  - class: 前后空格密码\n    input: '  pass1234  '\n    expected: 观察是否 trim（对照短信流程 tel trim 的处理惯例）\n  - class: 错误密码\n    input: 合法格式但错误\n    expected: 业务失败，inline error 收敛文案\nprecondition: 密码模式；已有 TEST-SYNTHETIC 账号\nsteps:\n- do: 依次输入各类非法字符密码提交\n  expect: 无崩溃；错误密码失败文案本地化收敛（经 HttpUserMessageResolver），不透出英文原文\n- do: 失败后修改密码任意一位\n  expect: 旧错误立即清除（clearLoginError 路径）\nlocators:\n  hivi_test_ids:\n  - login_password_field\n  - login_error_text\n  - login_submit_button\n  value_keys:\n  - login-password-field\n  - login-submit-button\ntest_data: 'TEST-SYNTHETIC: 见各等价类'\nrepro_points: 密码登录 loginType:'1' 与旧原生服务端行为差异是卡片未决问题——本条只断言客户端表现，服务端差异记录不判定\nrecovery: 清空重输\ntags:\n- L2\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "NEG-PWD-003",
+  "title": "密码模式空手机号/空密码提交",
+  "domain": null,
+  "content": "case_id: NEG-PWD-003\ndimension: 空值\nname: 密码模式空手机号/空密码提交\nexpected_type: expected\nmethod_design:\n  decision_table:\n  - conditions:\n    - 空手机号\n    - 空密码\n    actions:\n    - 不可提交或本地校验拦截，无网络请求\n  - conditions:\n    - 合法手机号\n    - 空密码\n    actions:\n    - 记录客户端是否拦截；若发请求观察服务端响应与文案\nprecondition: 密码模式\nsteps:\n- do: 手机号与密码均空，点主按钮\n  expect: 代理断言零 /user/login 请求；有本地提示或按钮无效\n- do: 仅填手机号不填密码提交\n  expect: 记录实际行为（客户端拦截 or 服务端拒绝），文案收敛，无崩溃\nlocators:\n  hivi_test_ids:\n  - login_phone_field\n  - login_password_field\n  - login_submit_button\n  - login_error_text\n  value_keys:\n  - login-phone-field\n  - login-password-field\n  - login-submit-button\ntest_data: 'TEST-SYNTHETIC: tel=''''/13800000001, pwd='''''\nrepro_points: 请求体契约：密码登录固定上送 code:''——若空密码走到请求，代理核对 body 形态 {area, tel, code:'', loginType:'1',\n  password:''}\nrecovery: 填写后重试\ntags:\n- L2\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "NEG-SESS-001",
+  "title": "会话失效码 30003 触发全局登出清栈回登录页",
+  "domain": null,
+  "content": "case_id: NEG-SESS-001\ndimension: 状态跳跃\nname: 会话失效码 30003 触发全局登出清栈回登录页\nexpected_type: expected\nmethod_design:\n  error_guessing: 在 authenticated 态注入业务码 30003 响应（代理/Mock 任一业务接口）\nprecondition: 硬前置：有效登录态已建立且经抓包验证 token 三处落盘非空（SharedPreferences auth_token / NetworkConfigFallbackStore._httpToken\n  / Dio Authorization header），authenticated（AppShell 可达）；代理工具可拦截业务响应。前置不满足（空 token\n  态）→BLOCKED：空态只会走 loginRequired 兜底，无法重现失效链路，禁止降级执行\nsteps:\n- do: 登录成功后进入任一业务页，代理返回业务码 30003\n  expect: AppSessionInvalidationCoordinator 登出；_clearSessionState 清 lastUserInfoResponeBean/Qobuz\n    星标缓存/auth_token/fallback token；Toast「登录状态过时」(loginStatusObsolete)\n- do: 观察当前页面与路由栈\n  expect: 落 loginRequired 登录页；PlatformCatalogNotifier.reset() 已执行；原二级页不留存\nlocators:\n  hivi_test_ids:\n  - login_page\n  value_keys:\n  - login-phone-field\ntest_data: 'TEST-SYNTHETIC: 代理注入 {code:30003}'\nrepro_points: 必须在 runApp 前已订阅 Coordinator（首帧前 30003 也应生效）；断言 token 三处存储（SharedPreferences\n  auth_token / NetworkConfigFallbackStore._httpToken / Dio header）全空；开跑前核对硬前置：token\n  三处落盘非空方可执行（空 token 态本条无效，记 BLOCKED）\nrecovery: 重新登录\ntags:\n- L2\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "NEG-SESS-002",
+  "title": "会话失效码 30001/40006 等价类：与 30003 同集合同行为",
+  "domain": null,
+  "content": "case_id: NEG-SESS-002\ndimension: 状态跳跃\nname: 会话失效码 30001/40006 等价类：与 30003 同集合同行为\nexpected_type: expected\nmethod_design:\n  equivalence_classes:\n  - class: 失效码 30001(tokenInvalid)\n    input: '{code:30001}'\n    expected: 登出清栈回登录页\n  - class: 失效码 40006(tokenInvalid)\n    input: '{code:40006}'\n    expected: 登出清栈回登录页\nprecondition: 硬前置：有效登录态已建立且经抓包验证 token 三处落盘非空；代理可注入业务码。前置不满足→BLOCKED（空态无会话可失效，重现无效）\nsteps:\n- do: 分别注入 30001、40006\n  expect: 两码均命中失效集合 {30003,30001,40006}，行为与 30003 完全一致（登出+Toast+清栈）\n- do: 注入非失效业务码（如 50017 之外的业务失败码）作对照\n  expect: 不触发登出，仅按该码自身语义处理\nlocators:\n  hivi_test_ids:\n  - login_page\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: {code:30001} / {code:40006}'\nrepro_points: 40006 出处源码仅有 Android 对齐注释，实际触发接口待接口侧确认（卡片未决问题），若代理无法构造走 Mock 层；开跑前核对硬前置：token\n  三处落盘非空（空 token 态记 BLOCKED）\nrecovery: 重新登录\ntags:\n- L2\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "NEG-SESS-003",
+  "title": "同失效码 2s 内重复事件去重，仅一次登出一次 Toast",
+  "domain": null,
+  "content": "case_id: NEG-SESS-003\ndimension: 状态跳跃\nname: 同失效码 2s 内重复事件去重，仅一次登出一次 Toast\nexpected_type: expected\nmethod_design:\n  boundary_values:\n  - field: 同码事件间隔\n    value: <2s\n    expected: 第二次被吞（去重窗口）\n  - field: 同码事件间隔\n    value: '>2s'\n    expected: 第二次在 isAuthenticated=false 时被拦（非去重）\nprecondition: 硬前置：有效登录态已建立且经抓包验证 token 三处落盘非空；可让同一接口在 2s 内返回两次 30003（如页面并发发两个请求）。前置不满足→BLOCKED（空态无会话可失效，重现无效）\nsteps:\n- do: 2s 内触发两次同码 30003 响应\n  expect: 仅一次登出流程、一次 loginStatusObsolete Toast；无重复清栈/连续弹 Toast\n- do: 间隔 >2s 再次注入 30003\n  expect: 此时已非 authenticated，仍不产生第二次登出副作用（isAuthenticated 门禁）\nlocators:\n  hivi_test_ids:\n  - login_page\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: {code:30003} x2 within 2s'\nrepro_points: 去重键为 code 本身（非全码集合）；验证 Toast 只出现一次是本条核心断言；开跑前核对硬前置：token 三处落盘非空（空 token\n  态记 BLOCKED）\nrecovery: 重新登录\ntags:\n- L2\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "NEG-SESS-004",
+  "title": "手动登出后在途请求带回失效码，不误报登出 Toast",
+  "domain": null,
+  "content": "case_id: NEG-SESS-004\ndimension: 并发\nname: 手动登出后在途请求带回失效码，不误报登出 Toast\nexpected_type: expected\nmethod_design:\n  error_guessing: 登出瞬间故意留一个在途业务请求，其响应稍后带回 30003\nprecondition: 硬前置：有效登录态已建立且经抓包验证 token 三处落盘非空；某业务页有慢请求在途。前置不满足→BLOCKED（空态无会话可失效，重现无效）\nsteps:\n- do: 慢请求在途时到个人信息页点「退出登入」登出成功\n  expect: 正常登出落登录页\n- do: 在途请求响应返回 30003\n  expect: Coordinator 因 isAuthenticated=false 拦截：无二次 Toast、无重复清栈、登录页状态不被扰动\nlocators:\n  hivi_test_ids:\n  - person_info_page\n  - person_info_logout_button\n  - login_page\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: 延迟 3s 返回 {code:30003} 的在途响应'\nrepro_points: 对照场景：登出失败（见 NEG-OUT-001）时 token 保留、仍 authenticated，此时在途 30003 应正常触发登出——两条共用同一在途构造手法；开跑前核对硬前置：token\n  三处落盘非空（空 token 态记 BLOCKED）\nrecovery: 重新登录\ntags:\n- L2\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "NEG-SESS-005",
+  "title": "深层二级页（绑定页/搜索页）收到失效码：popUntil(isFirst) 清栈无残留",
+  "domain": null,
+  "content": "case_id: NEG-SESS-005\ndimension: 状态跳跃\nname: 深层二级页（绑定页/搜索页）收到失效码：popUntil(isFirst) 清栈无残留\nexpected_type: expected\nmethod_design:\n  state_transition:\n  - from: authenticated(二级页)\n    event: 业务码 30003\n    to: loginRequired\n    guard: isAuthenticated==true\nprecondition: 硬前置：有效登录态已建立且经抓包验证 token 三处落盘非空，并 push 到二级页（/login/bind-phone 或任一 push\n  页）。前置不满足→BLOCKED（空态无会话可失效，重现无效）\nsteps:\n- do: 停留在二级页时注入 30003\n  expect: 根 Navigator popUntil(isFirst) 清空全部 push 页 + PlatformCatalogNotifier.reset()；最终只见登录页\n- do: 检查二级页状态（如绑定页已输入内容、平台目录列表）\n  expect: 平台目录已 reset（无旧用户平台残留）；回登录页重新登录后无上一用户会话痕迹\nlocators:\n  hivi_test_ids:\n  - login_page\n  - login_bind_phone_page(如已注册 testId；否则用 ValueKey)\n  value_keys:\n  - login-phone-field\n  - login-code-field\ntest_data: 'TEST-SYNTHETIC: {code:30003}'\nrepro_points: 反面断言：若清栈缺失，用户重新登录后会落在原二级页（考古明确该坑是 _clearRouteStackOnLogout 修复目标），执行时重点看有没有回归；开跑前核对硬前置：token\n  三处落盘非空（空 token 态记 BLOCKED）\nrecovery: 重新登录\ntags:\n- L2\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "NEG-SMS-001",
+  "title": "错误验证码失败后 autofill 回填同码：无反应是设计行为，修改后才重提交",
+  "domain": null,
+  "content": "case_id: NEG-SMS-001\ndimension: 非法格式\nname: 错误验证码失败后 autofill 回填同码：无反应是设计行为，修改后才重提交\nexpected_type: expected\nmethod_design:\n  error_guessing: 利用 _lastFailedSmsCode 防重逻辑构造 autofill 重复提交\nprecondition: 登录页短信模式；已收到真实验证码（服务端测试号 TEST-SYNTHETIC）\nsteps:\n- do: 输入错误 4 位码（如 9999），满 4 位自动提交\n  expect: 登录失败，login_error_text 显示收敛后文案；_lastFailedSmsCode='9999'\n- do: 让 autofill/剪贴板再次回填同一码 9999（_onSmsCodeChanged 再收到相同 4 位）\n  expect: 无网络请求、页面无反应——设计行为（防 autofill 死循环），非卡死；无 loading\n- do: 手动修改一位（如 9998）\n  expect: 立即恢复自动提交，正常发登录请求\nlocators:\n  hivi_test_ids:\n  - login_code_field\n  - login_error_text\n  value_keys:\n  - login-code-field\ntest_data: 'TEST-SYNTHETIC: tel=13800000001, 错误码 9999→9998'\nrepro_points: 自动化重试脚本若原样重放同码会被防重逻辑吞掉——执行从脚本必须知道这是设计行为，失败重试需先改输入；断言网络层（代理）第二次无 /user/login\n  请求\nrecovery: 输入新码\ntags:\n- L2\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "NEG-SMS-002",
+  "title": "过期验证码登录失败，错误文案收敛且输入变化即清错",
+  "domain": null,
+  "content": "case_id: NEG-SMS-002\ndimension: 非法格式\nname: 过期验证码登录失败，错误文案收敛且输入变化即清错\nexpected_type: expected\nmethod_design:\n  equivalence_classes:\n  - class: 过期码\n    input: 服务端已过期的 4 位码\n    expected: 业务失败，inline error 本地化文案\n  - class: 未请求过码的随机码\n    input: 1234(未发码)\n    expected: 业务失败，同收敛文案路径\nprecondition: 短信模式；能拿到过期码（发码后等待过期或服务端固定过期码）\nsteps:\n- do: 输入过期码自动提交\n  expect: 登录失败，login_error_text 展示 HttpUserMessageResolver 转换后的本地化文案，不透出服务端英文原文/堆栈\n- do: 点击手机号输入框任意修改字符\n  expect: 旧错误立即被 clearLoginError/_clearInlineError 清除（输入变化即清错）\nlocators:\n  hivi_test_ids:\n  - login_code_field\n  - login_error_text\n  - login_phone_field\n  value_keys:\n  - login-code-field\n  - login-phone-field\ntest_data: 'TEST-SYNTHETIC: tel=13800000001'\nrepro_points: Selector 只重建 _LoginInlineError 不重建整页——顺带断言倒计时/输入内容在错误展示时不受影响\nrecovery: 重新发码\ntags:\n- L2\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "NEG-SMS-003",
+  "title": "冷却倒计时不落盘：杀进程重进冷却丢失，可立即再发码",
+  "domain": null,
+  "content": "case_id: NEG-SMS-003\ndimension: 中断\nname: 冷却倒计时不落盘：杀进程重进冷却丢失，可立即再发码\nexpected_type: suspected-defect\nmethod_design:\n  state_transition:\n  - from: 冷却中(剩 45s)\n    event: 杀进程重启\n    to: 无冷却(可立即发码)\n    guard: 倒计时仅内存 ValueNotifier\nprecondition: 短信模式，已发码一次，倒计时进行中\nsteps:\n- do: 发码后等约 15s（剩 ~45s），杀进程后冷启动到登录页\n  expect: 倒计时丢失，重新输入同号可直接发码——设计上必然（卡片已知坑 4），但构成服务端「获取短信频繁」的触发路径，故标 suspected-defect\n    供报告从评估风险\n- do: 立即再次发码\n  expect: 观察服务端是否返回频繁限制及文案是否本地化收敛\nlocators:\n  hivi_test_ids:\n  - login_phone_field\n  - login_submit_button\n  - login_resend_code_button(对应 ValueKey)\n  value_keys:\n  - login-phone-field\n  - login-submit-button\n  - login-resend-code-button\ntest_data: 'TEST-SYNTHETIC: tel=13800000001'\nrepro_points: 对照组：不发杀进程，返回手机号步再进验证码页，剩余时间应复用（NEG-SMS-004）；本条断言的是跨进程生命周期冷却丢失\nrecovery: 等待服务端频繁窗口过期\ntags:\n- L2\n- negative\n- flaky?\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "NEG-SMS-004",
+  "title": "同号返回复用剩余冷却 vs 改号立即清零",
+  "domain": null,
+  "content": "case_id: NEG-SMS-004\ndimension: 回退\nname: 同号返回复用剩余冷却 vs 改号立即清零\nexpected_type: expected\nmethod_design:\n  decision_table:\n  - conditions:\n    - 同号返回验证码页\n    actions:\n    - 复用剩余倒计时，不发码\n  - conditions:\n    - 切换为新号进入验证码页\n    actions:\n    - 冷却清零，可立即发码\nprecondition: 短信模式；号 A=13800000001 冷却中（剩 ~40s）\nsteps:\n- do: 冷却中返回手机号步，原号再次提交\n  expect: 直接切验证码页，不重新发码，剩余时间延续\n- do: 返回后改号 B=13800000002 提交\n  expect: 倒计时清零，正常发码——设计行为；风险面：客户端冷却可被改号绕过，服务端频繁限制是唯一防线（记录观察）\nlocators:\n  hivi_test_ids:\n  - login_phone_field\n  - login_submit_button\n  - login_code_field\n  value_keys:\n  - login-phone-field\n  - login-submit-button\ntest_data: 'TEST-SYNTHETIC: A=13800000001, B=13800000002'\nrepro_points: 切模式（短信↔密码）才清倒计时——可加一步验证切到密码再切回短信后冷却归零，属同一 ValueNotifier 生命周期的边界\nrecovery: 自然过期\ntags:\n- L2\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "NEG-SMS-005",
+  "title": "冷却中重复触发发码：客户端拦截 + 绕过 UI 后服务端频繁文案",
+  "domain": null,
+  "content": "case_id: NEG-SMS-005\ndimension: 重复提交\nname: 冷却中重复触发发码：客户端拦截 + 绕过 UI 后服务端频繁文案\nexpected_type: expected\nmethod_design:\n  boundary_values:\n  - field: 发码间隔\n    value: 冷却内(60s)\n    expected: 同号不发码，直接切验证码页\n  - field: 发码间隔\n    value: 清数据/重装后 <60s\n    expected: 客户端无冷却记录，请求发出，依赖服务端频繁限制\nprecondition: 短信模式\nsteps:\n- do: 发码后 10s 内再次点主按钮（同号）\n  expect: 不发 /user/captcha 请求（代理断言零请求），直接进验证码页\n- do: 清除应用数据后 60s 内重新走同号发码\n  expect: 请求发出，观察服务端频繁限制响应文案是否经 resolve 收敛为本地化提示（不透出原文）\nlocators:\n  hivi_test_ids:\n  - login_phone_field\n  - login_submit_button\n  - login_error_text\n  value_keys:\n  - login-phone-field\n  - login-submit-button\ntest_data: 'TEST-SYNTHETIC: tel=13800000001'\nrepro_points: 代理层断言 /user/captcha 请求次数是本条硬证据；清数据动作同时会清隐私标记（is_first_launch 取反语义），需先重过隐私弹窗\nrecovery: 等待窗口\ntags:\n- L2\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "NEG-SMS-006",
+  "title": "验证码空值/不足 4 位/非数字字符的输入边界",
+  "domain": null,
+  "content": "case_id: NEG-SMS-006\ndimension: 空值\nname: 验证码空值/不足 4 位/非数字字符的输入边界\nexpected_type: expected\nmethod_design:\n  boundary_values:\n  - field: 验证码长度\n    value: 0(空)\n    expected: 不触发自动提交，主按钮路径不可用\n  - field: 验证码长度\n    value: 3 位\n    expected: 不触发自动提交\n  - field: 验证码长度\n    value: 4 位\n    expected: 触发自动提交（边界）\n  - field: 验证码字符\n    value: 非数字(字母/emoji/中文)\n    expected: 记录输入过滤行为，无崩溃\nprecondition: 短信模式已到验证码页\nsteps:\n- do: 分别输入空/3 位/非数字内容\n  expect: 不足 4 位绝不触发提交请求（代理断言）；非数字输入观察是否被过滤或提交后由服务端拒绝，两种均可但无崩溃\n- do: 在第 3 位基础上粘贴 1 位凑满 4\n  expect: 触发自动提交（autofill 路径与键入路径行为一致）\nlocators:\n  hivi_test_ids:\n  - login_code_field\n  - login_error_text\n  value_keys:\n  - login-code-field\ntest_data: 'TEST-SYNTHETIC: ['''', ''123'', ''abcd'', ''🎉🎉🎉🎉'']'\nrepro_points: autofill 粘贴路径与逐字键入路径都可能触发 _onSmsCodeChanged，两条输入路径都要过\nrecovery: 清空重输\ntags:\n- L2\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "NEG-TOKEN-001",
+  "title": "篡改 auth_token 后冷启动直进 authenticated，暴露时点后置到首个业务请求",
+  "domain": null,
+  "content": "case_id: NEG-TOKEN-001\ndimension: 状态跳跃\nname: 篡改 auth_token 后冷启动直进 authenticated，暴露时点后置到首个业务请求\nexpected_type: suspected-defect\nmethod_design:\n  error_guessing: 启动恢复路径注入垃圾 token，观察暴露时点\nprecondition: 步骤 0（硬前置）：先真实登录成功并验证 token 三处落盘非空（参照 POS-002 主路径），再做注入/篡改操作与冷启动——本条断言的暴露时点/失效链路只有从有效会话态出发才有意义，空\n  token 态只能证明 loginRequired 兜底，不能证明失效链路，未建立有效会话禁止进入注入步。可修改设备 SharedPreferences（debug\n  包 / adb）\nsteps:\n- do: 向 SharedPreferences 写 auth_token='Bearer tampered-invalid-token'，冷启动\n  expect: AppStartupGate 不发校验请求，adoptToken 直接进 authenticated（暴露时点=首个业务请求返回失效码时）\n- do: 进任一业务页触发首个业务请求\n  expect: 业务码 30003/30001 回来 → 全局登出落登录页，中间态期间 UI 不崩溃\nlocators:\n  hivi_test_ids:\n  - me_page\n  - login_page\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: auth_token=''Bearer tampered-invalid-token'''\nrepro_points: 疑点记录（不提单）：token 明文存储+启动零校验，攻击面=root 设备直接伪造登录态；断言点1 启动到 authenticated\n  的耗时（无网络请求）；断言点2 暴露前是否有任何越权 UI 可操作（如个人信息页读到空用户缓存 lastUserInfoResponeBean 被删后的表现）；未执行步骤\n  0（无有效会话基线）即注入=无效重现，结果记 BLOCKED\nrecovery: 登出或清除应用数据\ntags:\n- L2\n- negative\n- security-recon\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "NEG-TOKEN-002",
+  "title": "auth_token 无 Bearer 前缀/空串/纯空白 的恢复边界",
+  "domain": null,
+  "content": "case_id: NEG-TOKEN-002\ndimension: 非法格式\nname: auth_token 无 Bearer 前缀/空串/纯空白 的恢复边界\nexpected_type: expected\nmethod_design:\n  equivalence_classes:\n  - class: 无 Bearer 前缀\n    input: raw-token-no-prefix\n    expected: 观察是否按原样 adopt（_normalizeBearerToken 仅写路径）\n  - class: 空串\n    input: '\"\"'\n    expected: 按无 token 处理，落 loginRequired\n  - class: 纯空白\n    input: '''   '''\n    expected: 观察 isEmpty 判定是否把空白当有效 token（疑似缺陷信号）\nprecondition: 步骤 0（硬前置）：先真实登录成功并验证 token 三处落盘非空（参照 POS-002 主路径）建立有效会话基线，再分别注入三类值后冷启动——恢复链路差异只有从有效会话态出发才有意义，空\n  token 态只能证明 loginRequired 兜底。可修改设备存储\nsteps:\n- do: 注入空串冷启动\n  expect: 落登录页（token 存在性判定应排除空串）\n- do: 注入纯空白串冷启动\n  expect: 若进 authenticated 则记 suspected-defect 信号（空白 token 被当有效）；无崩溃\n- do: 注入无 Bearer 前缀 token 冷启动\n  expect: 记录实际行为（读路径是否有归一化，对照 OHOS OhosPreferencesStoragePort 的回写分支——卡片标注该分支未逐行确认）\nlocators:\n  hivi_test_ids:\n  - login_page\n  - me_page\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: ['''' , ''   '', ''raw-token-no-prefix'']'\nrepro_points: 三组值逐次冷启动、逐次记录启动 stage；OHOS 平台另行用 OhosPreferencesStoragePort 路径复测（待设备在环，先登记）；未执行步骤\n  0（无有效会话基线）即注入=无效重现，结果记 BLOCKED\nrecovery: 清除应用数据\ntags:\n- L2\n- negative\nchannels:\n- assertion"
+ },
+ {
+  "case_id": "NEG-TOKEN-003",
+  "title": "token 有效期 TTL 维度：过期 JWT 冷启动仍直进 authenticated，暴露时点后置到首个业务请求",
+  "domain": null,
+  "content": "case_id: NEG-TOKEN-003\ndimension: 状态跳跃\nname: token 有效期 TTL 维度：过期 JWT 冷启动仍直进 authenticated，暴露时点后置到首个业务请求\nexpected_type: suspected-defect\nmethod_design:\n  error_guessing: 注入 exp 已过的合法格式 JWT，专断言 TTL 维度（与 NEG-TOKEN-001 同手法、不同变量：NEG-TOKEN-001\n    断言垃圾 token 的暴露时点，本条断言过期时间不被校验）\nprecondition: 步骤 0（硬前置）：先真实登录成功并验证 token 三处落盘非空（参照 POS-002 主路径）作为有效会话基线，再注入过期 JWT\n  并冷启动——TTL 维度断言（过期不被校验+暴露时点后置）只有从有效会话态出发才有意义，空 token 态只能证明 loginRequired 兜底，未建立有效会话禁止进入注入步。可修改设备\n  SharedPreferences（debug 包 / adb）。已知事实（SWAN-20260907-000 环境验证）：测试服签发 JWT 有效期整 10\n  年（exp=iat+315360000s）\nsteps:\n- do: 构造 exp 已过期的合法格式 JWT（header.payload.signature 三段齐全、payload.exp 为过去时间戳，全字段 TEST-SYNTHETIC\n    自造，非真实签发），写入 SharedPreferences auth_token（带 Bearer 前缀），冷启动\n  expect: 客户端启动恢复不校验 exp：adoptToken 直进 authenticated，启动阶段零校验请求（断言启动网络层无 token 校验调用）\n- do: 进任一业务页触发首个业务请求\n  expect: 服务端返回失效业务码（30003/30001）→ 全局登出落登录页；暴露窗口=冷启动到首个业务请求之间，此期间客户端认为会话有效\n- do: 记录 token 生命周期事实（非断言，供报告从定级）：exp-iat 差值=315360000s（10 年）；客户端源码无任何过期校验路径（依据 storage_port.dart\n    读写分支 / app_startup_controller.dart adoptToken 与 initialize 流程）；无 refresh 机制\n  expect: 事实链完整：服务端 10 年 TTL + 客户端不校验 exp + 无续期/登出兜底 → 泄露 token 在最长 10 年内可离线复用至首次失效码命中\nlocators:\n  hivi_test_ids:\n  - me_page\n  - login_page\n  value_keys: []\ntest_data: 'TEST-SYNTHETIC: 自造过期 JWT，如 exp=1700000000（2023-11，已过期）、iat=1690000000、payload.sub=test-synthetic-user；严禁使用测试服真实签发\n  token 参与断言'\nrepro_points: 三段式 JWT 缺一不可（畸形 token 走 NEG-TOKEN-002 的非法格式路径，不命中本条 TTL 语义）；对照点：若未来客户端加入\n  exp 预校验，本条冷启动应落 loginRequired——当前预期是直进 authenticated；10 年 TTL 属服务端签发策略，客户端未防护是本条记录点，报告从甄别定级；未执行步骤\n  0（无有效会话基线）即注入=无效重现，结果记 BLOCKED\nrecovery: 登出或清除应用数据\ntags:\n- L2\n- negative\n- security-recon\nchannels:\n- assertion"
+ }
+]

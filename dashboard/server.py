@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import html
+import hmac
 import json
 import os
 import re
@@ -59,6 +60,11 @@ import jenkins_client  # noqa: E402  (依赖 _load_dotenv_local 注入的 JENKIN
 VALID_PLATFORMS = {"android", "ios", "flutter", "pc", "web"}
 # 安装包服务器类型：formal = 正式服包，test = 测试服包(存量库默认 test)
 VALID_SERVER_TYPES = ("formal", "test")
+# GitLab push webhook → 自动打包映射(repo 的 path_with_namespace → 分支 → server_type)。
+# 表外组合一律 skip;扩分支/出正式包在此加行(如 master→formal),GitLab 侧分支过滤仅省流。
+WEBHOOK_BUILD_MAP = {
+    "swan-app/swan-audio/hivi-network-flutterapp": {"dev": "test"},
+}
 
 
 class RunNotFinalizedError(RuntimeError):
@@ -1201,6 +1207,14 @@ class DashboardStore:
         valid = {"succeeded", "failed", "env_blocked", "error"}
         if status not in valid:
             raise ValueError(f"status must be one of {sorted(valid)}")
+        # Jenkins 构建内运行的 agent 会随 finish 回报 JOB_NAME/BUILD_NUMBER:派发时
+        # 短轮询没拿到构建号的任务,finish 后据此回填,流水线列表才有精确日志入口;
+        # 只补空值,不覆盖派发时已记录的字段
+        backfill_job = str(payload.get("jenkins_job") or "").strip()
+        try:
+            backfill_build = int(str(payload.get("jenkins_build") or "").strip())
+        except ValueError:
+            backfill_build = None
         with self.transaction() as connection:
             row = connection.execute(
                 "SELECT status FROM pipeline_jobs WHERE job_id=?", (job_id,)
@@ -1208,10 +1222,13 @@ class DashboardStore:
             if row is None:
                 raise KeyError(f"pipeline job not found: {job_id}")
             connection.execute(
-                """UPDATE pipeline_jobs SET status=?, finished_at=?, result_json=?
+                """UPDATE pipeline_jobs SET status=?, finished_at=?, result_json=?,
+                   jenkins_job=CASE WHEN IFNULL(jenkins_job,'')='' THEN ? ELSE jenkins_job END,
+                   jenkins_build=CASE WHEN jenkins_build IS NULL THEN ? ELSE jenkins_build END
                    WHERE job_id=?""",
                 (status, utc_now(),
-                 json.dumps(payload.get("result") or {}, ensure_ascii=False), job_id),
+                 json.dumps(payload.get("result") or {}, ensure_ascii=False),
+                 backfill_job, backfill_build, job_id),
             )
         return self.get_pipeline_job(job_id)
 
@@ -1383,6 +1400,16 @@ class DashboardStore:
         with self.transaction() as connection:
             rows = connection.execute(query, parameters).fetchall()
         return [dict(row) for row in rows]
+
+    def find_apk(self, branch: str, commit_hash: str, server_type: str) -> dict[str, Any] | None:
+        """按 分支+commit+server_type 查最近一次登记(GitLab webhook 同 commit 去重用);无则 None。"""
+        with self.transaction() as connection:
+            row = connection.execute(
+                "SELECT * FROM apks WHERE branch=? AND commit_hash=? AND server_type=?"
+                " ORDER BY registered_at DESC LIMIT 1",
+                (branch, commit_hash, server_type),
+            ).fetchone()
+        return dict(row) if row else None
 
     def delete_apk(self, apk_id: str) -> dict[str, Any]:
         # 只删台账行;磁盘上的 apk 文件与 runs 执行历史不动(弱关联,历史按 apk_id 仍可读)
@@ -2372,7 +2399,21 @@ class DashboardHandler(BaseHTTPRequestHandler):
             except ValueError:
                 self.send_error_json("limit must be an integer", HTTPStatus.BAD_REQUEST)
                 return
-            self.send_json({"items": self.store.list_pipeline_jobs(status=status, limit=limit)})
+            items = self.store.list_pipeline_jobs(status=status, limit=limit)
+            # jenkins_log_url 给浏览器跳转用(流水线列表"Jenkins 日志"按钮),与 APK 列表
+            # 同规则:优先 JENKINS_PUBLIC_URL(对外可达),回退 JENKINS_BASE_URL(服务端
+            # 回调用,可为 127.0.0.1);有构建号→该次构建的控制台日志,只有任务名(排队中)
+            # →任务页;未派发 Jenkins 的本地兜底任务为空串,前端不渲染按钮
+            jenkins_base = (os.environ.get("JENKINS_PUBLIC_URL", "").strip() or os.environ.get("JENKINS_BASE_URL", "").strip()).rstrip("/")
+            for item in items:
+                jjob = str(item.get("jenkins_job") or "").strip()
+                jbuild = str(item.get("jenkins_build") or "").strip()
+                item["jenkins_log_url"] = (
+                    f"{jenkins_base}/job/{quote(jjob, safe='')}/{quote(jbuild, safe='')}/console"
+                    if jenkins_base and jjob and jbuild
+                    else f"{jenkins_base}/job/{quote(jjob, safe='')}/" if jenkins_base and jjob else ""
+                )
+            self.send_json({"items": items})
             return
         if parsed.path == "/api/zentao/config":
             from dashboard.zentao_client import is_configured
@@ -2541,6 +2582,69 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 return
             if parsed.path == "/api/apks":
                 self.send_json(self.store.register_apk(payload), HTTPStatus.CREATED)
+                return
+            if parsed.path == "/api/webhooks/gitlab":
+                # GitLab push webhook → 自动打包(2026-09-22 webhook 方案):dev 分支
+                # 有推送即走 /api/builds 同链路触发 Jenkins。鉴权:X-GitLab-Token 与
+                # .env.local GITLAB_WEBHOOK_SECRET 恒时比对(未配置视同拒绝);触发参数
+                # 全部服务端生成——branch 来自固定映射表、COMMIT 取 payload 40 位十六
+                # 进制校验、notes 固定前缀+白名单用户名,不给坑 15 留注入面。GitLab
+                # 侧分支过滤仅为省流,本映射表才是权威;所有分支恒回 2xx(GitLab 对
+                # 非 2xx 指数退避重试,鉴权失败除外——401 让其丢弃即可)。
+                secret = os.environ.get("GITLAB_WEBHOOK_SECRET", "").strip()
+                header_token = self.headers.get("X-GitLab-Token", "")
+                if not secret or not hmac.compare_digest(
+                        header_token.encode("utf-8"), secret.encode("utf-8")):
+                    self.send_error_json("invalid webhook token", HTTPStatus.UNAUTHORIZED)
+                    return
+
+                def _skip(reason: str) -> None:
+                    print(f"[gitlab-webhook] skip: {reason}", flush=True)
+                    self.send_json({"ok": True, "action": "skipped", "reason": reason})
+
+                if str(payload.get("object_kind") or "") != "push":
+                    _skip(f"object_kind={payload.get('object_kind') or ''} 非 push 事件")
+                    return
+                ref = str(payload.get("ref") or "")
+                branch = ref.removeprefix("refs/heads/")
+                after = str(payload.get("after") or "")
+                # 全 0 是分支删除/空树哨兵,且 0 是合法十六进制字符,须显式排除
+                if not re.fullmatch(r"[0-9a-f]{40}", after) or after == "0" * 40:
+                    _skip(f"ref={ref} after={after[:12]!r} 非常规分支推送(删除分支/空树等)")
+                    return
+                repo = str((payload.get("project") or {}).get("path_with_namespace") or "")
+                server_type = WEBHOOK_BUILD_MAP.get(repo, {}).get(branch, "")
+                if not server_type:
+                    _skip(f"{repo or '(unknown repo)'} {branch} 不在自动打包映射")
+                    return
+                short_sha = after[:7]
+                seen = self.store.find_apk(branch, short_sha, server_type)
+                if seen:
+                    _skip(f"{seen['apk_id']} 已登记(同 commit 去重)")
+                    return
+                notes = "webhook"
+                pusher = str(payload.get("user_name") or "").strip()
+                if re.fullmatch(r"[A-Za-z0-9_.\-]+", pusher):
+                    notes += ":" + pusher
+                if not jenkins_client.config():
+                    self.send_error_json(
+                        "Jenkins 未配置(JENKINS_BASE_URL/JENKINS_USER/JENKINS_API_TOKEN)",
+                        HTTPStatus.SERVICE_UNAVAILABLE)
+                    return
+                build_job = os.environ.get("JENKINS_BUILD_JOB", "").strip() or "swan-audio-build"
+                outcome = jenkins_client.trigger(
+                    build_job, {"BRANCH": branch, "SERVER_TYPE": server_type,
+                                "COMMIT": after, "NOTES": quote(notes)})
+                if not outcome.get("ok"):
+                    print(f"[gitlab-webhook] trigger failed: {outcome.get('error')}", flush=True)
+                    self.send_error_json(f"Jenkins 触发失败: {outcome.get('error')}",
+                                         HTTPStatus.BAD_GATEWAY)
+                    return
+                print(f"[gitlab-webhook] triggered: {repo} {branch}@{short_sha} "
+                      f"server_type={server_type} queue_id={outcome.get('queue_id')}", flush=True)
+                self.send_json({"ok": True, "action": "triggered", "job": build_job,
+                                "branch": branch, "commit": short_sha,
+                                "queue_id": outcome.get("queue_id")})
                 return
             if parsed.path == "/api/builds":
                 # 主动触发打包(M3):Jenkins 参数化 job(默认 swan-audio-build,可用

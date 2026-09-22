@@ -35,13 +35,15 @@
 2. laya 保留场景：短文本属性级 noul 断言、强区分小选项（k≤5）choice；上线前需重做置信校准
 3. 不建议：本地微调（训练栈未随 pip 发布、164 条样本远不够）、翻译走 EN 检查点（已证与语言无关）
 
-## GPU judge 服务（.176:8089）
+## GPU judge 服务（.176:8089）—— 已上线验收通过
 
 - 架构：单实例 HTTP 服务，各测试机调 `POST /predict {"state","questions"}`，避免每台机器装 CUDA
 - `judge_server.py`：stdlib ThreadingHTTPServer，token 鉴权（`X-Judge-Token`，token.txt 不入库），全局锁串行 predict，warmup 预热，`GET /health`
-- `start.sh`：HF 镜像 + venv 启动；`laya-judge.service`：systemd 常驻
-- 部署由 m176-leader 执行（176-001），硬边界：不碰 Jenkins
-- RTX 4070 驱动 580.178.04 已装好（nouveau 抢占已修，黑名单已补）
+- `start.sh`：HF 镜像 + venv 启动；`laya-judge.service`：systemd 常驻（enable 自启，Restart=on-failure）
+- 驱动 580.178.04 / CUDA 13.0；torch 2.14.0+cu126；模型常驻显存 1753MiB；防火墙 8089 限内网段
+- **实测**（.167→.176 内网，真实中文负载）：端到端 11-25ms/请求；服务端冷 108.6ms / 热 ~20ms，device=cuda；单连接约 50-90 QPS（瓶颈在串行锁，GPU 计算本身 1-2ms）
+- **调用方注意**：choice 型问题必须带 `criteria` 字典，否则 500；noul 不需要。中文负载必须 UTF-8（Windows curl 默认 GBK 会被拒）
+- 部署经过见 `leader/REPORT-176-001/003/004.md`（驱动修复 176-002、换源与 wheelhouse 抢救 176-003、模型内网直传 176-004）
 
 ## 两级 agent 编排
 

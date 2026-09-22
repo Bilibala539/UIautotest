@@ -186,6 +186,7 @@
 
 - **全站列宽拖拽**(2026-09-22 推广至全部列表表,用户指令):交互与用例管理 cd-table 同款——拖某列右缘,左缘不动、其他列不动;统一实现 `makeTableResizable(tbl, storeKey, pinLast)`:懒锁定(有 localStorage 存档直接转 fixed+colgroup 布局,无则保持自动布局、首次拖动再锁,防拖拽跳动),列宽限 56-1200px,各表独立 storeKey(tw-runs/tw-dl/tw-plcfg/tw-pljob/tw-su/tw-mods);cd-table 用例管理表自带实现,不重复绑定。`.table-card` 放开 overflow-x(修流水线任务列表被列宽截断)。
 - **操作列固定最右**(2026-09-22 用户指令):有操作按钮的列表,最后一列固定最右,不参与列宽拖拽——动作区位置恒定,行扫读时不用重新找按钮;被拖进表中部或被挤窄都伤可用性。实现口径(a65dde6):`makeTableResizable` 第三参 pinLast=true 时末列不挂 grip(dl/pl/pljob/su/mods 五表均 pin;runs 表无按钮列,不参与);cd-table 的 actions 列同时禁掉拖拽换序与调宽(表头不渲染 draggable 与 grip),旧 localStorage 存档加载时强制把 actions 归位最右(cdLoadCols 末尾归位,防旧档把操作列排到中间)。
+- **列表去内部 ID**(2026-09-22 用户拍板,f548f3a+d72ae3f 已上线):执行 ID、流水线配置 ID/任务 ID、套件 ID、验证码 requestId 等内部标识不再作为列表列——内部主键对扫读无决策价值,定位靠点行进详情/抽屉(理念 3:低频信息收下一层);"主键等宽 12px"规则保留给仍有标识列的表(用例编号、包 ID、commit 等业务可读标识)。行点击/行内按钮/取消/Jenkins 按钮逻辑不受影响。
 
 - 结构:`.card.table-card`(0 padding)+ 表头 `#fafbfc` 底 12px muted(现状保留)。
 - 可点击行(进详情):整行 `cursor:pointer` + hover 变色,**不在行里放"查看"按钮**;操作列除外。
@@ -353,7 +354,7 @@
 - 验证码(本页主角):`code.otp`=等宽 ui-monospace/16px/700/`--ink`/letter-spacing 2px,`--neutral-weak` 底 chip 8px 圆角 3px 10px。16px 属内容强调数字特例(先例 stat-value 22px),不新增全局字号档;**弃原 1.35em 红色**(红=失败语义,验证码不是状态)。
 - 状态徽标(三值中文映射):available→"有效"(`--good`/`--good-weak`)、consumed→"已消费"(`--muted`/`--neutral-weak`)、expired→"已过期"(`--warn`/`--warn-weak`);胶囊 12px/600 3px 9px。
 - 行降灰:consumed/expired 行整行 `--muted`;expired 行验证码 chip 降级(字 `--muted`/底透明/1px dashed `--line`)——5 分钟过期语义一眼可辨,有效行为对照。
-- 时间:生成时间=相对时间("刚刚/N 分钟前",title 全量);过期时间=HH:mm:ss 绝对(抄码操作意义,title 全量含日期)——**本地时区**渲染:记录时间为 UTC(Z 结尾),须用 Date 本地取时/分/秒,直接切 ISO 串会慢 8 小时(实现口径,2026-09-22 上线时修正);时间列 nowrap+tabular-nums。requestId 等宽 12px muted;手机号用后端脱敏值原样。
+- 时间:生成时间=相对时间("刚刚/N 分钟前",title 全量);过期时间=HH:mm:ss 绝对(抄码操作意义,title 全量含日期)——**本地时区**渲染:记录时间为 UTC(Z 结尾),须用 Date 本地取时/分/秒,直接切 ISO 串会慢 8 小时(实现口径,2026-09-22 上线时修正);时间列 nowrap+tabular-nums。requestId 等宽 12px muted(**2026-09-22 末:该列已随"列表去内部 ID"移除,f548f3a,本条留档**);手机号用后端脱敏值原样。
 - 空态:"暂无验证码记录,用例触发取码后约 2 秒自动出现";失败态:"加载失败:xxx(每 2 秒自动重试)"(2s interval 自带重试,不加按钮)。
 - JS 稳定化(**已实现**,含走钟补偿):refresh 前后 JSON 比对,无变化跳过 replaceChildren(防 2s 全量重绘打断行 hover);跳过分支内单独刷新相对时间单元格(行上存 dataset.created epoch),避免"N 分钟前"冻结——hover 稳定与走钟兼得。
 

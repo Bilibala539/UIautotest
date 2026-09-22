@@ -2098,11 +2098,12 @@
     async function loadGateway() {
       try {
         const h = await (await fetch('/api/gateway/health')).json();
-        gatewayUrl = h.gateway;
+        const u = new URL(h.gateway); u.hostname = location.hostname;  // iframe 由浏览器加载,127.0.0.1 会指向用户自己电脑;网关与平台同机,换成平台机地址
+        gatewayUrl = u.origin;
         $('gw-dot').className = 'dot ' + (h.ok ? 'ok' : 'bad');
         $('gw-text').textContent = h.ok ? '验证码网关正常' : '验证码网关异常';
         $('gw-detail').textContent = `${h.gateway} · ${String(h.detail).slice(0,80)}`;
-        if (h.ok && !$('gw-frame').src.includes('18080')) $('gw-frame').src = h.gateway + '/';
+        if (h.ok && !$('gw-frame').src.includes('18080')) $('gw-frame').src = gatewayUrl + '/';
       } catch (e) { $('gw-dot').className = 'dot bad'; $('gw-text').textContent = '验证码网关检测失败'; }
     }
     $('gw-reload').onclick = () => { if (gatewayUrl) $('gw-frame').src = gatewayUrl + '/'; };

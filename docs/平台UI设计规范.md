@@ -224,7 +224,7 @@
 - 成功/一般提示:深色 toast,2.4s 自动消失,文案如"已登记包 swan-dev-xxx"。成功 toast 左侧加 8px `--good` 竖条,失败加 `--bad` 竖条——不用 emoji。
 - 失败/错误:同样式,3.5s 或手动关。
 - 危险确认(删除用例/套件/配置、立即执行):统一确认弹窗——标题写动作("删除流水线配置 PIPE-SMOKE-DAILY?"),正文写后果("成员关系一并删除,此操作不可撤销"),按钮 `ghost 取消 + 实底 --bad 确认`。**替换全部 `confirm()` 调用。**
-- 全站统一组件(2026-09-22 深审定稿,单例复用,勿每页各造一个):`#cfm-modal`(fixed 遮罩 rgba(15,23,42,.45) z-60 + `.cfm-box` 白卡 12px 圆角/浮层阴影/宽 min(420px,92vw)/margin 12vh auto,h3"确认操作"+`#cfm-text` 正文+`ghost 取消`+`#cfm-ok` 实底 --bad 确认),显隐沿用全站 hidden+CSS 写法;JS `confirmAction(text)` 返回 Promise,6 处 confirm 调用点(删包/删用例/删模块/立即执行/删配置/删套件)以 `if(!(await confirmAction(原文案)))return;` 替换,文案原文照搬。14 处 alert 按双态映射:`showToast(msg)` 成功/一般、`showToast(msg, true)` 失败(流水线"已触发任务"那处成功 alert 也改 toast)。
+- 全站统一组件(2026-09-22 深审定稿,单例复用,勿每页各造一个):`#cfm-modal`(fixed 遮罩 rgba(15,23,42,.45) z-62 + `.cfm-box` 白卡 12px 圆角/浮层阴影/宽 min(420px,92vw)/margin 12vh auto,h3"确认操作"+`#cfm-text` 正文+`ghost 取消`+`#cfm-ok` 实底 --bad 确认),显隐沿用全站 hidden+CSS 写法。**结构裁断(2026-09-22 终审)**:dc0f4fa 实现用单层 fixed 容器(#cfm-modal 自带遮罩背景+内嵌白卡),与我最初给的 mask+aside 双层功能等价且少一个节点——**收编单层为准**;点遮罩关闭用 event.target===容器 判定(点白卡不关)。JS `confirmAction(text)` 返回 Promise,6 处 confirm 调用点(删包/删用例/删模块/立即执行/删配置/删套件)以 `if(!(await confirmAction(原文案)))return;` 替换,文案原文照搬。14 处 alert 按双态映射:`showToast(msg)` 成功/一般、`showToast(msg, true)` 失败(流水线"已触发任务"那处成功 alert 也改 toast)。**z 层定 62**(实现回写 2026-09-22):须盖过抽屉 z-61——删除用例的确认弹窗在抽屉打开时也要可达。全站浮层 z 链(2026-09-22 定稿,新增浮层按此插入):抽屉/侧栏 61 < cfm-modal 62 < bug-modal 63(建单表单从抽屉内触发,e61180d 起由 50 升 63)。
 - 表单内即时校验仍用现有 `msg` span,但文案规范:"包 ID 必填"这类具体字段名 + 原因,`--bad` 色 12px,不用"输入有误"。
 
 ### 4.6 表单
@@ -279,7 +279,7 @@
 
 ### 5.5 刷新与实时性
 
-- 不做 WebSocket/自动轮询刷新(工具页,手动刷新足够,避免"AI 式过度工程");保留显式"刷新"按钮,tab 切换时自动重拉该页数据(现状已做)。**例外(2026-09-21)**:机器监控页签为 5s 轮询——时效性指标手动刷新即失去监控意义;轮询仅限该页签激活期间(离开即停),粒度单接口,见 6.9。
+- 不做 WebSocket/自动轮询刷新(工具页,手动刷新足够,避免"AI 式过度工程");保留显式"刷新"按钮,tab 切换时自动重拉该页数据(现状已做)。**例外(2026-09-21 立,2026-09-22 用户拍板提速)**:机器监控页签为 **1s** 轮询(三级提速 5s→2s→1s,MC_POLL_MS=1000,两机 Prometheus scrape_interval 已同步 1s,数字粒度与页面刷新对齐)——时效性指标手动刷新即失去监控意义;轮询仅限该页签激活期间(离开即停),粒度单接口,见 6.9。
 - 列表更新后保持当前筛选与页码(现状分页已保页,补齐筛选保持)。
 
 ---
@@ -287,8 +287,8 @@
 ## 六、逐页签改进清单(P0=下个开发周期必做,P1=随后排)
 
 ### 6.1 执行会话(runs)
-- **P0** 会话详情从页面下方 `.detail` 区改为点行开右侧抽屉(680px),与用例管理详情交互统一;case 折叠面板(`.case`)原样搬入。
-- **P0** 通过率列上色:≥90% `--good`、<60% `--bad`、之间 `--ink`;纯数字右对齐。统计卡"最近一次状态"用徽章而非裸文本。
+- **P0** 会话详情从页面下方 `.detail` 区改为点行开右侧抽屉(680px),与用例管理详情交互统一;case 折叠面板(`.case`)原样搬入。实现级规格(2026-09-22 补):① HTML——删 runs 页内 `<section class="card detail" id="detail">`,新增 `#run-drawer[hidden]` 三层结构(`.cd-drawer-mask` 点遮罩关 + `aside.cd-drawer` 680px),与 cd-drawer 同款写法;② 头部 `.detail-head`——左:`.cd-drawer-id`(run_id) + h2(平台+状态文字) + `.meta`(设备/包体/开始时间/耗时) + `#detail-actions`(回写禅道按钮+hint,hidden+CSS 显隐写法照旧);右:ghost"关闭";③ 主体——cases 渲染逻辑整体搬入,`.case` 折叠面板/`.case-grid`/`pre` 样式全复用零改动;④ JS——**元素 id 全保留只挪位置**(detail-title/detail-meta/detail-actions/zt-sync-btn/zt-sync-hint),`showRun` 里 `$('detail').style.display='block'` 改 `$('run-drawer').hidden=false`,关闭走 closeRunDrawer()+Esc(与 cd-drawer 同款),原 `close-detail` onclick 并入。
+- **P0** 通过率列上色:≥90% `--good`、<60% `--bad`、之间 `--ink`;实现形态=**数字文字色不动底**(通过率是连续值不做 chip,chip 留给枚举状态):`rateColor(p){return p>=90?'var(--good)':p<60?'var(--bad)':'var(--ink)'}` 作用于 td;该列加 `class="num"` 右对齐+tabular-nums(顺带全站数字列统一);`total_cases=0` 显示 '-' 不上色。统计卡"最近一次状态"用徽章而非裸文本(实现已达成:badge(status))。
 - P1 工具栏加状态胶囊(全部/通过/失败/执行中),复用 `.cd-pills`。
 - P1 失败会话行首列加 8px 红点,未失败不加(扫读锚点)。
 

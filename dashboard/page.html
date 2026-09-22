@@ -7,7 +7,7 @@
   <style>
     :root { color-scheme: light; --ink:#172033; --muted:#667085; --line:#e6e9ef; --bg:#f5f7fb; --card:#fff; --brand:#405cf5; --good:#087f5b; --bad:#c92a2a; --warn:#ad6800; --good-weak:#e6fcf5; --bad-weak:#fff5f5; --brand-weak:#edf2ff; --warn-weak:#fff9db; --neutral-weak:#f1f3f8; --hover:#f8f9ff; --danger:#c92a2a; }
     * { box-sizing:border-box; } body { margin:0; color:var(--ink); background:var(--bg); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif; }
-    header { background:linear-gradient(120deg,#172554,#405cf5); color:#fff; padding:22px max(24px,calc((100% - 1240px)/2)) 0; }
+    header { background:var(--ink); color:#fff; padding:22px max(24px,calc((100% - 1240px)/2)) 0; }
     header h1 { margin:0 0 4px; font-size:23px; } header p { margin:0 0 14px; opacity:.78; }
     nav { display:flex; gap:4px; } nav button { border:none; border-radius:10px 10px 0 0; background:rgba(255,255,255,.12); color:#fff; padding:10px 22px; font-size:14px; cursor:pointer; }
     nav button.active { background:var(--bg); color:var(--ink); font-weight:600; }
@@ -41,7 +41,7 @@
     #su-drawer input[type=checkbox] { padding:0; width:auto; }
     #su-drawer .cd-drawer { width:min(980px,96vw); }
     /* 全站 Toast(规范 4.5):深色浮层+语义色左竖条,替代 alert/emoji 文案;成功 2.4s/失败 3.5s 自动消失 */
-    .toast { position:fixed; top:18px; left:50%; transform:translateX(-50%); z-index:99; background:var(--ink); color:#fff; padding:10px 18px; border-radius:10px; font-size:13px; box-shadow:0 8px 24px rgba(23,32,51,.24); border-left:8px solid var(--good); max-width:min(560px,92vw); }
+    .toast { position:fixed; top:18px; left:50%; transform:translateX(-50%); z-index:99; background:var(--ink); color:#fff; padding:10px 18px; border-radius:10px; font-size:13px; box-shadow:0 8px 24px rgba(23,32,51,.14); border-left:8px solid var(--good); max-width:min(560px,92vw); }
     .toast.bad { border-left-color:var(--bad); }
     /* M6 回写禅道测试单:按钮区 hidden+CSS 显隐写法(勿内联 display,避免顶掉 hidden) */
     #detail-actions { display:none; } #detail-actions:not([hidden]) { display:flex; gap:10px; align-items:center; margin-top:10px; }
@@ -58,12 +58,19 @@
     @media (max-width:800px) { .dl-cards { grid-template-columns:1fr; } }
     /* 下包页二维码弹窗(规范 4.4 420px 档;hidden+CSS 显隐写法同其他弹窗) */
     #dl-modal { display:none; } #dl-modal:not([hidden]) { display:flex; }
+    /* 全站统一确认弹窗(规范 4.5,z-62 盖过抽屉 61);.h-block 收编区块标题内联样式 */
+    #cfm-modal { position:fixed; inset:0; background:rgba(15,23,42,.45); z-index:62; }
+    .cfm-box { background:var(--card); border-radius:12px; box-shadow:0 8px 24px rgba(23,32,51,.14); width:min(420px,92vw); margin:12vh auto; padding:22px 24px; }
+    .cfm-box h3 { margin:0 0 10px; font-size:15px; } #cfm-text { margin:0; font-size:13px; }
+    .cfm-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:16px; }
+    #cfm-ok { background:var(--bad); border-color:var(--bad); color:#fff; }
+    .h-block { margin:22px 0 10px; font-size:17px; }
     /* 下包页重置高亮(规范 5.2:有激活筛选时描边变 --brand 提示可清除) */
     #dl-reset.active { border-color:var(--brand); color:var(--brand); }
     /* 规范 4.6:表单校验错误写到字段下方 12px 红字(不再只塞底部 msg) */
     .field-error { color:var(--bad); font-size:12px; margin-top:4px; display:block; }
     /* 规范 4.1 Danger 文字链:行内删除专用,无底 --bad 字,hover --bad-weak 底;padding 对齐行内档 5px 10px */
-    .link-danger { background:none; border:none; color:var(--bad); padding:5px 10px; font-size:12px; cursor:pointer; border-radius:6px; }
+    .link-danger { background:none; border:none; color:var(--bad); padding:5px 10px; font-size:12px; cursor:pointer; border-radius:8px; }
     .link-danger:hover { background:var(--bad-weak); }
     /* 备注列超长截断:单元格内 inline-block 裁切,title 悬停看全文 */
     .note-clip { display:inline-block; max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; vertical-align:bottom; }
@@ -90,7 +97,7 @@
     .cd-mini-btn { padding:5px 12px; font-size:12px; flex-shrink:0; }
     a.cd-mini-btn { display:inline-block; background:#fff; color:inherit; border:1px solid var(--line); border-radius:8px; text-decoration:none; cursor:pointer; }
     a.cd-mini-btn:hover { background:var(--hover); }
-    #cdd-file-path { font-family:monospace; font-size:12px; word-break:break-all; flex:1; min-width:180px; background:var(--neutral-weak); border-radius:6px; padding:4px 8px; }
+    #cdd-file-path { font-family:monospace; font-size:12px; word-break:break-all; flex:1; min-width:180px; background:var(--neutral-weak); border-radius:8px; padding:4px 8px; }
     /* 可清空输入框:右侧一键清空 X,仅在有内容时显示 */
     .cd-clear-wrap { position:relative; display:flex; align-items:center; }
     .cd-clear-wrap input { padding-right:26px; }
@@ -119,8 +126,8 @@
     .badge.t-text { color:#9a6700; background:#fff8e1; border:1px solid #efd68b; }
     .badge.t-auto { color:var(--brand); background:#edf2ff; border:1px solid #c3ceff; }
     .cd-filterbar { display:flex; gap:12px; align-items:center; flex-wrap:wrap; flex:1; }
-    .cd-pills { display:flex; background:#fff; border:1px solid var(--line); border-radius:9px; padding:3px; gap:2px; flex-shrink:0; }
-    .cd-pill { border:none; background:transparent; border-radius:7px; padding:7px 14px; color:var(--muted); font-size:13px; }
+    .cd-pills { display:flex; background:#fff; border:1px solid var(--line); border-radius:10px; padding:3px; gap:2px; flex-shrink:0; }
+    .cd-pill { border:none; background:transparent; border-radius:8px; padding:7px 14px; color:var(--muted); font-size:13px; }
     .cd-pill.active { background:var(--brand); color:#fff; font-weight:600; }
     .cd-search { display:flex; gap:8px; align-items:center; flex:1; min-width:250px; max-width:440px; }
     .cd-search input { flex:1; }
@@ -143,14 +150,14 @@
     .cd-none { color:var(--muted); }
     #cd-drawer[hidden] { display:none; }
     .cd-drawer-mask { position:fixed; inset:0; background:rgba(15,23,42,.35); z-index:60; }
-    .cd-drawer { position:fixed; top:0; right:0; bottom:0; width:min(680px,94vw); background:var(--card); z-index:61; box-shadow:-8px 0 30px rgba(23,32,51,.18); padding:22px 24px 28px; overflow:auto; }
+    .cd-drawer { position:fixed; top:0; right:0; bottom:0; width:min(680px,94vw); background:var(--card); z-index:61; box-shadow:-8px 0 30px rgba(23,32,51,.14); padding:22px 24px 28px; overflow:auto; }
     .cd-drawer pre { max-height:none; margin-top:0; }
     .cd-drawer-id { color:var(--muted); font-size:12px; letter-spacing:.4px; }
     .cd-drawer h2 { margin:2px 0 10px; font-size:19px; }
     .cd-drawer-chips { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px; }
     .cd-drawer-chips .chip { margin:0; }
     .cd-actions button { padding:5px 10px; font-size:12px; }
-    mark { background:#fff3bf; color:inherit; padding:0 1px; border-radius:2px; }
+    mark { background:#fff3bf; color:inherit; padding:0 1px; }
     .cd-pager { display:flex; align-items:center; gap:14px; margin-top:12px; flex-wrap:wrap; }
     .cd-pager .ghost { padding:5px 12px; font-size:12px; }
     .cd-pager .ghost:disabled { opacity:.45; cursor:default; }
@@ -206,7 +213,7 @@
 </head>
 <body>
   <header>
-    <h1>Swan 测试平台</h1><p>包体 · 执行会话 · 流水线 · 用例管理 · 用例历史 · 证据 · 验证码工具</p>
+    <h1>Swan 测试平台</h1>
     <nav>
       <button data-page="runs" class="active">执行会话</button>
       <button data-page="apks">包管理</button>
@@ -236,7 +243,7 @@
         <div class="card"><div class="stat-label">最近一次耗时</div><div class="stat-value" id="latest-duration">-</div></div>
       </section>
       <section class="card table-card"><table><thead><tr><th>执行 ID</th><th>平台</th><th>包体</th><th>设备</th><th>状态</th><th>通过率</th><th>用例数</th><th>耗时</th><th>开始时间</th></tr></thead><tbody id="runs"><tr><td colspan="9" class="empty">加载中…</td></tr></tbody></table></section>
-      <section class="card detail" id="detail"><div class="detail-head"><div><h2 id="detail-title"></h2><div class="meta" id="detail-meta"></div><div id="detail-actions" hidden><button class="ghost" id="zt-sync-btn">回写禅道测试单</button><span class="meta" id="zt-sync-hint"></span></div></div><button id="close-detail">关闭</button></div><div id="cases"></div></section>
+      <section class="card detail" id="detail"><div class="detail-head"><div><h2 id="detail-title"></h2><div class="meta" id="detail-meta"></div><div id="detail-actions" hidden><button class="ghost" id="zt-sync-btn">回写禅道测试单</button><span class="meta" id="zt-sync-hint"></span></div></div><button class="ghost" id="close-detail">关闭</button></div><div id="cases"></div></section>
     </section>
     <section class="page" id="page-apks">
       <section class="card" style="margin-bottom:16px">
@@ -299,7 +306,7 @@
         <button class="primary" id="pl-new">＋ 新建流水线配置</button>
       </div>
       <section class="card table-card"><table><thead><tr><th>配置 ID</th><th>名称</th><th>套件</th><th>含打包</th><th>频率</th><th>上次执行</th><th>下次执行</th><th>启用</th><th>操作</th></tr></thead><tbody id="pl-rows"><tr><td colspan="9" class="empty">加载中…</td></tr></tbody></table></section>
-      <h2 style="margin:22px 0 10px;font-size:17px">最近执行（最近 10 条）</h2>
+      <h2 class="h-block">最近执行（最近 10 条）</h2>
       <section class="card table-card"><table><thead><tr><th>任务 ID</th><th>平台</th><th>执行目标</th><th>状态</th><th>创建时间</th><th>结束时间</th><th>Jenkins</th></tr></thead><tbody id="pl-job-rows"><tr><td colspan="7" class="empty">加载中…</td></tr></tbody></table></section>
       <p class="hint">配置可关联测试套件，触发时按套件成员聚合执行目标；“立即执行”等同到点触发。任务由执行 agent 认领执行，结果见“执行会话”页。</p>
     </section>
@@ -324,7 +331,7 @@
         <h2 id="case-history-title" style="margin:0 0 12px;font-size:17px"></h2>
         <div class="timeline" id="case-timeline"></div>
       </section>
-      <p class="hint">先搜索关键词得到用例 ID，点选后查执行历史；从什么时候开始错的、近 20 次结果一目了然。</p>
+      <p class="hint">先搜索关键词得到用例 ID，点选后查执行历史；看从什么时候开始错的、近 20 次结果。</p>
     </section>
     <section class="page" id="page-casedefs">
       <section class="stats">
@@ -365,7 +372,7 @@
         </label>
         <span class="meta">表头可拖拽排序、右缘拖动调宽，"列设置"控制显隐</span>
       </div>
-      <p class="hint">未搜索时展示全部用例。点用例编号或关联 chip 查看详情（右侧抽屉）；文字 ⇄ 自动化互跳；bug 单来源自动取自用例 tags。仓库用例批量入库：python scripts/sync_cases.py。</p>
+      <p class="hint">未搜索时展示全部用例。点用例编号或关联 chip 查看详情（右侧抽屉）；文字用例与自动化用例互跳；bug 单来源自动取自用例 tags。仓库用例批量入库：python scripts/sync_cases.py。</p>
     </section>
     <section class="page" id="page-captcha">
       <section class="card captcha-card">
@@ -628,6 +635,7 @@
       </div>
     </div>
   </div>
+  <div id="cfm-modal" hidden><div class="cfm-box"><h3>确认操作</h3><p id="cfm-text"></p><div class="cfm-actions"><button class="ghost" id="cfm-cancel">取消</button><button id="cfm-ok">确认</button></div></div></div>
   <div id="dl-modal" hidden style="position:fixed;inset:0;background:rgba(15,23,42,.45);align-items:center;justify-content:center;z-index:50">
     <div style="background:var(--card,#fff);border-radius:12px;padding:20px 22px;width:min(420px,90vw);max-height:88vh;overflow:auto">
       <h3 class="mono" style="margin:0 0 4px;font-size:14px;word-break:break-all" id="dl-m-title"></h3>
@@ -636,7 +644,7 @@
       <div style="display:flex;justify-content:center;margin:10px 0" id="dl-m-qr"></div>
       <div class="meta" style="margin:6px 0 4px">下载地址</div>
       <div style="display:flex;gap:8px;align-items:center">
-        <code class="mono" id="dl-m-url" style="flex:1;word-break:break-all;background:var(--neutral-weak);border-radius:6px;padding:4px 8px;font-size:12px"></code>
+        <code class="mono" id="dl-m-url" style="flex:1;word-break:break-all;background:var(--neutral-weak);border-radius:8px;padding:4px 8px;font-size:12px"></code>
         <button class="ghost" id="dl-m-copy" style="flex-shrink:0;padding:5px 12px;font-size:12px">复制链接</button>
       </div>
       <p class="meta" style="margin:10px 0 0">仅支持 Android 安装；iOS 扫码可打开链接但无法安装 apk</p>
@@ -670,6 +678,22 @@
       box.hidden = false;
       toastTimer = setTimeout(() => { box.hidden = true; }, bad ? 3500 : 2400);
     }
+
+    // ---------- 全站统一确认弹窗(规范 4.5):替代原生 confirm,Promise 返回是否确认 ----------
+    let cfmResolve = null;
+    function confirmAction(text) {
+      $('cfm-text').textContent = text;
+      $('cfm-modal').hidden = false;
+      return new Promise(res => { cfmResolve = res; });
+    }
+    function cfmSettle(confirmed) {
+      if (!cfmResolve) return;
+      $('cfm-modal').hidden = true;
+      const settle = cfmResolve; cfmResolve = null; settle(confirmed);
+    }
+    $('cfm-ok').onclick = () => cfmSettle(true);
+    $('cfm-cancel').onclick = () => cfmSettle(false);
+    $('cfm-modal').onclick = e => { if (e.target === $('cfm-modal')) cfmSettle(false); }; // 规范 4.3:点遮罩=取消
 
     document.querySelectorAll('nav button').forEach(btn => btn.onclick = () => {
       document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
@@ -747,10 +771,10 @@
       if (!zentaoConfigured) {
         const cfg = await (await fetch('/api/zentao/config')).json();
         zentaoConfigured = cfg.configured;
-        if (!zentaoConfigured) { $('bug-status').textContent = ''; alert('禅道未配置(ZENTAO_URL/账号/密码 缺失,部署机 .env.local)'); return; }
+        if (!zentaoConfigured) { $('bug-status').textContent = ''; showToast('禅道未配置(ZENTAO_URL/账号/密码 缺失,部署机 .env.local)', true); return; }
       }
       const draft = await (await fetch('/api/zentao/draft', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({run_id: runId, case_name: caseName})})).json();
-      if (draft.error) { alert('草稿生成失败: ' + draft.error); return; }
+      if (draft.error) { showToast('草稿生成失败: ' + draft.error, true); return; }
       $('bug-title').value = draft.title || '';
       $('bug-steps').value = draft.steps || '';
       $('bug-severity').value = String(draft.severity || 3);
@@ -775,7 +799,7 @@
       const resp = await fetch('/api/zentao/create', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
       const data = await resp.json().catch(() => ({}));
       if (resp.ok) { $('bug-status').textContent = '已创建禅道 bug #' + (data.id || ''); setTimeout(() => { $('bug-modal').hidden = true; }, 1500); }
-      else { $('bug-status').textContent = ''; alert('提交失败: ' + (data.error || resp.status)); $('bug-submit').disabled = false; }
+      else { $('bug-status').textContent = ''; showToast('提交失败: ' + (data.error || resp.status), true); $('bug-submit').disabled = false; }
     };
 
     async function loadApks() { // 包管理主加载:拉包台账,填执行会话筛选下拉,再渲染双卡/表格(原 dlLoad 并入)
@@ -795,8 +819,8 @@
       sel.value = current;
       dlRenderBranchOptions(); dlRenderCounts(); dlSyncFilterUI(); dlRenderLatest(); dlRenderTable();
     }
-    async function apkDelete(apkId) { // 删除台账行(规范 4.1 行内危险文字链 + confirm 确认,对齐全站现有删除模式)
-      if (!confirm(`确认删除安装包 ${apkId}？此操作不可撤销；磁盘文件与执行历史保留。`)) return;
+    async function apkDelete(apkId) { // 删除台账行(规范 4.1 行内危险文字链 + confirmAction 确认,对齐全站现有删除模式)
+      if (!(await confirmAction(`确认删除安装包 ${apkId}？此操作不可撤销；磁盘文件与执行历史保留。`))) return;
       try {
         const resp = await fetch('/api/apks/' + encodeURIComponent(apkId), { method: 'DELETE' });
         const data = await resp.json().catch(() => ({}));
@@ -1208,7 +1232,7 @@
     function closeCaseDefDrawer() { $('cd-drawer').hidden = true; }
     async function showCaseDefDrawer(caseId) {
       const c = await (await fetch('/api/case-defs/' + encodeURIComponent(caseId))).json();
-      if (c.error) { alert(c.error); return; }
+      if (c.error) { showToast(c.error, true); return; }
       $('cdd-id').textContent = c.case_id;
       $('cdd-title').textContent = c.title || caseId;
       const chips = [`<span class="badge t-${c.case_type}">${c.case_type === 'text' ? '文字用例' : '自动化用例'}</span>`];
@@ -1264,7 +1288,7 @@
       $('cd-form-id').textContent = caseId || '新建';
       $('cd-modal-title').textContent = caseId ? '编辑用例 ' + caseId : '新建用例';
       let c = { case_type: 'text' };
-      if (caseId) { c = await (await fetch('/api/case-defs/' + encodeURIComponent(caseId))).json(); if (c.error) { alert(c.error); return; } }
+      if (caseId) { c = await (await fetch('/api/case-defs/' + encodeURIComponent(caseId))).json(); if (c.error) { showToast(c.error, true); return; } }
       cdCaseSnap = caseId ? c : null; // 已入库快照,标题完成保存时防覆盖其他字段
       $('cd-f-id').value = c.case_id || ''; $('cd-f-id').disabled = !!caseId;
       // 自动化用例(编辑态)收窄:content/ID/标题/类型/来源 bug 单只读,可编辑仅
@@ -1404,10 +1428,10 @@
       else $('cd-msg').textContent = '保存失败: ' + (data.error || resp.status);
     }
     async function deleteCaseDef(caseId) {
-      if (!confirm(`确认删除用例 ${caseId}？此操作不可撤销。`)) return;
+      if (!(await confirmAction(`确认删除用例 ${caseId}？此操作不可撤销。`))) return;
       const resp = await fetch('/api/case-defs/' + encodeURIComponent(caseId), { method:'DELETE' });
       if (resp.ok) { loadCaseDefs(); }
-      else { const data = await resp.json().catch(() => ({})); alert('删除失败: ' + (data.error || resp.status)); }
+      else { const data = await resp.json().catch(() => ({})); showToast('删除失败: ' + (data.error || resp.status), true); }
     }
     $('cd-search').onclick = () => { cdPage = 1; renderCaseDefs(); };
     $('cd-q').oninput = () => { cdPage = 1; renderCaseDefs(); };
@@ -1454,7 +1478,7 @@
       else $('cd-mods-msg').textContent = '改名失败: ' + (data.error || resp.status);
     }
     async function cdDeleteModule(slug) {
-      if (!confirm(`确认删除模块 ${slug}？`)) return;
+      if (!(await confirmAction(`确认删除模块 ${slug}？`))) return;
       const resp = await fetch('/api/modules/' + encodeURIComponent(slug), { method: 'DELETE' });
       const data = await resp.json().catch(() => ({}));
       if (resp.ok) { $('cd-mods-msg').textContent = '已删除'; cdRenderMods(); }
@@ -1783,7 +1807,7 @@
     // 抽屉/弹窗统一 Esc 关闭(UI 规范 4.3):依次看哪些开着
     document.addEventListener('keydown', e => {
       if (e.key !== 'Escape') return;
-      [['cd-drawer', closeCaseDefDrawer], ['cd-modal', cdCloseForm],
+      [['cfm-modal', () => cfmSettle(false)], ['cd-drawer', closeCaseDefDrawer], ['cd-modal', cdCloseForm],
        ['su-drawer', suCloseDrawer], ['cd-mods-modal', () => { $('cd-mods-modal').hidden = true; }],
        ['cd-imp-modal', () => { $('cd-imp-modal').hidden = true; }],
        ['su-modal', () => { $('su-modal').hidden = true; }]].forEach(([id, close]) => {
@@ -1850,7 +1874,7 @@
       plEditing = configId || null;
       $('pl-msg').textContent = '';
       let c = null;
-      if (configId) { c = await (await fetch('/api/pipeline-configs/' + encodeURIComponent(configId))).json(); if (c.error) { alert(c.error); return; } }
+      if (configId) { c = await (await fetch('/api/pipeline-configs/' + encodeURIComponent(configId))).json(); if (c.error) { showToast(c.error, true); return; } }
       $('pl-modal-title').textContent = configId ? '编辑流水线配置 ' + configId : '新建流水线配置';
       $('pl-f-name').value = c ? (c.name || '') : '';
       $('pl-f-id').value = c ? (c.config_id || '') : plSuggestId();
@@ -1928,20 +1952,20 @@
     }
     async function plToggleEnabled(configId, on) {
       const resp = await fetch('/api/pipeline-configs/' + encodeURIComponent(configId), { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ enabled: on ? 1 : 0 }) });
-      if (!resp.ok) { const d = await resp.json().catch(() => ({})); alert('切换失败: ' + (d.error || resp.status)); plLoadConfigs(); }
+      if (!resp.ok) { const d = await resp.json().catch(() => ({})); showToast('切换失败: ' + (d.error || resp.status), true); plLoadConfigs(); }
     }
     async function plRunNow(configId) {
-      if (!confirm(`确认立即执行配置 ${configId}？将创建一条流水线任务。`)) return;
+      if (!(await confirmAction(`确认立即执行配置 ${configId}？将创建一条流水线任务。`))) return;
       const resp = await fetch('/api/pipeline-configs/' + encodeURIComponent(configId) + '/run', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: '{}' });
       const data = await resp.json().catch(() => ({}));
-      if (resp.ok) { alert(`已触发任务 ${(data.job && data.job.job_id) || ''}`); plLoadConfigs(); }
-      else alert('触发失败: ' + (data.error || resp.status));
+      if (resp.ok) { showToast(`已触发任务 ${(data.job && data.job.job_id) || ''}`); plLoadConfigs(); }
+      else showToast('触发失败: ' + (data.error || resp.status), true);
     }
     async function plDeleteConfig(configId) {
-      if (!confirm(`确认删除流水线配置 ${configId}？此操作不可撤销。`)) return;
+      if (!(await confirmAction(`确认删除流水线配置 ${configId}？此操作不可撤销。`))) return;
       const resp = await fetch('/api/pipeline-configs/' + encodeURIComponent(configId), { method: 'DELETE' });
       if (resp.ok) plLoadConfigs();
-      else { const d = await resp.json().catch(() => ({})); alert('删除失败: ' + (d.error || resp.status)); }
+      else { const d = await resp.json().catch(() => ({})); showToast('删除失败: ' + (d.error || resp.status), true); }
     }
     $('pl-new').onclick = () => plOpenForm(null);
     $('pl-save').onclick = plSaveConfig;
@@ -1979,7 +2003,7 @@
       suEditing = suiteId || null;
       $('su-msg').textContent = '';
       let s = null;
-      if (suiteId) { s = await (await fetch('/api/suites/' + encodeURIComponent(suiteId))).json(); if (s.error) { alert(s.error); return; } }
+      if (suiteId) { s = await (await fetch('/api/suites/' + encodeURIComponent(suiteId))).json(); if (s.error) { showToast(s.error, true); return; } }
       $('su-modal-title').textContent = suiteId ? '编辑测试套件 ' + suiteId : '新建测试套件';
       $('su-f-name').value = s ? (s.name || '') : '';
       $('su-f-id').value = s ? (s.suite_id || '') : suSuggestId();
@@ -2003,16 +2027,16 @@
       else $('su-msg').textContent = '保存失败: ' + (data.error || resp.status);
     }
     async function suDeleteSuite(suiteId) {
-      if (!confirm(`确认删除测试套件 ${suiteId}？成员关系一并删除,此操作不可撤销。`)) return;
+      if (!(await confirmAction(`确认删除测试套件 ${suiteId}？成员关系一并删除,此操作不可撤销。`))) return;
       const resp = await fetch('/api/suites/' + encodeURIComponent(suiteId), { method: 'DELETE' });
       if (resp.ok) suLoadSuites();
-      else { const d = await resp.json().catch(() => ({})); alert('删除失败: ' + (d.error || resp.status)); }
+      else { const d = await resp.json().catch(() => ({})); showToast('删除失败: ' + (d.error || resp.status), true); }
     }
     // ----- 成员管理抽屉 -----
     function suCloseDrawer() { $('su-drawer').hidden = true; }
     async function suOpenMembers(suiteId) {
       const s = await (await fetch('/api/suites/' + encodeURIComponent(suiteId))).json();
-      if (s.error) { alert(s.error); return; }
+      if (s.error) { showToast(s.error, true); return; }
       suDrawerSuite = s;
       suMembers = (s.cases || []).map(c => c.case_id);
       suOriginalMembers = suMembers.slice();

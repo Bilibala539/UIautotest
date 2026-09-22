@@ -762,7 +762,6 @@
           <div class="case-grid"><span>开始：${safe(formatDate(c.started_at))}</span><span>结束：${safe(formatDate(c.ended_at))}</span><span>${link}${bugBtn}</span></div>
           ${c.error ? `<strong>错误</strong><pre>${safe(c.error)}</pre>` : ''}<strong>执行日志</strong><pre>${safe(c.log||'无日志')}</pre><strong>附件/证据</strong><pre>${safe(art)}</pre>`;
         box.appendChild(d); });
-      $('detail').scrollIntoView({behavior:'smooth'});
     }
     function gotoHistory(caseId) { $('case-id').value = caseId; document.querySelector('nav button[data-page=cases]').click(); $('case-load').click(); }
 

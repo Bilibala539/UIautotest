@@ -511,14 +511,13 @@ class OtpGateway(ThreadingHTTPServer):
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Swan OTP Gateway</title>
+  <title>短信验证码</title>
   <style>
     :root { --ink:#172033; --muted:#667085; --line:#e6e9ef; --bg:#f5f7fb; --card:#fff; --good:#087f5b; --good-weak:#e6fcf5; --warn:#ad6800; --warn-weak:#fff9db; --neutral-weak:#f1f3f8; --hover:#f8f9ff; }
     * { box-sizing:border-box; }
     body { margin:0; padding:18px 20px 28px; background:var(--bg); color:var(--ink); font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif; }
     main { max-width:1240px; margin:0 auto; }
     .otp-head { display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; margin-bottom:12px; }
-    .otp-head h1 { margin:0; font-size:17px; font-weight:600; }
     .otp-head .meta { color:var(--muted); font-size:12px; }
     .card { background:var(--card); border:1px solid var(--line); border-radius:12px; box-shadow:0 2px 10px rgba(23,32,51,.03); overflow:hidden; }
     table { width:100%; border-collapse:collapse; }
@@ -540,11 +539,11 @@ class OtpGateway(ThreadingHTTPServer):
 </head>
 <body>
 <main>
-  <div class="otp-head"><h1>Swan 验证码</h1><span class="meta">每 2 秒自动刷新 · 显示最近取码记录（含已消费/已过期）</span></div>
-  <div class="card"><table>
+  <div class="otp-head"><span class="meta">每 2 秒自动刷新 · 显示最近取码记录（含已消费/已过期）</span></div>
+  <table>
     <thead><tr><th>手机号</th><th>验证码</th><th>生成时间</th><th>过期时间</th><th>请求 ID</th><th>状态</th></tr></thead>
     <tbody id="items"><tr><td class="empty" colspan="6">加载中…</td></tr></tbody>
-  </table></div>
+  </table>
 </main>
 <script>
 const items = document.getElementById('items');

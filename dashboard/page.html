@@ -17,9 +17,14 @@
     .toolbar { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:16px; flex-wrap:wrap; }
     select,input,button { border:1px solid var(--line); border-radius:8px; background:#fff; padding:9px 12px; color:var(--ink); font-size:14px; }
     button { cursor:pointer; } button.primary { background:var(--brand); color:#fff; border-color:var(--brand); }
+    .icon-btn { display:inline-flex; align-items:center; justify-content:center; width:28px; height:26px; padding:0; vertical-align:middle; }
+    .icon-btn svg { width:14px; height:14px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+    .icon-btn.danger { color:var(--bad); } .icon-btn.danger:hover { border-color:var(--bad); }
+    .icon-btn:disabled { opacity:.45; cursor:not-allowed; }
     button.ghost { background:#fff; }
     .stats { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:18px; } .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px; box-shadow:0 2px 10px rgba(23,32,51,.03); }
-    .stat-label { color:var(--muted); font-size:12px; } .stat-value { font-size:25px; font-weight:700; margin-top:4px; } .table-card { padding:0; overflow:hidden; }
+    .stat-label { color:var(--muted); font-size:12px; } .stat-value { font-size:25px; font-weight:700; margin-top:4px; } .table-card { padding:0; overflow-x:auto; }
+    .table-card thead th { position:relative; }
     table { border-collapse:collapse; width:100%; } th,td { padding:12px 15px; border-bottom:1px solid var(--line); text-align:left; white-space:nowrap; } th { color:var(--muted); background:#fafbfc; font-size:12px; font-weight:600; }
     .num { text-align:right; font-variant-numeric:tabular-nums; }
     tbody tr.clickable { cursor:pointer; } tbody tr.clickable:hover { background:#f8f9ff; }
@@ -72,8 +77,6 @@
     /* 规范 4.6:表单校验错误写到字段下方 12px 红字(不再只塞底部 msg) */
     .field-error { color:var(--bad); font-size:12px; margin-top:4px; display:block; }
     /* 规范 4.1 Danger 文字链:行内删除专用,无底 --bad 字,hover --bad-weak 底;padding 对齐行内档 5px 10px */
-    .link-danger { background:none; border:none; color:var(--bad); padding:5px 10px; font-size:12px; cursor:pointer; border-radius:8px; }
-    .link-danger:hover { background:var(--bad-weak); }
     /* 备注列超长截断:单元格内 inline-block 裁切,title 悬停看全文 */
     .note-clip { display:inline-block; max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; vertical-align:bottom; }
     .su-type-smoke { color:var(--warn); background:var(--warn-weak); } .su-type-regression { color:var(--brand); background:var(--brand-weak); } .su-type-custom { color:var(--muted); background:var(--neutral-weak); }
@@ -158,7 +161,6 @@
     .cd-drawer h2 { margin:2px 0 10px; font-size:19px; }
     .cd-drawer-chips { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px; }
     .cd-drawer-chips .chip { margin:0; }
-    .cd-actions button { padding:5px 10px; font-size:12px; }
     mark { background:#fff3bf; color:inherit; padding:0 1px; }
     .cd-pager { display:flex; align-items:center; gap:14px; margin-top:12px; flex-wrap:wrap; }
     .cd-pager .ghost { padding:5px 12px; font-size:12px; }
@@ -178,9 +180,10 @@
     .cd-table th.drag-over { box-shadow:inset 2px 0 0 var(--brand); }
     @media (max-width:800px) { .cd-drawer { width:100vw; } }
     .hint { color:var(--muted); font-size:12px; margin-top:6px; }
-    .captcha-card { padding:0; overflow:hidden; }
-    .captcha-head { display:flex; gap:10px; align-items:center; padding:10px 14px; border-bottom:1px solid var(--line); background:#fafbfc; }
-    #page-captcha iframe { width:100%; height:clamp(480px,calc(100vh - 200px),780px); border:0; display:block; background:#fff; }
+    .captcha-card { padding:0; overflow:hidden; position:relative; }
+    .gw-corner { position:absolute; top:10px; right:12px; z-index:2; display:flex; gap:6px; align-items:center; font-size:12px; color:var(--muted); background:rgba(255,255,255,.92); border:1px solid var(--line); border-radius:999px; padding:2px 6px 2px 10px; }
+    .gw-corner .ghost { padding:2px 8px; font-size:11px; }
+    #page-captcha iframe { width:100%; height:clamp(480px,calc(100vh - 160px),820px); border:0; display:block; background:#fff; }
     .gw-offline { padding:44px; text-align:center; color:var(--muted); font-size:13px; }
     .dot { width:10px; height:10px; border-radius:50%; background:var(--muted); } .dot.ok { background:var(--good); } .dot.bad { background:var(--bad); }
     @media (max-width:800px) { .stats,.form-grid { grid-template-columns:repeat(2,1fr); } .toolbar { align-items:stretch; flex-direction:column; } .table-card { overflow-x:auto; } }
@@ -224,7 +227,7 @@
       <button data-page="casedefs">用例管理</button>
       <button data-page="cases">用例历史</button>
       <button data-page="machines">机器监控</button>
-      <button data-page="captcha">验证码工具</button>
+      <button data-page="captcha">短信验证码</button>
     </nav>
   </header>
   <main>
@@ -392,11 +395,7 @@
     </section>
     <section class="page" id="page-captcha">
       <section class="card captcha-card">
-        <div class="captcha-head">
-          <span class="dot" id="gw-dot"></span><span id="gw-text">检测中…</span>
-          <span class="meta" id="gw-detail" style="flex:1"></span>
-          <button class="ghost" id="gw-reload" style="padding:5px 10px;font-size:12px">重新加载</button>
-        </div>
+        <div class="gw-corner"><span class="dot" id="gw-dot"></span><span id="gw-text">检测中…</span><button class="ghost" id="gw-reload">重新加载</button></div>
         <iframe id="gw-frame" src="about:blank" title="otp-gateway"></iframe>
         <div class="gw-offline" id="gw-offline" hidden></div>
       </section>
@@ -681,6 +680,55 @@
     const formatDate = (v) => v ? new Date(v).toLocaleString('zh-CN') : '-';
     const formatDuration = (s) => { s = Number(s||0); return s < 60 ? `${s.toFixed(1)} 秒` : `${Math.floor(s/60)} 分 ${Math.round(s%60)} 秒`; };
     const badge = (s) => `<span class="badge ${s}">${statusText[s]||s}</span>`;
+    // 行内操作图标(内联 SVG,描边跟随 currentColor;规范:不用 emoji)
+    const ICON = {
+      edit: '<svg viewBox="0 0 24 24"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>',
+      trash: '<svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>',
+      play: '<svg viewBox="0 0 24 24"><polygon points="6 3 20 12 6 21 6 3"/></svg>',
+      download: '<svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>',
+      qr: '<svg viewBox="0 0 24 24"><rect width="5" height="5" x="3" y="3" rx="1"/><rect width="5" height="5" x="16" y="3" rx="1"/><rect width="5" height="5" x="3" y="16" rx="1"/><path d="M21 16h-3a2 2 0 0 0-2 2v3"/><path d="M21 21v.01"/><path d="M14 14v.01"/><path d="M14 21v.01"/><path d="M17 21v.01"/><path d="M21 14v.01"/></svg>',
+      log: '<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>',
+    };
+    // 全站列表列宽拖拽(用例管理表同款交互推广:拖某列右缘,左缘不动、其他列不动;localStorage 持久化)
+    function makeTableResizable(tbl, storeKey) {
+      const thead = tbl.querySelector('thead');
+      if (!thead || !thead.children.length) return;
+      const tr = thead.children[0];
+      const ths = [...tr.children];
+      let colgroup = null, saved = null;
+      try { saved = JSON.parse(localStorage.getItem(storeKey) || 'null'); } catch (e) {}
+      const lock = () => {  // 锁定:按当前渲染宽度转固定布局,此后拖拽互不影响
+        if (colgroup) return;
+        const widths = Array.isArray(saved) && saved.length === ths.length ? saved : ths.map(th => Math.round(th.getBoundingClientRect().width) || 120);
+        tbl.style.tableLayout = 'fixed';
+        colgroup = document.createElement('colgroup');
+        widths.forEach(w => { const col = document.createElement('col'); col.style.width = w + 'px'; colgroup.appendChild(col); });
+        tbl.insertBefore(colgroup, thead);
+        ths.forEach((th, i) => th.style.width = widths[i] + 'px');
+        tbl.style.width = widths.reduce((a, b) => a + b, 0) + 'px';
+      };
+      if (Array.isArray(saved) && saved.length === ths.length) lock();  // 有存档直接锁宽;否则保持自动布局,首次拖动再锁
+      ths.forEach((th, i) => {
+        const grip = document.createElement('span');
+        grip.className = 'cd-col-grip';
+        th.appendChild(grip);
+        grip.addEventListener('mousedown', e => {
+          e.preventDefault(); e.stopPropagation();
+          lock();
+          const startX = e.clientX, startW = th.offsetWidth;
+          const onMove = ev => {
+            const w = Math.min(Math.max(startW + ev.clientX - startX, 56), 1200);
+            th.style.width = w + 'px'; colgroup.children[i].style.width = w + 'px';
+            tbl.style.width = [...colgroup.children].reduce((s, c) => s + (parseInt(c.style.width) || 0), 0) + 'px';
+          };
+          const onUp = () => {
+            document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp);
+            try { localStorage.setItem(storeKey, JSON.stringify([...colgroup.children].map(c => parseInt(c.style.width)))); } catch (err) {}
+          };
+          document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp);
+        });
+      });
+    }
     let gatewayUrl = '';
 
     // ---------- 全站 Toast(规范 4.5):成功/一般 2.4s、失败 3.5s 自动消失,语义色竖条,不用 emoji ----------
@@ -978,8 +1026,8 @@
         const row = document.createElement('tr');
         const t = dlTime(a);
         const disabled = a.file_exists ? '' : 'disabled title="文件已清理"'; // 3.3:文件已清理禁用置灰,防扫出 404
-        const jkBtn = a.jenkins_log_url ? `<button class="ghost" data-act="jk">Jenkins 日志</button> ` : ''; // 无构建号的旧数据不渲染
-        row.innerHTML = `<td>${dlChip(a.server_type || 'test')}</td><td>${safe(a.app_version || '-')}</td><td>${safe(a.branch || '-')}</td><td title="${safe(formatDate(t))}">${dlRelTime(t)}</td><td><span class="note-clip" title="${safe(a.notes || '')}">${safe(a.notes || '-')}</span></td><td><button class="ghost" ${disabled} data-act="dl">下载</button> <button class="ghost" ${disabled} data-act="qr">二维码</button> ${jkBtn}<button class="link-danger" data-act="del">删除</button></td>`;
+        const jkBtn = a.jenkins_log_url ? `<button class="icon-btn" data-act="jk" title="Jenkins 日志">${ICON.log}</button> ` : ''; // 无构建号的旧数据不渲染
+        row.innerHTML = `<td>${dlChip(a.server_type || 'test')}</td><td>${safe(a.app_version || '-')}</td><td>${safe(a.branch || '-')}</td><td title="${safe(formatDate(t))}">${dlRelTime(t)}</td><td><span class="note-clip" title="${safe(a.notes || '')}">${safe(a.notes || '-')}</span></td><td><button class="icon-btn" ${disabled} data-act="dl" title="下载">${ICON.download}</button> <button class="icon-btn" ${disabled} data-act="qr" title="二维码">${ICON.qr}</button> ${jkBtn}<button class="icon-btn danger" data-act="del" title="删除">${ICON.trash}</button></td>`;
         row.querySelectorAll('button[data-act]').forEach(b => {
           const act = b.dataset.act;
           if (act === 'dl') b.onclick = () => dlDownload(a);
@@ -1175,7 +1223,7 @@
           links: linkChips,
           bug: bugChip,
           updated: `<span class="meta">${safe(formatDate(c.updated_at))}</span>`,
-          actions: `<div class="cd-actions"><button class="ghost" onclick="openCaseDefForm(decodeURIComponent('${encodeURIComponent(c.case_id)}'))">编辑</button> <button class="ghost" onclick="deleteCaseDef(decodeURIComponent('${encodeURIComponent(c.case_id)}'))">删除</button></div>`,
+          actions: `<div class="cd-actions"><button class="icon-btn" onclick="openCaseDefForm(decodeURIComponent('${encodeURIComponent(c.case_id)}'))" title="编辑">${ICON.edit}</button> <button class="icon-btn danger" onclick="deleteCaseDef(decodeURIComponent('${encodeURIComponent(c.case_id)}'))" title="删除">${ICON.trash}</button></div>`,
         };
         row.innerHTML = vis.map(col => `<td class="cd-td-${col.key}">${cells[col.key] || ''}</td>`).join('');
         tbody.appendChild(row); });
@@ -1483,7 +1531,7 @@
         row.innerHTML = `<td>${safe(m.slug)}</td>
           <td><input value="${safe(m.name_cn || '')}" style="width:180px"></td>
           <td>${m.case_count}</td>
-          <td><button class="ghost" ${m.case_count ? 'disabled title="有用例引用,不能删除"' : ''}>删除</button></td>`;
+          <td><button class="icon-btn danger" ${m.case_count ? 'disabled title="有用例引用,不能删除"' : ''} title="删除">${ICON.trash}</button></td>`;
         row.querySelector('input').onchange = e => cdRenameModule(m.slug, e.target.value);
         row.querySelector('button').onclick = () => cdDeleteModule(m.slug);
         tbody.appendChild(row); });
@@ -1872,7 +1920,7 @@
       plItems.forEach(c => { const row = document.createElement('tr');
         row.innerHTML = `<td>${safe(c.config_id)}</td><td>${safe(c.name)}${c.description ? `<div class="cd-case-title">${safe(c.description)}</div>` : ''}</td><td>${safe(c.suite_id || '-')}</td><td>${c.include_build ? '是' : '—'}</td><td>${safe(plScheduleText(c))}</td><td>${c.last_run_at ? safe(formatDate(c.last_run_at)) : '-'}</td><td>${c.next_run_at ? safe(formatDate(c.next_run_at)) : '-'}</td>
           <td><input type="checkbox" ${c.enabled ? 'checked' : ''} onchange="plToggleEnabled(decodeURIComponent('${encodeURIComponent(c.config_id)}'), this.checked)"></td>
-          <td><button class="ghost" onclick="plRunNow(decodeURIComponent('${encodeURIComponent(c.config_id)}'))">立即执行</button> <button class="ghost" onclick="plOpenForm(decodeURIComponent('${encodeURIComponent(c.config_id)}'))">编辑</button> <button class="ghost" onclick="plDeleteConfig(decodeURIComponent('${encodeURIComponent(c.config_id)}'))">删除</button></td>`;
+          <td><button class="icon-btn" onclick="plRunNow(decodeURIComponent('${encodeURIComponent(c.config_id)}'))" title="立即执行">${ICON.play}</button> <button class="icon-btn" onclick="plOpenForm(decodeURIComponent('${encodeURIComponent(c.config_id)}'))" title="编辑">${ICON.edit}</button> <button class="icon-btn danger" onclick="plDeleteConfig(decodeURIComponent('${encodeURIComponent(c.config_id)}'))" title="删除">${ICON.trash}</button></td>`;
         tbody.appendChild(row); });
       plLoadRecentJobs();
     }
@@ -1883,7 +1931,7 @@
       const tbody = $('pl-job-rows'); tbody.innerHTML = '';
       if (!jobs.length) { tbody.innerHTML = '<tr><td colspan="7" class="empty">暂无执行记录</td></tr>'; return; }
       jobs.forEach(j => { const row = document.createElement('tr');
-        const jkBtn = j.jenkins_log_url ? `<button class="ghost" data-act="jk">Jenkins 日志</button>` : ''; // 未派发 Jenkins 的本地兜底任务不渲染
+        const jkBtn = j.jenkins_log_url ? `<button class="icon-btn" data-act="jk" title="Jenkins 日志">${ICON.log}</button>` : ''; // 未派发 Jenkins 的本地兜底任务不渲染
         row.innerHTML = `<td>${safe(j.job_id)}</td><td>${safe((j.platform || '').toUpperCase())}</td><td>${safe(j.case_filter || '-')}</td><td><span class="badge ${PL_JOB_CLASS[j.status] || ''}">${PL_JOB_STATUS[j.status] || safe(j.status)}</span></td><td>${safe(formatDate(j.created_at))}</td><td>${j.finished_at ? safe(formatDate(j.finished_at)) : '-'}</td><td>${jkBtn}</td>`;
         row.querySelectorAll('button[data-act="jk"]').forEach(b => { b.onclick = () => window.open(j.jenkins_log_url, '_blank', 'noopener'); });
         tbody.appendChild(row); });
@@ -2014,7 +2062,7 @@
         row.innerHTML = `<td>${safe(s.suite_id)}</td><td>${safe(s.name)}${s.description ? `<div class="cd-case-title">${safe(s.description)}</div>` : ''}</td>
           <td><span class="badge su-type-${safe(s.suite_type)}">${SU_TYPE_CN[s.suite_type] || safe(s.suite_type)}</span></td>
           <td>${s.case_count}</td><td>${safe(formatDate(s.created_at))}</td>
-          <td><button class="ghost" onclick="suOpenMembers(decodeURIComponent('${encodeURIComponent(s.suite_id)}'))">成员管理</button> <button class="ghost" onclick="suOpenForm(decodeURIComponent('${encodeURIComponent(s.suite_id)}'))">编辑</button> <button class="ghost" onclick="suDeleteSuite(decodeURIComponent('${encodeURIComponent(s.suite_id)}'))">删除</button></td>`;
+          <td><button class="ghost" onclick="suOpenMembers(decodeURIComponent('${encodeURIComponent(s.suite_id)}'))">用例管理</button> <button class="icon-btn" onclick="suOpenForm(decodeURIComponent('${encodeURIComponent(s.suite_id)}'))" title="编辑">${ICON.edit}</button> <button class="icon-btn danger" onclick="suDeleteSuite(decodeURIComponent('${encodeURIComponent(s.suite_id)}'))" title="删除">${ICON.trash}</button></td>`;
         tbody.appendChild(row); });
     }
     async function suOpenForm(suiteId) {
@@ -2155,7 +2203,6 @@
         gatewayUrl = u.origin;
         $('gw-dot').className = 'dot ' + (h.ok ? 'ok' : 'bad');
         $('gw-text').textContent = h.ok ? '验证码网关正常' : '验证码网关异常';
-        $('gw-detail').textContent = `${h.gateway} · ${String(h.detail).slice(0,80)}`;
         const frame = $('gw-frame'), offline = $('gw-offline');
         if (h.ok) {
           frame.hidden = false; offline.hidden = true;
@@ -2177,6 +2224,9 @@
     $('case-search').onclick = searchCases; $('case-q').onkeydown = e => { if (e.key==='Enter') searchCases(); };
     $('case-load').onclick = loadCaseHistory; $('case-id').onkeydown = e => { if (e.key==='Enter') loadCaseHistory(); };
     loadRuns().catch(e => { $('runs').innerHTML = `<tr><td colspan="9" class="empty">加载失败：${e}</td></tr>`; });
+    // 全站列表启用列宽拖拽(用例管理表 cd-table 自带实现,不在其列)
+    [['runs','tw-runs'],['dl-rows','tw-dl'],['pl-rows','tw-plcfg'],['pl-job-rows','tw-pljob'],['su-rows','tw-su'],['cd-mods-rows','tw-mods']]
+      .forEach(([id, key]) => { const t = $(id) && $(id).closest('table'); if (t) makeTableResizable(t, key); });
 
     // ==================== 机器监控(machines,设计稿 docs/机器监控页设计.md;原生 SVG sparkline,不引图表库) ====================
     const MC_GRAFANA_URL = 'http://192.168.12.167:3000';  // Grafana 独立大盘(部署计划 §7.5),仅入口链接不内嵌

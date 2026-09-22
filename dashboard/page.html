@@ -693,7 +693,7 @@
   <script src="vendor/xlsx.full.min.js"></script>
   <script>
     const $ = (id) => document.getElementById(id);
-    const statusText = {running:'执行中', passed:'通过', failed:'失败', skipped:'跳过', error:'错误'};
+    const statusText = {running:'执行中', passed:'通过', failed:'失败', skipped:'跳过', error:'错误', cancelled:'已取消'};
     const safe = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     const formatDate = (v) => v ? new Date(v).toLocaleString('zh-CN') : '-';
     const formatDuration = (s) => { s = Number(s||0); return s < 60 ? `${s.toFixed(1)} 秒` : `${Math.floor(s/60)} 分 ${Math.round(s%60)} 秒`; };
@@ -798,7 +798,8 @@
       const qs = new URLSearchParams(); if (platform) qs.set('platform', platform); if (apk) qs.set('apk_id', apk);
       const data = await (await fetch('/api/runs?' + qs)).json(); const runs = data.items || [];
       $('run-count').textContent = runs.length;
-      const done = runs.filter(r => r.total_cases);
+      // 平均通过率分母排除已取消的 run(取消≠执行结论,取消拉脏统计;计划书 M-B2 拍板口径)
+      const done = runs.filter(r => r.total_cases && r.status !== 'cancelled');
       $('pass-rate').textContent = done.length ? (done.reduce((s,r)=>s+r.pass_rate,0)/done.length).toFixed(1)+'%' : '-';
       $('latest-status').innerHTML = runs.length ? badge(runs[0].status) : '-';
       $('latest-duration').textContent = runs.length ? formatDuration(runs[0].duration_seconds) : '-';
@@ -818,7 +819,7 @@
       $('detail-meta').textContent = `设备：${run.device||'-'}　开始：${formatDate(run.started_at)}　结束：${formatDate(run.ended_at)}　耗时：${formatDuration(run.duration_seconds)}　通过率：${run.pass_rate.toFixed(1)}%　包体：${run.apk_id||'-'}`;
       // M6 回写禅道测试单:完成态才显示(running 隐藏),已回写过则按钮转"更新"语义
       const ztBtn = $('zt-sync-btn');
-      $('detail-actions').hidden = (run.status === 'running');
+      $('detail-actions').hidden = (run.status === 'running' || run.status === 'cancelled'); // 已取消不回写禅道(取消≠执行结论,后端 409),按钮一并隐藏避免死交互
       ztBtn.textContent = run.zentao_task_id ? `更新禅道测试单(#${run.zentao_task_id})` : '回写禅道测试单';
       $('zt-sync-hint').textContent = '';
       ztBtn.onclick = () => zentaoSync(run.run_id);

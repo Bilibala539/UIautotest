@@ -913,10 +913,15 @@ class DashboardStore:
             failed = counts.get("failed", 0)
             skipped = counts.get("skipped", 0)
             errors = counts.get("error", 0)
-            status = normalize_status(payload.get("status"))
-            if status == "passed" and (failed or errors):
-                status = "failed"
-            if status not in {"passed", "failed", "skipped", "error"}:
+            # 取消是独立终态(M-B2):不走别名归一,也不做下方 passed→failed 覆盖——
+            # 取消≠执行结论,取消前已上报的用例计数如实保留,只是会话结论记 cancelled
+            if str(payload.get("status") or "").strip().lower() in {"cancelled", "cancel"}:
+                status = "cancelled"
+            else:
+                status = normalize_status(payload.get("status"))
+                if status == "passed" and (failed or errors):
+                    status = "failed"
+            if status not in {"passed", "failed", "skipped", "error", "cancelled"}:
                 status = "failed" if failed or errors else "passed"
             duration = float(payload.get("duration_seconds") or 0)
             if duration <= 0:
@@ -939,6 +944,7 @@ class DashboardStore:
         由 runs 查询路径触发。关联不依赖 job 侧改动:执行 agent 的 run_id 约定为
         pipe-{job_id},前缀反查即可。收尾口径:
         - job succeeded 且有用例:按 cases 聚合定状态(与 complete_run 一致)
+        - job cancelled(M-B2):定 cancelled(取消≠执行结论,对齐平台强制取消口径)
         - job 失败/env_blocked/被抢回,或 succeeded 却无用例上报:定 error
         - ended_at 取 job.finished_at(真实终态时刻);reaped 等关联信息写入 metadata_json
         UPDATE 带 status='running' 条件,并发/重复执行均无副作用。
@@ -974,6 +980,14 @@ class DashboardStore:
             elif row["job_status"] == "succeeded":
                 status = "error"
                 reason = "执行 agent 失联,pipeline job 已成功但无用例上报,会话由平台代管收尾"
+            elif row["job_status"] == "cancelled":
+                # 任务已取消而 run 收不到 agent 的 complete(M-B2):对齐"取消≠执行结论",
+                # 会话记 cancelled(取消前已上报用例计数如实保留),不误收 error 拉脏统计
+                status = "cancelled"
+                if job_result.get("forced_cancel"):
+                    reason = "执行 agent 失联,pipeline job 取消超时已被平台强制取消,会话由平台代管收尾"
+                else:
+                    reason = "执行 agent 失联,pipeline job 已取消,会话由平台代管收尾"
             else:
                 status = "error"
                 if reaped:
@@ -1014,18 +1028,21 @@ class DashboardStore:
         zentao_task_id 为空 → create_testtask 建单并回存单号;非空 → update_testtask
         更新 desc(幂等:重复点击=更新同一单)。REST v1 无用例级回写端点,结果以
         汇总 HTML 写进 desc。project/product 从环境读(部署机 .env.local),未配置抛
-        ValueError(400);running 未完成抛 RunNotFinalizedError(409)。
+        ValueError(400);running 未完成抛 RunNotFinalizedError(409);cancelled 不回写
+        (2026-09-22 拍板:取消≠执行结论,会话无结论可写,要结果就重跑)。
         """
         run = self.get_run(run_id)
         if run["status"] == "running":
             raise RunNotFinalizedError(f"会话 {run_id} 尚未结束,完成后才能回写禅道")
+        if run["status"] == "cancelled":
+            raise RunNotFinalizedError(f"已取消的执行会话不回写禅道(会话 {run_id} 被取消,无执行结论)")
         project_id = str(os.environ.get("ZENTAO_PROJECT_ID") or "").strip()
         product_id = str(os.environ.get("ZENTAO_PRODUCT_ID") or "").strip()
         if not project_id or not product_id:
             raise ValueError("需在平台机 .167 .env.local 配置 ZENTAO_PROJECT_ID 与 ZENTAO_PRODUCT_ID")
         cases = run.get("cases") or []
         source = str((run.get("metadata") or {}).get("source") or "-")
-        status_cn = {"passed": "通过", "failed": "失败", "error": "错误", "skipped": "跳过"}
+        status_cn = {"passed": "通过", "failed": "失败", "error": "错误", "skipped": "跳过", "cancelled": "已取消"}
         lines = [
             f"<p><strong>执行会话:</strong>{html.escape(str(run_id))}"
             f"(来源:{html.escape(source)},{html.escape(str(run.get('platform') or ''))} 平台)</p>",

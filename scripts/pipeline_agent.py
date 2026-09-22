@@ -210,10 +210,9 @@ def _finish_env_blocked(run_id: str, summary: str) -> dict:
     return {"status": "env_blocked", "result": {"run_id": run_id, "exit_code": 3}}
 
 
-# 取消时 run 收尾的上报状态:runs 侧状态枚举暂无 cancelled,先按 error 上报
-# (保证已上报用例结果保留、会话不留僵尸 running);执行与证据模块扩完枚举后
-# 改这一行为 "cancelled" 即可切换
-RUN_COMPLETE_STATUS_ON_CANCEL = "error"
+# 取消时 run 收尾的上报状态:runs 侧枚举已扩 cancelled(M-B2),取消收尾按
+# "已取消"上报(取消≠执行结论,不进通过率分母,已上报用例结果保留)
+RUN_COMPLETE_STATUS_ON_CANCEL = "cancelled"
 
 
 def _finish_cancelled(job_id: str, run_id: str, note: str = "") -> dict:

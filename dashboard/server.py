@@ -186,41 +186,38 @@ def try_jenkins_dispatch(store, job: dict) -> dict:
     return updated
 
 
-def _match_build_by_pipeline(job: dict, jenkins_job: str) -> int | None:
-    """队列项已被 Jenkins 清掉时的回查:在最近构建列表里找本任务对应的那次构建。
-
-    背景:resolve 靠 queue_item 拿构建号,但 Jenkins 会把已出结果的队列项清掉
-    (实测跨夜后 404),构建其实已跑完——按两条依据同时满足、取最新一条回查
-    (列表倒序,首个匹配即最新):
-      - 构建 timestamp >= 任务 created_at(任务侧 UTC ISO 转 epoch 毫秒比较);
-      - 构建入参 NOTES 解码后 == "pipeline:<config_id>"(触发时 quote 编码,
-        build_swan_apk.py 同规 unquote 解码)。
-    匹配不到/字段缺失/任一查询失败返回 None → 调用方保持 pending 下次再试,不瞎猜。
-    """
-    pipeline_value = str(((job.get("result") or {}).get("build") or {}).get("pipeline") or "").strip()
-    if not pipeline_value:
-        return None
+def _created_ms(job: dict) -> float | None:
+    """任务 created_at(UTC ISO)转 epoch 毫秒,与 Jenkins 构建 timestamp 同单位;解析失败返回 None。"""
     try:
-        created_ms = datetime.fromisoformat(
+        return datetime.fromisoformat(
             str(job.get("created_at") or "").replace("Z", "+00:00")).timestamp() * 1000
     except ValueError:
         return None
+
+
+def _collect_group_candidates(jenkins_job: str, pipeline_value: str,
+                              since_ms: float) -> list[tuple[int, float]]:
+    """列 jenkins_job 最近构建,筛本组候选:NOTES 匹配且 timestamp >= since_ms,按 timestamp 升序。
+
+    NOTES 触发时 quote 编码(build_swan_apk.py 同规 unquote 解码);列表倒序,
+    遇早于下限的构建提前收兵省参数查询。查询失败/无匹配返回 [] → 调用方保持 pending。
+    """
     listing = jenkins_client.list_builds(jenkins_job)
     if not listing.get("ok"):
-        return None
+        return []
     expected = f"pipeline:{pipeline_value}"
+    matched: list[tuple[int, float]] = []
     for entry in listing.get("builds") or []:
         number, timestamp = entry.get("number"), entry.get("timestamp")
         if not isinstance(number, int) or not isinstance(timestamp, (int, float)):
             continue
-        if timestamp < created_ms:
-            break  # 倒序:早于任务创建的构建不可能匹配,提前收兵省参数查询
+        if timestamp < since_ms:
+            break  # 倒序:更早的构建不可能属于组内任何任务
         params = jenkins_client.build_parameters(jenkins_job, number)
-        if not params.get("ok"):
-            continue
-        if unquote(str((params.get("params") or {}).get("NOTES") or "")) == expected:
-            return number
-    return None
+        if params.get("ok") and unquote(str((params.get("params") or {}).get("NOTES") or "")) == expected:
+            matched.append((number, timestamp))
+    matched.sort(key=lambda pair: pair[1])
+    return matched
 
 
 def resolve_build_pipeline_jobs(store) -> None:
@@ -230,37 +227,39 @@ def resolve_build_pipeline_jobs(store) -> None:
       - 有构建号 → 查构建结果,终态落库;
       - 只有 queue_id(还在排队)→ 先查队列拿构建号回填,结果下次读取再查;
       - 队列项已被 Jenkins 清掉(构建完成/取消后 404,2026-09-23 补)→
-        _match_build_by_pipeline 回查最近构建拿构建号,拿不到保持 pending。
+        取组内候选中最早未被占用的构建号,拿不到保持 pending。
+    同 config 多任务按 (jenkins_job, pipeline_value) 分组、组内 created_at 升序,
+    队列项被清的任务组内先到先得取未占用候选——老任务对老构建、新任务对新构建,
+    防同 config 的回查任务抢走后来触发的构建(2026-09-23 线上错配修正;queue
+    存活的任务直接拿自己队列项的构建号并同样计入占用)。
     查询失败静默跳过,下次列表再试,不阻塞页面;只扫最近 50 条内的 pending。
     """
     if not jenkins_client.config():
         return
+    groups: dict[tuple[str, str], list[dict]] = {}
     for job in store.list_pipeline_jobs(status="pending", limit=50):
         if job.get("trigger_source") != "build":
             continue
         jenkins_job = str(job.get("jenkins_job") or "")
         if not jenkins_job:
             continue  # 触发失败的任务触发时就落 failed,这里只会是历史脏数据
-        try:
-            build = job.get("jenkins_build")
-            if not build:
-                queue_id = (job.get("result") or {}).get("jenkins_queue_id")
-                if not queue_id:
-                    continue
-                item = jenkins_client.queue_item(queue_id)
-                if item.get("ok") and item.get("build"):
-                    build = item["build"]
-                else:
-                    # 404/被清/已取消 ≠ 还在排队:Jenkins 完成构建后会清队列项,
-                    # 回查最近构建拿构建号(跨夜挂死的根因即此),拿不到下次再试
-                    build = _match_build_by_pipeline(job, jenkins_job)
-                    if not build:
-                        continue
+        pipeline_value = str(((job.get("result") or {}).get("build") or {}).get("pipeline") or "").strip()
+        groups.setdefault((jenkins_job, pipeline_value), []).append(job)
+    for (jenkins_job, pipeline_value), members in groups.items():
+        # created_at 秒级精度,同秒双触发的先后由 queue_id(Jenkins 全局递增)保序
+        members.sort(key=lambda j: (str(j.get("created_at") or ""),
+                                    (j.get("result") or {}).get("jenkins_queue_id") or 0))
+        used: set[int] = set()
+
+        def _settle(job: dict, build: int, mark: bool) -> None:
+            """回填构建号(可选)并查构建结果,终态落库;构建中/查不到留给下次。"""
+            if mark:
                 store.mark_jenkins_dispatch(job["job_id"], jenkins_job=jenkins_job,
                                             jenkins_build=build)
+            used.add(build)
             status = jenkins_client.job_status(jenkins_job, build)
             if not status.get("ok") or status.get("building"):
-                continue  # 查不到/构建中 → 下次再看
+                return  # 查不到/构建中 → 下次再看
             outcome = str(status.get("result") or "")
             if outcome == "SUCCESS":
                 store.finish_build_pipeline_job(job["job_id"], "succeeded",
@@ -269,9 +268,52 @@ def resolve_build_pipeline_jobs(store) -> None:
                 store.finish_build_pipeline_job(
                     job["job_id"], "failed",
                     {**(job.get("result") or {}), "error": f"Jenkins 构建结果: {outcome}"})
-        except Exception as error:  # noqa: BLE001 — 单任务查询失败不影响列表
-            _reap_log(f"resolve build job={job.get('job_id')} 失败: {error}",
-                      filename="jenkins_dispatch.log")
+
+        # 第一遍:已有构建号/队列项存活的任务先闭环——不依赖候选列表,queue 存活组零
+        # 回查开销;拿到的构建号计入占用,防同组回查任务抢走
+        recheck: list[dict] = []
+        for job in members:
+            try:
+                build = job.get("jenkins_build")
+                if build:
+                    _settle(job, build, mark=False)
+                    continue
+                queue_id = (job.get("result") or {}).get("jenkins_queue_id")
+                if not queue_id:
+                    continue
+                item = jenkins_client.queue_item(queue_id)
+                if item.get("ok") and item.get("build"):
+                    _settle(job, item["build"], mark=True)
+                elif item.get("ok"):
+                    continue  # build=None:真在排队,构建还没影,不参与回查
+                else:
+                    recheck.append(job)  # 404/网络失败:队列项多半已被 Jenkins 清掉,交第二遍回查
+            except Exception as error:  # noqa: BLE001 — 单任务查询失败不影响列表
+                _reap_log(f"resolve build job={job.get('job_id')} 失败: {error}",
+                          filename="jenkins_dispatch.log")
+        # 第二遍:队列项被清的任务组内有序回查——created_at 升序先到先得,取候选中
+        # 最早未被占用的构建号(跨夜挂死的根因即此);无候选/任务缺时间锚不瞎猜
+        if recheck:
+            anchored = [ms for ms in (_created_ms(j) for j in recheck) if ms is not None]
+            try:
+                candidates = (_collect_group_candidates(jenkins_job, pipeline_value, min(anchored))
+                              if pipeline_value and anchored else [])
+            except Exception as error:  # noqa: BLE001 — 候选查询失败只放弃本轮回查
+                candidates = []
+                _reap_log(f"resolve build 组 {jenkins_job}/{pipeline_value} 候选查询失败: {error}",
+                          filename="jenkins_dispatch.log")
+            for job in recheck:  # members 已排过序,recheck 保持 created_at 升序
+                try:
+                    if not candidates or _created_ms(job) is None:
+                        continue
+                    build = next((number for number, _ts in candidates
+                                  if number not in used), None)
+                    if not build:
+                        continue
+                    _settle(job, build, mark=True)
+                except Exception as error:  # noqa: BLE001 — 单任务查询失败不影响列表
+                    _reap_log(f"resolve build job={job.get('job_id')} 失败: {error}",
+                              filename="jenkins_dispatch.log")
 
 
 def _reap_timeout_jobs(connection: sqlite3.Connection) -> list[dict[str, Any]]:

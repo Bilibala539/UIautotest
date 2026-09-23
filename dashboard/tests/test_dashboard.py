@@ -4,6 +4,7 @@ import gc
 import json
 import os
 import tempfile
+import time
 import threading
 import urllib.error
 import urllib.parse
@@ -321,6 +322,111 @@ def test_build_pipeline_config():
             assert status == 201
             config = json.loads(body)
             assert config["kind"] == "suite" and config["build"] == {}
+        finally:
+            for key, value in env_backup.items():
+                if value is None:
+                    os.environ.pop(key, None)
+                else:
+                    os.environ[key] = value
+            server.shutdown()
+            server.server_close()
+            jenkins_server.shutdown()
+            jenkins_server.server_close()
+            gc.collect()  # 例外/回溯帧可能循环引用 sqlite 连接;Windows 删库文件需句柄已关
+
+
+def test_build_resolver_same_config_collision():
+    """同 config 一天多次触发且队列项已被 Jenkins 清掉:组内按触发序先到先得,
+    老任务对老构建、新任务对新构建(2026-09-23 线上事故:04:17 任务错配到
+    13:31 同 config 构建 12/13 的根因即回查只取最新一条)。"""
+    with tempfile.TemporaryDirectory() as temporary_directory:
+        build_status = {9: "FAILURE"}  # 构建 8 → SUCCESS(默认),9 → FAILURE
+
+        class MockJenkins(BaseHTTPRequestHandler):
+            queue_counter = 900  # 类属性:handler 每请求新建实例,计数不能挂 self
+
+            def do_POST(self):
+                MockJenkins.queue_counter += 1
+                self.send_response(201)
+                self.send_header(
+                    "Location", f"http://mock-jenkins/queue/item/{MockJenkins.queue_counter}/")
+                self.end_headers()
+
+            def do_GET(self):
+                def reply(payload):
+                    body = json.dumps(payload).encode("utf-8")
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json")
+                    self.send_header("Content-Length", str(len(body)))
+                    self.end_headers()
+                    self.wfile.write(body)
+                if "/queue/item/" in self.path:
+                    # 队列项一律 404:模拟已出结果被清,逼回查路径
+                    self.send_response(404)
+                    self.end_headers()
+                elif "tree=actions[parameters" in self.path:
+                    # 参数查询(build_parameters 与 job_status 同路径,靠 tree 区分)
+                    reply({"actions": [{"parameters": [
+                        {"name": "NOTES", "value": "pipeline%3APIPE-COLLIDE"}]}]})
+                elif self.path.startswith("/job/swan-audio-build/api/json"):
+                    now_ms = int(time.time() * 1000)
+                    reply({"builds": [
+                        {"number": 9, "result": None, "building": False,
+                         "timestamp": now_ms + 10},
+                        {"number": 8, "result": None, "building": False,
+                         "timestamp": now_ms}]})
+                elif self.path.startswith("/job/swan-audio-build/"):
+                    number = int(self.path.split("/job/swan-audio-build/")[1].split("/")[0])
+                    reply({"building": False, "result": build_status.get(number, "SUCCESS")})
+                else:
+                    self.send_response(404)
+                    self.end_headers()
+
+            def log_message(self, *args):
+                pass
+
+        jenkins_server = ThreadingHTTPServer(("127.0.0.1", 0), MockJenkins)
+        threading.Thread(target=jenkins_server.serve_forever, daemon=True).start()
+        env_keys = ("JENKINS_BASE_URL", "JENKINS_USER", "JENKINS_API_TOKEN")
+        env_backup = {key: os.environ.get(key) for key in env_keys}
+        os.environ.update({
+            "JENKINS_BASE_URL": f"http://127.0.0.1:{jenkins_server.server_address[1]}",
+            "JENKINS_USER": "mock",
+            "JENKINS_API_TOKEN": "mock",
+        })
+        server = create_server("127.0.0.1", 0, Path(temporary_directory) / "dashboard.sqlite3")
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        base_url = f"http://127.0.0.1:{server.server_address[1]}"
+        try:
+            status, _, _ = request(base_url, "/api/pipeline-configs", "POST", {
+                "config_id": "PIPE-COLLIDE", "name": "同日多跑", "kind": "build",
+                "schedule_type": "daily", "schedule_param": {"time": "04:17"},
+                "build_param": {"branch": "dev", "server_type": "test"}})
+            assert status == 201
+
+            # 同 config 连跑两次 → 两个 pending 任务,queue_id 递增
+            queue_ids = []
+            for _ in range(2):
+                status, _, body = request(base_url, "/api/pipeline-configs/PIPE-COLLIDE/run",
+                                          "POST", {})
+                assert status == 201  # run 端点惯例返回 CREATED
+                job = json.loads(body)["job"]
+                queue_ids.append(job["result"]["jenkins_queue_id"])
+            assert queue_ids == sorted(queue_ids) and len(set(queue_ids)) == 2
+
+            # 列表读取触发 resolver:队列项 404 → 组内候选 [8, 9] 按触发序先到先得
+            status, _, body = request(base_url, "/api/pipeline/jobs?limit=30")
+            assert status == 200
+            jobs = json.loads(body)["items"]
+            by_queue = {j["result"]["jenkins_queue_id"]: j for j in jobs
+                        if j["trigger_source"] == "build"}
+            assert sorted(by_queue) == queue_ids
+            first, second = (by_queue[q] for q in queue_ids)
+            # 老任务(先触发)对老构建 8 且独立闭环为成功,而非抢到最新构建 9
+            assert first["jenkins_build"] == 8 and first["status"] == "succeeded"
+            assert first["finished_at"]
+            assert second["jenkins_build"] == 9 and second["status"] == "failed"
+            assert "FAILURE" in second["result"]["error"]
         finally:
             for key, value in env_backup.items():
                 if value is None:

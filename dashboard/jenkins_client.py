@@ -9,7 +9,9 @@
   - 所有失败都返回 {"ok": False, "error": str, ...} 结构化结果,不抛裸栈;
   - trigger 用 form 编码调 buildWithParameters,成功从 Location 头解析 queue id;
   - queue_item 轮询队列项,executable.number 出现即拿到 build 号;
-  - job_status 查询构建进行中/终态。
+  - job_status 查询构建进行中/终态;
+  - list_builds 列最近构建 / build_parameters 读构建入参——队列项被 Jenkins
+    清掉后的回查回退用(resolve_build_pipeline_jobs,2026-09-23)。
 """
 from __future__ import annotations
 
@@ -126,3 +128,59 @@ def job_status(job: str, build: int) -> dict:
         return _fail(f"响应非 JSON: {error}")
     return {"ok": True, "building": bool(data.get("building", False)),
             "result": data.get("result")}
+
+
+def list_builds(job: str, limit: int = 20) -> dict:
+    """列 job 最近构建(倒序):{"ok": True, "builds": [{number, result, timestamp, building}]}。
+
+    timestamp 为 epoch 毫秒(Jenkins 原生口径);仍在构建的 result 为 None。
+    """
+    cfg = config()
+    if not cfg:
+        return _fail("JENKINS_BASE_URL/JENKINS_USER/JENKINS_API_TOKEN 未配置")
+    url = (f"{cfg['base']}/job/{urllib.parse.quote(job, safe='')}/api/json"
+           f"?tree=builds[number,result,timestamp,building]{{0,{int(limit)}}}")
+    try:
+        status, _, text = _request("GET", url, headers={"Authorization": _auth_header(cfg)})
+    except urllib.error.HTTPError as error:
+        return _fail(f"HTTP {error.code}", status_code=error.code)
+    except (urllib.error.URLError, TimeoutError, OSError) as error:
+        return _fail(f"Jenkins 连接失败: {error}")
+    if status != 200:
+        return _fail(f"HTTP {status}", status_code=status)
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError as error:
+        return _fail(f"响应非 JSON: {error}")
+    return {"ok": True, "builds": data.get("builds") or []}
+
+
+def build_parameters(job: str, build: int) -> dict:
+    """读构建的参数化入参:{"ok": True, "params": {name: value}}。
+
+    参数在 actions 里 type=ParameterAction 的 parameters 数组,平铺成 dict 返回;
+    值保持 Jenkins 原样(如 NOTES 是 URL 编码串,解码由调用方定口径)。
+    """
+    cfg = config()
+    if not cfg:
+        return _fail("JENKINS_BASE_URL/JENKINS_USER/JENKINS_API_TOKEN 未配置")
+    url = (f"{cfg['base']}/job/{urllib.parse.quote(job, safe='')}/{int(build)}/api/json"
+           f"?tree=actions[parameters[name,value]]")
+    try:
+        status, _, text = _request("GET", url, headers={"Authorization": _auth_header(cfg)})
+    except urllib.error.HTTPError as error:
+        return _fail(f"HTTP {error.code}", status_code=error.code)
+    except (urllib.error.URLError, TimeoutError, OSError) as error:
+        return _fail(f"Jenkins 连接失败: {error}")
+    if status != 200:
+        return _fail(f"HTTP {status}", status_code=status)
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError as error:
+        return _fail(f"响应非 JSON: {error}")
+    params: dict = {}
+    for action in data.get("actions") or []:
+        for item in action.get("parameters") or []:
+            if item.get("name"):
+                params[str(item["name"])] = item.get("value")
+    return {"ok": True, "params": params}

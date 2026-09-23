@@ -186,12 +186,51 @@ def try_jenkins_dispatch(store, job: dict) -> dict:
     return updated
 
 
+def _match_build_by_pipeline(job: dict, jenkins_job: str) -> int | None:
+    """队列项已被 Jenkins 清掉时的回查:在最近构建列表里找本任务对应的那次构建。
+
+    背景:resolve 靠 queue_item 拿构建号,但 Jenkins 会把已出结果的队列项清掉
+    (实测跨夜后 404),构建其实已跑完——按两条依据同时满足、取最新一条回查
+    (列表倒序,首个匹配即最新):
+      - 构建 timestamp >= 任务 created_at(任务侧 UTC ISO 转 epoch 毫秒比较);
+      - 构建入参 NOTES 解码后 == "pipeline:<config_id>"(触发时 quote 编码,
+        build_swan_apk.py 同规 unquote 解码)。
+    匹配不到/字段缺失/任一查询失败返回 None → 调用方保持 pending 下次再试,不瞎猜。
+    """
+    pipeline_value = str(((job.get("result") or {}).get("build") or {}).get("pipeline") or "").strip()
+    if not pipeline_value:
+        return None
+    try:
+        created_ms = datetime.fromisoformat(
+            str(job.get("created_at") or "").replace("Z", "+00:00")).timestamp() * 1000
+    except ValueError:
+        return None
+    listing = jenkins_client.list_builds(jenkins_job)
+    if not listing.get("ok"):
+        return None
+    expected = f"pipeline:{pipeline_value}"
+    for entry in listing.get("builds") or []:
+        number, timestamp = entry.get("number"), entry.get("timestamp")
+        if not isinstance(number, int) or not isinstance(timestamp, (int, float)):
+            continue
+        if timestamp < created_ms:
+            break  # 倒序:早于任务创建的构建不可能匹配,提前收兵省参数查询
+        params = jenkins_client.build_parameters(jenkins_job, number)
+        if not params.get("ok"):
+            continue
+        if unquote(str((params.get("params") or {}).get("NOTES") or "")) == expected:
+            return number
+    return None
+
+
 def resolve_build_pipeline_jobs(store) -> None:
     """打包型流水线(trigger_source='build')任务的惰性收尾。
 
     build 任务无 agent 回报,靠列表读取时向 Jenkins 回查闭环:
       - 有构建号 → 查构建结果,终态落库;
-      - 只有 queue_id(还在排队)→ 先查队列拿构建号回填,结果下次读取再查。
+      - 只有 queue_id(还在排队)→ 先查队列拿构建号回填,结果下次读取再查;
+      - 队列项已被 Jenkins 清掉(构建完成/取消后 404,2026-09-23 补)→
+        _match_build_by_pipeline 回查最近构建拿构建号,拿不到保持 pending。
     查询失败静默跳过,下次列表再试,不阻塞页面;只扫最近 50 条内的 pending。
     """
     if not jenkins_client.config():
@@ -209,9 +248,14 @@ def resolve_build_pipeline_jobs(store) -> None:
                 if not queue_id:
                     continue
                 item = jenkins_client.queue_item(queue_id)
-                if not (item.get("ok") and item.get("build")):
-                    continue  # 还在排队
-                build = item["build"]
+                if item.get("ok") and item.get("build"):
+                    build = item["build"]
+                else:
+                    # 404/被清/已取消 ≠ 还在排队:Jenkins 完成构建后会清队列项,
+                    # 回查最近构建拿构建号(跨夜挂死的根因即此),拿不到下次再试
+                    build = _match_build_by_pipeline(job, jenkins_job)
+                    if not build:
+                        continue
                 store.mark_jenkins_dispatch(job["job_id"], jenkins_job=jenkins_job,
                                             jenkins_build=build)
             status = jenkins_client.job_status(jenkins_job, build)

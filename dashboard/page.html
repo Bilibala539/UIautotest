@@ -619,6 +619,7 @@
           </div>
         </div>
         <div id="pl-f-build-div"><label style="display:flex;gap:6px;align-items:center;margin-top:8px"><input type="checkbox" id="pl-f-build"> 执行前先打包</label></div>
+        <div style="grid-column:span 2"><label for="pl-f-desc">描述</label><input id="pl-f-desc" style="width:100%" placeholder="一句话说明这条流水线做什么(列表名称下方灰字)"></div>
         <div><label style="display:flex;gap:6px;align-items:center;margin-top:8px"><input type="checkbox" id="pl-f-enabled" checked> 启用</label></div>
         <div class="form-actions"><button class="primary" id="pl-save">保存</button><button class="ghost" id="pl-cancel">取消</button><span class="meta" id="pl-msg"></span></div>
       </div>
@@ -2007,6 +2008,7 @@
       $('pl-f-id').disabled = !!configId;   // config_id 是主键,编辑时不允许改
       $('pl-f-build').checked = !!(c && c.include_build);
       $('pl-f-enabled').checked = c ? !!c.enabled : true;
+      $('pl-f-desc').value = c ? (c.description || '') : '';
       const p = (c && c.schedule) || {};
       const freq = c ? c.schedule_type : 'daily';
       document.querySelectorAll('input[name="pl-freq"]').forEach(r => { r.checked = r.value === freq; });
@@ -2076,6 +2078,7 @@
         include_build: (kind !== 'build' && $('pl-f-build').checked) ? 1 : 0,
         schedule_type: built.freq, schedule_param: built.param,
         enabled: $('pl-f-enabled').checked ? 1 : 0,
+        description: $('pl-f-desc').value.trim(),
         platform: kind === 'build' ? 'flutter' : ($('pl-f-platform').value || 'flutter') };
       if (kind === 'build') {
         payload.build_param = { branch: $('pl-f-branch').value.trim() || 'dev',

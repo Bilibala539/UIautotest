@@ -266,6 +266,36 @@ SWAN_AI_PLATFORM_TITLE = image_path("swan_AI平台管理页_顶栏平台标题.p
 SWAN_AI_HISTORY_TITLE = image_path("swan_AI历史页_标题行.png", platform="flutter")
 
 
+# =====================================================================
+# Swan (Flutter) 回归第一批·域3 播放器草稿元素图片（A12-A20）
+# 2026-09-23 aw-codegen 按 docs/Swan回归用例AW实现方案.md §3 登记，
+# PNG 由 aw-element 按 docs/agents/swan/aw-element.md 流程截取进
+# image_ai/flutter/（PNG 尚不存在时相关用例会因模板缺失失败，属预期状态）；
+# aw-verify 真机跑通后 promote_image 转正，并把对应登记处的 draft=True
+# 改为 False（常量在 import 时解析为绝对路径，草稿/正式两态都可直接用）。
+# =====================================================================
+
+# --- 播放页 播放控制（五键中的四键；▶ 态已有 SWAN_PLAYER_PLAY_PAUSE_BTN） ---
+SWAN_PLAYER_PAUSE_BTN = image_path("swan_播放页_暂停按钮.png", platform="flutter", draft=True)       # 播放中的 ⏸ 态圆钮
+SWAN_PLAYER_PREV_BTN = image_path("swan_播放页_上一首按钮.png", platform="flutter", draft=True)
+SWAN_PLAYER_NEXT_BTN = image_path("swan_播放页_下一首按钮.png", platform="flutter", draft=True)
+SWAN_PLAYER_LOOP_LIST = image_path("swan_播放页_循环模式_列表循环.png", platform="flutter", draft=True)     # 循环钮三态之一
+SWAN_PLAYER_LOOP_SINGLE = image_path("swan_播放页_循环模式_单曲循环.png", platform="flutter", draft=True)
+SWAN_PLAYER_LOOP_SHUFFLE = image_path("swan_播放页_循环模式_随机播放.png", platform="flutter", draft=True)
+SWAN_PLAYER_PROGRESS_BAR = image_path("swan_播放页_进度条.png", platform="flutter", draft=True)    # 进度条整条（滑条锚；勿含两端时间文字）
+
+# --- 播放页 音量弹窗 ---
+SWAN_PLAYER_VOLUME_ICON = image_path("swan_播放页_音量图标.png", platform="flutter", draft=True)   # 播放页底部音量入口图标
+SWAN_PLAYER_VOLUME_POPUP = image_path("swan_播放页_音量弹窗.png", platform="flutter", draft=True)  # 弹窗整体或标题区（存在性判据）
+SWAN_PLAYER_VOLUME_SLIDER = image_path("swan_播放页_音量滑条.png", platform="flutter", draft=True)  # 弹窗内滑条整条（拖动锚）
+SWAN_PLAYER_VOLUME_PLUS = image_path("swan_播放页_音量加号按钮.png", platform="flutter", draft=True)
+SWAN_PLAYER_VOLUME_MINUS = image_path("swan_播放页_音量减号按钮.png", platform="flutter", draft=True)
+
+# --- 设备页 / 切换设备弹层 选中态 ---
+SWAN_DEVICE_CARD_SELECTED = image_path("swan_设备页_设备卡片选中态.png", platform="flutter", draft=True)  # 只截选中标识（边框/角标），勿含设备名
+SWAN_DEVICE_SHEET_CHECKED = image_path("swan_切换设备弹层_勾选态.png", platform="flutter", draft=True)    # 行首勾选圆点选中态（知识库未见此态，需真机人工选一次以截取）
+
+
 __all__ = [
     "ANDROID_DRAFT_IMAGE_DIR",
     "ANDROID_IMAGE_DIR",
@@ -337,6 +367,20 @@ __all__ = [
     "SWAN_AI_PLATFORM_ROW_BTN",
     "SWAN_AI_PLATFORM_TITLE",
     "SWAN_AI_HISTORY_TITLE",
+    "SWAN_PLAYER_PAUSE_BTN",
+    "SWAN_PLAYER_PREV_BTN",
+    "SWAN_PLAYER_NEXT_BTN",
+    "SWAN_PLAYER_LOOP_LIST",
+    "SWAN_PLAYER_LOOP_SINGLE",
+    "SWAN_PLAYER_LOOP_SHUFFLE",
+    "SWAN_PLAYER_PROGRESS_BAR",
+    "SWAN_PLAYER_VOLUME_ICON",
+    "SWAN_PLAYER_VOLUME_POPUP",
+    "SWAN_PLAYER_VOLUME_SLIDER",
+    "SWAN_PLAYER_VOLUME_PLUS",
+    "SWAN_PLAYER_VOLUME_MINUS",
+    "SWAN_DEVICE_CARD_SELECTED",
+    "SWAN_DEVICE_SHEET_CHECKED",
     "WEB_DRAFT_IMAGE_DIR",
     "WEB_IMAGE_DIR",
     "demote_image",

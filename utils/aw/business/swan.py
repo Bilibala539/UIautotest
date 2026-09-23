@@ -11,13 +11,30 @@ import re
 import time
 
 from image.image_name_mapping import (
+    SWAN_DEVICE_ADD_BTN,
     SWAN_DEVICE_CARD_SELECTED,
     SWAN_DEVICE_SHEET_CHECKED,
     SWAN_DEVICE_SHEET_TITLE,
     SWAN_FAVORITE_PLAY_ALL,
+    SWAN_HOME_AI_ADD_ROLE,
+    SWAN_HOME_MUSIC_SEARCH_BAR,
+    SWAN_HOME_RADIO_SEARCH_BAR,
+    SWAN_HOME_TAB_AI,
+    SWAN_HOME_TAB_MUSIC,
+    SWAN_HOME_TAB_RADIO,
+    SWAN_HOME_TAB_RECOMMEND,
+    SWAN_HOME_TAB_VISION,
+    SWAN_HOME_VISION_UNBOUND_HINT,
+    SWAN_HISTORY_TOPBAR,
+    SWAN_ME_FAVORITES_ROW,
+    SWAN_PD_FAV_OFF,
+    SWAN_PD_FAV_ON,
+    SWAN_PD_MORE_BTN,
     SWAN_PD_PLAY_ALL,
+    SWAN_PD_ROW_FAV_BTN,
     SWAN_PLAYER_DEVICE_BTN,
     SWAN_PLAYER_DISMISS_BTN,
+    SWAN_PLAYER_FAV_BTN,
     SWAN_PLAYER_LOOP_LIST,
     SWAN_PLAYER_LOOP_SHUFFLE,
     SWAN_PLAYER_LOOP_SINGLE,
@@ -31,6 +48,13 @@ from image.image_name_mapping import (
     SWAN_PLAYER_VOLUME_PLUS,
     SWAN_PLAYER_VOLUME_POPUP,
     SWAN_PLAYER_VOLUME_SLIDER,
+    SWAN_PLATFORM_NETEASE_ROW,
+    SWAN_SEARCH_EMPTY,
+    SWAN_SEARCH_SUBMIT,
+    SWAN_TAB_DEVICE,
+    SWAN_TAB_HOME,
+    SWAN_TAB_ME,
+    SWAN_TAB_PLATFORM,
 )
 from utils.aw.base.flutter_base import FlutterBaseAW
 from utils.aw.business.common import CommonBusinessMixin
@@ -617,3 +641,466 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         if cls._VOLUME_SLIDER_AXIS == "x":
             return x + int(w * ratio), y + h // 2
         return x + w // 2, y + int(h * (1.0 - ratio))
+
+    # =================================================================
+    # 域 4：导航（回归用例 29-31，方案 A21-A23）
+    #
+    # 定位铁律同域3（方案 §0）：图像模板 > OCR 文本；本域不使用
+    # accessibility key。已知陷阱（知识库 flow_导航_四tab切换 / swan_首页）：
+    #   - 顶 Tab 持久化：go_home 只回首页容器，顶 Tab 停留在上次选择，
+    #     要稳定落在某顶 Tab 必须显式点它；
+    #   - 推荐 Tab 存在完整/紧凑两种服务端布局轮换，依赖「歌单」卡的
+    #     入口须容忍轮换（未找到时下拉刷新重试）。
+    # =================================================================
+
+    # 底部导航 4 图标（A21，未选中态，域4 新截草稿；「推荐」为「首页」的
+    # 任务口径别名——底部标签 dump 文案是「首页」，顶 Tab 才叫「推荐」）。
+    # 图标选中态不匹配未选中态模板，故目标页锚点可见时短路不点（见 go_bottom_tab）。
+    _BOTTOM_TAB_TEMPLATES = {
+        "首页": SWAN_TAB_HOME,
+        "推荐": SWAN_TAB_HOME,
+        "平台": SWAN_TAB_PLATFORM,
+        "设备": SWAN_TAB_DEVICE,
+        "我的": SWAN_TAB_ME,
+    }
+
+    # 首页顶 Tab 5 张未选中态图（A22，均已转正）
+    _TOP_TAB_TEMPLATES = {
+        "推荐": SWAN_HOME_TAB_RECOMMEND,
+        "音乐": SWAN_HOME_TAB_MUSIC,
+        "AI": SWAN_HOME_TAB_AI,
+        "可视音箱": SWAN_HOME_TAB_VISION,
+        "电台": SWAN_HOME_TAB_RADIO,
+    }
+
+    # 顶 Tab 生效后的页面锚点（A22，均已转正图；可视音箱为未绑定态锚点，
+    # rig 未绑定可视音箱时稳定，绑定后需换锚点）
+    _TOP_TAB_ANCHORS = {
+        "音乐": SWAN_HOME_MUSIC_SEARCH_BAR,
+        "AI": SWAN_HOME_AI_ADD_ROLE,
+        "可视音箱": SWAN_HOME_VISION_UNBOUND_HINT,
+        "电台": SWAN_HOME_RADIO_SEARCH_BAR,
+    }
+
+    def _home_anchor_visible(self, timeout: float = 1.0) -> bool:
+        """首页容器判据：任一顶 Tab 未选中态图可见。
+
+        首页 5 个顶 Tab 至多 1 个处于选中态，任一张未选中态图可见即在
+        首页容器（与 tests/flutter/swan_regression_common.py 的
+        _ensure_logged_in_on_home 同口径，不依赖当前激活的是哪个顶 Tab）。
+        """
+        for template in self._TOP_TAB_TEMPLATES.values():
+            if self.find_image(template, timeout=timeout) is not None:
+                return True
+        return False
+
+    def _tab_shell_anchor_visible(self, timeout: float = 1.0) -> bool:
+        """全局 tab 壳（首页/平台/设备/我的 4 个一级页）判据。
+
+        push 页（歌单详情/播放历史/搜索/选择歌单等）无底部 4 tab，本判据
+        用于 back_to_tab_shell 里 press_back 前的防误退（首页按返回会退出 App）。
+        """
+        if self._home_anchor_visible(timeout=timeout):
+            return True
+        for template in (SWAN_PLATFORM_NETEASE_ROW, SWAN_DEVICE_ADD_BTN,
+                         SWAN_ME_FAVORITES_ROW):
+            if self.find_image(template, timeout=timeout) is not None:
+                return True
+        return False
+
+    def _page_anchor_visible(self, name: str, timeout: float = 2.0) -> bool:
+        """底部导航目标一级页的到位判据（go_bottom_tab 用，均不含计数字段）。"""
+        if name == "首页":
+            return self._home_anchor_visible(timeout=timeout)
+        if name == "平台":
+            if self.find_image(SWAN_PLATFORM_NETEASE_ROW, timeout=timeout) is not None:
+                return True
+            # ⚠️ 网易云行模板含「未授权」文案（映射文件已注），授权后该行
+            # 文案变化，退化用右上角「消费明细」OCR 作次选锚点
+            return self.find_text_by_ocr("消费明细", timeout=int(timeout)) is not None
+        if name == "设备":
+            return self.find_image(SWAN_DEVICE_ADD_BTN, timeout=timeout) is not None
+        if name == "我的":
+            return self.find_image(SWAN_ME_FAVORITES_ROW, timeout=timeout) is not None
+        return False
+
+    def go_bottom_tab(self, name: str, timeout: float = 15.0) -> None:
+        """底部导航切换（A21，回归用例29）。name ∈ 首页(推荐)/平台/设备/我的。
+
+        底部 4 图标 [图]（未选中态草稿模板）定位点击；目标页一级锚点已
+        可见时短路返回（此时目标图标处于选中态，未选中态模板不匹配）。
+        收尾断言：目标页锚点轮询至 timeout。
+        须在全局 tab 壳页调用；push 页先 back_to_tab_shell。
+        """
+        template = self._BOTTOM_TAB_TEMPLATES.get(name)
+        if template is None:
+            raise ValueError(
+                f"底部导航仅支持 {sorted(set(self._BOTTOM_TAB_TEMPLATES))}，收到 {name!r}")
+        if self._page_anchor_visible(name):
+            logger.info("go_bottom_tab: 已在%s页，短路返回", name)
+            return
+        self.click_image(template, timeout=10)
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            if self._page_anchor_visible(name, timeout=2):
+                return
+            self.sleep(0.5)
+        assert False, f"点击底部导航「{name}」后 {timeout}s 内未检测到目标页锚点"
+
+    def go_top_tab(self, name: str, timeout: float = 15.0) -> None:
+        """首页顶 Tab 切换（A22，回归用例30）。name ∈ 推荐/音乐/AI/可视音箱/电台。
+
+        顶 Tab 行只在首页容器渲染：不在首页时先经底部导航 [图] 回首页
+        （顶 Tab 持久化陷阱，见域4 段注）。顶 Tab 用未选中态已转正图定位；
+        目标 Tab 的未选中态图不可见即视为已停在该 Tab（选中态图标不匹配
+        未选中态模板，同 tests/flutter/swan_regression_common.py
+        _stay_on_recommend_tab 的判定口径）。
+        到位断言：音乐/AI/可视音箱/电台 用各自页面锚点 [图]；推荐 用
+        「其余 4 个未选中态 Tab 图任一可见」——推荐页两种布局轮换下均稳定。
+        """
+        template = self._TOP_TAB_TEMPLATES.get(name)
+        if template is None:
+            raise ValueError(
+                f"顶 Tab 仅支持 {sorted(self._TOP_TAB_TEMPLATES)}，收到 {name!r}")
+        if not self._home_anchor_visible():
+            self.go_bottom_tab("首页")
+        if self.find_image(template, timeout=2) is not None:
+            self.click_image(template, timeout=5)
+        else:
+            logger.info("go_top_tab: 顶 Tab「%s」未选中态图不可见，视为已停在该 Tab", name)
+        if name == "推荐":
+            deadline = time.monotonic() + timeout
+            while time.monotonic() < deadline:
+                for tpl in (SWAN_HOME_TAB_MUSIC, SWAN_HOME_TAB_RADIO,
+                            SWAN_HOME_TAB_AI, SWAN_HOME_TAB_VISION):
+                    if self.find_image(tpl, timeout=2) is not None:
+                        return
+                self.sleep(0.5)
+            assert False, f"切顶 Tab「推荐」后 {timeout}s 内未见其余顶 Tab 未选中态图"
+        self.image_exists(self._TOP_TAB_ANCHORS[name], timeout=timeout)
+
+    def open_home_card(self, name: str, timeout: float = 15.0) -> None:
+        """首页推荐 Tab 卡片进入（A23，回归用例31）。
+
+        卡片内容动态且推荐 Tab 有完整/紧凑两种服务端布局轮换（知识库
+        swan_首页），卡片定位一律 OCR 文案；「歌单」卡在紧凑布局下不存在，
+        未找到时下拉刷新重试（_click_ocr_until_found）。支持卡片与到位断言：
+          我喜欢 -> 我喜欢页（OCR 副标题「宝藏音乐，随心收藏」，本页特有判据）
+          歌单 -> 歌单页（OCR 脚注「已加载全部」）
+          最近播放/已播歌曲/已播歌手/已播专辑 -> 播放历史页（顶栏 [图]）
+        AI 卡与个性化推荐卡落的页 KB 未探索（2026-09-11 R3 记录），不支持
+        （传入即报错），待 explorer 补充后扩展。
+        """
+        self.go_top_tab("推荐")
+        if name in ("最近播放", "已播歌曲", "已播歌手", "已播专辑"):
+            self._click_ocr_until_found("已播歌曲" if name == "最近播放" else name,
+                                        scroll="up")
+            self.image_exists(SWAN_HISTORY_TOPBAR, timeout=timeout)
+            return
+        if name == "我喜欢":
+            self._click_ocr_until_found("我喜欢", scroll="down")
+            self.text_exists("宝藏音乐，随心收藏", timeout=timeout)
+            return
+        if name == "歌单":
+            self._click_ocr_until_found("歌单", scroll="down")
+            self.text_exists("已加载全部", timeout=timeout)
+            return
+        raise ValueError(
+            "首页卡片仅支持 我喜欢/歌单/最近播放(已播歌曲/已播歌手/已播专辑)，"
+            f"收到 {name!r}（AI/个性化推荐卡落的页 KB 未探索，暂不支持）")
+
+    def _click_ocr_until_found(self, text: str, scroll: str = "up",
+                               attempts: int = 3) -> None:
+        """OCR 找文案点击；找不到按 scroll 方向滚一屏后重试（列表折叠/布局轮换）。
+
+        「歌单」卡紧凑布局缺失靠下拉刷新触发轮换（知识库：下拉刷新不保证
+        切换，重试仍失败则报错）；「已播歌曲」卡在最近播放区，可能被底部
+        播放条遮挡下半部或位于折叠下方，需上滑露出（知识库 swan_播放历史页）。
+        """
+        for attempt in range(attempts):
+            pos = self.find_text_by_ocr(text, timeout=3)
+            if pos is not None:
+                self.tap(pos[0], pos[1])
+                return
+            if scroll == "up":
+                self.swipe_up()
+            else:
+                self.swipe_down()
+        assert False, f"首页未找到「{text}」卡片（已滚动重试 {attempts} 次）"
+
+    # =================================================================
+    # 域 7：歌单、收藏与历史（回归用例 41-68，方案 A29-A32）
+    #
+    # 用例44-55（歌曲收藏）依赖「选择歌单」页（/player/select-playlist），
+    # 该页 KB 无 UI 记录（入口未知，2026-09-11 R3 归因修正），按方案 §2.3
+    # 定位指引实现，页标题文案/成功 toast 均为待真机校准假设（遗留）。
+    # 按任务约束，含"0首歌"计数的 SWAN_FAVORITE_PLAY_ALL / SWAN_PD_PLAY_ALL
+    # 两张模板不用于本域新方法的关键断言，到位判据一律用 OCR 文本或不含
+    # 计数的已转正图（更多按钮/历史页顶栏）。
+    # =================================================================
+
+    # 平台代码 -> 歌单页/选择歌单页平台筛选文案（A29/A30 共用）
+    _PLATFORM_TAB_TEXT = {
+        "swan": "SWAN",
+        "qq": "QQ音乐",
+        "netease": "网易云音乐",
+        "kugou": "酷狗音乐",
+    }
+
+    # 播放历史页布局区（720x1600 口径，知识库 bounds y≈204-276/贴底播放条
+    # y≈1470，待真机校准；region 仅收窄 OCR/点击范围，非坐标定位）
+    _HISTORY_TAB_ROW_REGION = (0, 180, 720, 140)     # 分类 Tab 行
+    _HISTORY_CONTENT_REGION = (0, 330, 720, 1130)    # 内容区（下界避开贴底播放条）
+    # 搜索结果页布局区（720x1600 口径，Tab 行 y≈218-288，待真机校准）
+    _RESULTS_TAB_ROW_REGION = (0, 190, 720, 130)
+    _RESULTS_CONTENT_REGION = (0, 330, 720, 1120)
+
+    # 方案口径 kind -> 页内 Tab 文案（知识库 swan_播放历史页：六 Tab 为
+    # 歌曲/艺人/专辑/歌单/电台/播客）
+    _HISTORY_TAB_ALIASES = {
+        "歌曲": "歌曲",
+        "艺人": "艺人",
+        "歌手": "艺人",
+        "专辑": "专辑",
+        "歌单": "歌单",
+        "电台": "电台",
+        "播客": "播客",
+        "博客": "播客",
+    }
+
+    def open_playlist_detail(self, platform: str, playlist: str = "") -> None:
+        """进入歌单详情页（A29/A30 用例前置）。
+
+        路由：首页歌单卡 -> 歌单页 -> 按 platform 切筛选 Tab -> 歌单行。
+        已在歌单详情页（更多按钮 [图] 可见，区别于同布局无更多按钮的
+        收藏分组详情页/我喜欢页，知识库双路径对比实测）时短路。
+        playlist 给定时按歌单名 OCR 点行；缺省点最上方歌单行（含「首歌」
+        计数的行按 cy 取最小）。swan 平台无行时点「聚合」chip 重扫
+        （SWAN Tab 有 创建/聚合 两个筛选 chip，聚合才是收藏歌单）。
+        ⚠️ 第三方平台 Tab 需账号已授权（方案 §5⑤），未授权为授权空态
+        （「授权已过期/去授权」，⛔ 去授权按钮禁止点击）。
+        """
+        platform_text = self._require_platform_text(platform)
+        if self.find_image(SWAN_PD_MORE_BTN, timeout=2) is not None:
+            return
+        self.open_home_card("歌单")
+        if platform_text != "SWAN":
+            self.click_text(platform_text, timeout=10)   # 平台筛选 Tab 切换
+        row = self._find_playlist_row(playlist)
+        if row is None and platform == "swan" and not playlist:
+            if self.find_text_by_ocr("聚合", timeout=3) is not None:
+                self.click_text("聚合", timeout=5)
+                row = self._find_playlist_row()
+        assert row is not None, (
+            f"歌单页 {platform_text} 筛选下未找到歌单行"
+            + (f"「{playlist}」" if playlist else "")
+            + "（账号可能无该平台歌单或未授权，见知识库授权空态）")
+        self.tap(row["cx"], row["cy"])
+        self.image_exists(SWAN_PD_MORE_BTN, timeout=15)  # 歌单详情页到位
+
+    def _require_platform_text(self, platform: str) -> str:
+        """平台代码 -> 页面筛选文案，非法值直接报错。"""
+        text = self._PLATFORM_TAB_TEXT.get(platform)
+        if text is None:
+            raise ValueError(
+                f"platform 仅支持 {sorted(self._PLATFORM_TAB_TEXT)}，收到 {platform!r}")
+        return text
+
+    def _find_playlist_row(self, playlist: str = "") -> dict | None:
+        """OCR 找歌单行：指定歌单名时包含匹配；否则取含「首歌」计数的最上方
+        一行（行格式「歌单名 N首歌」，OCR 可能拆开返回，点计数文案同样命中
+        行热区）。"""
+        items = self.ocr_scan_page()
+        if playlist:
+            return next((i for i in items if playlist in i["text"]), None)
+        rows = [i for i in items if "首歌" in i["text"]]
+        return min(rows, key=lambda i: i["cy"]) if rows else None
+
+    def favorite_playlist(self, platform: str, state: str = "on",
+                          timeout: float = 10.0) -> None:
+        """歌单收藏/取消收藏（A29，回归用例41-43）。
+
+        前置路由复用 open_playlist_detail（已在歌单详情页时短路）。收藏
+        图标两态 [图]（域7 新截草稿）：state="on"/"off" 把图标置到目标态
+        （已在目标态则不点）；"toggle" 翻转当前态。收尾断言目标态图标 [图]。
+        ⚠️ 收藏结果持久化在账号收藏数据：用例层回滚用连续两次
+        state="toggle"（无论初始态如何，两次翻转后回到原态）。
+        """
+        assert state in ("on", "off", "toggle"), "state 仅支持 on / off / toggle"
+        self.open_playlist_detail(platform)
+        current = self._playlist_fav_state()
+        assert current is not None, (
+            "歌单详情页未识别收藏图标态（两态模板均未匹配，请核对截图质量或页面改版）")
+        target = state if state in ("on", "off") else ("off" if current == "on" else "on")
+        if current != target:
+            self.click_image(SWAN_PD_FAV_ON if current == "on" else SWAN_PD_FAV_OFF,
+                             timeout=5)
+        self.image_exists(SWAN_PD_FAV_ON if target == "on" else SWAN_PD_FAV_OFF,
+                          timeout=timeout)
+
+    def _playlist_fav_state(self) -> str | None:
+        """歌单详情页收藏图标当前态：on / off / None（两态模板都未匹配）。"""
+        if self.find_image(SWAN_PD_FAV_ON, timeout=2) is not None:
+            return "on"
+        if self.find_image(SWAN_PD_FAV_OFF, timeout=2) is not None:
+            return "off"
+        return None
+
+    def collect_song(self, target_platform: str, playlist: str,
+                     source: str = "player") -> None:
+        """收藏歌曲到指定歌单（A30，回归用例44-55，12条合1）。
+
+        source="player"：全屏播放页点歌曲收藏图标 [图]（调用方须已在播放页
+        且有播放任务，域3 start_play 发起）；source="playlist_page"：歌单
+        详情页歌曲行收藏图标 [图]（调用方须已在含歌曲的歌单详情页）。
+        两路均进入「选择歌单」页完成目标选择：
+          1. 断言页标题 OCR「选择歌单」（⚠️ KB 无该页 UI 记录，文案待真机校准）
+          2. 页内若出现平台筛选文案则点选（该页是否带平台 Tab 待校准，
+             找不到不阻塞，直接按歌单名点选）
+          3. OCR 点目标歌单名；紧随其后若捕获「收藏成功」toast 记录日志
+             （wait_toast 辅助证据，文案待校准故不作断言）
+        收尾断言回到来源页：播放页收起钮 [图] / 歌单详情页更多按钮 [图]。
+        ⚠️ 收藏结果无自动化回滚（删歌曲入口未探索），目标歌单建议用 rig
+        测试账号聚合歌单（如「我的音乐」），数据污染由设备管理流程定期重置。
+        """
+        assert source in ("player", "playlist_page"), "source 仅支持 player / playlist_page"
+        platform_text = self._require_platform_text(target_platform)
+        if source == "player":
+            self.click_image(SWAN_PLAYER_FAV_BTN, timeout=10)
+            back_anchor = SWAN_PLAYER_DISMISS_BTN
+        else:
+            self.click_image(SWAN_PD_ROW_FAV_BTN, timeout=10)
+            back_anchor = SWAN_PD_MORE_BTN
+        self.text_exists("选择歌单", timeout=10)
+        tab_pos = self.find_text_by_ocr(platform_text, timeout=3)
+        if tab_pos is not None:
+            self.tap(tab_pos[0], tab_pos[1])
+        self.click_text(playlist, timeout=10)
+        if self.wait_toast("收藏成功", timeout=3):
+            logger.info("collect_song: 「收藏成功」toast 已捕获（辅助证据，不作断言）")
+        self.image_exists(back_anchor, timeout=10)
+
+    def assert_recent_played(self, kind: str, name: str, timeout: float = 10.0) -> None:
+        """最近播放断言（A31，回归用例56-68，13条合1）。
+
+        进入播放历史页（幂等，见 _open_recent_played）-> 切分类 Tab（歌曲
+        为默认选中 Tab，其余按 kind 在 Tab 行 region 内 OCR 点击）-> 内容区
+        OCR 断言条目 name（最多下滑 2 次重试）。kind 支持方案口径
+        「歌手/博客」，页内 Tab 文案为 艺人/播客，此处归一（另支持 专辑）。
+        ⚠️ KB 已知口径差异：首页「已播歌曲 N首」计数与历史页列表可能不一致
+        （探索期实测卡片 1 首/页内空态），历史数据断言待 rig 有播放记录后校准。
+        """
+        tab = self._HISTORY_TAB_ALIASES.get(kind)
+        if tab is None:
+            raise ValueError(
+                f"kind 仅支持 {sorted(set(self._HISTORY_TAB_ALIASES))}，收到 {kind!r}")
+        self._open_recent_played()
+        if tab != "歌曲":
+            self.click_text(tab, timeout=10, region=self._HISTORY_TAB_ROW_REGION)
+        self._assert_text_in_region(
+            name, self._HISTORY_CONTENT_REGION, timeout,
+            what=f"最近播放「{tab}」分类")
+
+    def _open_recent_played(self) -> None:
+        """进入播放历史页（幂等）：已在则返回；否则回 tab 壳 -> 推荐 Tab ->
+        「已播歌曲」卡（可能被底部播放条遮挡或位于折叠下方，上滑重试）->
+        顶栏 [图] 到位断言。"""
+        if self.find_image(SWAN_HISTORY_TOPBAR, timeout=2) is not None:
+            return
+        self.back_to_tab_shell()
+        self.go_top_tab("推荐")
+        self._click_ocr_until_found("已播歌曲", scroll="up")
+        self.image_exists(SWAN_HISTORY_TOPBAR, timeout=15)
+
+    def back_to_tab_shell(self, max_backs: int = 3) -> None:
+        """从任意 push 页回到全局 tab 壳（一级页）：收播放页 -> 按需 press_back。
+
+        每次 press_back 前先用一级页锚点 [图] 确认不在 tab 壳（首页按返回
+        会退出 App）；供域7/域8 用例与清理流程从深层页面退出，已在 tab 壳
+        时零操作。
+        """
+        if self.find_image(SWAN_PLAYER_DISMISS_BTN, timeout=2) is not None:
+            self.click_image(SWAN_PLAYER_DISMISS_BTN, timeout=5)
+        for _ in range(max_backs):
+            if self._tab_shell_anchor_visible():
+                return
+            self.press_back()
+        assert self._tab_shell_anchor_visible(), (
+            f"退出 push 页失败：press_back {max_backs} 次后仍未到全局 tab 壳")
+
+    # =================================================================
+    # 域 8：搜索（回归用例 69-72，方案 A33-A34）
+    #
+    # 搜索输入页/结果页均为全屏独立路由（无 bottom_player、无全局 4 tab），
+    # 返回走 press_back 或 SWAN_SEARCH_BACK [图]。关键词仅英文可达
+    # （adb 输入限制，中文待 IME 方案，属框架层待用户决策）。
+    # =================================================================
+
+    # 搜索入口 -> 搜索条图（均已转正；功能地图 8 处入口中仅音乐/电台两处
+    # 真机验证过，平台域入口待 explorer 验证后扩展）
+    _SEARCH_ENTRY_BARS = {
+        "home": SWAN_HOME_MUSIC_SEARCH_BAR,    # 音乐 Tab「跨平台搜索音乐」
+        "radio": SWAN_HOME_RADIO_SEARCH_BAR,   # 电台 Tab「搜索电台」
+    }
+
+    def search(self, keyword: str, entry: str = "home", timeout: float = 15.0) -> None:
+        """全域搜索（A33，回归用例69-72前半）。
+
+        entry="home"/"radio" 对应音乐/电台 Tab 搜索条 [图]（已验证的两处
+        入口）。流程：顶 Tab 切换 -> 搜索条 [图] 进搜索输入页 -> OCR hint
+        「搜索歌曲或艺术家等」定位输入框并点击聚焦 -> adb 输入关键词 ->
+        搜索按钮 [图] 提交（用图不用 OCR 顶栏「搜索」，规避与自定义 T9
+        键盘「搜索」键同名歧义，见知识库搜索 flow 风险注）。
+        收尾断言：结果页六分类 Tab 行（region 限定 OCR「单曲」）+ 关键词
+        回填输入框（OCR）。
+        """
+        bar = self._SEARCH_ENTRY_BARS.get(entry)
+        if bar is None:
+            raise ValueError(
+                f"搜索入口仅支持 {sorted(self._SEARCH_ENTRY_BARS)}"
+                f"（平台域入口 KB 未验证，暂不支持），收到 {entry!r}")
+        self.go_top_tab("音乐" if entry == "home" else "电台")
+        self.click_image(bar, timeout=10)
+        self.text_exists("搜索歌曲或艺术家等", timeout=timeout)   # 搜索输入页生效
+        self.click_text("搜索歌曲或艺术家等", timeout=5)          # 点击输入框聚焦
+        self.input_text(keyword)
+        self.text_exists(keyword, timeout=5)                      # 框内出现关键词
+        self.click_image(SWAN_SEARCH_SUBMIT, timeout=10)          # 提交搜索
+        self.text_exists("单曲", timeout=timeout,
+                         region=self._RESULTS_TAB_ROW_REGION)     # 结果页 Tab 行渲染
+        self.text_exists(keyword, timeout=5)                      # 关键词回填
+
+    def assert_search_results(self, tab: str, platforms=None,
+                              timeout: float = 10.0) -> None:
+        """搜索结果分类断言（A34，回归用例69-72后半）。
+
+        须在搜索结果页调用（search() 收尾即停在此页）。tab ∈ 单曲/艺人/
+        专辑/歌单/电台/播客（方案口径「博客」归一为页内文案「播客」），
+        Tab 行 region 限定点击，原地切换内容区。platforms 为空/None ->
+        断言空态（未授权账号稳定态：SWAN_SEARCH_EMPTY [图]，缺失时退化
+        OCR「没有找到相关结果」）；platforms 非空 -> 逐个断言平台名出现在
+        结果区（已授权账号；结果行内平台标注文案待真机校准）。
+        """
+        tab_text = {"博客": "播客"}.get(tab, tab)
+        if tab_text not in ("单曲", "艺人", "专辑", "歌单", "电台", "播客"):
+            raise ValueError(
+                f"tab 仅支持 单曲/艺人/专辑/歌单/电台/播客(博客)，收到 {tab!r}")
+        self.click_text(tab_text, timeout=timeout, region=self._RESULTS_TAB_ROW_REGION)
+        if not platforms:
+            if self.find_image(SWAN_SEARCH_EMPTY, timeout=timeout) is None:
+                self.text_exists("没有找到相关结果", timeout=5)
+            return
+        for platform in platforms:
+            self._assert_text_in_region(
+                platform, self._RESULTS_CONTENT_REGION, timeout,
+                what=f"搜索「{tab_text}」结果区")
+
+    def _assert_text_in_region(self, text: str, region, timeout: float,
+                               what: str, scrolls: int = 2) -> None:
+        """region 内 OCR 断言文本，未命中时上滑整屏重试（列表折叠下方条目）。"""
+        for attempt in range(scrolls + 1):
+            if self.find_text_by_ocr(text, timeout=int(timeout), region=region) is not None:
+                return
+            if attempt < scrolls:
+                self.swipe_up()
+        assert False, f"{what}未找到 {text!r}（已上滑重试 {scrolls} 次）"

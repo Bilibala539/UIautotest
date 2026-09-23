@@ -296,6 +296,32 @@ SWAN_DEVICE_CARD_SELECTED = image_path("swan_设备页_设备卡片选中态.png
 SWAN_DEVICE_SHEET_CHECKED = image_path("swan_切换设备弹层_勾选态.png", platform="flutter", draft=True)    # 行首勾选圆点选中态（知识库未见此态，需真机人工选一次以截取）
 
 
+# =====================================================================
+# Swan (Flutter) 回归第一批·域4/7/8 草稿元素图片（A21-A23 / A29-A31 / A33-A34）
+# 2026-09-23 aw-codegen 按 docs/Swan回归用例AW实现方案.md §2.3 登记，
+# PNG 由 aw-element 按 docs/agents/swan/aw-element.md 流程截取进
+# image_ai/flutter/（PNG 尚不存在时相关用例会因模板缺失失败，属预期状态）；
+# aw-verify 真机跑通后 promote_image 转正，并把对应登记处的 draft=True
+# 改为 False（常量在 import 时解析为绝对路径，草稿/正式两态都可直接用）。
+# 搜索域 A33/A34 的 Tab 切换与结果断言用 OCR（Tab 行 region 限定），
+# 不需要新图。
+# =====================================================================
+
+# --- 底部导航 4 图标（A21；未选中态，与顶 Tab 5 张同口径；图标选中态不匹配未选中态模板） ---
+SWAN_TAB_HOME = image_path("swan_底部导航_首页.png", platform="flutter", draft=True)
+SWAN_TAB_PLATFORM = image_path("swan_底部导航_平台.png", platform="flutter", draft=True)
+SWAN_TAB_DEVICE = image_path("swan_底部导航_设备.png", platform="flutter", draft=True)
+SWAN_TAB_ME = image_path("swan_底部导航_我的.png", platform="flutter", draft=True)
+
+# --- 歌单详情页 收藏图标两态（A29；只截图标本体，勿含歌单名/歌曲数文本） ---
+SWAN_PD_FAV_OFF = image_path("swan_歌单详情页_收藏图标_未收藏.png", platform="flutter", draft=True)
+SWAN_PD_FAV_ON = image_path("swan_歌单详情页_收藏图标_已收藏.png", platform="flutter", draft=True)
+
+# --- 歌曲收藏入口（A30） ---
+SWAN_PLAYER_FAV_BTN = image_path("swan_播放页_收藏按钮.png", platform="flutter", draft=True)       # 全屏播放页收藏入口（source="player"）
+SWAN_PD_ROW_FAV_BTN = image_path("swan_歌单详情页_歌曲行收藏图标.png", platform="flutter", draft=True)  # 歌单详情页歌曲行收藏图标（source="playlist_page"）
+
+
 __all__ = [
     "ANDROID_DRAFT_IMAGE_DIR",
     "ANDROID_IMAGE_DIR",
@@ -381,6 +407,14 @@ __all__ = [
     "SWAN_PLAYER_VOLUME_MINUS",
     "SWAN_DEVICE_CARD_SELECTED",
     "SWAN_DEVICE_SHEET_CHECKED",
+    "SWAN_TAB_HOME",
+    "SWAN_TAB_PLATFORM",
+    "SWAN_TAB_DEVICE",
+    "SWAN_TAB_ME",
+    "SWAN_PD_FAV_OFF",
+    "SWAN_PD_FAV_ON",
+    "SWAN_PLAYER_FAV_BTN",
+    "SWAN_PD_ROW_FAV_BTN",
     "WEB_DRAFT_IMAGE_DIR",
     "WEB_IMAGE_DIR",
     "demote_image",

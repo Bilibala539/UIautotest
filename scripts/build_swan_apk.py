@@ -30,6 +30,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from collections.abc import Callable
 from pathlib import Path
 
 # 构建根目录:SWAN_BUILD_ROOT 环境变量优先;缺省按系统分流
@@ -46,6 +47,9 @@ REPO_URL = "https://git.hivi.com/swan-app/swan-audio/hivi-network-flutterapp.git
 # 核心仓必须 clone 到 SRC_DIR 同级且目录名与相对路径精确一致
 CORE_REPO_URL = "https://git.hivi.com/swan-app/swan-audio/hivi_network_flutter_core.git"
 CORE_SRC_DIR = SRC_DIR.parent / "hivi_network_flutter_core"
+# 检出 504 重试节奏:失败等 5 分钟再试,共 3 次尝试都失败才放弃
+# (build #10/#11 挂在核心仓全量 clone 的 GitLab 504,用户拍板)
+CHECKOUT_RETRY_WAIT_SECONDS = 300
 
 DEFAULTS = {
     "JAVA_HOME": r"C:\build-env\jdk-17",
@@ -82,9 +86,12 @@ def redact(text: str, secrets: list[str]) -> str:
     return re.sub(r"(?i)https?://[^/\s@]+@git\.hivi\.com", "git.hivi.com", text)
 
 
-def run(cmd: list[str], cwd: Path, log, secrets: list[str], env: dict[str, str] | None = None) -> None:
+def run(cmd: list[str], cwd: Path, log, secrets: list[str], env: dict[str, str] | None = None,
+        fail_detail: bool = False) -> None:
     """执行命令,输出经脱敏后写入日志;失败抛 RuntimeError。env 显式传入构建环境
-    (JAVA_HOME/ANDROID_HOME 等)——Jenkins SYSTEM 会话缺这些变量,不传则 flutter 找不到 SDK。"""
+    (JAVA_HOME/ANDROID_HOME 等)——Jenkins SYSTEM 会话缺这些变量,不传则 flutter 找不到 SDK。
+    fail_detail=True 时异常信息附带脱敏后的完整输出(检出重试需据此判定 HTTP 504);
+    缺省 False 维持简短消息,其他调用点行为不变。"""
     printable = [redact(part, secrets) if ":" in part or "@" in part else part for part in cmd]
     log.write(f"$ {subprocess.list2cmdline(printable)}\n")
     log.flush()
@@ -95,6 +102,8 @@ def run(cmd: list[str], cwd: Path, log, secrets: list[str], env: dict[str, str] 
     output = redact((result.stdout or "") + (result.stderr or ""), secrets)
     log.write(output)
     if result.returncode != 0:
+        if fail_detail and output.strip():
+            raise RuntimeError(f"命令失败 exit={result.returncode},输出:\n{output.strip()}")
         raise RuntimeError(f"命令失败 exit={result.returncode}: {printable[0]} …(详见日志)")
 
 
@@ -125,22 +134,24 @@ def repo_healthy(src: Path) -> bool:
     return result.returncode == 0 and result.stdout.strip() == "true"
 
 
-def ensure_src(src: Path, url: str, secrets: list[str], log) -> None:
+def ensure_src(src: Path, url: str, secrets: list[str], log, fail_detail: bool = False) -> None:
     """确保源码目录存在:没有则 clone;已有则 git 自证健康后 fetch+prune;目录在但
-    自证失败(.git 残骸/半删除残留)清掉重 clone(档案坑 14)。URL 不落日志明文。"""
+    自证失败(.git 残骸/半删除残留)清掉重 clone(档案坑 14)。URL 不落日志明文。
+    fail_detail 透传给 run(clone/fetch 是网络路径,检出 504 重试需拿到真实输出)。"""
     src.parent.mkdir(parents=True, exist_ok=True)
     if not src.is_dir():
         log.write("源码目录不存在,执行 clone\n")
-        run(["git", "clone", url, str(src)], src.parent, log, secrets)
+        run(["git", "clone", url, str(src)], src.parent, log, secrets, fail_detail=fail_detail)
         return
     if repo_healthy(src):
         log.write("源码目录已存在,执行 fetch --all --prune\n")
-        run(["git", "-C", str(src), "fetch", "--all", "--prune"], src, log, secrets)
+        run(["git", "-C", str(src), "fetch", "--all", "--prune"], src, log, secrets,
+            fail_detail=fail_detail)
         return
     # 残留/损坏目录直接 clone 会报"已存在且非空"(build #7/#8 连锁失败根源),先清掉
     log.write("源码目录损坏(.git 残骸或缺少仓库元数据),清除后重新 clone\n")
     force_rmtree(src)
-    run(["git", "clone", url, str(src)], src.parent, log, secrets)
+    run(["git", "clone", url, str(src)], src.parent, log, secrets, fail_detail=fail_detail)
 
 
 def checkout_target(src: Path, branch: str, commit: str, secrets: list[str], log) -> str:
@@ -155,6 +166,29 @@ def checkout_target(src: Path, branch: str, commit: str, secrets: list[str], log
             src, log, secrets)
         run(["git", "-C", str(src), "reset", "--hard", f"origin/{branch}"], src, log, secrets)
     return git_out(src, "rev-parse", "HEAD")
+
+
+def run_checkout_with_retry(do_checkout: Callable[[], None], echo: Callable[[str], None], log) -> None:
+    """以整个检出步骤为重试单元执行 do_checkout(步骤 1/3:app 仓 clone/fetch+checkout、
+    核心仓 clone+checkout)。GitLab 全量 clone 偶发 HTTP 504(build #10/#11 挂在核心仓
+    clone):失败输出含 "HTTP 504" 时等 5 分钟重试,共 3 次尝试都失败才放弃;非 504 失败
+    立即抛出,维持现状。重跑幂等:失败残留的半删除目录由 ensure_src 的 git 自证逻辑
+    清掉重 clone(档案坑 14)。"""
+    for attempt in (1, 2, 3):
+        echo(f"开始检出源码(第 {attempt}/3 次尝试)")
+        try:
+            do_checkout()
+            return
+        except RuntimeError as error:
+            if "HTTP 504" not in str(error):
+                raise  # 非 504 失败维持现状:立即失败,不重试
+            if attempt < 3:
+                echo(f"检出失败(504),5 分钟后重试({attempt}/2)")
+                log.flush()  # 等待消息先落盘,便于 Jenkins 实时观察
+                time.sleep(CHECKOUT_RETRY_WAIT_SECONDS)
+            else:
+                echo("检出失败(504),3 次尝试均失败,放弃")
+                raise
 
 
 def build_env(creds: dict[str, str]) -> dict[str, str]:
@@ -300,13 +334,18 @@ def main() -> int:
             src = SRC_DIR
         else:
             echo(f"== 步骤 1/3 检出源码({log_path}) ==")
-            ensure_src(SRC_DIR, authed_url, secrets, log)
-            checkout_target(SRC_DIR, args.branch, args.commit, secrets, log)
-            commit_hash = git_out(SRC_DIR, "rev-parse", "HEAD")
-            echo(f"检出完成 commit={commit_hash}")
-            # 核心仓:默认与 app 同分支;--commit 只作用于 app 仓
-            ensure_src(CORE_SRC_DIR, authed_core_url, secrets, log)
-            checkout_target(CORE_SRC_DIR, args.branch, "", secrets, log)
+
+            def do_checkout() -> None:
+                ensure_src(SRC_DIR, authed_url, secrets, log, fail_detail=True)
+                checkout_target(SRC_DIR, args.branch, args.commit, secrets, log)
+                commit_hash = git_out(SRC_DIR, "rev-parse", "HEAD")
+                echo(f"检出完成 commit={commit_hash}")
+                # 核心仓:默认与 app 同分支;--commit 只作用于 app 仓
+                ensure_src(CORE_SRC_DIR, authed_core_url, secrets, log, fail_detail=True)
+                checkout_target(CORE_SRC_DIR, args.branch, "", secrets, log)
+
+            # 检出失败且为 GitLab 504 时等 5 分钟重试,共 3 次尝试(见 run_checkout_with_retry)
+            run_checkout_with_retry(do_checkout, echo, log)
             if args.only_checkout:
                 echo("--only-checkout:检出验证结束,不构建不登记")
                 log.close()

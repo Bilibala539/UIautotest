@@ -65,7 +65,14 @@ VALID_SERVER_TYPES = ("formal", "test")
 # 用户拍板只监听这两分支),GitLab 侧分支过滤仅省流(两分支填不进一个过滤框,留空即可)。
 WEBHOOK_BUILD_MAP = {
     "swan-app/swan-audio/hivi-network-flutterapp": {"dev": "test", "master": "formal"},
+    # core 仓是 app 的构建期依赖(app pubspec 以 path: ../hivi_network_flutter_core
+    # 引用,打包脚本每次 fresh clone):core 合入同样要重出包验证(2026-09-23 加)。
+    # 同分支名驱动 app 仓对应分支构建;COMMIT 参数语义是"app 仓要签出的 commit",
+    # core 的 sha 不适用——仅 WEBHOOK_APP_REPOS 内的仓传 COMMIT 并做同 commit 去重。
+    "swan-app/swan-audio/hivi_network_flutter_core": {"dev": "test", "master": "formal"},
 }
+# COMMIT 透传/同 commit 去重按 app 仓 commit 口径(apks.commit_hash 记 app commit)
+WEBHOOK_APP_REPOS = {"swan-app/swan-audio/hivi-network-flutterapp"}
 
 
 class RunNotFinalizedError(RuntimeError):
@@ -3007,10 +3014,12 @@ class DashboardHandler(BaseHTTPRequestHandler):
                     _skip(f"{repo or '(unknown repo)'} {branch} 不在自动打包映射")
                     return
                 short_sha = after[:7]
-                seen = self.store.find_apk(branch, short_sha, server_type)
-                if seen:
-                    _skip(f"{seen['apk_id']} 已登记(同 commit 去重)")
-                    return
+                is_app_repo = repo in WEBHOOK_APP_REPOS
+                if is_app_repo:
+                    seen = self.store.find_apk(branch, short_sha, server_type)
+                    if seen:
+                        _skip(f"{seen['apk_id']} 已登记(同 commit 去重)")
+                        return
                 notes = "webhook"
                 pusher = str(payload.get("user_name") or "").strip()
                 if re.fullmatch(r"[A-Za-z0-9_.\-]+", pusher):
@@ -3021,9 +3030,12 @@ class DashboardHandler(BaseHTTPRequestHandler):
                         HTTPStatus.SERVICE_UNAVAILABLE)
                     return
                 build_job = os.environ.get("JENKINS_BUILD_JOB", "").strip() or "swan-audio-build"
-                outcome = jenkins_client.trigger(
-                    build_job, {"BRANCH": branch, "SERVER_TYPE": server_type,
-                                "COMMIT": after, "NOTES": quote(notes)})
+                trigger_params = {"BRANCH": branch, "SERVER_TYPE": server_type,
+                                  "NOTES": quote(notes)}
+                if is_app_repo:
+                    # COMMIT=app 仓要签出的 commit;core 等依赖仓的 sha 不进此参
+                    trigger_params["COMMIT"] = after
+                outcome = jenkins_client.trigger(build_job, trigger_params)
                 if not outcome.get("ok"):
                     print(f"[gitlab-webhook] trigger failed: {outcome.get('error')}", flush=True)
                     self.send_error_json(f"Jenkins 触发失败: {outcome.get('error')}",
@@ -3031,9 +3043,11 @@ class DashboardHandler(BaseHTTPRequestHandler):
                     return
                 print(f"[gitlab-webhook] triggered: {repo} {branch}@{short_sha} "
                       f"server_type={server_type} queue_id={outcome.get('queue_id')}", flush=True)
-                self.send_json({"ok": True, "action": "triggered", "job": build_job,
-                                "branch": branch, "commit": short_sha,
-                                "queue_id": outcome.get("queue_id")})
+                body = {"ok": True, "action": "triggered", "job": build_job,
+                        "branch": branch, "queue_id": outcome.get("queue_id")}
+                if is_app_repo:
+                    body["commit"] = short_sha
+                self.send_json(body)
                 return
             if parsed.path == "/api/builds":
                 # 主动触发打包(M3):Jenkins 参数化 job(默认 swan-audio-build,可用

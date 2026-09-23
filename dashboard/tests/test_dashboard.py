@@ -183,6 +183,27 @@ def test_gitlab_webhook_auto_build():
             status, body = post("/api/webhooks/gitlab", push())
             assert status == 200 and body["action"] == "skipped"
             assert "已登记" in body["reason"]
+
+            # core 仓(dev)推送(2026-09-23):同 sha 已按 app 口径登记也不去重,
+            # 触发打包但不传 COMMIT(COMMIT 是 app 仓要签出的 commit,core sha 不适用)
+            def push_core(ref: str = "refs/heads/dev") -> dict:
+                return {"object_kind": "push", "ref": ref, "after": FULL_SHA,
+                        "user_name": "wujianneng",
+                        "project": {"path_with_namespace":
+                                    "swan-app/swan-audio/hivi_network_flutter_core"}}
+
+            status, body = post("/api/webhooks/gitlab", push_core())
+            assert status == 200 and body["action"] == "triggered"
+            assert "commit" not in body
+            assert captured[-1] == {"BRANCH": "dev", "SERVER_TYPE": "test",
+                                    "NOTES": "webhook%3Awujianneng"}
+            # core master → formal;映射外分支照旧 skip
+            status, body = post("/api/webhooks/gitlab", push_core(ref="refs/heads/master"))
+            assert status == 200 and body["action"] == "triggered"
+            assert captured[-1] == {"BRANCH": "master", "SERVER_TYPE": "formal",
+                                    "NOTES": "webhook%3Awujianneng"}
+            status, body = post("/api/webhooks/gitlab", push_core(ref="refs/heads/harmony"))
+            assert status == 200 and body["action"] == "skipped"
         finally:
             for key, value in env_backup.items():
                 if value is None:

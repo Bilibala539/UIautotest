@@ -16,9 +16,9 @@ class AndroidBaseAW(AWBase):
 
     # ==================== 系统按键 ====================
 
-    def press_key(self, key: str) -> bool:
-        """按下系统按键（如 'escape'、'home'）。"""
-        result = self.driver.press_key(key)
+    def press_key(self, key: str, long_press: bool = False) -> bool:
+        """按下系统按键（如 'escape'、'home'）；long_press=True 长按（音量键等）。"""
+        result = self.driver.press_key(key, long_press=long_press)
         self.sleep(0.2)
         return result
 

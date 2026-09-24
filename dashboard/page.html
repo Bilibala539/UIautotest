@@ -1975,7 +1975,7 @@
         const cancelable = j.status === 'pending' || j.status === 'running'; // 规范 6.3:仅 pending/running 行渲染取消入口,终态行不渲染
         const cancelBtn = cancelable ? `<button class="icon-btn danger" data-act="cancel" title="取消任务">${ICON.circleX}</button>` : '';
         const jkBtn = j.jenkins_log_url ? `<button class="icon-btn" data-act="jk" title="Jenkins 日志">${ICON.log}</button>` : ''; // 未派发 Jenkins 的本地兜底任务不渲染
-        const target = j.trigger_source === 'build'
+        const target = (j.trigger_source === 'build' || j.trigger_source === 'webhook')
           ? '打包 ' + safe(j.branch || '') + (((j.result || {}).build || {}).server_type === 'formal' ? ' → 正式服' : ' → 测试服')
           : safe(j.case_filter || '-');
         row.innerHTML = `<td>${safe((j.platform || '').toUpperCase())}</td><td>${target}</td><td><span class="badge ${PL_JOB_CLASS[j.status] || ''}">${PL_JOB_STATUS[j.status] || safe(j.status)}</span></td><td>${safe(formatDate(j.created_at))}</td><td>${j.finished_at ? safe(formatDate(j.finished_at)) : '-'}</td><td>${[cancelBtn, jkBtn].filter(Boolean).join(' ')}</td>`;

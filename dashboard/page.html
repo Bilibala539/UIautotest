@@ -1972,7 +1972,8 @@
       const tbody = $('pl-job-rows'); tbody.innerHTML = '';
       if (!jobs.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty">暂无执行记录</td></tr>'; return; }
       jobs.forEach(j => { const row = document.createElement('tr');
-        const cancelable = j.status === 'pending' || j.status === 'running'; // 规范 6.3:仅 pending/running 行渲染取消入口,终态行不渲染
+        const isBuildRow = j.trigger_source === 'build' || j.trigger_source === 'webhook';
+        const cancelable = j.status === 'pending' || (j.status === 'running' && !isBuildRow); // 规范 6.3:仅 pending/running 渲染取消;打包行运行中=Jenkins 构建进行中,平台无中止通道
         const cancelBtn = cancelable ? `<button class="icon-btn danger" data-act="cancel" title="取消任务">${ICON.circleX}</button>` : '';
         const jkBtn = j.jenkins_log_url ? `<button class="icon-btn" data-act="jk" title="Jenkins 日志">${ICON.log}</button>` : ''; // 未派发 Jenkins 的本地兜底任务不渲染
         const target = (j.trigger_source === 'build' || j.trigger_source === 'webhook')

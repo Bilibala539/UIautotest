@@ -343,11 +343,11 @@ SWAN_PD_ROW_FAV_BTN = image_path("swan_歌单详情页_歌曲行收藏图标.png
 # =====================================================================
 
 # --- 首页顶 Tab 选中态（go_top_tab 到位锚点；截选中态高亮样式，勿含邻 Tab 与内容区） ---
-SWAN_HOME_TAB_RECOMMEND_SEL = image_path("swan_首页_推荐Tab选中态.png", platform="flutter", draft=True)
-SWAN_HOME_TAB_MUSIC_SEL = image_path("swan_首页_音乐Tab选中态.png", platform="flutter", draft=True)
-SWAN_HOME_TAB_RADIO_SEL = image_path("swan_首页_电台Tab选中态.png", platform="flutter", draft=True)
-SWAN_HOME_TAB_AI_SEL = image_path("swan_首页_AITab选中态.png", platform="flutter", draft=True)
-SWAN_HOME_TAB_VISION_SEL = image_path("swan_首页_可视音箱Tab选中态.png", platform="flutter", draft=True)
+SWAN_HOME_TAB_RECOMMEND_SEL = image_path("swan_首页_推荐Tab选中态.png", platform="flutter")
+SWAN_HOME_TAB_MUSIC_SEL = image_path("swan_首页_音乐Tab选中态.png", platform="flutter")
+SWAN_HOME_TAB_RADIO_SEL = image_path("swan_首页_电台Tab选中态.png", platform="flutter")
+SWAN_HOME_TAB_AI_SEL = image_path("swan_首页_AITab选中态.png", platform="flutter")
+SWAN_HOME_TAB_VISION_SEL = image_path("swan_首页_可视音箱Tab选中态.png", platform="flutter")
 
 
 __all__ = [

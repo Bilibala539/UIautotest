@@ -388,10 +388,25 @@ def test_jenkins_build_sync():
         threading.Thread(target=server.serve_forever, daemon=True).start()
         base_url = f"http://127.0.0.1:{server.server_address[1]}"
 
+        # 撞号回归(2026-09-24 线上发现):预置一条 swan-autotest 测试执行行,
+        # 其 jenkins_build=32 与打包构建 32 号撞号——占用只认同一 Jenkins 任务
+        import sqlite3
+        connection = sqlite3.connect(str(Path(temporary_directory) / "dashboard.sqlite3"))
+        connection.execute(
+            "INSERT INTO pipeline_jobs (job_id, trigger_source, status, created_at,"
+            " finished_at, jenkins_job, jenkins_build)"
+            " VALUES ('job-seed-autotest', 'manual', 'succeeded', ?, ?, 'swan-autotest', 32)",
+            ("2026-09-01T00:00:00+00:00", "2026-09-01T00:01:00+00:00"))
+        connection.commit()
+        connection.close()
+
         try:
-            # 平台从未触发过任何任务:列表读取即对账,31/32 全部补行可见
+            # 平台从未触发过任何打包任务:列表读取即对账,31/32 全部补行可见
             status, _, body = request(base_url, "/api/pipeline/jobs?limit=30")
-            rows = {j["jenkins_build"]: j for j in json.loads(body)["items"]}
+            items = json.loads(body)["items"]
+            assert len(items) == 3  # 2 条对账补行 + 1 条预置测试行
+            rows = {j["jenkins_build"]: j for j in items
+                    if j.get("jenkins_job") == "swan-audio-build"}
             assert set(rows) == {31, 32}
             # 31:Jenkins 手动构建(building)→ build 来源 + 运行中
             assert rows[31]["trigger_source"] == "build"
@@ -405,7 +420,8 @@ def test_jenkins_build_sync():
             # 31 构建完成 → 下次列表读取闭环为成功
             state["b31"] = {"building": False, "result": "SUCCESS"}
             status, _, body = request(base_url, "/api/pipeline/jobs?limit=30")
-            rows = {j["jenkins_build"]: j for j in json.loads(body)["items"]}
+            rows = {j["jenkins_build"]: j for j in json.loads(body)["items"]
+                    if j.get("jenkins_job") == "swan-audio-build"}
             assert rows[31]["status"] == "succeeded" and rows[31]["finished_at"]
         finally:
             for key, value in env_backup.items():

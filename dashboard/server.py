@@ -203,16 +203,24 @@ def _created_ms(job: dict) -> float | None:
 
 
 def _collect_group_candidates(jenkins_job: str, pipeline_value: str,
-                              since_ms: float) -> list[tuple[int, float]]:
+                              since_ms: float, kind: str = "pipeline") -> list[tuple[int, float]]:
     """列 jenkins_job 最近构建,筛本组候选:NOTES 匹配且 timestamp >= since_ms,按 timestamp 升序。
 
     NOTES 触发时 quote 编码(build_swan_apk.py 同规 unquote 解码);列表倒序,
     遇早于下限的构建提前收兵省参数查询。查询失败/无匹配返回 [] → 调用方保持 pending。
+    kind=pipeline:NOTES 精确等于 pipeline:<pipeline_value>;
+    kind=webhook(2026-09-24):NOTES 为 webhook 前缀(裸 webhook 或 webhook:<pusher>)。
     """
     listing = jenkins_client.list_builds(jenkins_job)
     if not listing.get("ok"):
         return []
     expected = f"pipeline:{pipeline_value}"
+
+    def _match(notes: str) -> bool:
+        if kind == "webhook":
+            return notes == "webhook" or notes.startswith("webhook:")
+        return notes == expected
+
     matched: list[tuple[int, float]] = []
     for entry in listing.get("builds") or []:
         number, timestamp = entry.get("number"), entry.get("timestamp")
@@ -221,16 +229,18 @@ def _collect_group_candidates(jenkins_job: str, pipeline_value: str,
         if timestamp < since_ms:
             break  # 倒序:更早的构建不可能属于组内任何任务
         params = jenkins_client.build_parameters(jenkins_job, number)
-        if params.get("ok") and unquote(str((params.get("params") or {}).get("NOTES") or "")) == expected:
+        if params.get("ok") and _match(unquote(str((params.get("params") or {}).get("NOTES") or ""))):
             matched.append((number, timestamp))
     matched.sort(key=lambda pair: pair[1])
     return matched
 
 
 def resolve_build_pipeline_jobs(store) -> None:
-    """打包型流水线(trigger_source='build')任务的惰性收尾。
+    """打包型流水线(trigger_source='build'/'webhook')任务的惰性收尾。
 
-    build 任务无 agent 回报,靠列表读取时向 Jenkins 回查闭环:
+    build/webhook 任务均无 agent 回报,靠列表读取时向 Jenkins 回查闭环
+    (webhook 行 2026-09-24 加入,候选匹配 NOTES 走 webhook 前缀,build 行
+    匹配 pipeline:<config_id>):
       - 有构建号 → 查构建结果,终态落库;
       - 只有 queue_id(还在排队)→ 先查队列拿构建号回填,结果下次读取再查;
       - 队列项已被 Jenkins 清掉(构建完成/取消后 404,2026-09-23 补)→
@@ -243,16 +253,19 @@ def resolve_build_pipeline_jobs(store) -> None:
     """
     if not jenkins_client.config():
         return
-    groups: dict[tuple[str, str], list[dict]] = {}
+    groups: dict[tuple[str, str, str], list[dict]] = {}
     for job in store.list_pipeline_jobs(status="pending", limit=50):
-        if job.get("trigger_source") != "build":
+        source = str(job.get("trigger_source") or "")
+        if source not in ("build", "webhook"):  # webhook 行 2026-09-24 起同路闭环
             continue
         jenkins_job = str(job.get("jenkins_job") or "")
         if not jenkins_job:
             continue  # 触发失败的任务触发时就落 failed,这里只会是历史脏数据
         pipeline_value = str(((job.get("result") or {}).get("build") or {}).get("pipeline") or "").strip()
-        groups.setdefault((jenkins_job, pipeline_value), []).append(job)
-    for (jenkins_job, pipeline_value), members in groups.items():
+        # webhook 行无 config_id,分组键多一维 kind,回查按 NOTES webhook 前缀
+        kind = "webhook" if source == "webhook" else "pipeline"
+        groups.setdefault((jenkins_job, kind, pipeline_value), []).append(job)
+    for (jenkins_job, kind, pipeline_value), members in groups.items():
         # created_at 秒级精度,同秒双触发的先后由 queue_id(Jenkins 全局递增)保序
         members.sort(key=lambda j: (str(j.get("created_at") or ""),
                                     (j.get("result") or {}).get("jenkins_queue_id") or 0))
@@ -303,8 +316,9 @@ def resolve_build_pipeline_jobs(store) -> None:
         if recheck:
             anchored = [ms for ms in (_created_ms(j) for j in recheck) if ms is not None]
             try:
-                candidates = (_collect_group_candidates(jenkins_job, pipeline_value, min(anchored))
-                              if pipeline_value and anchored else [])
+                candidates = (_collect_group_candidates(jenkins_job, pipeline_value,
+                                                        min(anchored), kind)
+                              if anchored and (kind == "webhook" or pipeline_value) else [])
             except Exception as error:  # noqa: BLE001 — 候选查询失败只放弃本轮回查
                 candidates = []
                 _reap_log(f"resolve build 组 {jenkins_job}/{pipeline_value} 候选查询失败: {error}",
@@ -1446,7 +1460,7 @@ class DashboardStore:
                 row = connection.execute(
                     """SELECT job_id FROM pipeline_jobs
                        WHERE status='pending' AND (jenkins_job='' OR jenkins_job IS NULL)
-                       AND trigger_source != 'build'
+                       AND trigger_source NOT IN ('build', 'webhook')
                        ORDER BY created_at LIMIT 1"""
                 ).fetchone()
                 if row is None:
@@ -1506,15 +1520,16 @@ class DashboardStore:
                                   result: dict[str, Any]) -> dict[str, Any]:
         """打包型流水线任务终态回写:pending 直接落终态。
 
-        finish_pipeline_job 只收 running/cancelling(agent 状态机),build 任务没有
-        认领环节,状态机独立:仅 pending 且 trigger_source='build' 可落,先到先得。
+        finish_pipeline_job 只收 running/cancelling(agent 状态机),build/webhook
+        任务没有认领环节,状态机独立:仅 pending 且 trigger_source IN
+        ('build','webhook') 可落,先到先得。
         """
         if status not in set(PIPELINE_JOB_FINISHED_STATUSES):
             raise ValueError(f"status must be one of {sorted(PIPELINE_JOB_FINISHED_STATUSES)}")
         with self.transaction() as connection:
             updated = connection.execute(
                 """UPDATE pipeline_jobs SET status=?, finished_at=?, result_json=?
-                   WHERE job_id=? AND status='pending' AND trigger_source='build'""",
+                   WHERE job_id=? AND status='pending' AND trigger_source IN ('build','webhook')""",
                 (status, utc_now(), json.dumps(result, ensure_ascii=False), job_id),
             ).rowcount
             if not updated:
@@ -3024,12 +3039,24 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 pusher = str(payload.get("user_name") or "").strip()
                 if re.fullmatch(r"[A-Za-z0-9_.\-]+", pusher):
                     notes += ":" + pusher
+                build_job = os.environ.get("JENKINS_BUILD_JOB", "").strip() or "swan-audio-build"
+                # 流水线可见性(2026-09-24):webhook 触发同样落 pipeline_jobs 行,
+                # 流水线页"最近任务"可见;终态与 build 来源同走 resolve_build_pipeline_jobs
+                result = {"build": {"branch": branch, "server_type": server_type,
+                                    "repo": repo, "notes": notes}}
+                if is_app_repo:
+                    result["build"]["commit"] = short_sha
+                job = self.store.create_pipeline_job({
+                    "trigger_source": "webhook", "platform": "flutter",
+                    "branch": branch, "case_filter": "", "apk_id": ""})
                 if not jenkins_client.config():
+                    self.store.finish_build_pipeline_job(
+                        job["job_id"], "failed",
+                        {**result, "error": "Jenkins 未配置(JENKINS_BASE_URL/JENKINS_USER/JENKINS_API_TOKEN)"})
                     self.send_error_json(
                         "Jenkins 未配置(JENKINS_BASE_URL/JENKINS_USER/JENKINS_API_TOKEN)",
                         HTTPStatus.SERVICE_UNAVAILABLE)
                     return
-                build_job = os.environ.get("JENKINS_BUILD_JOB", "").strip() or "swan-audio-build"
                 trigger_params = {"BRANCH": branch, "SERVER_TYPE": server_type,
                                   "NOTES": quote(notes)}
                 if is_app_repo:
@@ -3038,13 +3065,21 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 outcome = jenkins_client.trigger(build_job, trigger_params)
                 if not outcome.get("ok"):
                     print(f"[gitlab-webhook] trigger failed: {outcome.get('error')}", flush=True)
+                    self.store.finish_build_pipeline_job(
+                        job["job_id"], "failed",
+                        {**result, "error": f"Jenkins 触发失败: {outcome.get('error')}"})
                     self.send_error_json(f"Jenkins 触发失败: {outcome.get('error')}",
                                          HTTPStatus.BAD_GATEWAY)
                     return
+                self.store.mark_jenkins_dispatch(
+                    job["job_id"], jenkins_job=build_job,
+                    queue_id=outcome.get("queue_id"), result_extra=result)
                 print(f"[gitlab-webhook] triggered: {repo} {branch}@{short_sha} "
-                      f"server_type={server_type} queue_id={outcome.get('queue_id')}", flush=True)
+                      f"server_type={server_type} queue_id={outcome.get('queue_id')} "
+                      f"pipeline_job={job['job_id']}", flush=True)
                 body = {"ok": True, "action": "triggered", "job": build_job,
-                        "branch": branch, "queue_id": outcome.get("queue_id")}
+                        "branch": branch, "queue_id": outcome.get("queue_id"),
+                        "pipeline_job": job["job_id"]}
                 if is_app_repo:
                     body["commit"] = short_sha
                 self.send_json(body)

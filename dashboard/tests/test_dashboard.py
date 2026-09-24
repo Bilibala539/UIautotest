@@ -162,6 +162,17 @@ def test_gitlab_webhook_auto_build():
             assert captured[-1] == {"BRANCH": "dev", "SERVER_TYPE": "test",
                                     "COMMIT": FULL_SHA, "NOTES": "webhook%3Awujianneng"}
 
+            # webhook 触发同样落流水线任务行(2026-09-24):流水线页"最近任务"可见
+            assert body["pipeline_job"]
+            status, _, jobs_body = request(base_url, "/api/pipeline/jobs?limit=30")
+            rows = json.loads(jobs_body)["items"]
+            assert len(rows) == 1
+            row = rows[0]
+            assert row["trigger_source"] == "webhook" and row["status"] == "pending"
+            assert row["branch"] == "dev" and row["jenkins_job"] == "swan-audio-build"
+            assert row["result"]["jenkins_queue_id"] == 88
+            assert row["result"]["build"]["commit"] == FULL_SHA[:7]
+
             # master 合入推送 → formal(正式服/release)自动打包
             status, body = post("/api/webhooks/gitlab", push(ref="refs/heads/master"))
             assert status == 200 and body["action"] == "triggered"
@@ -204,6 +215,13 @@ def test_gitlab_webhook_auto_build():
                                     "NOTES": "webhook%3Awujianneng"}
             status, body = post("/api/webhooks/gitlab", push_core(ref="refs/heads/harmony"))
             assert status == 200 and body["action"] == "skipped"
+
+            # webhook 行累计 5 条:app dev/master/坏 pusher + core dev/master;skip 不落行
+            status, _, jobs_body = request(base_url, "/api/pipeline/jobs?limit=30")
+            rows = json.loads(jobs_body)["items"]
+            assert len(rows) == 5
+            assert all(row["trigger_source"] == "webhook" for row in rows)
+            assert sorted(row["branch"] for row in rows) == ["dev"] * 3 + ["master"] * 2
         finally:
             for key, value in env_backup.items():
                 if value is None:
@@ -216,6 +234,101 @@ def test_gitlab_webhook_auto_build():
             jenkins_server.server_close()
             gc.collect()  # 例外/回溯帧可能循环引用 sqlite 连接;Windows 删库文件需句柄已关
 
+
+
+def test_webhook_build_resolver():
+    """webhook 触发的流水线任务行:队列项已被清后按 NOTES webhook 前缀回查闭环(2026-09-24)。"""
+    with tempfile.TemporaryDirectory() as temporary_directory:
+        # 构建时间戳取"未来 1 分钟":回查按 timestamp >= 任务 created_at 筛候选,
+        # 测试启动时刻若晚于任务创建会误伤,这里给足余量
+        build_ts = int(time.time() * 1000) + 60_000
+
+        class MockJenkins(BaseHTTPRequestHandler):
+            def do_POST(self):
+                length = int(self.headers.get("Content-Length", "0") or 0)
+                self.rfile.read(length)
+                self.send_response(201)
+                self.send_header("Location", "http://mock-jenkins/queue/item/77/")
+                self.end_headers()
+
+            def do_GET(self):
+                def reply(payload):
+                    body = json.dumps(payload).encode("utf-8")
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json")
+                    self.send_header("Content-Length", str(len(body)))
+                    self.end_headers()
+                    self.wfile.write(body)
+                if "/queue/item/77/" in self.path:
+                    self.send_response(404)  # 队列项已被清 → 走第二遍候选回查
+                    self.end_headers()
+                elif "tree=actions[parameters" in self.path:
+                    # build_parameters 读原生 actions 平铺;NOTES 保持触发时的 URL 编码态
+                    reply({"actions": [{"parameters": [
+                        {"name": "NOTES", "value": "webhook%3Awujianneng"}]}]})
+                elif "tree=builds[" in self.path:
+                    reply({"builds": [{"number": 21, "result": None,
+                                       "building": False, "timestamp": build_ts}]})
+                elif "/job/swan-audio-build/21/" in self.path:
+                    reply({"building": False, "result": "SUCCESS"})
+                else:
+                    self.send_response(404)
+                    self.end_headers()
+
+            def log_message(self, *args):
+                pass
+
+        jenkins_server = ThreadingHTTPServer(("127.0.0.1", 0), MockJenkins)
+        threading.Thread(target=jenkins_server.serve_forever, daemon=True).start()
+        env_keys = ("JENKINS_BASE_URL", "JENKINS_USER", "JENKINS_API_TOKEN", "GITLAB_WEBHOOK_SECRET")
+        env_backup = {key: os.environ.get(key) for key in env_keys}
+        os.environ.update({
+            "JENKINS_BASE_URL": f"http://127.0.0.1:{jenkins_server.server_address[1]}",
+            "JENKINS_USER": "mock",
+            "JENKINS_API_TOKEN": "mock",
+            "GITLAB_WEBHOOK_SECRET": WEBHOOK_SECRET,
+        })
+        server = create_server("127.0.0.1", 0, Path(temporary_directory) / "dashboard.sqlite3")
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        base_url = f"http://127.0.0.1:{server.server_address[1]}"
+
+        try:
+            # core 仓推送触发(无 COMMIT):任务行落库,queue_id=77
+            payload = {"object_kind": "push", "ref": "refs/heads/dev", "after": FULL_SHA,
+                       "user_name": "wujianneng",
+                       "project": {"path_with_namespace":
+                                   "swan-app/swan-audio/hivi_network_flutter_core"}}
+            request_object = urllib.request.Request(
+                f"{base_url}/api/webhooks/gitlab",
+                data=json.dumps(payload).encode("utf-8"), method="POST",
+                headers={"Content-Type": "application/json",
+                         "X-GitLab-Token": WEBHOOK_SECRET})
+            with urllib.request.urlopen(request_object, timeout=5) as response:
+                body = json.loads(response.read())
+            assert body["action"] == "triggered" and body["queue_id"] == 77
+            job_id = body["pipeline_job"]
+            assert job_id
+
+            # 列表读取 → queue 404 → 候选回查(NOTES webhook 前缀)→ 构建 21 SUCCESS
+            status, _, jobs_body = request(base_url, "/api/pipeline/jobs?limit=30")
+            rows = json.loads(jobs_body)["items"]
+            row = next(j for j in rows if j["job_id"] == job_id)
+            assert row["trigger_source"] == "webhook"
+            assert row["jenkins_build"] == 21
+            assert row["status"] == "succeeded" and row["finished_at"]
+            assert row["result"]["build"]["server_type"] == "test"
+            assert row["result"]["jenkins_queue_id"] == 77
+        finally:
+            for key, value in env_backup.items():
+                if value is None:
+                    os.environ.pop(key, None)
+                else:
+                    os.environ[key] = value
+            server.shutdown()
+            server.server_close()
+            jenkins_server.shutdown()
+            jenkins_server.server_close()
+            gc.collect()  # 例外/回溯帧可能循环引用 sqlite 连接;Windows 删库文件需句柄已关
 
 
 def test_build_pipeline_config():

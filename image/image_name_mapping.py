@@ -267,58 +267,66 @@ SWAN_AI_HISTORY_TITLE = image_path("swan_AI历史页_标题行.png", platform="f
 
 
 # =====================================================================
-# Swan (Flutter) 回归第一批·域3 播放器草稿元素图片（A12-A20）
+# Swan (Flutter) 回归第一批·域3 播放器元素图片（A12-A20）
 # 2026-09-23 aw-codegen 按 docs/Swan回归用例AW实现方案.md §3 登记，
-# PNG 由 aw-element 按 docs/agents/swan/aw-element.md 流程截取进
-# image_ai/flutter/（PNG 尚不存在时相关用例会因模板缺失失败，属预期状态）；
-# aw-verify 真机跑通后 promote_image 转正，并把对应登记处的 draft=True
-# 改为 False（常量在 import 时解析为绝对路径，草稿/正式两态都可直接用）。
+# PNG 由 aw-element 按 docs/agents/swan/aw-element.md 流程截取。
+# 2026-09-24 aw-verify 真机实测（HONOR AKFDCP4718425500，720x1612，与采集
+# 基线同机）：14 张存在断言全部 score=1.00@0.8（explorer_output/
+# verify_regression1/），promote_image 转正，draft=True 改正式路径。
+# ⚠️ SWAN_PLAYER_VOLUME_POPUP（含标题"Speaker<音量>"与滑条填充两处动态区）
+#    与 SWAN_PLAYER_VOLUME_SLIDER（含动态填充）：音量=31%（截取态）时
+#    score=1.00，音量±5 时 0.86/0.93，大幅偏离会失配——重裁建议见 verify 报告。
+# 仍留草稿（PNG 未截，需播放任务）：SWAN_PLAYER_PAUSE_BTN（⏸ 态）、
+#    SWAN_PLAYER_LOOP_SINGLE / SWAN_PLAYER_LOOP_SHUFFLE（循环三态之其余两态）。
 # =====================================================================
 
 # --- 播放页 播放控制（五键中的四键；▶ 态已有 SWAN_PLAYER_PLAY_PAUSE_BTN） ---
 SWAN_PLAYER_PAUSE_BTN = image_path("swan_播放页_暂停按钮.png", platform="flutter", draft=True)       # 播放中的 ⏸ 态圆钮
-SWAN_PLAYER_PREV_BTN = image_path("swan_播放页_上一首按钮.png", platform="flutter", draft=True)
-SWAN_PLAYER_NEXT_BTN = image_path("swan_播放页_下一首按钮.png", platform="flutter", draft=True)
-SWAN_PLAYER_LOOP_LIST = image_path("swan_播放页_循环模式_列表循环.png", platform="flutter", draft=True)     # 循环钮三态之一
+SWAN_PLAYER_PREV_BTN = image_path("swan_播放页_上一首按钮.png", platform="flutter")
+SWAN_PLAYER_NEXT_BTN = image_path("swan_播放页_下一首按钮.png", platform="flutter")
+SWAN_PLAYER_LOOP_LIST = image_path("swan_播放页_循环模式_列表循环.png", platform="flutter")     # 循环钮三态之一
 SWAN_PLAYER_LOOP_SINGLE = image_path("swan_播放页_循环模式_单曲循环.png", platform="flutter", draft=True)
 SWAN_PLAYER_LOOP_SHUFFLE = image_path("swan_播放页_循环模式_随机播放.png", platform="flutter", draft=True)
-SWAN_PLAYER_PROGRESS_BAR = image_path("swan_播放页_进度条.png", platform="flutter", draft=True)    # 进度条整条（滑条锚；勿含两端时间文字）
+SWAN_PLAYER_PROGRESS_BAR = image_path("swan_播放页_进度条.png", platform="flutter")    # 进度条整条（滑条锚；勿含两端时间文字）
 
 # --- 播放页 音量弹窗 ---
-SWAN_PLAYER_VOLUME_ICON = image_path("swan_播放页_音量图标.png", platform="flutter", draft=True)   # 播放页底部音量入口图标
-SWAN_PLAYER_VOLUME_POPUP = image_path("swan_播放页_音量弹窗.png", platform="flutter", draft=True)  # 弹窗整体或标题区（存在性判据）
-SWAN_PLAYER_VOLUME_SLIDER = image_path("swan_播放页_音量滑条.png", platform="flutter", draft=True)  # 弹窗内滑条整条（拖动锚）
-SWAN_PLAYER_VOLUME_PLUS = image_path("swan_播放页_音量加号按钮.png", platform="flutter", draft=True)
-SWAN_PLAYER_VOLUME_MINUS = image_path("swan_播放页_音量减号按钮.png", platform="flutter", draft=True)
+SWAN_PLAYER_VOLUME_ICON = image_path("swan_播放页_音量图标.png", platform="flutter")   # 播放页底部音量入口图标
+SWAN_PLAYER_VOLUME_POPUP = image_path("swan_播放页_音量弹窗.png", platform="flutter")  # 弹窗整体或标题区（存在性判据）
+SWAN_PLAYER_VOLUME_SLIDER = image_path("swan_播放页_音量滑条.png", platform="flutter")  # 弹窗内滑条整条（拖动锚）
+SWAN_PLAYER_VOLUME_PLUS = image_path("swan_播放页_音量加号按钮.png", platform="flutter")
+SWAN_PLAYER_VOLUME_MINUS = image_path("swan_播放页_音量减号按钮.png", platform="flutter")
 
 # --- 设备页 / 切换设备弹层 选中态 ---
-SWAN_DEVICE_CARD_SELECTED = image_path("swan_设备页_设备卡片选中态.png", platform="flutter", draft=True)  # 只截选中标识（边框/角标），勿含设备名
-SWAN_DEVICE_SHEET_CHECKED = image_path("swan_切换设备弹层_勾选态.png", platform="flutter", draft=True)    # 行首勾选圆点选中态（知识库未见此态，需真机人工选一次以截取）
+SWAN_DEVICE_CARD_SELECTED = image_path("swan_设备页_设备卡片选中态.png", platform="flutter")  # 只截选中标识（边框/角标），勿含设备名
+SWAN_DEVICE_SHEET_CHECKED = image_path("swan_切换设备弹层_勾选态.png", platform="flutter")    # 行首勾选圆点选中态（知识库未见此态，需真机人工选一次以截取）
 
 
 # =====================================================================
-# Swan (Flutter) 回归第一批·域4/7/8 草稿元素图片（A21-A23 / A29-A31 / A33-A34）
+# Swan (Flutter) 回归第一批·域4/7/8 元素图片（A21-A23 / A29-A31 / A33-A34）
 # 2026-09-23 aw-codegen 按 docs/Swan回归用例AW实现方案.md §2.3 登记，
-# PNG 由 aw-element 按 docs/agents/swan/aw-element.md 流程截取进
-# image_ai/flutter/（PNG 尚不存在时相关用例会因模板缺失失败，属预期状态）；
-# aw-verify 真机跑通后 promote_image 转正，并把对应登记处的 draft=True
-# 改为 False（常量在 import 时解析为绝对路径，草稿/正式两态都可直接用）。
-# 搜索域 A33/A34 的 Tab 切换与结果断言用 OCR（Tab 行 region 限定），
-# 不需要新图。
+# PNG 由 aw-element 按 docs/agents/swan/aw-element.md 流程截取。
+# 2026-09-24 aw-verify 真机实测（HONOR AKFDCP4718425500，720x1612）：底部
+# 导航 4 图标存在+click 全通过、勾选态/收藏按钮 score=1.00@0.8
+# （explorer_output/verify_regression1/），5 张 promote_image 转正，
+# draft=True 改正式路径。搜索域 A33/A34 的 Tab 切换与结果断言用 OCR
+# （Tab 行 region 限定），不需要新图。
+# 仍留草稿（PNG 未截，需播放任务/授权平台）：
+#    SWAN_PD_FAV_OFF / SWAN_PD_FAV_ON（歌单收藏两态）、
+#    SWAN_PD_ROW_FAV_BTN（歌曲行收藏图标）。
 # =====================================================================
 
 # --- 底部导航 4 图标（A21；未选中态，与顶 Tab 5 张同口径；图标选中态不匹配未选中态模板） ---
-SWAN_TAB_HOME = image_path("swan_底部导航_首页.png", platform="flutter", draft=True)
-SWAN_TAB_PLATFORM = image_path("swan_底部导航_平台.png", platform="flutter", draft=True)
-SWAN_TAB_DEVICE = image_path("swan_底部导航_设备.png", platform="flutter", draft=True)
-SWAN_TAB_ME = image_path("swan_底部导航_我的.png", platform="flutter", draft=True)
+SWAN_TAB_HOME = image_path("swan_底部导航_首页.png", platform="flutter")
+SWAN_TAB_PLATFORM = image_path("swan_底部导航_平台.png", platform="flutter")
+SWAN_TAB_DEVICE = image_path("swan_底部导航_设备.png", platform="flutter")
+SWAN_TAB_ME = image_path("swan_底部导航_我的.png", platform="flutter")
 
 # --- 歌单详情页 收藏图标两态（A29；只截图标本体，勿含歌单名/歌曲数文本） ---
 SWAN_PD_FAV_OFF = image_path("swan_歌单详情页_收藏图标_未收藏.png", platform="flutter", draft=True)
 SWAN_PD_FAV_ON = image_path("swan_歌单详情页_收藏图标_已收藏.png", platform="flutter", draft=True)
 
 # --- 歌曲收藏入口（A30） ---
-SWAN_PLAYER_FAV_BTN = image_path("swan_播放页_收藏按钮.png", platform="flutter", draft=True)       # 全屏播放页收藏入口（source="player"）
+SWAN_PLAYER_FAV_BTN = image_path("swan_播放页_收藏按钮.png", platform="flutter")       # 全屏播放页收藏入口（source="player"）
 SWAN_PD_ROW_FAV_BTN = image_path("swan_歌单详情页_歌曲行收藏图标.png", platform="flutter", draft=True)  # 歌单详情页歌曲行收藏图标（source="playlist_page"）
 
 

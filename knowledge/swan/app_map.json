@@ -385,11 +385,15 @@
   },
   "elements": {
     "image_verified": {
-      "verified_at": "2026-09-10",
-      "verifier": "aw-verify 真机验证（serial c0614b6a，OpenCV threshold 0.8）",
-      "note": "09-08 首批 18 张 + 09-10 Wave4 平台/搜索域 7 张（全链路 PASS，score=1.00）已转正 image/flutter/；Wave1/2 批次见 image/image_name_mapping.py 分块注释；常量见 image/image_name_mapping.py（正式路径）",
+      "verified_at": "2026-09-24",
+      "verifier": "aw-verify 真机验证（serial AKFDCP4718425500，720x1612，OpenCV TM_CCOEFF_NORMED threshold 0.8；历史批次 c0614b6a/720x1600）",
+      "note": "09-08 首批 18 张 + 09-10 Wave4 7 张（c0614b6a）已转正；09-24 回归第一批 16 张（域3 播放器 13 张 + 设备卡选中态/弹层勾选态/底部导航 4 图标，AKFDCP4718425500 实测 score=1.00@0.8，explorer_output/verify_regression1/）已转正；常量见 image/image_name_mapping.py（正式路径）。⚠️ 旧设备(c0614b6a)文字类模板在 AKFDCP4718425500 上因字体缩放失配（顶 Tab 5 张/我的收藏行/切换设备标题行 score 0.41-0.71），待重截，详见 verify 报告。",
       "swan_首页": [
-        "swan_底部播放条.png"
+        "swan_底部播放条.png",
+        "swan_底部导航_首页.png",
+        "swan_底部导航_平台.png",
+        "swan_底部导航_设备.png",
+        "swan_底部导航_我的.png"
       ],
       "swan_我的页": [
         "swan_我的_家庭管理行.png",
@@ -417,11 +421,22 @@
         "swan_验证码输入框.png"
       ],
       "swan_播放页": [
+        "swan_播放页_上一首按钮.png",
+        "swan_播放页_下一首按钮.png",
+        "swan_播放页_循环模式_列表循环.png",
         "swan_播放页_播放暂停按钮.png",
-        "swan_播放页_收起按钮.png"
+        "swan_播放页_收藏按钮.png",
+        "swan_播放页_收起按钮.png",
+        "swan_播放页_进度条.png",
+        "swan_播放页_音量减号按钮.png",
+        "swan_播放页_音量加号按钮.png",
+        "swan_播放页_音量图标.png",
+        "swan_播放页_音量弹窗.png",
+        "swan_播放页_音量滑条.png"
       ],
       "swan_设备页": [
-        "swan_添加设备按钮.png"
+        "swan_添加设备按钮.png",
+        "swan_设备页_设备卡片选中态.png"
       ],
       "swan_平台页": [
         "swan_平台_网易云音乐行.png",
@@ -438,6 +453,9 @@
       "swan_授权门禁弹层": [
         "swan_授权门禁弹层_授权登录按钮.png",
         "swan_授权门禁弹层_添加按钮.png"
+      ],
+      "swan_切换设备弹层": [
+        "swan_切换设备弹层_勾选态.png"
       ]
     }
   },

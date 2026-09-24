@@ -16,15 +16,18 @@ from image.image_name_mapping import (
     SWAN_DEVICE_SHEET_CHECKED,
     SWAN_DEVICE_SHEET_TITLE,
     SWAN_FAVORITE_PLAY_ALL,
-    SWAN_HOME_AI_ADD_ROLE,
     SWAN_HOME_MUSIC_SEARCH_BAR,
     SWAN_HOME_RADIO_SEARCH_BAR,
     SWAN_HOME_TAB_AI,
+    SWAN_HOME_TAB_AI_SEL,
     SWAN_HOME_TAB_MUSIC,
+    SWAN_HOME_TAB_MUSIC_SEL,
     SWAN_HOME_TAB_RADIO,
+    SWAN_HOME_TAB_RADIO_SEL,
     SWAN_HOME_TAB_RECOMMEND,
+    SWAN_HOME_TAB_RECOMMEND_SEL,
     SWAN_HOME_TAB_VISION,
-    SWAN_HOME_VISION_UNBOUND_HINT,
+    SWAN_HOME_TAB_VISION_SEL,
     SWAN_HISTORY_TOPBAR,
     SWAN_ME_FAVORITES_ROW,
     SWAN_PD_FAV_OFF,
@@ -323,12 +326,19 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
     # 设备页卡片：设备名行到状态行允许的最大纵向跨度（720x1600 口径，待真机校准）
     _CARD_BODY_SPAN = 300
 
+    # OCR 设备名易混字符归一化映射（verify R2 实测：「HiVi M300MKII」被
+    # 读成「HiVi M300MKIl」——罗马数字 II 与小写 l 同形，name in text
+    # 精确匹配失败）。兜底比对时把两侧 l/I/1 统一映射到 1 再匹配。
+    _OCR_CONFUSABLE_TRANS = str.maketrans({"l": "1", "I": "1", "1": "1"})
+
     _TIME_RE = re.compile(r"(\d{1,2}):(\d{2})")
 
     def select_device(self, name: str, via: str = "card") -> None:
         """切换输出设备（A12，回归用例 11-12）。
 
-        via="card"：设备页 OCR 定位目标设备名所在卡片，点卡片状态行
+        via="card"：设备页 OCR 定位目标设备名所在卡片（设备名精确包含
+        优先，失配时两侧做 l/I/1 易混字符归一化兜底再匹配，见
+        _OCR_CONFUSABLE_TRANS 注），点卡片状态行
         （「连接良好」行）。⚠️ 不点设备名本身——知识库实测设备名节点是
         设置入口（wifi_device_settings_<UUID>），内含删除设备风险。
         收尾断言卡片选中态 [图]。
@@ -343,7 +353,22 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         assert via in ("card", "player"), "via 仅支持 card / player"
         if via == "card":
             items = self.ocr_scan_page()
+            # 设备名比对：优先 OCR 文本精确包含；失配时两侧做 l/I/1 易混
+            # 字符归一化兜底（实测案例：OCR 把「HiVi M300MKII」读成
+            # 「HiVi M300MKIl」，II→Il，「M300MKII」归一化为「M300MK11」
+            # 后命中）。状态行「连接良好」定位逻辑不受归一化影响。
             name_item = next((i for i in items if name in i["text"]), None)
+            if name_item is None:
+                norm_name = name.translate(self._OCR_CONFUSABLE_TRANS)
+                name_item = next(
+                    (i for i in items
+                     if norm_name in i["text"].translate(self._OCR_CONFUSABLE_TRANS)),
+                    None,
+                )
+                if name_item is not None:
+                    logger.info(
+                        "select_device: 设备名 %r 精确匹配失败，"
+                        "l/I/1 归一化后命中 OCR 文本 %r", name, name_item["text"])
             assert name_item is not None, f"设备页 OCR 未找到设备名 {name!r}"
             status_item = next(
                 (i for i in items
@@ -673,13 +698,17 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         "电台": SWAN_HOME_TAB_RADIO,
     }
 
-    # 顶 Tab 生效后的页面锚点（A22，均已转正图；可视音箱为未绑定态锚点，
-    # rig 未绑定可视音箱时稳定，绑定后需换锚点）
+    # 顶 Tab 选中态锚点（verify R2 换锚：切换后统一断言「该 Tab 处于选中
+    # 态」，不再依赖各 Tab 内容布局——新构建音乐 Tab 改歌单流后原「音乐
+    # 搜索条」内容锚点已失效，且内容锚点各页一个样、选中态高亮图跨机更
+    # 稳健。5 张选中态图为草稿，verify 转正后 image_name_mapping 登记处
+    # 改正式路径）
     _TOP_TAB_ANCHORS = {
-        "音乐": SWAN_HOME_MUSIC_SEARCH_BAR,
-        "AI": SWAN_HOME_AI_ADD_ROLE,
-        "可视音箱": SWAN_HOME_VISION_UNBOUND_HINT,
-        "电台": SWAN_HOME_RADIO_SEARCH_BAR,
+        "推荐": SWAN_HOME_TAB_RECOMMEND_SEL,
+        "音乐": SWAN_HOME_TAB_MUSIC_SEL,
+        "AI": SWAN_HOME_TAB_AI_SEL,
+        "可视音箱": SWAN_HOME_TAB_VISION_SEL,
+        "电台": SWAN_HOME_TAB_RADIO_SEL,
     }
 
     def _home_anchor_visible(self, timeout: float = 1.0) -> bool:
@@ -755,8 +784,8 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         目标 Tab 的未选中态图不可见即视为已停在该 Tab（选中态图标不匹配
         未选中态模板，同 tests/flutter/swan_regression_common.py
         _stay_on_recommend_tab 的判定口径）。
-        到位断言：音乐/AI/可视音箱/电台 用各自页面锚点 [图]；推荐 用
-        「其余 4 个未选中态 Tab 图任一可见」——推荐页两种布局轮换下均稳定。
+        到位断言：目标 Tab 选中态图 [图]（verify R2 换锚，五 Tab 同一口径，
+        不依赖各 Tab 内容布局，见 _TOP_TAB_ANCHORS 注）。
         """
         template = self._TOP_TAB_TEMPLATES.get(name)
         if template is None:
@@ -768,15 +797,6 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
             self.click_image(template, timeout=5)
         else:
             logger.info("go_top_tab: 顶 Tab「%s」未选中态图不可见，视为已停在该 Tab", name)
-        if name == "推荐":
-            deadline = time.monotonic() + timeout
-            while time.monotonic() < deadline:
-                for tpl in (SWAN_HOME_TAB_MUSIC, SWAN_HOME_TAB_RADIO,
-                            SWAN_HOME_TAB_AI, SWAN_HOME_TAB_VISION):
-                    if self.find_image(tpl, timeout=2) is not None:
-                        return
-                self.sleep(0.5)
-            assert False, f"切顶 Tab「推荐」后 {timeout}s 内未见其余顶 Tab 未选中态图"
         self.image_exists(self._TOP_TAB_ANCHORS[name], timeout=timeout)
 
     def open_home_card(self, name: str, timeout: float = 15.0) -> None:
@@ -1036,18 +1056,26 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
     # （adb 输入限制，中文待 IME 方案，属框架层待用户决策）。
     # =================================================================
 
-    # 搜索入口 -> 搜索条图（均已转正；功能地图 8 处入口中仅音乐/电台两处
-    # 真机验证过，平台域入口待 explorer 验证后扩展）
+    # 搜索入口 -> 搜索条图（均已转正；功能地图 8 处入口中仅推荐/电台两处
+    # 真机验证过，平台域入口待 explorer 验证后扩展。home 条 PNG 文件名
+    # 沿用历史「音乐Tab_搜索条」，物理内容已同名重截为推荐 Tab 搜索条，
+    # 见 image_name_mapping.py 注）
     _SEARCH_ENTRY_BARS = {
-        "home": SWAN_HOME_MUSIC_SEARCH_BAR,    # 音乐 Tab「跨平台搜索音乐」
+        "home": SWAN_HOME_MUSIC_SEARCH_BAR,    # 首页推荐 Tab「跨平台搜索音乐」
         "radio": SWAN_HOME_RADIO_SEARCH_BAR,   # 电台 Tab「搜索电台」
     }
 
     def search(self, keyword: str, entry: str = "home", timeout: float = 15.0) -> None:
         """全域搜索（A33，回归用例69-72前半）。
 
-        entry="home"/"radio" 对应音乐/电台 Tab 搜索条 [图]（已验证的两处
-        入口）。流程：顶 Tab 切换 -> 搜索条 [图] 进搜索输入页 -> OCR hint
+        entry="home"/"radio" 对应推荐/电台 Tab 搜索条（已验证的两处入口）。
+        新构建（verify R2 拍板口径）：音乐 Tab 已改为歌单流、搜索条回归
+        首页默认推荐 Tab，entry="home" 跟随 App 现状切推荐 Tab 后点搜索条
+        （非语义变更；原「go_top_tab("音乐") + 音乐 Tab 搜索条」链路废弃）。
+        推荐 Tab 有完整/紧凑两种服务端布局轮换（知识库 swan_首页），紧凑
+        布局下搜索条图可能不可见，此时用 OCR hint「跨平台搜索音乐」兜底
+        定位。
+        流程：顶 Tab 切换 -> 搜索条进搜索输入页 -> OCR hint
         「搜索歌曲或艺术家等」定位输入框并点击聚焦 -> adb 输入关键词 ->
         搜索按钮 [图] 提交（用图不用 OCR 顶栏「搜索」，规避与自定义 T9
         键盘「搜索」键同名歧义，见知识库搜索 flow 风险注）。
@@ -1059,8 +1087,16 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
             raise ValueError(
                 f"搜索入口仅支持 {sorted(self._SEARCH_ENTRY_BARS)}"
                 f"（平台域入口 KB 未验证，暂不支持），收到 {entry!r}")
-        self.go_top_tab("音乐" if entry == "home" else "电台")
-        self.click_image(bar, timeout=10)
+        if entry == "home":
+            self.go_top_tab("推荐")   # 新构建：搜索条在推荐 Tab，音乐 Tab 已改歌单流
+            if self.find_image(bar, timeout=3) is not None:
+                self.click_image(bar, timeout=10)
+            else:
+                # 紧凑布局轮换下搜索条图不可见：OCR hint 文案兜底定位
+                self.click_text("跨平台搜索音乐", timeout=10)
+        else:
+            self.go_top_tab("电台")
+            self.click_image(bar, timeout=10)
         self.text_exists("搜索歌曲或艺术家等", timeout=timeout)   # 搜索输入页生效
         self.click_text("搜索歌曲或艺术家等", timeout=5)          # 点击输入框聚焦
         self.input_text(keyword)

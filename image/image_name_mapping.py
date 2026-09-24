@@ -156,6 +156,9 @@ SWAN_HOME_TAB_AI = image_path("swan_首页_AITab按钮.png", platform="flutter")
 SWAN_HOME_TAB_VISION = image_path("swan_首页_可视音箱Tab按钮.png", platform="flutter")
 
 # --- 首页各顶 Tab 内容区元素 ---
+# ⚠️ SWAN_HOME_MUSIC_SEARCH_BAR 文件名沿用历史（原音乐 Tab 搜索条）；
+# verify R2 起其 PNG 已同名重截为推荐 Tab 完整布局的搜索条（新构建音乐
+# Tab 改歌单流，搜索条回归推荐 Tab），常量名不改、语义见 swan.py search()
 SWAN_HOME_MUSIC_SEARCH_BAR = image_path("swan_首页音乐Tab_搜索条.png", platform="flutter")
 SWAN_HOME_RADIO_SEARCH_BAR = image_path("swan_首页电台Tab_搜索条.png", platform="flutter")
 SWAN_HOME_AI_ADD_ROLE = image_path("swan_首页AITab_添加角色入口.png", platform="flutter")
@@ -330,6 +333,23 @@ SWAN_PLAYER_FAV_BTN = image_path("swan_播放页_收藏按钮.png", platform="fl
 SWAN_PD_ROW_FAV_BTN = image_path("swan_歌单详情页_歌曲行收藏图标.png", platform="flutter", draft=True)  # 歌单详情页歌曲行收藏图标（source="playlist_page"）
 
 
+# =====================================================================
+# Swan (Flutter) 回归第三轮修复·首页顶 Tab 选中态锚点（verify R2）
+# 2026-09-24 aw-codegen 按 aw-verify 第二轮报告登记，PNG 由 aw-element
+# 并行截取（A 组 5 张新名）。go_top_tab 到位断言统一换锚为「目标 Tab
+# 选中态」图：切换后断言该 Tab 处于选中态，不再依赖各 Tab 内容布局
+# （新构建音乐 Tab 改歌单流后原「音乐搜索条」内容锚点已失效），选中态
+# 高亮样式跨机也更稳健。verify 转正后本段 draft=True 改正式路径。
+# =====================================================================
+
+# --- 首页顶 Tab 选中态（go_top_tab 到位锚点；截选中态高亮样式，勿含邻 Tab 与内容区） ---
+SWAN_HOME_TAB_RECOMMEND_SEL = image_path("swan_首页_推荐Tab选中态.png", platform="flutter", draft=True)
+SWAN_HOME_TAB_MUSIC_SEL = image_path("swan_首页_音乐Tab选中态.png", platform="flutter", draft=True)
+SWAN_HOME_TAB_RADIO_SEL = image_path("swan_首页_电台Tab选中态.png", platform="flutter", draft=True)
+SWAN_HOME_TAB_AI_SEL = image_path("swan_首页_AITab选中态.png", platform="flutter", draft=True)
+SWAN_HOME_TAB_VISION_SEL = image_path("swan_首页_可视音箱Tab选中态.png", platform="flutter", draft=True)
+
+
 __all__ = [
     "ANDROID_DRAFT_IMAGE_DIR",
     "ANDROID_IMAGE_DIR",
@@ -362,6 +382,11 @@ __all__ = [
     "SWAN_HOME_TAB_RADIO",
     "SWAN_HOME_TAB_AI",
     "SWAN_HOME_TAB_VISION",
+    "SWAN_HOME_TAB_RECOMMEND_SEL",
+    "SWAN_HOME_TAB_MUSIC_SEL",
+    "SWAN_HOME_TAB_RADIO_SEL",
+    "SWAN_HOME_TAB_AI_SEL",
+    "SWAN_HOME_TAB_VISION_SEL",
     "SWAN_HOME_MUSIC_SEARCH_BAR",
     "SWAN_HOME_RADIO_SEARCH_BAR",
     "SWAN_HOME_AI_ADD_ROLE",

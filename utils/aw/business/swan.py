@@ -1120,6 +1120,9 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         推荐 Tab 有完整/紧凑两种服务端布局轮换（知识库 swan_首页），紧凑
         布局下搜索条图可能不可见，此时用 OCR hint「跨平台搜索音乐」兜底
         定位。
+        未授权账号点搜索条会弹「授权通知」模态弹窗（QQ音乐/网易云授权
+        引导，verify-run3 实测）：进输入页断言前先 press_back 关闭（实测
+        会重弹一次，最多关 2 轮），见 _dismiss_auth_notice_popup。
         流程：顶 Tab 切换 -> 搜索条进搜索输入页 -> OCR hint
         「搜索歌曲或艺术家等」定位输入框并点击聚焦 -> adb 输入关键词 ->
         搜索按钮 [图] 提交（用图不用 OCR 顶栏「搜索」，规避与自定义 T9
@@ -1153,6 +1156,11 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         else:
             self.go_top_tab("电台")
             self.click_image(bar, timeout=10)
+        # 未授权账号点搜索条会弹「授权通知」模态（遮罩使搜索输入页不可达，
+        # verify-run3 实测）：进输入页断言前先关闭。不并入 android_base 的
+        # dismiss_app_popups 规则表——弹窗「授权」按钮是状态变更入口，规则
+        # 表按按钮文字自动点击有误改账号授权态的风险，故只 press_back。
+        self._dismiss_auth_notice_popup()
         self.text_exists("搜索歌曲或艺术家等", timeout=timeout)   # 搜索输入页生效
         self.click_text("搜索歌曲或艺术家等", timeout=5)          # 点击输入框聚焦
         self.input_text(keyword)
@@ -1161,6 +1169,27 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         self.text_exists("单曲", timeout=timeout,
                          region=self._RESULTS_TAB_ROW_REGION)     # 结果页 Tab 行渲染
         self.text_exists(keyword, timeout=5)                      # 关键词回填
+
+    def _dismiss_auth_notice_popup(self, detect_timeout: int = 2,
+                                   max_rounds: int = 2) -> None:
+        """关闭搜索入口触发的「授权通知」模态弹窗（verify-run3 实测）。
+
+        未授权账号每次点搜索条都会弹该模态（QQ音乐/网易云授权引导），
+        遮罩导致搜索输入页不可达、后续 teardown go_home 找不到 tab_recommend。
+        处置只 press_back（实测可安全关闭且不碰弹窗按钮）：弹窗内「授权」
+        按钮是状态变更入口，故**不**并入 android_base 的 dismiss_app_popups
+        规则表（规则表按按钮文字自动点击，存在误改账号授权态的风险）。
+        实测 press_back 关一次会重弹一次，故最多关 max_rounds 轮；每轮
+        OCR 探测标志文字「授权通知」，未命中即视为无弹窗/已清净（happy
+        path 仅消耗一轮探测超时）。若 2 轮后弹窗仍在，交由后续输入页
+        断言显式失败暴露，不在此吞错。
+        """
+        for round_no in range(1, max_rounds + 1):
+            if self.find_text_by_ocr("授权通知", timeout=detect_timeout) is None:
+                return
+            logger.info("search: 第%d次检测到「授权通知」弹窗，press_back 关闭"
+                        "（不点弹窗内授权按钮，规避状态变更）", round_no)
+            self.press_back()
 
     def assert_search_results(self, tab: str, platforms=None,
                               timeout: float = 10.0) -> None:

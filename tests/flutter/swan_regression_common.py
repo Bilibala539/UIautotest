@@ -10,6 +10,7 @@ rig 环境变量：
 """
 from __future__ import annotations
 
+import logging
 import os
 
 from image.image_name_mapping import (
@@ -21,10 +22,18 @@ from image.image_name_mapping import (
     SWAN_HOME_TAB_MUSIC,
     SWAN_HOME_TAB_RADIO,
     SWAN_HOME_TAB_RECOMMEND,
+    SWAN_LOGIN_PRIVACY_POLICY_LINK,
+    SWAN_LOGIN_SUBMIT_BTN,
     SWAN_PLAYER_DISMISS_BTN,
     SWAN_PLAYER_PAUSE_BTN,
+    SWAN_TAB_DEVICE,
+    SWAN_TAB_HOME,
+    SWAN_TAB_ME,
+    SWAN_TAB_PLATFORM,
 )
 from utils.aw.business.swan import SwanBusiness
+
+logger = logging.getLogger(__name__)
 
 DEVICE_TYPES = ["speaker", "wifi_device"]  # speaker=手机扬声器默认输出 / wifi_device=rig 音箱
 
@@ -43,6 +52,17 @@ class SwanPlayerRegressionMixin:
     aw = None
     phone = ""
 
+    # 登录页锚（均已转正）：「下一步」按钮 / 隐私政策链接任一可见即在登录页
+    _LOGIN_PAGE_TEMPLATES = (SWAN_LOGIN_SUBMIT_BTN, SWAN_LOGIN_PRIVACY_POLICY_LINK)
+    # 首页壳主锚：全局底部导航 4 图标（未选中态，已转正、verify 跨机实测 1.0；
+    # 首页/平台/设备/我的 4 个一级页至多 1 个 Tab 选中，任一可见即在首页壳）
+    _BOTTOM_NAV_TEMPLATES = (SWAN_TAB_HOME, SWAN_TAB_PLATFORM,
+                             SWAN_TAB_DEVICE, SWAN_TAB_ME)
+    # 首页壳兜底锚：顶 Tab 未选中态图（Wave1 图跨机失配 0.35-0.71，
+    # aw-element 重截中，verify 首跑结论降为最后轮询项）
+    _TOP_TAB_TEMPLATES = (SWAN_HOME_TAB_RECOMMEND, SWAN_HOME_TAB_MUSIC,
+                          SWAN_HOME_TAB_RADIO, SWAN_HOME_TAB_AI)
+
     def setup(self):
         self.user = self.users("swan")
         self.aw = self.user.aw  # 业务层实例 = 基础操作 + SwanBusiness 业务方法
@@ -55,22 +75,64 @@ class SwanPlayerRegressionMixin:
         self._dismiss_player_if_any()
         self.user.go_home()
 
+    # ---------- 锚点探测（模板缺失防护 + 首页壳判据） ----------
+
+    def _probe_image(self, template: str, timeout: int = 1):
+        """模板文件在盘才 find_image；缺失记日志按未命中处理。
+
+        AWBase.find_image 对缺失模板文件是 assert 崩溃而非返回 None（框架层
+        行为，已单独上报），清理/锚点探测这类「可选命中」调用先 os.path.exists
+        防护（常量为绝对路径），避免模板未入库（如 SWAN_PLAYER_PAUSE_BTN，
+        需授权平台+播放任务才能截）时炸掉 teardown。
+        """
+        if not os.path.exists(template):
+            logger.warning("模板图未入库，按未命中跳过: %s", template)
+            return None
+        return self.aw.find_image(template, timeout=timeout)
+
+    def _login_page_on_screen(self, timeout: int = 1) -> bool:
+        """登录页锚：「下一步」按钮 / 隐私政策链接图任一可见。"""
+        return any(self._probe_image(template, timeout=timeout) is not None
+                   for template in self._LOGIN_PAGE_TEMPLATES)
+
+    def _home_nav_visible(self, timeout: int = 1) -> bool:
+        """首页壳主锚：底部导航 4 图任一可见（已转正、跨机稳健，verify 实测 1.0）。"""
+        return any(self._probe_image(template, timeout=timeout) is not None
+                   for template in self._BOTTOM_NAV_TEMPLATES)
+
+    def _wait_home_shell(self) -> None:
+        """断言已到首页壳：主底部导航 4 图 → 辅 OCR「推荐」→ 兜底顶 Tab 图。"""
+        if self._home_nav_visible(timeout=3):
+            return
+        if self.aw.find_text_by_ocr("推荐", timeout=3) is not None:
+            return
+        for template in self._TOP_TAB_TEMPLATES:
+            if self._probe_image(template, timeout=2) is not None:
+                return
+        assert False, "未进入首页壳（底部导航 4 图 / OCR「推荐」/ 顶 Tab 未选中态图均未命中）"
+
     # ---------- 登录与导航 ----------
 
     def _ensure_logged_in_on_home(self) -> None:
-        """幂等登录并断言在首页（登录复用存量 login_by_sms；到位断言用图片）。
+        """幂等登录并断言在首页壳（登录复用存量 login_by_sms；到位断言用图片）。
 
-        顶 Tab 断言用「未选中态」图轮询任一命中：首页 5 个顶 Tab 中至多
-        1 个处于选中态，任一张未选中态图可见即在首页，不依赖当前激活的是
-        哪个顶 Tab（顶 Tab 持久化陷阱，见 knowledge/swan/pages/swan_首页.md）。
+        进入前防护（verify 首跑结论）：登录页锚与首页壳锚均不可见（App 停在
+        播放页等未知页）时先 relaunch_app 冷启动重置——login_by_sms 对
+        「停在其它页」无防护；重启后已登录落 tab_me（login_by_sms 早退）、
+        未登录落登录页，两种态均可续行。
+
+        到位判据按稳健度排序：
+        1. 主：底部导航 4 图任一可见（已转正、跨机实测 1.0）；
+        2. 辅：OCR「推荐」顶 Tab 文字；
+        3. 兜底：顶 Tab 未选中态图轮询任一命中——首页 5 个顶 Tab 中至多
+           1 个处于选中态，不依赖当前激活的是哪个顶 Tab（顶 Tab 持久化
+           陷阱，见 knowledge/swan/pages/swan_首页.md）。
         """
+        if not (self._login_page_on_screen() or self._home_nav_visible()):
+            logger.info("App 停在未知页（登录页/首页壳锚均不可见），冷启动重置")
+            self.user.relaunch_app(os.environ.get("SWAN_PACKAGE", "com.swan.network"))
         self.user.login_by_sms(self.phone)
-        for template in (SWAN_HOME_TAB_RECOMMEND, SWAN_HOME_TAB_MUSIC,
-                         SWAN_HOME_TAB_RADIO, SWAN_HOME_TAB_AI):
-            if self.aw.find_image(template, timeout=2) is not None:
-                break
-        else:
-            assert False, "首页顶 Tab 未渲染（4 张未选中态图均未匹配）"
+        self._wait_home_shell()
         self.aw.image_exists(SWAN_BOTTOM_PLAYER_BAR, timeout=10)
 
     def _stay_on_recommend_tab(self) -> None:
@@ -78,7 +140,7 @@ class SwanPlayerRegressionMixin:
 
         未选中态图可见才点；已停在推荐时该图不匹配选中态，视为已到位。
         """
-        if self.aw.find_image(SWAN_HOME_TAB_RECOMMEND, timeout=2) is not None:
+        if self._probe_image(SWAN_HOME_TAB_RECOMMEND, timeout=2) is not None:
             self.aw.click_image(SWAN_HOME_TAB_RECOMMEND)
             self.aw.image_exists(SWAN_HOME_TAB_MUSIC, timeout=10)
 
@@ -133,7 +195,7 @@ class SwanPlayerRegressionMixin:
 
     def _close_sheet_if_any(self) -> None:
         """设备弹层若还开着（标题行 [图] 可见）则返回键关闭。"""
-        if self.aw.find_image(SWAN_DEVICE_SHEET_TITLE, timeout=1) is not None:
+        if self._probe_image(SWAN_DEVICE_SHEET_TITLE, timeout=1) is not None:
             self.aw.press_back()
 
     def _pause_if_playing(self) -> None:
@@ -141,11 +203,13 @@ class SwanPlayerRegressionMixin:
 
         仅覆盖播放页在前台的情形；后台播放（列表页迷你条）无独立模板可点，
         由后续用例的播放前置自然接管（rig 约定）。
+        模板尚未入库（需授权平台+播放任务才能截）时 _probe_image 记日志
+        跳过暂停检查，不炸 teardown（verify 首跑缺陷 1）。
         """
-        if self.aw.find_image(SWAN_PLAYER_PAUSE_BTN, timeout=1) is not None:
+        if self._probe_image(SWAN_PLAYER_PAUSE_BTN, timeout=1) is not None:
             self.aw.click_image(SWAN_PLAYER_PAUSE_BTN, timeout=2)
 
     def _dismiss_player_if_any(self) -> None:
         """全屏播放页若开着（收起钮 [图] 可见）则点收起回列表页。"""
-        if self.aw.find_image(SWAN_PLAYER_DISMISS_BTN, timeout=1) is not None:
+        if self._probe_image(SWAN_PLAYER_DISMISS_BTN, timeout=1) is not None:
             self.aw.click_image(SWAN_PLAYER_DISMISS_BTN, timeout=5)

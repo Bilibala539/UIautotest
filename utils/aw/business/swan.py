@@ -325,6 +325,10 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
     _VOLUME_SLIDER_AXIS = "x"
     # 设备页卡片：设备名行到状态行允许的最大纵向跨度（720x1600 口径，待真机校准）
     _CARD_BODY_SPAN = 300
+    # 设备页 OCR 候选行下界（cy > 此值的项一律剔除，720x1600 口径）：底部
+    # 播放条区 y≈1376-1476（verify-run3 实测），持久会话下播放条常驻设备名，
+    # 不剔除会把设备名兜底匹配错配到播放条标题上（实测案例见 select_device 注）。
+    _DEVICE_OCR_BOTTOM_LIMIT = 1350
 
     # OCR 设备名易混字符归一化映射（verify R2 实测：「HiVi M300MKII」被
     # 读成「HiVi M300MKIl」——罗马数字 II 与小写 l 同形，name in text
@@ -333,14 +337,26 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
 
     _TIME_RE = re.compile(r"(\d{1,2}):(\d{2})")
 
+    @classmethod
+    def _ocr_compact(cls, text: str) -> str:
+        """OCR 文本 compact 形式：去全部空格 + l/I/1 易混字符归一化。
+
+        verify-run3 实测两类失真：①「HiVi M300MKII」被读成「HiViM300MKII>」
+        （空格丢失，且带尾随杂字符），仅 l/I/1 归一化覆盖不了空格差异；
+        ②被读成「HiVi M300MKIl」（II→Il 同形）。两侧都 compact 后再做
+        包含比对可同时吞掉两种失真。
+        """
+        return text.translate(cls._OCR_CONFUSABLE_TRANS).replace(" ", "")
+
     def select_device(self, name: str, via: str = "card") -> None:
         """切换输出设备（A12，回归用例 11-12）。
 
         via="card"：设备页 OCR 定位目标设备名所在卡片（设备名精确包含
-        优先，失配时两侧做 l/I/1 易混字符归一化兜底再匹配，见
-        _OCR_CONFUSABLE_TRANS 注），点卡片状态行
-        （「连接良好」行）。⚠️ 不点设备名本身——知识库实测设备名节点是
-        设置入口（wifi_device_settings_<UUID>），内含删除设备风险。
+        优先，失配时两侧 compact 归一化——去空格 + l/I/1 易混字符映射——
+        兜底再匹配，见 _ocr_compact 注；OCR 候选行剔除底部播放条区
+        cy > _DEVICE_OCR_BOTTOM_LIMIT，播放条常驻设备名不作候选），点卡片
+        状态行（「连接良好」行）。⚠️ 不点设备名本身——知识库实测设备名
+        节点是设置入口（wifi_device_settings_<UUID>），内含删除设备风险。
         收尾断言卡片选中态 [图]。
 
         via="player"：播放页右上角设备切换钮 [图] 开弹层 → 断言弹层标题
@@ -352,23 +368,31 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         """
         assert via in ("card", "player"), "via 仅支持 card / player"
         if via == "card":
-            items = self.ocr_scan_page()
-            # 设备名比对：优先 OCR 文本精确包含；失配时两侧做 l/I/1 易混
-            # 字符归一化兜底（实测案例：OCR 把「HiVi M300MKII」读成
-            # 「HiVi M300MKIl」，II→Il，「M300MKII」归一化为「M300MK11」
-            # 后命中）。状态行「连接良好」定位逻辑不受归一化影响。
+            # 先剔除底部播放条区 OCR 项（cy > _DEVICE_OCR_BOTTOM_LIMIT）：
+            # verify-run3 实测案例——卡片标题被 OCR 读成「HiViM300MKII>」
+            # （空格丢失）致名字精确匹配失败，兜底错配到播放条常驻标题
+            # 「HiVi M300MKII」（y≈1376-1476），随后以播放条 cy 找「连接
+            # 良好」必然失败。播放条区本就不可点，整体剔除。
+            items = [i for i in self.ocr_scan_page()
+                     if i["cy"] <= self._DEVICE_OCR_BOTTOM_LIMIT]
+            # 设备名比对：优先 OCR 文本精确包含；失配时两侧 compact 归一化
+            # （去空格 + l/I/1 易混字符映射，见 _ocr_compact 注）兜底再匹配。
+            # 实测案例1：OCR 把「HiVi M300MKII」读成「HiVi M300MKIl」
+            # （II→Il），归一化后命中；案例2：读成「HiViM300MKII>」（空格
+            # 丢失），去空格后命中。状态行「连接良好」定位逻辑不受影响。
             name_item = next((i for i in items if name in i["text"]), None)
             if name_item is None:
-                norm_name = name.translate(self._OCR_CONFUSABLE_TRANS)
+                compact_name = self._ocr_compact(name)
                 name_item = next(
                     (i for i in items
-                     if norm_name in i["text"].translate(self._OCR_CONFUSABLE_TRANS)),
+                     if compact_name in self._ocr_compact(i["text"])),
                     None,
                 )
                 if name_item is not None:
                     logger.info(
                         "select_device: 设备名 %r 精确匹配失败，"
-                        "l/I/1 归一化后命中 OCR 文本 %r", name, name_item["text"])
+                        "compact 归一化（去空格+l/I/1）后命中 OCR 文本 %r",
+                        name, name_item["text"])
             assert name_item is not None, f"设备页 OCR 未找到设备名 {name!r}"
             status_item = next(
                 (i for i in items
@@ -689,6 +713,15 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         "我的": SWAN_TAB_ME,
     }
 
+    # 顶 Tab 行 region（720x1600 口径）：顶 Tab 行 y≈80-170，上界留余量。
+    # ⚠️ verify-run3 实测：未选中态小图（AITab按钮 仅 35x30）会与一级页
+    # 内容区元素假阳性命中——平台页 0.836@(295,1171)、我的页 0.896@(120,831)
+    # （SWAN收藏行）、音乐Tab按钮平台页 0.822，三个误命中 y 全部远在本
+    # region 之外。故凡以未选中态图做「在首页」判断或点击定位处一律加本
+    # region（region 是截图裁剪区，find_image 原生支持并自动加回偏移，
+    # 非坐标定位，同 _HISTORY_TAB_ROW_REGION 口径）。
+    _TOP_TAB_ROW_REGION = (0, 60, 720, 120)
+
     # 首页顶 Tab 5 张未选中态图（A22，均已转正）
     _TOP_TAB_TEMPLATES = {
         "推荐": SWAN_HOME_TAB_RECOMMEND,
@@ -712,14 +745,19 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
     }
 
     def _home_anchor_visible(self, timeout: float = 1.0) -> bool:
-        """首页容器判据：任一顶 Tab 未选中态图可见。
+        """首页容器判据：任一顶 Tab 未选中态图可见（region 限定顶 Tab 行）。
 
         首页 5 个顶 Tab 至多 1 个处于选中态，任一张未选中态图可见即在
         首页容器（与 tests/flutter/swan_regression_common.py 的
         _ensure_logged_in_on_home 同口径，不依赖当前激活的是哪个顶 Tab）。
+        ⚠️ 必须 region 限定 _TOP_TAB_ROW_REGION：未选中态小图在平台/我的页
+        内容区有假阳性命中（verify-run3 实测 AITab按钮 0.836@(295,1171) /
+        0.896@(120,831)），全屏匹配会让 go_bottom_tab「已在首页」假短路、
+        go_top_tab 跳过纠偏、AI 模板误点进收藏页。
         """
         for template in self._TOP_TAB_TEMPLATES.values():
-            if self.find_image(template, timeout=timeout) is not None:
+            if self.find_image(template, timeout=timeout,
+                               region=self._TOP_TAB_ROW_REGION) is not None:
                 return True
         return False
 
@@ -793,7 +831,11 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
                 f"顶 Tab 仅支持 {sorted(self._TOP_TAB_TEMPLATES)}，收到 {name!r}")
         if not self._home_anchor_visible():
             self.go_bottom_tab("首页")
-        if self.find_image(template, timeout=2) is not None:
+        # 点击查找同样 region 限定顶 Tab 行：未选中态小图在内容区有假阳性
+        # （verify-run3 实测 AITab按钮 我的页 0.896@(120,831)，全屏匹配会把
+        # 点击落到「我的」页收藏行上误进收藏页）
+        if self.find_image(template, timeout=2,
+                           region=self._TOP_TAB_ROW_REGION) is not None:
             self.click_image(template, timeout=5)
         else:
             logger.info("go_top_tab: 顶 Tab「%s」未选中态图不可见，视为已停在该 Tab", name)
@@ -1072,6 +1114,9 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         新构建（verify R2 拍板口径）：音乐 Tab 已改为歌单流、搜索条回归
         首页默认推荐 Tab，entry="home" 跟随 App 现状切推荐 Tab 后点搜索条
         （非语义变更；原「go_top_tab("音乐") + 音乐 Tab 搜索条」链路废弃）。
+        ⚠️ home 分支进推荐 Tab 后先回滚到顶再找搜索条：推荐 Tab 滚动位置
+        跨操作持久化（verify-run3 实测 open_home_card 等下滚后推荐 Tab 停在
+        下滚位，搜索条滚出屏幕，图锚与 OCR hint 都不可见）。
         推荐 Tab 有完整/紧凑两种服务端布局轮换（知识库 swan_首页），紧凑
         布局下搜索条图可能不可见，此时用 OCR hint「跨平台搜索音乐」兜底
         定位。
@@ -1089,6 +1134,17 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
                 f"（平台域入口 KB 未验证，暂不支持），收到 {entry!r}")
         if entry == "home":
             self.go_top_tab("推荐")   # 新构建：搜索条在推荐 Tab，音乐 Tab 已改歌单流
+            # 先回滚到顶：推荐 Tab 滚动位置跨操作持久化（verify-run3 实测：
+            # open_home_card 等下滚操作后推荐 Tab 停在下滚位，搜索条滚出
+            # 屏幕，图锚与 OCR hint「跨平台搜索音乐」均不可见）。先探测
+            # 可见性、不可见才 swipe_down 回滚——已回顶时盲滑会触发下拉
+            # 刷新（下拉刷新引发完整/紧凑布局轮换，见 _click_ocr_until_found 注）。
+            for _ in range(4):
+                if (self.find_image(bar, timeout=1) is not None
+                        or self.find_text_by_ocr("跨平台搜索音乐",
+                                                 timeout=1) is not None):
+                    break
+                self.swipe_down()
             if self.find_image(bar, timeout=3) is not None:
                 self.click_image(bar, timeout=10)
             else:

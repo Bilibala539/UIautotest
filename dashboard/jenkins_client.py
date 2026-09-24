@@ -109,7 +109,11 @@ def queue_item(queue_id: int) -> dict:
 
 
 def job_status(job: str, build: int) -> dict:
-    """查询构建状态:{"ok": True, "building": bool, "result": "SUCCESS"|...|None}。"""
+    """查询构建状态:{"ok": True, "building": bool, "result": "SUCCESS"|...|None,
+    "timestamp": epoch 毫秒, "duration": 毫秒(构建中为 0)}。
+
+    timestamp/duration(2026-09-24 补)供调用方还原构建真实起止,修对账
+    行"创建时间=结束时间"。"""
     cfg = config()
     if not cfg:
         return _fail("JENKINS_BASE_URL/JENKINS_USER/JENKINS_API_TOKEN 未配置")
@@ -127,19 +131,21 @@ def job_status(job: str, build: int) -> dict:
     except json.JSONDecodeError as error:
         return _fail(f"响应非 JSON: {error}")
     return {"ok": True, "building": bool(data.get("building", False)),
-            "result": data.get("result")}
+            "result": data.get("result"), "timestamp": data.get("timestamp"),
+            "duration": data.get("duration")}
 
 
 def list_builds(job: str, limit: int = 20) -> dict:
-    """列 job 最近构建(倒序):{"ok": True, "builds": [{number, result, timestamp, building}]}。
+    """列 job 最近构建(倒序):{"ok": True, "builds": [{number, result, timestamp, duration, building}]}。
 
     timestamp 为 epoch 毫秒(Jenkins 原生口径);仍在构建的 result 为 None。
+    duration(2026-09-24 补)同单位毫秒,构建中为 0,供还原真实起止时间。
     """
     cfg = config()
     if not cfg:
         return _fail("JENKINS_BASE_URL/JENKINS_USER/JENKINS_API_TOKEN 未配置")
     url = (f"{cfg['base']}/job/{urllib.parse.quote(job, safe='')}/api/json"
-           f"?tree=builds[number,result,timestamp,building]{{0,{int(limit)}}}")
+           f"?tree=builds[number,result,timestamp,duration,building]{{0,{int(limit)}}}")
     try:
         status, _, text = _request("GET", url, headers={"Authorization": _auth_header(cfg)})
     except urllib.error.HTTPError as error:

@@ -202,6 +202,24 @@ def _created_ms(job: dict) -> float | None:
         return None
 
 
+def _jenkins_build_times(entry: dict) -> tuple[str, str]:
+    """Jenkins 构建起止(entry 含 timestamp/duration,epoch 毫秒)转 UTC ISO 秒级。
+
+    对账补行与惰性收尾共用(2026-09-24 修"创建时间=结束时间"):落库用构建
+    真实起止,不再落"平台知晓时刻"。缺 timestamp 或构建中(duration<=0)时
+    终值给空串,调用方兜底。
+    """
+    ts = entry.get("timestamp")
+    if not isinstance(ts, (int, float)) or ts <= 0:
+        return "", ""
+    start = datetime.fromtimestamp(ts / 1000, tz=timezone.utc)
+    duration = entry.get("duration")
+    if not isinstance(duration, (int, float)) or duration <= 0:
+        return start.isoformat(timespec="seconds"), ""
+    end = start + timedelta(milliseconds=duration)
+    return start.isoformat(timespec="seconds"), end.isoformat(timespec="seconds")
+
+
 def _collect_group_candidates(jenkins_job: str, pipeline_value: str,
                               since_ms: float, kind: str = "pipeline") -> list[tuple[int, float]]:
     """列 jenkins_job 最近构建,筛本组候选:NOTES 匹配且 timestamp >= since_ms,按 timestamp 升序。
@@ -285,13 +303,16 @@ def resolve_build_pipeline_jobs(store) -> None:
             if not status.get("ok") or status.get("building"):
                 return  # 查不到/构建中 → 下次再看
             outcome = str(status.get("result") or "")
+            end_at = _jenkins_build_times(status)[1]  # 构建真实结束时刻;缺数据为空串
             if outcome == "SUCCESS":
                 store.finish_build_pipeline_job(job["job_id"], "succeeded",
-                                                dict(job.get("result") or {}))
+                                                dict(job.get("result") or {}),
+                                                finished_at=end_at)
             elif outcome in ("FAILURE", "UNSTABLE", "ABORTED"):
                 store.finish_build_pipeline_job(
                     job["job_id"], "failed",
-                    {**(job.get("result") or {}), "error": f"Jenkins 构建结果: {outcome}"})
+                    {**(job.get("result") or {}), "error": f"Jenkins 构建结果: {outcome}"},
+                    finished_at=end_at)
 
         # 第一遍:已有构建号/队列项存活的任务先闭环——不依赖候选列表,queue 存活组零
         # 回查开销;拿到的构建号计入占用,防同组回查任务抢走
@@ -377,15 +398,21 @@ def _reconcile_jenkins_builds(store) -> None:
              if j.get("jenkins_build") and str(j.get("jenkins_job") or "") == build_job}
 
     def _settle(job_id: str, result: dict, number: int, entry: dict) -> None:
-        """按构建状态落 运行中/终态(条件更新先到先得;排队瞬态留给下次)。"""
+        """按构建状态落 运行中/终态(条件更新先到先得;排队瞬态留给下次)。
+
+        终态带构建真实结束时间(2026-09-24):对账落库一律用 Jenkins 构建
+        自身的起止,不再用同步时刻。"""
+        _start_at, end_at = _jenkins_build_times(entry)
         if entry.get("building"):
             store.mark_build_pipeline_running(job_id, build_job, number)
         elif entry.get("result") == "SUCCESS":
-            store.finish_build_pipeline_job(job_id, "succeeded", result)
+            store.finish_build_pipeline_job(job_id, "succeeded", result,
+                                            finished_at=end_at)
         elif entry.get("result") in ("FAILURE", "UNSTABLE", "ABORTED"):
             store.finish_build_pipeline_job(
                 job_id, "failed",
-                {**result, "error": f"Jenkins 构建结果: {entry.get('result')}"})
+                {**result, "error": f"Jenkins 构建结果: {entry.get('result')}"},
+                finished_at=end_at)
 
     # 1) 已绑定构建号的行:构建中补 running,出结果补终态(按行回查只闭环不置 running)
     for job in recent:
@@ -450,10 +477,29 @@ def _reconcile_jenkins_builds(store) -> None:
             continue
         job = store.create_pipeline_job({"trigger_source": source, "platform": "flutter",
                                          "branch": meta["branch"], "case_filter": "",
-                                         "apk_id": ""})
+                                         "apk_id": "",
+                                         "created_at": _jenkins_build_times(entry)[0]})
         store.mark_jenkins_dispatch(job["job_id"], jenkins_job=build_job,
                                     jenkins_build=number, result_extra={"build": meta})
         _settle(job["job_id"], {"build": meta}, number, entry)
+
+    # 3) 存量修复(2026-09-24):首版对账补行把 created_at/finished_at 落成同一
+    #    同步时刻("创建时间=结束时间"的由来)。补行病的签名是"行创建时刻晚于
+    #    构建开始"(原生任务必然先建行后派发,创建不会晚于构建开始),只修这类
+    #    行;正常行(含同秒闭环的原生行)一律不动,防止误伤。
+    for job in recent:
+        if (str(job.get("trigger_source") or "") not in ("build", "webhook")
+                or job.get("status") not in PIPELINE_JOB_FINISHED_STATUSES
+                or not isinstance(job.get("jenkins_build"), int)):
+            continue
+        entry = builds.get(job["jenkins_build"])
+        if not entry:
+            continue
+        start_at, end_at = _jenkins_build_times(entry)
+        created_ms = _created_ms(job)
+        if not start_at or created_ms is None or created_ms <= entry["timestamp"] + 1000:
+            continue  # 缺时间锚/行创建早于构建开始:正常行,不动
+        store.fix_reconciled_job_times(job["job_id"], start_at, end_at)
 
 
 def _reap_timeout_jobs(connection: sqlite3.Connection) -> list[dict[str, Any]]:
@@ -1498,6 +1544,9 @@ class DashboardStore:
             f"job-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}-"
             f"{uuid.uuid4().hex[:6]}"
         )
+        # created_at 可选覆盖(2026-09-24):对账补行用 Jenkins 构建真实开始时间,
+        # 常规触发不传,仍取平台落行时刻
+        created_at = str(payload.get("created_at") or "").strip() or utc_now()
         with self.transaction() as connection:
             connection.execute(
                 """
@@ -1512,7 +1561,7 @@ class DashboardStore:
                     platform,
                     str(payload.get("case_filter") or "").strip(),
                     str(payload.get("apk_id") or "").strip() or None,
-                    utc_now(),
+                    created_at,
                 ),
             )
         return self.get_pipeline_job(job_id)
@@ -1636,8 +1685,12 @@ class DashboardStore:
         return self.get_pipeline_job(job_id)
 
     def finish_build_pipeline_job(self, job_id: str, status: str,
-                                  result: dict[str, Any]) -> dict[str, Any]:
+                                  result: dict[str, Any],
+                                  finished_at: str = "") -> dict[str, Any]:
         """打包型流水线任务终态回写:pending 直接落终态。
+
+        finished_at 可选(2026-09-24):对账/回查闭环传 Jenkins 构建真实结束
+        时刻,缺省仍取平台落库时刻。
 
         finish_pipeline_job 只收 running/cancelling(agent 状态机),build/webhook
         任务没有认领环节,状态机独立:pending/running 且 trigger_source IN
@@ -1651,10 +1704,30 @@ class DashboardStore:
                 """UPDATE pipeline_jobs SET status=?, finished_at=?, result_json=?
                    WHERE job_id=? AND status IN ('pending','running')
                      AND trigger_source IN ('build','webhook')""",
-                (status, utc_now(), json.dumps(result, ensure_ascii=False), job_id),
+                (status, finished_at or utc_now(), json.dumps(result, ensure_ascii=False), job_id),
             ).rowcount
             if not updated:
                 raise KeyError(f"build pipeline job not pending/running: {job_id}")
+        return self.get_pipeline_job(job_id)
+
+    def fix_reconciled_job_times(self, job_id: str, created_at: str,
+                                 finished_at: str = "") -> dict[str, Any]:
+        """对账补行存量修复(2026-09-24):首版补行把 created_at/finished_at 都
+        落成同一同步时刻,按 Jenkins 构建真实起止回填。条件更新只命中
+        created_at=finished_at 的坏行,幂等;finished_at 空串保持原值——
+        同秒闭环的正常行不会被抹成 NULL。"""
+        with self.transaction() as connection:
+            if finished_at:
+                connection.execute(
+                    """UPDATE pipeline_jobs SET created_at=?, finished_at=?
+                       WHERE job_id=? AND created_at=finished_at""",
+                    (created_at, finished_at, job_id),
+                )
+            else:
+                connection.execute(
+                    "UPDATE pipeline_jobs SET created_at=? WHERE job_id=? AND created_at=finished_at",
+                    (created_at, job_id),
+                )
         return self.get_pipeline_job(job_id)
 
     def cancel_pipeline_job(self, job_id: str) -> dict[str, Any]:
@@ -1982,6 +2055,40 @@ class DashboardStore:
                 and fields["linked_case_id"] == case_id:
             raise ValueError("linked_case_id 不能指向自己")
         return fields
+
+    def batch_update_case_defs(self, case_ids: Any, patch: dict[str, Any]) -> dict[str, Any]:
+        """批量编辑用例管理属性(2026-09-24,规范 4.2/8.5/8.6):仅 priority/module。
+
+        只动管理属性,不碰标题/内容等仓库源头字段;module 非空时自动登记进
+        modules(与 upsert_case_def 同口径);返回实际更新行数,不存在的 id 自然跳过。
+        """
+        if isinstance(case_ids, str) or not isinstance(case_ids, list):
+            raise ValueError("case_ids 必须是非空数组")
+        ids = [str(c or "").strip() for c in case_ids]
+        ids = [c for c in ids if c]
+        if not ids:
+            raise ValueError("case_ids 必须是非空数组")
+        if not isinstance(patch, dict):
+            raise ValueError("patch 必须是对象")
+        updates: dict[str, Any] = {}
+        if "priority" in patch:
+            updates["priority"] = _normalize_priority(patch.get("priority"))
+        if "module" in patch:
+            updates["module"] = str(patch.get("module") or "").strip()
+        if not updates:
+            raise ValueError("patch 至少包含 priority 或 module 之一")
+        with self.transaction() as connection:
+            if updates.get("module"):
+                connection.execute(
+                    "INSERT OR IGNORE INTO modules (slug, name_cn) VALUES (?, ?)",
+                    (updates["module"], MODULE_CN_SEED.get(updates["module"], updates["module"])),
+                )
+            sets = ", ".join(f"{key}=?" for key in updates) + ", updated_at=?"
+            updated = connection.execute(
+                f"UPDATE case_defs SET {sets} WHERE case_id IN ({','.join('?' * len(ids))})",
+                (*updates.values(), utc_now(), *ids),
+            ).rowcount
+        return {"updated": updated}
 
     def upsert_case_def(self, payload: dict[str, Any]) -> dict[str, Any]:
         fields = self._validate_case_def(payload)
@@ -3288,6 +3395,11 @@ class DashboardHandler(BaseHTTPRequestHandler):
             if parsed.path == "/api/case-defs/batch":
                 # 批量导入(部分成功语义):created/updated/failed 逐行明细,见 batch_import_case_defs
                 self.send_json(self.store.batch_import_case_defs(payload.get("rows")))
+                return
+            if parsed.path == "/api/case-defs/batch-update":
+                # 批量编辑(2026-09-24,规范 4.2/8.6):仅管理属性 priority/module
+                self.send_json(self.store.batch_update_case_defs(
+                    payload.get("case_ids"), payload.get("patch") or {}))
                 return
             if parsed.path == "/api/modules":
                 self.send_json(self.store.create_module(payload), HTTPStatus.CREATED)

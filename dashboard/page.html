@@ -76,6 +76,14 @@
     #dl-reset.active { border-color:var(--brand); color:var(--brand); }
     /* 规范 4.6:表单校验错误写到字段下方 12px 红字(不再只塞底部 msg) */
     .field-error { color:var(--bad); font-size:12px; margin-top:4px; display:block; }
+    /* 主动打包单行表单(2026-09-24 重排):分支/服别/备注一行铺开,备注吃剩余宽度 */
+    .build-row { display:flex; gap:14px; align-items:flex-end; flex-wrap:wrap; }
+    .build-field { display:flex; flex-direction:column; gap:6px; width:150px; position:relative; }
+    .build-field label { font-size:12px; color:var(--muted); }
+    .build-field input, .build-field select { width:100%; }
+    .build-notes-field { flex:1; min-width:220px; }
+    .build-err { position:absolute; top:100%; margin-top:2px; white-space:nowrap; }
+    .build-submit-wrap { display:flex; align-items:center; gap:10px; padding-bottom:2px; }
     /* 规范 4.1 Danger 文字链:行内删除专用,无底 --bad 字,hover --bad-weak 底;padding 对齐行内档 5px 10px */
     /* 备注列超长截断:单元格内 inline-block 裁切,title 悬停看全文 */
     .note-clip { display:inline-block; max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; vertical-align:bottom; }
@@ -178,6 +186,27 @@
     .cd-col-grip { position:absolute; top:0; right:-3px; bottom:0; width:7px; cursor:col-resize; z-index:2; }
     .cd-col-grip:hover { background:rgba(64,92,245,.3); }
     .cd-table th.drag-over { box-shadow:inset 2px 0 0 var(--brand); }
+    /* ==================== 全站表格(2026-09-24):锁定列宽后裁切防重叠、铺满容器防表头割裂、末列(操作列)吸右固定 ==================== */
+    table.rs-fixed th, table.rs-fixed td { overflow:hidden; text-overflow:ellipsis; }
+    table.rs-fixed .cd-col-grip { right:0; }  /* th 裁切后 grip 贴回边缘内,否则被裁掉 */
+    table.pin-last thead th:last-child, table.pin-last tbody td:last-child { position:sticky; right:0; }
+    table.pin-last thead th:last-child { z-index:3; }
+    table.pin-last tbody td:last-child { z-index:1; background:var(--card); box-shadow:-8px 0 10px -8px rgba(23,32,51,.28); }
+    .cd-table td { overflow:hidden; text-overflow:ellipsis; }  /* 用例表同为 fixed 布局,长内容同样裁切 */
+    .cd-table thead th:last-child, .cd-table tbody td:last-child { position:sticky; right:0; }
+    .cd-table thead th:last-child { z-index:3; }
+    .cd-table tbody td:last-child { z-index:1; background:var(--card); box-shadow:-8px 0 10px -8px rgba(23,32,51,.28); }
+    /* 批量编辑操作条(规范 4.2/8.6):选中浮现灰底圆角条,下拉弹层就地选择,不用弹窗 */
+    .cd-batchbar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; background:var(--neutral-weak); border-radius:10px; padding:8px 12px; margin-bottom:10px; }
+    .cd-batchbar .ghost { padding:5px 10px; font-size:12px; }
+    .cd-batch-count { font-size:13px; font-weight:600; }
+    .cd-batch-sep { width:1px; height:18px; background:var(--line); }
+    .cd-batch-wrap { position:relative; display:inline-flex; }
+    .cd-batch-pop { right:auto; left:0; bottom:auto; top:calc(100% + 6px); min-width:170px; max-height:300px; overflow:auto; }
+    .cd-batch-pop button { display:block; width:100%; text-align:left; padding:6px 8px; font-size:13px; border:0; background:none; border-radius:6px; cursor:pointer; }
+    .cd-batch-pop button:hover { background:var(--hover); }
+    .cd-th-check, .cd-td-check { text-align:center; }
+    .cd-th-check input, .cd-td-check input { padding:0; width:auto; }
     @media (max-width:800px) { .cd-drawer { width:100vw; } }
     .hint { color:var(--muted); font-size:12px; margin-top:6px; }
     .captcha-card { padding:0; overflow:hidden; position:relative; }
@@ -203,7 +232,7 @@
     .mc-value small { font-size:13px; font-weight:400; color:var(--muted); }
     .mc-second { font-size:15px; font-weight:600; margin-bottom:2px; }
     .mc-meta { color:var(--muted); font-size:12px; }
-    .mc-model { vertical-align:bottom; }  // 型号全称直接显示,超长自然换行
+    .mc-model { vertical-align:bottom; }  /* 型号全称直接显示,超长自然换行 */
     .mc-up { color:var(--brand); } .mc-down { color:var(--ink); }
     .mc-spark { width:100%; height:34px; display:block; margin-top:6px; }
     .mc-disk-row { display:flex; align-items:center; gap:8px; margin-top:14px; }
@@ -268,21 +297,21 @@
       <section class="card" style="margin-bottom:16px">
         <h2 class="h-block">主动打包</h2>
         <p class="hint" style="margin:0 0 10px">触发 Jenkins 构建，完成后安装包自动登记到下方列表，无需手动登记</p>
-        <div class="form-grid" style="margin-top:0">
-          <div>
+        <div class="build-row" style="margin-top:12px">
+          <div class="build-field">
             <label for="build-branch">分支 *</label>
             <input id="build-branch" value="dev" placeholder="dev">
-            <span class="field-error" id="build-branch-err" hidden>分支必填</span>
+            <span class="field-error build-err" id="build-branch-err" hidden>分支必填</span>
           </div>
-          <div>
+          <div class="build-field">
             <label for="build-server">服别</label>
             <select id="build-server"><option value="test">测试服</option><option value="formal">正式服</option></select>
           </div>
-          <div>
+          <div class="build-field build-notes-field">
             <label for="build-notes">备注</label>
             <input id="build-notes" placeholder="可选，如：联调验证包">
           </div>
-          <div class="form-actions">
+          <div class="build-submit-wrap">
             <button class="primary" id="build-submit">打包</button>
             <span class="meta" id="build-msg"></span>
           </div>
@@ -326,7 +355,7 @@
       </div>
       <section class="card table-card"><table><thead><tr><th>名称</th><th>套件</th><th>含打包</th><th>频率</th><th>上次执行</th><th>下次执行</th><th>启用</th><th>操作</th></tr></thead><tbody id="pl-rows"><tr><td colspan="8" class="empty">加载中…</td></tr></tbody></table></section>
       <h2 class="h-section">最近执行（最近 10 条）</h2>
-      <section class="card table-card"><table><thead><tr><th>平台</th><th>执行目标</th><th>状态</th><th>创建时间</th><th>结束时间</th><th>Jenkins</th></tr></thead><tbody id="pl-job-rows"><tr><td colspan="6" class="empty">加载中…</td></tr></tbody></table></section>
+      <section class="card table-card"><table><thead><tr><th>平台</th><th>执行目标</th><th>状态</th><th>创建时间</th><th>结束时间</th><th>Jenkins 任务号</th><th>操作</th></tr></thead><tbody id="pl-job-rows"><tr><td colspan="7" class="empty">加载中…</td></tr></tbody></table></section>
       <p class="hint">配置可关联测试套件，触发时按套件成员聚合执行目标；“立即执行”等同到点触发。任务由执行 agent 认领执行，结果见“执行会话”页。</p>
     </section>
     <section class="page" id="page-suites">
@@ -381,6 +410,14 @@
         <button class="ghost" id="cd-imp-btn" title="按模板批量导入用例,支持 CSV / Excel / Markdown">批量导入</button>
         <button class="primary" id="cd-new">＋ 新建用例</button>
       </div>
+      <div class="cd-batchbar" id="cd-batchbar" hidden>
+        <span class="cd-batch-count" id="cd-batch-count">已选 0 条</span>
+        <span class="cd-batch-sep"></span>
+        <span class="cd-batch-wrap"><button class="ghost" id="cd-batch-pri">改优先级 ▾</button><div class="cd-cols-pop cd-batch-pop" id="cd-batch-pri-pop" hidden></div></span>
+        <span class="cd-batch-wrap"><button class="ghost" id="cd-batch-module">改模块 ▾</button><div class="cd-cols-pop cd-batch-pop" id="cd-batch-module-pop" hidden></div></span>
+        <span class="cd-batch-wrap"><button class="ghost" id="cd-batch-suite">加入套件 ▾</button><div class="cd-cols-pop cd-batch-pop" id="cd-batch-suite-pop" hidden></div></span>
+        <button class="ghost" id="cd-batch-clear">清空选择</button>
+      </div>
       <section class="card table-card"><div class="cd-tablewrap"><table class="cd-table" id="cd-table-el"><colgroup id="cd-cols"></colgroup><thead><tr id="cd-thead"></tr></thead><tbody id="cd-rows"><tr><td class="empty">加载中…</td></tr></tbody></table></div></section>
       <div class="cd-pager">
         <span class="meta" id="cd-page-info">-</span>
@@ -403,11 +440,8 @@
     </section>
     <section class="page" id="page-machines">
       <div class="toolbar">
-        <span class="meta">167 平台机 / 176 构建机，1s 自动刷新（仅本页签激活时轮询）；打包/跑测试前瞄一眼资源余量，深度分析进 Grafana 大盘</span>
-        <span>
-          <button class="ghost" id="mc-refresh">刷新</button>
-          <button class="ghost" id="mc-grafana">Grafana 大盘</button>
-        </span>
+        <span></span>
+        <button class="ghost" id="mc-refresh">刷新</button>
       </div>
       <div id="mc-cards"><div class="empty">加载中…</div></div>
     </section>
@@ -721,15 +755,34 @@
       try { saved = JSON.parse(localStorage.getItem(storeKey) || 'null'); } catch (e) {}
       const lock = () => {  // 锁定:按当前渲染宽度转固定布局,此后拖拽互不影响
         if (colgroup) return;
-        const widths = Array.isArray(saved) && saved.length === ths.length ? saved : ths.map(th => Math.round(th.getBoundingClientRect().width) || 120);
+        // 列宽合计铺满容器(不足部分摊给可拖拽列),否则表头背景中途结束、
+        // 出现顶行"割裂"(2026-09-24);target 取表当前总宽=容器内容宽
+        const target = Math.round(tr.getBoundingClientRect().width) || 0;
+        let widths = Array.isArray(saved) && saved.length === ths.length
+          ? saved.slice() : ths.map(th => Math.round(th.getBoundingClientRect().width) || 120);
+        const fillable = pinLast ? widths.length - 1 : widths.length;
+        const sum = widths.reduce((a, b) => a + b, 0);
+        if (target > sum && fillable > 0) {
+          const extra = Math.floor((target - sum) / fillable);
+          for (let i = 0; i < fillable; i++) widths[i] += extra;
+        }
         tbl.style.tableLayout = 'fixed';
+        tbl.classList.add('rs-fixed');               // 裁切长内容,不再压到右侧列
+        if (pinLast) tbl.classList.add('pin-last');  // 操作列吸右固定
         colgroup = document.createElement('colgroup');
         widths.forEach(w => { const col = document.createElement('col'); col.style.width = w + 'px'; colgroup.appendChild(col); });
         tbl.insertBefore(colgroup, thead);
         ths.forEach((th, i) => th.style.width = widths[i] + 'px');
         tbl.style.width = widths.reduce((a, b) => a + b, 0) + 'px';
       };
-      if (Array.isArray(saved) && saved.length === ths.length) lock();  // 有存档直接锁宽;否则保持自动布局,首次拖动再锁
+      // 有存档直接锁宽;表在隐藏页签里量不到容器宽,等首次可见再锁,填充才准
+      if (Array.isArray(saved) && saved.length === ths.length) {
+        if (tbl.getClientRects().length || typeof IntersectionObserver !== 'function') lock();
+        else {
+          const io = new IntersectionObserver(() => { io.disconnect(); lock(); });
+          io.observe(tbl);
+        }
+      }
       ths.forEach((th, i) => {
         if (pinLast && i === ths.length - 1) return;  // 操作列固定,不挂拖拽
         const grip = document.createElement('span');
@@ -1051,7 +1104,7 @@
         const t = dlTime(a);
         const disabled = a.file_exists ? '' : 'disabled title="文件已清理"'; // 3.3:文件已清理禁用置灰,防扫出 404
         const jkBtn = a.jenkins_log_url ? `<button class="icon-btn" data-act="jk" title="Jenkins 日志">${ICON.log}</button> ` : ''; // 无构建号的旧数据不渲染
-        row.innerHTML = `<td>${dlChip(a.server_type || 'test')}</td><td>${safe(a.app_version || '-')}</td><td>${safe(a.branch || '-')}</td><td title="${safe(formatDate(t))}">${dlRelTime(t)}</td><td><span class="note-clip" title="${safe(a.notes || '')}">${safe(a.notes || '-')}</span></td><td><button class="icon-btn" ${disabled} data-act="dl" title="下载">${ICON.download}</button> <button class="icon-btn" ${disabled} data-act="qr" title="二维码">${ICON.qr}</button> ${jkBtn}<button class="icon-btn danger" data-act="del" title="删除">${ICON.trash}</button></td>`;
+        row.innerHTML = `<td>${dlChip(a.server_type || 'test')}</td><td>${safe(a.app_version || '-')}</td><td>${safe(a.branch || '-')}</td><td title="${safe(formatDate(t))}">${dlRelTime(t)}</td><td><span class="note-clip" title="${safe(a.notes || '')}">${safe(dlNotesText(a.notes))}</span></td><td><button class="icon-btn" ${disabled} data-act="dl" title="下载">${ICON.download}</button> <button class="icon-btn" ${disabled} data-act="qr" title="二维码">${ICON.qr}</button> ${jkBtn}<button class="icon-btn danger" data-act="del" title="删除">${ICON.trash}</button></td>`;
         row.querySelectorAll('button[data-act]').forEach(b => {
           const act = b.dataset.act;
           if (act === 'dl') b.onclick = () => dlDownload(a);
@@ -1072,12 +1125,28 @@
         window.location.href = url;
       } catch (e) { showToast('下载失败：' + e, true); }
     }
+    // 备注列中文标记(2026-09-24):机器来源前缀→人工可读文案;原始值保留在 title 悬浮里
+    const DL_SOURCE_CN = [
+      [/^webhook(:|$)/, '自动构建'],
+      [/^pipeline:/, '流水线触发'],
+      [/^daily($|;)/, '定时构建'],
+      [/^archive-verify($|;)/, '归档校验'],
+      [/^jenkins-manual($|;)/, 'Jenkins 手动构建'],
+    ];
+    function dlNotesText(notes) {
+      const s = String(notes || '').trim();
+      if (!s) return '-';
+      const hit = DL_SOURCE_CN.find(([re]) => re.test(s));
+      if (!hit) return s;  // 人工填写的自由备注原样展示
+      const rest = s.includes(';') ? s.slice(s.indexOf(';') + 1).trim() : '';
+      return rest ? `${hit[1]} · ${rest}` : hit[1];
+    }
     function dlOpenModal(a) { // 3.4:大码 260px + 复制链接 + iOS 文案
       dlModalApk = a;
       $('dl-m-title').textContent = a.apk_id;
       $('dl-m-meta').textContent = `版本 ${a.app_version || '-'} · ${dlServerName(a.server_type)} · 分支 ${a.branch || '-'} · ${dlRelTime(dlTime(a))}`;
       const notes = $('dl-m-notes');
-      notes.hidden = !a.notes; notes.textContent = a.notes ? `备注：${a.notes}` : '';
+      notes.hidden = !a.notes; notes.textContent = a.notes ? `备注：${dlNotesText(a.notes)}` : '';
       const url = dlUrl(a);
       $('dl-m-url').textContent = url;
       dlRenderQR($('dl-m-qr'), url, 260);
@@ -1141,6 +1210,11 @@
     ];
     let cdCols = [];
 
+    // ---------- 批量编辑(2026-09-24,规范 4.2/6.5/8.6):勾选列 + 批量操作条,
+    // 仅 改优先级/改模块/加入套件,操作完自动清空;不做跨页全选与选中态保存 ----------
+    let cdSel = new Set();     // 选中的 case_id 集合(翻页保留,清空按钮/操作后清)
+    let cdPageIds = [];        // 当前页 case_id,算全选框三态用
+
     function cdLoadCols() {
       let saved = null;
       try { saved = JSON.parse(localStorage.getItem('cd-cols-v1') || 'null'); } catch (e) {}
@@ -1187,6 +1261,76 @@
       return ['P0', 'P1', 'P2', 'P3'].includes(p) ? p : 'P3';
     }
 
+    function cdSyncBatchUI() {  // 批量条显隐/计数/全选框三态
+      $('cd-batchbar').hidden = cdSel.size === 0;
+      $('cd-batch-count').textContent = `已选 ${cdSel.size} 条`;
+      const selAll = $('cd-sel-all');
+      if (selAll) {
+        const onPage = cdPageIds.filter(id => cdSel.has(id)).length;
+        selAll.checked = cdPageIds.length > 0 && onPage === cdPageIds.length;
+        selAll.indeterminate = onPage > 0 && onPage < cdPageIds.length;
+      }
+    }
+    function cdCloseBatchPops() { document.querySelectorAll('.cd-batch-pop').forEach(p => { p.hidden = true; }); }
+    async function cdOpenBatchPop(kind) {  // kind: pri | module | suite;每次打开现拉字典
+      const pop = $(`cd-batch-${kind}-pop`);
+      const show = pop.hidden;
+      cdCloseBatchPops();
+      if (!show) return;
+      try {
+        if (kind === 'pri') {
+          pop.innerHTML = ['P0', 'P1', 'P2', 'P3'].map(p => `<button data-pri="${p}"><span class="chip ${p.toLowerCase()}">${p}</span></button>`).join('');
+          pop.querySelectorAll('button[data-pri]').forEach(b => b.onclick = () => cdBatchUpdate({ priority: b.dataset.pri }, `优先级改为 ${b.dataset.pri}`));
+        } else if (kind === 'module') {
+          pop.innerHTML = '<p class="meta" style="padding:4px 8px">加载中…</p>';
+          const data = await (await fetch('/api/modules')).json();
+          pop.innerHTML = '<button data-module="">（无模块）</button>' + (data.items || []).map(m => `<button data-module="${safe(m.slug)}">${safe(m.name_cn || m.slug)}</button>`).join('');
+          pop.querySelectorAll('button[data-module]').forEach(b => b.onclick = () => cdBatchUpdate({ module: b.dataset.module }, b.dataset.module ? `模块改为 ${b.dataset.module}` : '模块已清空'));
+        } else {
+          pop.innerHTML = '<p class="meta" style="padding:4px 8px">加载中…</p>';
+          const data = await (await fetch('/api/suites')).json();
+          const suites = data.items || [];
+          pop.innerHTML = suites.length
+            ? suites.map(s => `<button data-suite="${safe(s.suite_id)}">${safe(s.name || s.suite_id)}</button>`).join('')
+            : '<p class="meta" style="padding:4px 8px">暂无套件——先到"测试套件"页新建</p>';
+          pop.querySelectorAll('button[data-suite]').forEach(b => b.onclick = () => cdBatchAddSuite(b.dataset.suite, b.textContent));
+        }
+      } catch (e) { pop.innerHTML = '<p class="meta" style="padding:4px 8px">加载失败,请重试</p>'; }
+      pop.hidden = false;
+    }
+    async function cdBatchUpdate(patch, okText) {
+      const ids = [...cdSel];
+      if (!ids.length) return;
+      const res = await fetch('/api/case-defs/batch-update', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ case_ids: ids, patch }) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { showToast((data && data.error) || '批量修改失败', true); return; }
+      showToast(`已更新 ${data.updated ?? ids.length} 条用例：${okText}`);
+      cdSel.clear(); cdCloseBatchPops(); loadCaseDefs();
+    }
+    async function cdBatchAddSuite(suiteId, suiteName) {
+      const ids = [...cdSel];
+      const chosen = cdAllItems.filter(c => ids.includes(c.case_id));
+      const autos = chosen.filter(c => c.case_type === 'auto').map(c => c.case_id);
+      const textN = chosen.length - autos.length;
+      if (!autos.length) { showToast('所选中没有自动化用例，套件仅收自动化用例', true); return; }
+      const res = await fetch(`/api/suites/${encodeURIComponent(suiteId)}/cases`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ case_ids: autos }) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { showToast((data && data.error) || '加入套件失败', true); return; }
+      showToast(`已加入套件「${suiteName}」${data.added ?? autos.length} 条${textN ? `；${textN} 条文字用例未加入` : ''}`);
+      cdSel.clear(); cdCloseBatchPops(); loadCaseDefs();
+    }
+    // 批量条按钮(就地下拉,点外面收起)与行勾选委托(#cd-rows 内容常被重画)
+    $('cd-batch-pri').onclick = () => cdOpenBatchPop('pri');
+    $('cd-batch-module').onclick = () => cdOpenBatchPop('module');
+    $('cd-batch-suite').onclick = () => cdOpenBatchPop('suite');
+    $('cd-batch-clear').onclick = () => { cdSel.clear(); cdSyncBatchUI(); document.querySelectorAll('#cd-rows .cd-row-check').forEach(cb => { cb.checked = false; }); };
+    document.addEventListener('click', e => { if (!e.target.closest('.cd-batch-wrap')) cdCloseBatchPops(); });
+    $('cd-rows').addEventListener('change', e => {
+      const cb = e.target.closest('.cd-row-check');
+      if (!cb) return;
+      if (cb.checked) cdSel.add(cb.dataset.cid); else cdSel.delete(cb.dataset.cid);
+      cdSyncBatchUI();
+    });
     function renderCaseDefs() {
       // 统计卡片(始终基于全量)
       const nText = cdAllItems.filter(c => c.case_type === 'text').length;
@@ -1218,19 +1362,35 @@
       $('cd-page-info').textContent = `共 ${shown.length} 条 · 第 ${cdPage}/${totalPages} 页`;
       $('cd-prev').disabled = cdPage <= 1;
       $('cd-next').disabled = cdPage >= totalPages;
-      // 动态表头 + colgroup(可见列)
+      // 动态表头 + colgroup(可见列);首列常驻勾选框(批量编辑,不进"列设置")
       const vis = cdVisibleCols();
-      $('cd-thead').innerHTML = vis.map(c =>
+      // 列宽合计铺满容器(不足摊给非操作列)防表头割裂;摊完回写 cdCols,拖拽调宽起点一致
+      const dw = vis.map(c => c.width);
+      const wrapW = Math.round($('cd-tablewrap').getBoundingClientRect().width) || 0;
+      const sumW = dw.reduce((a, b) => a + b, 0) + 40;
+      if (wrapW > sumW && vis.length > 1) {
+        const extra = Math.floor((wrapW - sumW) / (vis.length - 1));
+        for (let i = 0; i < dw.length - 1; i++) dw[i] += extra;  // 操作列不加宽
+        vis.forEach((c, i) => c.width = dw[i]);
+      }
+      cdPageIds = pageItems.map(c => c.case_id);
+      $('cd-thead').innerHTML = '<th class="cd-th-check" style="width:40px"><input type="checkbox" id="cd-sel-all" title="全选本页"></th>' + vis.map(c =>
         c.key === 'actions'
           ? `<th data-key="${c.key}" style="width:${c.width}px"><span class="cd-th-label">${safe(c.label)}</span></th>`  // 操作列固定最右:不可拖拽换序、不可调宽
           : `<th draggable="true" data-key="${c.key}" style="width:${c.width}px"><span class="cd-th-label">${safe(c.label)}</span><span class="cd-col-grip" data-key="${c.key}"></span></th>`).join('');
-      $('cd-cols').innerHTML = vis.map(c => `<col style="width:${c.width}px">`).join('');
-      $('cd-table-el').style.width = vis.reduce((s, c) => s + c.width, 0) + 'px';
+      $('cd-cols').innerHTML = '<col style="width:40px">' + vis.map(c => `<col style="width:${c.width}px">`).join('');
+      $('cd-table-el').style.width = (40 + vis.reduce((s, c) => s + c.width, 0)) + 'px';
+      const selAll = $('cd-sel-all');
+      if (selAll) selAll.onchange = () => {  // 全选仅本页(规范:不做跨页全选)
+        pageItems.forEach(c => { if (selAll.checked) cdSel.add(c.case_id); else cdSel.delete(c.case_id); });
+        tbody.querySelectorAll('.cd-row-check').forEach(cb => { cb.checked = cdSel.has(cb.dataset.cid); });
+        cdSyncBatchUI();
+      };
       // 行
       const tbody = $('cd-rows'); tbody.innerHTML = '';
       if (!pageItems.length) {
-        tbody.innerHTML = `<tr><td colspan="${vis.length}" class="empty">${q || cdTypeFilter || module ? '没有匹配的用例——试试重置筛选' : '还没有用例——点右上"＋ 新建用例"，或运行 scripts/sync_cases.py 同步仓库用例'}</td></tr>`;
-        renderColsPop(); return;
+        tbody.innerHTML = `<tr><td colspan="${vis.length + 1}" class="empty">${q || cdTypeFilter || module ? '没有匹配的用例——试试重置筛选' : '还没有用例——点右上"＋ 新建用例"，或运行 scripts/sync_cases.py 同步仓库用例'}</td></tr>`;
+        renderColsPop(); cdSyncBatchUI(); return;
       }
       pageItems.forEach(c => { const row = document.createElement('tr');
         const typeBadge = `<span class="badge t-${c.case_type}">${c.case_type === 'text' ? '文字' : '自动化'}</span>`;
@@ -1253,17 +1413,18 @@
           updated: `<span class="meta">${safe(formatDate(c.updated_at))}</span>`,
           actions: `<div class="cd-actions"><button class="icon-btn" onclick="openCaseDefForm(decodeURIComponent('${encodeURIComponent(c.case_id)}'))" title="编辑">${ICON.edit}</button> <button class="icon-btn danger" onclick="deleteCaseDef(decodeURIComponent('${encodeURIComponent(c.case_id)}'))" title="删除">${ICON.trash}</button></div>`,
         };
-        row.innerHTML = vis.map(col => `<td class="cd-td-${col.key}">${cells[col.key] || ''}</td>`).join('');
+        row.innerHTML = `<td class="cd-td-check"><input type="checkbox" class="cd-row-check" data-cid="${safe(c.case_id)}" ${cdSel.has(c.case_id) ? 'checked' : ''}></td>` + vis.map(col => `<td class="cd-td-${col.key}">${cells[col.key] || ''}</td>`).join('');
         tbody.appendChild(row); });
       renderColsPop();
       bindThEvents();
+      cdSyncBatchUI();
     }
 
     // 表头事件:拖拽排序 + 右缘拖动调宽
     function bindThEvents() {
       $('cd-thead').querySelectorAll('th').forEach(th => {
         const key = th.dataset.key;
-        if (key === 'actions') return;  // 操作列固定:不参与拖拽换序与调宽
+        if (!key || key === 'actions') return;  // 操作列/勾选列固定:不参与拖拽换序与调宽
         th.addEventListener('dragstart', e => e.dataTransfer.setData('text/plain', key));
         th.addEventListener('dragover', e => { e.preventDefault(); th.classList.add('drag-over'); });
         th.addEventListener('dragleave', () => th.classList.remove('drag-over'));
@@ -1970,7 +2131,7 @@
       const data = await (await fetch('/api/pipeline/jobs?limit=100')).json();
       const jobs = (data.items || []).slice(0, 10);
       const tbody = $('pl-job-rows'); tbody.innerHTML = '';
-      if (!jobs.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty">暂无执行记录</td></tr>'; return; }
+      if (!jobs.length) { tbody.innerHTML = '<tr><td colspan="7" class="empty">暂无执行记录</td></tr>'; return; }
       jobs.forEach(j => { const row = document.createElement('tr');
         const isBuildRow = j.trigger_source === 'build' || j.trigger_source === 'webhook';
         const cancelable = j.status === 'pending' || (j.status === 'running' && !isBuildRow); // 规范 6.3:仅 pending/running 渲染取消;打包行运行中=Jenkins 构建进行中,平台无中止通道
@@ -1979,7 +2140,9 @@
         const target = (j.trigger_source === 'build' || j.trigger_source === 'webhook')
           ? '打包 ' + safe(j.branch || '') + (((j.result || {}).build || {}).server_type === 'formal' ? ' → 正式服' : ' → 测试服')
           : safe(j.case_filter || '-');
-        row.innerHTML = `<td>${safe((j.platform || '').toUpperCase())}</td><td>${target}</td><td><span class="badge ${PL_JOB_CLASS[j.status] || ''}">${PL_JOB_STATUS[j.status] || safe(j.status)}</span></td><td>${safe(formatDate(j.created_at))}</td><td>${j.finished_at ? safe(formatDate(j.finished_at)) : '-'}</td><td>${[cancelBtn, jkBtn].filter(Boolean).join(' ')}</td>`;
+        const bnum = Number(j.jenkins_build) || 0;  // Jenkins 任务号(2026-09-24):#19 式展示,有日志链接则整体可点
+        const bcell = bnum ? (j.jenkins_log_url ? `<a class="cd-case-id" href="${safe(j.jenkins_log_url)}" target="_blank" rel="noopener" title="打开 Jenkins 日志">#${bnum}</a>` : `#${bnum}`) : '-';
+        row.innerHTML = `<td>${safe(j.platform || '-')}</td><td>${target}</td><td><span class="badge ${PL_JOB_CLASS[j.status] || ''}">${PL_JOB_STATUS[j.status] || safe(j.status)}</span></td><td>${safe(formatDate(j.created_at))}</td><td>${j.finished_at ? safe(formatDate(j.finished_at)) : '-'}</td><td>${bcell}</td><td>${[cancelBtn, jkBtn].filter(Boolean).join(' ')}</td>`;
         row.querySelectorAll('button[data-act="cancel"]').forEach(b => { b.onclick = () => plCancelJob(j.job_id, j.status, b); });
         row.querySelectorAll('button[data-act="jk"]').forEach(b => { b.onclick = () => window.open(j.jenkins_log_url, '_blank', 'noopener'); });
         tbody.appendChild(row); });
@@ -2305,7 +2468,6 @@
       .forEach(([id, key, pin]) => { const t = $(id) && $(id).closest('table'); if (t) makeTableResizable(t, key, pin); });
 
     // ==================== 机器监控(machines,设计稿 docs/机器监控页设计.md;原生 SVG sparkline,不引图表库) ====================
-    const MC_GRAFANA_URL = 'http://192.168.12.167:3000';  // Grafana 独立大盘(部署计划 §7.5),仅入口链接不内嵌
     const MC_POLL_MS = 1000, MC_HISTORY_MS = 30000;       // summary 1s(2026-09-22 提速 5s→2s→1s)、走势 30s 一拉;两机 scrape_interval 已同步 15s→1s,数字粒度与页面刷新对齐
     const MC_STALE_SECONDS = 30;                          // 数据滞后阈值:summary.timestamp 与本地时间差,前端判定(设计稿 §四,主会话裁决 2026-09-21)
     const MC_ROLE_TEXT = { platform: '平台机', build: '构建机' };
@@ -2485,7 +2647,6 @@
     }
 
     $('mc-refresh').onclick = () => { mcPoll(); mcPollHistory(); };
-    $('mc-grafana').onclick = () => window.open(MC_GRAFANA_URL, '_blank', 'noopener');
   </script>
 </body>
 </html>

@@ -331,6 +331,95 @@ def test_webhook_build_resolver():
             gc.collect()  # 例外/回溯帧可能循环引用 sqlite 连接;Windows 删库文件需句柄已关
 
 
+def test_jenkins_build_sync():
+    """Jenkins↔平台对账(2026-09-24):手动构建/历史遗留构建同步可见,全状态映射。"""
+    with tempfile.TemporaryDirectory() as temporary_directory:
+        build_ts = int(time.time() * 1000) + 60_000
+        state = {"b31": {"building": True, "result": None}}
+
+        class MockJenkins(BaseHTTPRequestHandler):
+            def do_GET(self):
+                def reply(payload):
+                    body = json.dumps(payload).encode("utf-8")
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json")
+                    self.send_header("Content-Length", str(len(body)))
+                    self.end_headers()
+                    self.wfile.write(body)
+                if "tree=builds[" in self.path:
+                    reply({"builds": [
+                        {"number": 31, "result": state["b31"]["result"],
+                         "building": state["b31"]["building"], "timestamp": build_ts},
+                        {"number": 32, "result": "SUCCESS", "building": False,
+                         "timestamp": build_ts}]})
+                elif "tree=actions[parameters" in self.path:
+                    # 构建入参:31 手动构建(无 NOTES);32 webhook 遗留构建
+                    if "/31/" in self.path:
+                        reply({"actions": [{"parameters": [
+                            {"name": "BRANCH", "value": "dev"},
+                            {"name": "SERVER_TYPE", "value": "test"}]}]})
+                    else:
+                        reply({"actions": [{"parameters": [
+                            {"name": "BRANCH", "value": "dev"},
+                            {"name": "SERVER_TYPE", "value": "test"},
+                            {"name": "NOTES", "value": "webhook%3Awujianneng"}]}]})
+                elif "/job/swan-audio-build/31/" in self.path:
+                    reply({"building": state["b31"]["building"],
+                           "result": state["b31"]["result"]})
+                elif "/job/swan-audio-build/32/" in self.path:
+                    reply({"building": False, "result": "SUCCESS"})
+                else:
+                    self.send_response(404)
+                    self.end_headers()
+
+            def log_message(self, *args):
+                pass
+
+        jenkins_server = ThreadingHTTPServer(("127.0.0.1", 0), MockJenkins)
+        threading.Thread(target=jenkins_server.serve_forever, daemon=True).start()
+        env_keys = ("JENKINS_BASE_URL", "JENKINS_USER", "JENKINS_API_TOKEN")
+        env_backup = {key: os.environ.get(key) for key in env_keys}
+        os.environ.update({
+            "JENKINS_BASE_URL": f"http://127.0.0.1:{jenkins_server.server_address[1]}",
+            "JENKINS_USER": "mock",
+            "JENKINS_API_TOKEN": "mock",
+        })
+        server = create_server("127.0.0.1", 0, Path(temporary_directory) / "dashboard.sqlite3")
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        base_url = f"http://127.0.0.1:{server.server_address[1]}"
+
+        try:
+            # 平台从未触发过任何任务:列表读取即对账,31/32 全部补行可见
+            status, _, body = request(base_url, "/api/pipeline/jobs?limit=30")
+            rows = {j["jenkins_build"]: j for j in json.loads(body)["items"]}
+            assert set(rows) == {31, 32}
+            # 31:Jenkins 手动构建(building)→ build 来源 + 运行中
+            assert rows[31]["trigger_source"] == "build"
+            assert rows[31]["status"] == "running"
+            assert rows[31]["branch"] == "dev"
+            assert rows[31]["result"]["build"]["notes"] == "jenkins-manual"
+            # 32:webhook 遗留构建(NOTES 前缀归类)→ webhook 来源 + 成功
+            assert rows[32]["trigger_source"] == "webhook"
+            assert rows[32]["status"] == "succeeded" and rows[32]["finished_at"]
+
+            # 31 构建完成 → 下次列表读取闭环为成功
+            state["b31"] = {"building": False, "result": "SUCCESS"}
+            status, _, body = request(base_url, "/api/pipeline/jobs?limit=30")
+            rows = {j["jenkins_build"]: j for j in json.loads(body)["items"]}
+            assert rows[31]["status"] == "succeeded" and rows[31]["finished_at"]
+        finally:
+            for key, value in env_backup.items():
+                if value is None:
+                    os.environ.pop(key, None)
+                else:
+                    os.environ[key] = value
+            server.shutdown()
+            server.server_close()
+            jenkins_server.shutdown()
+            jenkins_server.server_close()
+            gc.collect()  # 例外/回溯帧可能循环引用 sqlite 连接;Windows 删库文件需句柄已关
+
+
 def test_build_pipeline_config():
     """打包型流水线(kind=build):配置校验 / run 触发打包 job / agent 不认领 /
     列表读取时向 Jenkins 惰性回查终态。"""

@@ -250,6 +250,10 @@ def resolve_build_pipeline_jobs(store) -> None:
     防同 config 的回查任务抢走后来触发的构建(2026-09-23 线上错配修正;queue
     存活的任务直接拿自己队列项的构建号并同样计入占用)。
     查询失败静默跳过,下次列表再试,不阻塞页面;只扫最近 50 条内的 pending。
+
+    末尾再跑一遍 Jenkins 对账(_reconcile_jenkins_builds,2026-09-24):
+    Jenkins 最近构建全量同步到流水线页——手动构建/历史构建补行、进行中的
+    构建补"运行中"态,用户要求 Jenkins 上有的任务平台都要能看到。
     """
     if not jenkins_client.config():
         return
@@ -335,6 +339,117 @@ def resolve_build_pipeline_jobs(store) -> None:
                 except Exception as error:  # noqa: BLE001 — 单任务查询失败不影响列表
                     _reap_log(f"resolve build job={job.get('job_id')} 失败: {error}",
                               filename="jenkins_dispatch.log")
+    try:
+        _reconcile_jenkins_builds(store)
+    except Exception as error:  # noqa: BLE001 — 对账失败不影响列表
+        _reap_log(f"reconcile jenkins builds 失败: {error}",
+                  filename="jenkins_dispatch.log")
+
+
+def _reconcile_jenkins_builds(store) -> None:
+    """Jenkins↔平台打包任务对账(2026-09-24):swan-audio-build 最近构建全量同步。
+
+    与 resolve_build_pipeline_jobs 的按行回查互补,补三类口子:
+      - Jenkins 界面直接点的手动构建,平台从未落行 → 新建行;
+      - 落行机制上线前已存在的构建(历史回填) → 按 NOTES 归类补行;
+      - 行已绑定构建号但还挂 pending(构建进行中) → 补"运行中"态。
+    无主构建优先按 NOTES 认领挂起行(webhook 前缀 / pipeline:<id> 精确,
+    行创建不得晚于构建开始,created_at 升序先到先得同回查口径),认领不到
+    才新建。全部条件更新幂等;查询失败静默返回,下次列表再试。并发读列表
+    理论上可能重复补行(无 jenkins_build 唯一约束),单用户页面可接受。
+    """
+    build_job = os.environ.get("JENKINS_BUILD_JOB", "").strip() or "swan-audio-build"
+    listing = jenkins_client.list_builds(build_job)
+    if not listing.get("ok"):
+        return
+    builds: dict[int, dict] = {}
+    for entry in listing.get("builds") or []:
+        number = entry.get("number")
+        if isinstance(number, int):
+            builds[number] = entry
+    if not builds:
+        return
+    recent = store.list_pipeline_jobs(limit=50)
+    bound = {j.get("jenkins_build") for j in recent if j.get("jenkins_build")}
+
+    def _settle(job_id: str, result: dict, number: int, entry: dict) -> None:
+        """按构建状态落 运行中/终态(条件更新先到先得;排队瞬态留给下次)。"""
+        if entry.get("building"):
+            store.mark_build_pipeline_running(job_id, build_job, number)
+        elif entry.get("result") == "SUCCESS":
+            store.finish_build_pipeline_job(job_id, "succeeded", result)
+        elif entry.get("result") in ("FAILURE", "UNSTABLE", "ABORTED"):
+            store.finish_build_pipeline_job(
+                job_id, "failed",
+                {**result, "error": f"Jenkins 构建结果: {entry.get('result')}"})
+
+    # 1) 已绑定构建号的行:构建中补 running,出结果补终态(按行回查只闭环不置 running)
+    for job in recent:
+        if (str(job.get("trigger_source") or "") not in ("build", "webhook")
+                or job.get("status") not in ("pending", "running")):
+            continue
+        number = job.get("jenkins_build")
+        entry = builds.get(number) if isinstance(number, int) else None
+        if entry:
+            _settle(job["job_id"], dict(job.get("result") or {}), number, entry)
+
+    # 2) 无主构建:按 NOTES 认领挂起行,认领不到新建行(手动/外部构建)
+    open_rows = sorted(
+        (j for j in recent
+         if str(j.get("trigger_source") or "") in ("build", "webhook")
+         and j.get("status") == "pending" and not j.get("jenkins_build")),
+        key=lambda j: (str(j.get("created_at") or ""),
+                       (j.get("result") or {}).get("jenkins_queue_id") or 0))
+    taken: set[str] = set()
+    for number in sorted(builds):
+        if number in bound:
+            continue
+        entry = builds[number]
+        params = jenkins_client.build_parameters(build_job, number)
+        bp = (params.get("params") or {}) if params.get("ok") else {}
+        notes = unquote(str(bp.get("NOTES") or ""))
+        ts = entry.get("timestamp")
+        adopted = None
+        if isinstance(ts, (int, float)):
+            for job in open_rows:  # created_at 升序先到先得,同回查口径
+                if job["job_id"] in taken:
+                    continue
+                created_ms = _created_ms(job)
+                if created_ms is None or ts < created_ms:
+                    continue  # 构建早于任务创建,不可能是它的
+                if str(job.get("trigger_source") or "") == "webhook":
+                    matched = notes == "webhook" or notes.startswith("webhook:")
+                else:
+                    expected = str(((job.get("result") or {}).get("build") or {}).get("pipeline") or "")
+                    matched = bool(expected) and notes == f"pipeline:{expected}"
+                if matched:
+                    adopted = job
+                    taken.add(job["job_id"])
+                    break
+        # 归类:webhook 前缀 → webhook 行;pipeline:<id> → build 行;其余为手动构建
+        meta: dict[str, Any] = {"branch": str(bp.get("BRANCH") or ""),
+                                "server_type": str(bp.get("SERVER_TYPE") or "")}
+        if notes == "webhook" or notes.startswith("webhook:"):
+            source = "webhook"
+            meta["notes"] = notes
+        elif notes.startswith("pipeline:"):
+            source = "build"
+            meta["notes"] = notes
+            meta["pipeline"] = notes.removeprefix("pipeline:")
+        else:
+            source = "build"
+            meta["notes"] = notes or "jenkins-manual"
+        if adopted is not None:
+            store.mark_jenkins_dispatch(adopted["job_id"], jenkins_job=build_job,
+                                        jenkins_build=number)
+            _settle(adopted["job_id"], dict(adopted.get("result") or {}), number, entry)
+            continue
+        job = store.create_pipeline_job({"trigger_source": source, "platform": "flutter",
+                                         "branch": meta["branch"], "case_filter": "",
+                                         "apk_id": ""})
+        store.mark_jenkins_dispatch(job["job_id"], jenkins_job=build_job,
+                                    jenkins_build=number, result_extra={"build": meta})
+        _settle(job["job_id"], {"build": meta}, number, entry)
 
 
 def _reap_timeout_jobs(connection: sqlite3.Connection) -> list[dict[str, Any]]:
@@ -1521,19 +1636,21 @@ class DashboardStore:
         """打包型流水线任务终态回写:pending 直接落终态。
 
         finish_pipeline_job 只收 running/cancelling(agent 状态机),build/webhook
-        任务没有认领环节,状态机独立:仅 pending 且 trigger_source IN
-        ('build','webhook') 可落,先到先得。
+        任务没有认领环节,状态机独立:pending/running 且 trigger_source IN
+        ('build','webhook') 可落,先到先得(running 2026-09-24 起,对账补的
+        "运行中"态同样要能落终态)。
         """
         if status not in set(PIPELINE_JOB_FINISHED_STATUSES):
             raise ValueError(f"status must be one of {sorted(PIPELINE_JOB_FINISHED_STATUSES)}")
         with self.transaction() as connection:
             updated = connection.execute(
                 """UPDATE pipeline_jobs SET status=?, finished_at=?, result_json=?
-                   WHERE job_id=? AND status='pending' AND trigger_source IN ('build','webhook')""",
+                   WHERE job_id=? AND status IN ('pending','running')
+                     AND trigger_source IN ('build','webhook')""",
                 (status, utc_now(), json.dumps(result, ensure_ascii=False), job_id),
             ).rowcount
             if not updated:
-                raise KeyError(f"build pipeline job not pending: {job_id}")
+                raise KeyError(f"build pipeline job not pending/running: {job_id}")
         return self.get_pipeline_job(job_id)
 
     def cancel_pipeline_job(self, job_id: str) -> dict[str, Any]:
@@ -1548,11 +1665,16 @@ class DashboardStore:
         now = utc_now()
         with self.transaction() as connection:
             row = connection.execute(
-                "SELECT status FROM pipeline_jobs WHERE job_id=?", (job_id,)
+                "SELECT status, trigger_source FROM pipeline_jobs WHERE job_id=?", (job_id,)
             ).fetchone()
             if row is None:
                 raise KeyError(f"pipeline job not found: {job_id}")
             current = row["status"]
+            if (current == "running"
+                    and str(row["trigger_source"] or "") in ("build", "webhook")):
+                # 打包行运行中 = Jenkins 构建进行中,平台无中止通道,置 cancelling
+                # 会永远卡住(没有 agent 回报 cancelled)→ 拒绝(2026-09-24)
+                raise ValueError("打包任务运行中不支持取消,请等 Jenkins 出终态")
             if current == "pending":
                 connection.execute(
                     """UPDATE pipeline_jobs SET status='cancelled', finished_at=?, result_json=?
@@ -1600,6 +1722,22 @@ class DashboardStore:
                    WHERE job_id=?""",
                 (jenkins_job, jenkins_build,
                  json.dumps(result, ensure_ascii=False), job_id),
+            )
+        return self.get_pipeline_job(job_id)
+
+    def mark_build_pipeline_running(self, job_id: str, jenkins_job: str,
+                                    jenkins_build: int) -> dict[str, Any]:
+        """打包任务进入"运行中"(2026-09-24):Jenkins 对账发现构建已在跑。
+
+        仅 build/webhook 来源且 pending/running 可置(幂等,重复调用无副作用);
+        其它状态(终态/cancelling)不动。
+        """
+        with self.transaction() as connection:
+            connection.execute(
+                """UPDATE pipeline_jobs SET status='running', jenkins_job=?, jenkins_build=?
+                   WHERE job_id=? AND status IN ('pending','running')
+                     AND trigger_source IN ('build','webhook')""",
+                (jenkins_job, jenkins_build, job_id),
             )
         return self.get_pipeline_job(job_id)
 

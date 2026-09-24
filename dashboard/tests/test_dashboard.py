@@ -585,6 +585,11 @@ def test_build_resolver_same_config_collision():
             queue_counter = 900  # 类属性:handler 每请求新建实例,计数不能挂 self
 
             def do_POST(self):
+                # Windows 坑:不读 body 就回响应关连接,未读数据会触发 RST,
+                # 客户端偶发 WinError 10053 连接中止(2026-09-24 flaky 修复)
+                length = int(self.headers.get("Content-Length") or 0)
+                if length:
+                    self.rfile.read(length)
                 MockJenkins.queue_counter += 1
                 self.send_response(201)
                 self.send_header(

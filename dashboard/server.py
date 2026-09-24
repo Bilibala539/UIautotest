@@ -370,7 +370,11 @@ def _reconcile_jenkins_builds(store) -> None:
     if not builds:
         return
     recent = store.list_pipeline_jobs(limit=50)
-    bound = {j.get("jenkins_build") for j in recent if j.get("jenkins_build")}
+    # 构建号占用只认同一 Jenkins 任务的行:测试执行行(swan-autotest)的
+    # jenkins_build 是另一个任务的构建号,和打包构建号撞号,不能算占用
+    # (2026-09-24 线上验证发现:swan-autotest 的 19 号行顶掉了打包 19 号)
+    bound = {j.get("jenkins_build") for j in recent
+             if j.get("jenkins_build") and str(j.get("jenkins_job") or "") == build_job}
 
     def _settle(job_id: str, result: dict, number: int, entry: dict) -> None:
         """按构建状态落 运行中/终态(条件更新先到先得;排队瞬态留给下次)。"""

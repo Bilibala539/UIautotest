@@ -506,7 +506,7 @@ def _reconcile_jenkins_builds(store) -> None:
 # sha256 捕获兼容新旧脚本:旧版只打 12 位前缀+省略号,新版打全量 64 位。
 _APK_REG_OK_RE = re.compile(
     r"^登记成功 apk_id=(\S+) sha256=([0-9a-f]+)…? server_type=(\S+)\s*$", re.M)
-_APK_REG_FAIL_RE = re.compile(r"^登记失败:.*产物仍在 (\S+)\s*$", re.M)
+_APK_REG_FAIL_RE = re.compile(r"^登记失败:.*产物仍在 ([^\s)]+)\)?\s*$", re.M)
 _APK_ARCHIVE_RE = re.compile(r"^归档成功 bytes=(\d+) → (\S+)\s*$", re.M)
 _APK_CHECKOUT_RE = re.compile(r"^检出完成 commit=([0-9a-f]{7,40})\s*$", re.M)
 _APK_MODE_RE = re.compile(

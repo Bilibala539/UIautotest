@@ -776,6 +776,7 @@
     };
     // 全站列表列宽拖拽(用例管理表同款交互推广:拖某列右缘,左缘不动、其他列不动;localStorage 持久化)
     // pinLast=true 时最后一列(操作按钮列)固定最右不提供拖拽(规范 4.2:按钮列固定)
+    const pinFit = [];  // 各 pinLast 表的右列补位函数,窗口 resize 后重算(2026-09-28)
     function makeTableResizable(tbl, storeKey, pinLast) {
       const thead = tbl.querySelector('thead');
       if (!thead || !thead.children.length) return;
@@ -804,7 +805,22 @@
         tbl.insertBefore(colgroup, thead);
         ths.forEach((th, i) => th.style.width = widths[i] + 'px');
         tbl.style.width = widths.reduce((a, b) => a + b, 0) + 'px';
+        if (pinLast) fitLast(-1);  // 富余宽归右二列,操作列恒贴容器右缘(2026-09-28 冻结右列)
       };
+      const fitLast = dragIdx => {  // 冻结最右列(2026-09-28):容器富余宽全给右二列(正拖右二列时给右三列),
+        // 操作列宽度恒定、恒贴容器右缘、不随横向滚动;只吃富余不缩用户拖过的宽
+        if (!pinLast || !colgroup) return;
+        const cols = [...colgroup.children], n = cols.length;
+        if (n < 3) return;
+        let abs = n - 2;
+        if (abs === dragIdx) abs = n - 3;
+        const old = parseInt(cols[abs].style.width) || 0;
+        const rest = cols.reduce((s, c, idx) => idx === abs ? s : s + (parseInt(c.style.width) || 0), 0);
+        const w = Math.max(old, Math.round(tbl.parentElement.clientWidth) - rest);
+        cols[abs].style.width = w + 'px'; ths[abs].style.width = w + 'px';
+        tbl.style.width = cols.reduce((s, c) => s + (parseInt(c.style.width) || 0), 0) + 'px';
+      };
+      if (pinLast) pinFit.push(fitLast);
       // 一律锁宽(2026-09-24):出现第一条数据行就锁,操作列从加载起就固定最右,
       // 不再"拖一次才固定";隐藏页签量不到容器宽,等首次可见再锁,填充才准
       const ensureLock = () => {
@@ -832,6 +848,7 @@
           const onMove = ev => {
             const w = Math.min(Math.max(startW + ev.clientX - startX, 56), 1200);
             th.style.width = w + 'px'; colgroup.children[i].style.width = w + 'px';
+            if (pinLast) fitLast(i);  // 冻结右列:富余归右二列(2026-09-28)
             tbl.style.width = [...colgroup.children].reduce((s, c) => s + (parseInt(c.style.width) || 0), 0) + 'px';
           };
           const onUp = () => {
@@ -1287,6 +1304,19 @@
     }
 
     function cdVisibleCols() { return cdCols.filter(c => c.visible); }
+    function cdFitLast(dragKey) {  // 冻结最右操作列(2026-09-28):容器富余宽全给右二列(正拖右二列时给右三列),
+      // 操作列宽度恒定、恒贴容器右缘;只吃富余不缩用户拖过的宽
+      const vis = cdVisibleCols(), n = vis.length;
+      if (n < 3 || vis[n - 1].key !== 'actions') return;
+      let abs = n - 2;
+      if (vis[abs].key === dragKey) abs = n - 3;
+      const rest = vis.reduce((s, c, idx) => idx === abs ? s : s + c.width, 0);
+      vis[abs].width = Math.max(vis[abs].width || 0, Math.round($('cd-tablewrap').clientWidth) - rest);
+      const colEl = $('cd-cols').children[abs], thEl = $('cd-thead').children[abs];
+      if (colEl) colEl.style.width = vis[abs].width + 'px';
+      if (thEl) thEl.style.width = vis[abs].width + 'px';
+      $('cd-table-el').style.width = vis.reduce((s, c) => s + c.width, 0) + 'px';
+    }
 
     // 优先级归一展示(UI 规范 2.3):L1/L2/L3 → P1/P2/P3,非标值归 P3
     function cdPriNorm(v) {
@@ -1447,6 +1477,7 @@
           : `<th draggable="true" data-key="${c.key}" style="width:${c.width}px"><span class="cd-th-label">${safe(c.label)}</span><span class="cd-col-grip" data-key="${c.key}"></span></th>`).join('');
       $('cd-cols').innerHTML = vis.map(c => `<col style="width:${c.width}px">`).join('');
       $('cd-table-el').style.width = vis.reduce((s, c) => s + c.width, 0) + 'px';
+      cdFitLast(null);  // 渲染即补位:富余归右二列,操作列恒贴容器右缘(2026-09-28)
       $('cd-table-el').classList.toggle('pin-last', vis.length > 0 && vis[vis.length - 1].key === 'actions');  // 操作列吸右固定(列设置隐藏操作列时不吸)
       // 行
       const tbody = $('cd-rows'); tbody.innerHTML = '';
@@ -1510,7 +1541,7 @@
             const colEl = $('cd-cols').children[i], thEl = $('cd-thead').children[i];
             if (colEl) colEl.style.width = col.width + 'px';
             if (thEl) thEl.style.width = col.width + 'px';
-            $('cd-table-el').style.width = cdVisibleCols().reduce((s, c) => s + c.width, 0) + 'px';
+            cdFitLast(key);  // 冻结右列:富余归右二列(2026-09-28)
           };
           const onUp = () => {
             document.removeEventListener('mousemove', onMove);
@@ -2529,6 +2560,7 @@
     // 全站列表启用列宽拖拽(用例管理表 cd-table 自带实现,不在其列)
     [['runs','tw-runs',false],['dl-rows','tw-dl',true],['pl-rows','tw-plcfg',true],['pl-job-rows','tw-pljob',true],['su-rows','tw-su',true],['cd-mods-rows','tw-mods',true]]
       .forEach(([id, key, pin]) => { const t = $(id) && $(id).closest('table'); if (t) makeTableResizable(t, key, pin); });
+    window.addEventListener('resize', () => { pinFit.forEach(f => f(-1)); try { cdFitLast(null); } catch (e) {} });  // 窗口宽变化后操作列仍贴右缘
 
     // ==================== 机器监控(machines,设计稿 docs/机器监控页设计.md;原生 SVG sparkline,不引图表库) ====================
     const MC_POLL_MS = 1000, MC_HISTORY_MS = 30000;       // summary 1s(2026-09-22 提速 5s→2s→1s)、走势 30s 一拉;两机 scrape_interval 已同步 15s→1s,数字粒度与页面刷新对齐

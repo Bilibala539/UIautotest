@@ -436,6 +436,112 @@ def test_jenkins_build_sync():
             gc.collect()  # 例外/回溯帧可能循环引用 sqlite 连接;Windows 删库文件需句柄已关
 
 
+def test_pipeline_reconcile_no_dup_window():
+    """对账占用判定不能走"最近 N 行"窗口(2026-09-28 线上教训):
+
+    补录行 created_at 落的是构建开始时间,按 created_at 排序永远沉在窗口外,
+    旧版用窗口判占用导致同一构建被反复补行(线上 #1 积到 9 行)。占用须全量
+    查;存量重复行由对账入口自愈去重(保 created_at 最早的一行)。
+    """
+    with tempfile.TemporaryDirectory() as temporary_directory:
+        old_ms = int(time.time() * 1000) - 90 * 24 * 3600 * 1000  # 90 天前:必在窗口外
+        old_iso = time.strftime("%Y-%m-%dT%H:%M:%S+00:00", time.gmtime(old_ms / 1000))
+
+        class MockJenkins(BaseHTTPRequestHandler):
+            def do_GET(self):
+                def reply(payload):
+                    body = json.dumps(payload).encode("utf-8")
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json")
+                    self.send_header("Content-Length", str(len(body)))
+                    self.end_headers()
+                    self.wfile.write(body)
+                if "tree=builds[" in self.path:
+                    reply({"builds": [
+                        {"number": 1, "result": "FAILURE", "building": False,
+                         "timestamp": old_ms},
+                        {"number": 2, "result": "SUCCESS", "building": False,
+                         "timestamp": old_ms}]})
+                elif "tree=actions[parameters" in self.path:
+                    reply({"actions": [{"parameters": [
+                        {"name": "BRANCH", "value": "dev"},
+                        {"name": "SERVER_TYPE", "value": "test"}]}]})
+                elif "/job/swan-audio-build/1/" in self.path:
+                    reply({"building": False, "result": "FAILURE"})
+                elif "/job/swan-audio-build/2/" in self.path:
+                    reply({"building": False, "result": "SUCCESS"})
+                else:
+                    self.send_response(404)
+                    self.end_headers()
+
+            def log_message(self, *args):
+                pass
+
+        jenkins_server = ThreadingHTTPServer(("127.0.0.1", 0), MockJenkins)
+        threading.Thread(target=jenkins_server.serve_forever, daemon=True).start()
+        env_keys = ("JENKINS_BASE_URL", "JENKINS_USER", "JENKINS_API_TOKEN")
+        env_backup = {key: os.environ.get(key) for key in env_keys}
+        os.environ.update({
+            "JENKINS_BASE_URL": f"http://127.0.0.1:{jenkins_server.server_address[1]}",
+            "JENKINS_USER": "mock",
+            "JENKINS_API_TOKEN": "mock",
+        })
+        server = create_server("127.0.0.1", 0, Path(temporary_directory) / "dashboard.sqlite3")
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        base_url = f"http://127.0.0.1:{server.server_address[1]}"
+
+        # 预置线上病态数据:构建 1 号两行(旧版对账反复补行所致,created_at=
+        # 构建开始,沉在窗口外)+ 55 条近期测试执行行灌满 50 行窗口
+        import sqlite3
+        connection = sqlite3.connect(str(Path(temporary_directory) / "dashboard.sqlite3"))
+        for suffix in ("a", "b"):
+            connection.execute(
+                "INSERT INTO pipeline_jobs (job_id, trigger_source, status, created_at,"
+                " finished_at, jenkins_job, jenkins_build)"
+                " VALUES (?, 'build', 'failed', ?, ?, 'swan-audio-build', 1)",
+                (f"job-dup-{suffix}", old_iso, old_iso))
+        now_ms = time.time()
+        for index in range(55):
+            iso = time.strftime("%Y-%m-%dT%H:%M:%S+00:00",
+                                time.gmtime(now_ms - index))
+            connection.execute(
+                "INSERT INTO pipeline_jobs (job_id, trigger_source, status, created_at,"
+                " finished_at, jenkins_job, jenkins_build)"
+                " VALUES (?, 'manual', 'succeeded', ?, ?, 'swan-autotest', ?)",
+                (f"job-filler-{index:02d}", iso, iso, 7000 + index))
+        connection.commit()
+        connection.close()
+
+        try:
+            # 第一次读取:重复行自愈(2 行留 job-dup-a)+ 为 2 号补行,撞号任务不受影响
+            _, _, body = request(base_url, "/api/pipeline/jobs?limit=100")
+            items = json.loads(body)["items"]
+            build_rows = [j for j in items if j.get("jenkins_job") == "swan-audio-build"]
+            assert sorted(j["jenkins_build"] for j in build_rows) == [1, 2]
+            assert next(j for j in build_rows
+                        if j["jenkins_build"] == 1)["job_id"] == "job-dup-a"
+            assert len([j for j in items
+                        if j.get("jenkins_job") == "swan-autotest"]) == 55
+
+            # 第二次读取:1/2 号行的 created_at 已在 50 行窗口外,占用判定仍须
+            # 命中——旧版在此会再补一行 1 号
+            _, _, body = request(base_url, "/api/pipeline/jobs?limit=100")
+            items = json.loads(body)["items"]
+            build_rows = [j for j in items if j.get("jenkins_job") == "swan-audio-build"]
+            assert sorted(j["jenkins_build"] for j in build_rows) == [1, 2]
+        finally:
+            for key, value in env_backup.items():
+                if value is None:
+                    os.environ.pop(key, None)
+                else:
+                    os.environ[key] = value
+            server.shutdown()
+            server.server_close()
+            jenkins_server.shutdown()
+            jenkins_server.server_close()
+            gc.collect()  # 例外/回溯帧可能循环引用 sqlite 连接;Windows 删库文件需句柄已关
+
+
 def test_build_pipeline_config():
     """打包型流水线(kind=build):配置校验 / run 触发打包 job / agent 不认领 /
     列表读取时向 Jenkins 惰性回查终态。"""

@@ -377,9 +377,11 @@ def _reconcile_jenkins_builds(store) -> None:
     无主构建优先按 NOTES 认领挂起行(webhook 前缀 / pipeline:<id> 精确,
     行创建不得晚于构建开始,created_at 升序先到先得同回查口径),认领不到
     才新建。全部条件更新幂等;查询失败静默返回,下次列表再试。并发读列表
-    理论上可能重复补行(无 jenkins_build 唯一约束),单用户页面可接受。
+    理论上可能重复补行(无 jenkins_build 唯一约束),入口的
+    dedupe_pipeline_build_rows 会在下次读取时自愈去重。
     """
     build_job = os.environ.get("JENKINS_BUILD_JOB", "").strip() or "swan-audio-build"
+    store.dedupe_pipeline_build_rows(build_job)  # 先治存量重复行(见 store 方法注释)
     listing = jenkins_client.list_builds(build_job)
     if not listing.get("ok"):
         return
@@ -391,11 +393,13 @@ def _reconcile_jenkins_builds(store) -> None:
     if not builds:
         return
     recent = store.list_pipeline_jobs(limit=50)
-    # 构建号占用只认同一 Jenkins 任务的行:测试执行行(swan-autotest)的
-    # jenkins_build 是另一个任务的构建号,和打包构建号撞号,不能算占用
-    # (2026-09-24 线上验证发现:swan-autotest 的 19 号行顶掉了打包 19 号)
-    bound = {j.get("jenkins_build") for j in recent
-             if j.get("jenkins_build") and str(j.get("jenkins_job") or "") == build_job}
+    # 构建号占用必须全量查、不能走 recent 窗口:补录行 created_at=构建开始
+    # 时间,按 created_at 排序永远沉在窗口外,窗口判占用会反复补行(2026-09-28
+    # 线上 #1 积 9 行,见 bound_jenkins_builds)。占用只认同一 Jenkins 任务的
+    # 行:测试执行行(swan-autotest)的 jenkins_build 是另一个任务的构建号,
+    # 和打包构建号撞号不能算占用(2026-09-24 线上验证发现:swan-autotest 的
+    # 19 号行顶掉了打包 19 号)。
+    bound = store.bound_jenkins_builds(build_job)
 
     def _settle(job_id: str, result: dict, number: int, entry: dict) -> None:
         """按构建状态落 运行中/终态(条件更新先到先得;排队瞬态留给下次)。
@@ -538,11 +542,10 @@ def reconcile_apks_from_jenkins(store) -> None:
     listing = jenkins_client.list_builds(build_job)
     if not listing.get("ok"):
         return
-    covered: set[int] = set()
-    for row in store.list_apks(limit=200):
-        number_text = str(row.get("jenkins_build") or "")
-        if str(row.get("jenkins_job") or "") == build_job and number_text.isdigit():
-            covered.add(int(number_text))
+    # 覆盖判定全量查,不走 list_apks 窗口(同 bound_jenkins_builds 的窗口教训:
+    # 补录行 registered_at=构建开始时间,行多了以后沉出窗口,会反复拉控制台
+    # 重算;register_apk_if_absent 幂等保证不会重复插行,差的是无谓开销)
+    covered = store.apk_bound_builds(build_job)
     for entry in listing.get("builds") or []:
         if entry.get("building") or entry.get("result") != "SUCCESS":
             continue
@@ -1702,6 +1705,54 @@ class DashboardStore:
         item["result"] = json.loads(item.pop("result_json") or "{}")
         return item
 
+    def bound_jenkins_builds(self, jenkins_job: str) -> set[int]:
+        """某 Jenkins 任务已占用构建号的全量集合(对账占用判定专用)。
+
+        不能用 list_pipeline_jobs 的"最近 N 行"窗口判占用:窗口按 created_at
+        排序,而对账补录行的 created_at 落的是构建开始时间,永远沉在窗口外,
+        占用判定会系统性漏判、同一构建被反复补行(2026-09-28 线上 #1 积 9 行)。
+        """
+        with self.connect() as connection:
+            rows = connection.execute(
+                "SELECT jenkins_build FROM pipeline_jobs WHERE jenkins_job=?",
+                (jenkins_job,),
+            ).fetchall()
+        numbers: set[int] = set()
+        for row in rows:
+            try:
+                numbers.add(int(row["jenkins_build"]))
+            except (TypeError, ValueError):
+                continue
+        return numbers
+
+    def dedupe_pipeline_build_rows(self, jenkins_job: str) -> int:
+        """同一 Jenkins 任务同一构建号只保留一行,返回删除行数(对账自愈)。
+
+        治旧版对账窗口漏判留下的重复行:同组保留 created_at 最早的一行——
+        原生触发行先建行后派发,创建必然不晚于构建开始,天然优先于补录行
+        (补录行 created_at=构建开始时刻);同秒并列再比 job_id,先到先得。
+        只动 jenkins_job 命中的行,测试执行行(swan-autotest 等撞号任务)不受影响。
+        """
+        with self.transaction() as connection:
+            rows = connection.execute(
+                """SELECT job_id, jenkins_build FROM pipeline_jobs
+                   WHERE jenkins_job=? AND jenkins_build IS NOT NULL
+                   ORDER BY created_at, job_id""",
+                (jenkins_job,),
+            ).fetchall()
+            seen: dict[int, str] = {}
+            doomed: list[str] = []
+            for row in rows:
+                try:
+                    number = int(row["jenkins_build"])
+                except (TypeError, ValueError):
+                    continue
+                if seen.setdefault(number, row["job_id"]) != row["job_id"]:
+                    doomed.append(row["job_id"])
+            for job_id in doomed:
+                connection.execute("DELETE FROM pipeline_jobs WHERE job_id=?", (job_id,))
+        return len(doomed)
+
     def claim_pipeline_job(self, payload: dict[str, Any]) -> dict[str, Any]:
         """执行 agent 认领任务(原子操作,防多机抢跑)。
 
@@ -2041,6 +2092,26 @@ class DashboardStore:
                 ),
             )
         return self.get_apk(apk_id)
+
+    def apk_bound_builds(self, jenkins_job: str) -> set[int]:
+        """某 Jenkins 任务已被 apks 行覆盖的构建号全量集合(包管理对账专用)。
+
+        与 bound_jenkins_builds 同理不走列表窗口:补录行 registered_at=构建
+        开始时间,行多了以后会沉出"最近 N 行"窗口,窗口判覆盖会反复拉控制台
+        重算(register_apk_if_absent 幂等不会重复插行,差的是无谓开销)。
+        """
+        with self.connect() as connection:
+            rows = connection.execute(
+                "SELECT jenkins_build FROM apks WHERE jenkins_job=?",
+                (jenkins_job,),
+            ).fetchall()
+        numbers: set[int] = set()
+        for row in rows:
+            try:
+                numbers.add(int(row["jenkins_build"]))
+            except (TypeError, ValueError):
+                continue
+        return numbers
 
     def register_apk_if_absent(self, payload: dict[str, Any]) -> bool:
         """对账补录用登记(2026-09-28):apk_id 不存在才整行插入,返回是否新插入。

@@ -136,19 +136,26 @@ source /etc/profile.d/build-env.sh
 **验证标准**:`platforms;android-37` 与 `platforms;android-37.0` 同时列出,且**无**
 "Observed package id 'platforms;android-37.0' in inconsistent location" 警告。
 
-## 4. Flutter 3.47.4 stable(Linux tarball)
+## 4. Flutter 3.38.7 stable(Linux tarball)——版本跟随开发
+
+> **版本策略(2026-09-28 定,替代原 3.47.4 选型)**:打包机 Flutter 版本**跟随开发环境**
+> ——开发用哪个我们用哪个(现为 3.38.7/Dart 3.11.4),开发升级时我们再跟升。
+> 背景:3.47.4(Dart 3.13.3)的 `NetworkInterface.addresses` 返回 `List<InterfaceAddress>`,
+> 且 `InterfaceAddress implements InternetAddress`,核心仓 upnp2 discovery.dart 的 orElse
+> 回退写法在该版本编译不过(3.38.7 中 addresses 元素就是 InternetAddress,无此问题),
+> 9-24~9-28 每日构建连挂 4 天即此因。3.47.4 备份保留在 /opt/build-env/flutter-3.47.4.bak。
 
 ```bash
 # 国内镜像直达(官网 https://docs.flutter.dev/release/archive 为准):
 cd /tmp
-curl -fLO https://storage.flutter-io.cn/flutter_infra_release/releases/stable/linux/flutter_linux_3.47.4-stable.tar.xz
-tar -xf flutter_linux_3.47.4-stable.tar.xz -C /opt/build-env   # 顶层 flutter\ 目录,落位 /opt/build-env/flutter
+curl -fLO https://storage.flutter-io.cn/flutter_infra_release/releases/stable/linux/flutter_linux_3.38.7-stable.tar.xz
+tar -xf flutter_linux_3.38.7-stable.tar.xz -C /opt/build-env   # 顶层 flutter\ 目录,落位 /opt/build-env/flutter
 source /etc/profile.d/build-env.sh   # 先注入镜像变量再首跑
 flutter --version                    # 首跑下载 Dart SDK(走 storage.flutter-io.cn)
 flutter doctor
 ```
 
-验证:`flutter --version` 显示 Flutter 3.47.4 stable;`flutter doctor` 无 Android toolchain
+验证:`flutter --version` 显示 Flutter 3.38.7 stable;`flutter doctor` 无 Android toolchain
 缺失项(android-37 合成生效且 licenses 已接受)。doctor 对 176 的合理终态:Android toolchain ✓、
 其余(Chrome/Android Studio 类)缺项可忽略——176 无桌面无浏览器属预期。
 
@@ -160,7 +167,7 @@ flutter doctor
 | `/opt/build-env/jdk-21/bin/java -version` | 21.x |
 | `source /etc/profile.d/build-env.sh; echo $FLUTTER_STORAGE_BASE_URL` | https://storage.flutter-io.cn |
 | `sdkmanager --list_installed` | platform-tools、platforms 34/36/37.0/37.1/37.2/**37(合成)**、build-tools 34.0.0/36.0.0,无 inconsistent 警告 |
-| `flutter --version` | Flutter 3.47.4 stable |
+| `flutter --version` | Flutter 3.38.7 stable |
 | `flutter doctor` | Android toolchain 无 ✗(桌面/浏览器类缺项可忽略) |
 | `/opt/build-env/` 属主 | autotest:autotest |
 

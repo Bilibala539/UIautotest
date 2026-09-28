@@ -340,13 +340,33 @@ SWAN_TAB_ME = image_path("swan_底部导航_我的.png", platform="flutter")
 SWAN_PD_FAV_OFF = image_path("swan_歌单详情页_收藏图标_未收藏.png", platform="flutter")
 SWAN_PD_FAV_ON = image_path("swan_歌单详情页_收藏图标_已收藏.png", platform="flutter")
 
-# --- 歌曲收藏入口（A30） ---
-SWAN_PLAYER_FAV_BTN = image_path("swan_播放页_收藏按钮.png", platform="flutter")       # 全屏播放页收藏入口（source="player"）
-# 播放页收藏按钮已收藏态（红心；verify-big52 根因6：已收藏歌红心对灰心
-# 模板实测 score≈0.47 必失配，collect_song 两态探测用；element 截图中，
-# 暂登记 draft 路径，verify 转正后改正式路径）
+# --- 歌曲收藏入口（A30；⚠️ 2026-09-28 起 collect_song 停止引用下列三张，
+# 5.3.2 实测口径见 knowledge/swan/draft/swan_收藏流程_532实测.md）---
+# SWAN_PLAYER_FAV_BTN / SWAN_PLAYER_FAV_ON：5.3.2 播放页红心=「我喜欢」
+#    toggle（红/灰两态翻转，无弹层无跳转），不再承担「收藏到指定歌单」
+#    入口职能；保留登记供红心 toggle 独立辅助方法（收藏域）未来取用。
+SWAN_PLAYER_FAV_BTN = image_path("swan_播放页_收藏按钮.png", platform="flutter")       # [5.3.2 语义变更] 播放页红心未收藏态（=我喜欢 toggle）
+# 播放页红心已收藏态；verify-big52 根因6：红心对灰心模板实测 score≈0.47
+# 必失配，两态须分别探测；element 截图中，暂登记 draft 路径
 SWAN_PLAYER_FAV_ON = image_path("swan_播放页_收藏按钮_已收藏.png", platform="flutter", draft=True)
-SWAN_PD_ROW_FAV_BTN = image_path("swan_歌单详情页_歌曲行收藏图标.png", platform="flutter")  # 歌单详情页歌曲行收藏图标（source="playlist_page"）
+# 5.3.1 行内图标裁剪（40x40，内容=方框加号）；5.3.2 行内同位图标已改为
+# [+]（同设计方框加号），旧裁剪对 5.3.2 行内 [+] 实测 score≈0.34 失配，
+# collect_song 已停止引用（行内 [+] 暂行内定位，见 SwanBusiness.collect_song
+# 注；element 补行内 [+] 模板后可替换）
+SWAN_PD_ROW_FAV_BTN = image_path("swan_歌单详情页_歌曲行收藏图标.png", platform="flutter")  # [5.3.2 失配] 旧行内图标，待行内 [+] 模板替换
+
+# --- 歌曲收藏 5.3.2 链路（A30；2026-09-28 aw-element 按 5.3.2 实测 §7
+# 附带清单截取，暂登记 draft 路径，verify 转正后改正式路径）---
+# 播放页底部三钮行中间的 [+]（无 key 无 desc 仅图可达，收藏链路入口）；
+# ⚠️ 现截模板下缘含「VIP歌曲只支持试听」提示文字像素，非 VIP 歌该提示
+# 可能不渲染，verify 失配时先复核裁剪（规则7：先查图片质量）
+SWAN_PLAYER_PLUS_BTN = image_path("swan_播放页_加号收藏钮.png", platform="flutter", draft=True)
+# 「选择平台收藏」底部弹层（存在性判据；弹层无取消钮、back 键关闭，
+# 平台行清单随歌曲来源变化，行定位走 OCR 不走图）
+SWAN_COLLECT_PLATFORM_SHEET = image_path("swan_收藏平台弹层.png", platform="flutter", draft=True)
+# 「已选N首歌」页顶栏（=KB 旧「选择歌单页」，标题含动态 N——[+] 单首
+# 相加恒为 1；若裁剪含 N 数字，跨 N 场景需复核裁剪）
+SWAN_COLLECT_SELECTED_TOPBAR = image_path("swan_已选歌曲顶栏.png", platform="flutter", draft=True)
 
 
 # =====================================================================
@@ -466,6 +486,9 @@ __all__ = [
     "SWAN_PLAYER_FAV_BTN",
     "SWAN_PLAYER_FAV_ON",
     "SWAN_PD_ROW_FAV_BTN",
+    "SWAN_PLAYER_PLUS_BTN",
+    "SWAN_COLLECT_PLATFORM_SHEET",
+    "SWAN_COLLECT_SELECTED_TOPBAR",
     "WEB_DRAFT_IMAGE_DIR",
     "WEB_IMAGE_DIR",
     "demote_image",

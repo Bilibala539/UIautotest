@@ -284,7 +284,7 @@ SWAN_AI_HISTORY_TITLE = image_path("swan_AI历史页_标题行.png", platform="f
 # =====================================================================
 
 # --- 播放页 播放控制（五键中的四键；▶ 态已有 SWAN_PLAYER_PLAY_PAUSE_BTN） ---
-SWAN_PLAYER_PAUSE_BTN = image_path("swan_播放页_暂停按钮.png", platform="flutter", draft=True)       # 播放中的 ⏸ 态圆钮
+SWAN_PLAYER_PAUSE_BTN = image_path("swan_播放页_暂停按钮.png", platform="flutter")       # 播放中的 ⏸ 态圆钮
 SWAN_PLAYER_PREV_BTN = image_path("swan_播放页_上一首按钮.png", platform="flutter")
 SWAN_PLAYER_NEXT_BTN = image_path("swan_播放页_下一首按钮.png", platform="flutter")
 SWAN_PLAYER_LOOP_LIST = image_path("swan_播放页_循环模式_列表循环.png", platform="flutter")     # 循环钮三态之一
@@ -337,12 +337,12 @@ SWAN_TAB_DEVICE = image_path("swan_底部导航_设备.png", platform="flutter")
 SWAN_TAB_ME = image_path("swan_底部导航_我的.png", platform="flutter")
 
 # --- 歌单详情页 收藏图标两态（A29；只截图标本体，勿含歌单名/歌曲数文本） ---
-SWAN_PD_FAV_OFF = image_path("swan_歌单详情页_收藏图标_未收藏.png", platform="flutter", draft=True)
-SWAN_PD_FAV_ON = image_path("swan_歌单详情页_收藏图标_已收藏.png", platform="flutter", draft=True)
+SWAN_PD_FAV_OFF = image_path("swan_歌单详情页_收藏图标_未收藏.png", platform="flutter")
+SWAN_PD_FAV_ON = image_path("swan_歌单详情页_收藏图标_已收藏.png", platform="flutter")
 
 # --- 歌曲收藏入口（A30） ---
 SWAN_PLAYER_FAV_BTN = image_path("swan_播放页_收藏按钮.png", platform="flutter")       # 全屏播放页收藏入口（source="player"）
-SWAN_PD_ROW_FAV_BTN = image_path("swan_歌单详情页_歌曲行收藏图标.png", platform="flutter", draft=True)  # 歌单详情页歌曲行收藏图标（source="playlist_page"）
+SWAN_PD_ROW_FAV_BTN = image_path("swan_歌单详情页_歌曲行收藏图标.png", platform="flutter")  # 歌单详情页歌曲行收藏图标（source="playlist_page"）
 
 
 # =====================================================================

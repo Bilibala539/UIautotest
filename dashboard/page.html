@@ -899,7 +899,26 @@
       if (btn.dataset.page === 'casedefs') loadCaseDefs();
       if (btn.dataset.page === 'captcha') loadGateway();
       if (btn.dataset.page === 'machines') mcStart(); else mcStop();  // 轮询仅本页签激活期间(设计稿 §3.2)
+      if (btn.dataset.page === 'apks' || btn.dataset.page === 'pipelines') reconcileStart(); else reconcileStop();  // 对账自动刷新,同上仅激活期间
     });
+
+    // 对账自动刷新(2026-09-28):包管理/流水线页签激活期间每 15s 重拉一次。
+    // 后端读取路径"先对账后查列表"(缺行补录/状态闭环/去重),轮询命中时
+    // 当次响应已是修正后的数据,页面开着即可看到错误被纠正,无需手动刷新;
+    // 浏览器页签隐藏时暂停,切走页签即停(同 machines 模式,设计稿 §3.2)。
+    const RECONCILE_POLL_MS = 15000;
+    let reconcileTimer = null;
+    function reconcileStart() {
+      if (reconcileTimer) return;
+      reconcileTimer = setInterval(() => {
+        if (document.hidden) return;
+        const page = document.querySelector('section.page.active');
+        if (!page) return;
+        if (page.id === 'page-apks') loadApks();
+        if (page.id === 'page-pipelines') plLoadRecentJobs();
+      }, RECONCILE_POLL_MS);
+    }
+    function reconcileStop() { clearInterval(reconcileTimer); reconcileTimer = null; }
 
     async function loadRuns() {
       const platform = $('platform').value, apk = $('filter-apk').value;

@@ -76,6 +76,15 @@
     #dl-reset.active { border-color:var(--brand); color:var(--brand); }
     /* 规范 4.6:表单校验错误写到字段下方 12px 红字(不再只塞底部 msg) */
     .field-error { color:var(--bad); font-size:12px; margin-top:4px; display:block; }
+    /* 主动打包单行表单(2026-09-24 重排):分支/服别/备注一行铺开,备注吃剩余宽度 */
+    .build-row { display:flex; gap:14px; align-items:flex-end; flex-wrap:wrap; }
+    .build-row input, .build-row select, .build-row button { height:40px; box-sizing:border-box; }  /* 三类控件统一高度(2026-09-24) */
+    .req-star { color:var(--bad); font-weight:700; }  /* 必填红星:替代"必填"文字 */
+    .build-field { display:flex; flex-direction:column; gap:6px; width:150px; position:relative; }
+    .build-field label { font-size:12px; color:var(--muted); }
+    .build-field input, .build-field select { width:100%; }
+    .build-notes-field { flex:1; min-width:220px; }
+    .build-submit-wrap { display:flex; align-items:center; gap:10px; }
     /* 规范 4.1 Danger 文字链:行内删除专用,无底 --bad 字,hover --bad-weak 底;padding 对齐行内档 5px 10px */
     /* 备注列超长截断:单元格内 inline-block 裁切,title 悬停看全文 */
     .note-clip { display:inline-block; max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; vertical-align:bottom; }
@@ -115,6 +124,14 @@
     #cd-mods-modal { display:none; } #cd-mods-modal:not([hidden]) { display:flex; }
     /* 批量导入弹窗:同模块管理弹窗的 hidden+CSS 显隐写法;预览/失败明细共用窄表格容器 */
     #cd-imp-modal { display:none; } #cd-imp-modal:not([hidden]) { display:flex; }
+    /* 批量编辑弹窗(2026-09-24):常驻勾选列/批量操作条撤除,改「批量编辑」按钮弹窗内勾选+填字段一次提交 */
+    #cd-batch-modal { display:none; } #cd-batch-modal:not([hidden]) { display:flex; }
+    #cd-batch-modal input[type=checkbox] { padding:0; width:auto; }
+    .cd-b-wrap { border:1px solid var(--line); border-radius:10px; overflow:auto; max-height:300px; }
+    .cd-b-wrap table { width:100%; }
+    .cd-b-wrap td, .cd-b-wrap th { white-space:nowrap; }
+    .cd-b-wrap td.cd-b-title { white-space:normal; min-width:180px; }
+    .cd-b-check { text-align:center; }
     .cd-imp-wrap { border:1px solid var(--line); border-radius:10px; overflow:auto; max-height:300px; }
     .cd-imp-wrap table { width:100%; }
     .cd-imp-wrap td, .cd-imp-wrap th { white-space:nowrap; }
@@ -176,8 +193,25 @@
     .cd-table th:active { cursor:grabbing; }
     .cd-th-label { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding-right:6px; }
     .cd-col-grip { position:absolute; top:0; right:-3px; bottom:0; width:7px; cursor:col-resize; z-index:2; }
-    .cd-col-grip:hover { background:rgba(64,92,245,.3); }
+    .cd-col-grip::after { content:''; position:absolute; right:2px; top:22%; bottom:22%; width:3px; border-radius:2px; background:var(--line); }  /* 手柄常显(2026-09-24):不用hover摸索 */
+    th:hover .cd-col-grip::after, .cd-col-grip:hover::after { background:var(--brand); }
     .cd-table th.drag-over { box-shadow:inset 2px 0 0 var(--brand); }
+    /* ==================== 全站表格(2026-09-24):锁定列宽后裁切防重叠、铺满容器防表头割裂、末列(操作列)吸右固定 ==================== */
+    table.rs-fixed th, table.rs-fixed td { overflow:hidden; text-overflow:ellipsis; }
+    table.rs-fixed .cd-col-grip { right:0; }  /* th 裁切后 grip 贴回边缘内,否则被裁掉 */
+    table.pin-last thead th:last-child, table.pin-last tbody td:last-child { position:sticky; right:0; }
+    table.pin-last thead th:last-child { z-index:5; }  /* 高于 .cd-col-grip(z2):手柄bar不得压在吸右列上(2026-09-28) */
+    table.pin-last tbody td:last-child { z-index:4; background:var(--card); box-shadow:-8px 0 10px -8px rgba(23,32,51,.28); }  /* z4 同样压过手柄z2 */
+    /* 2026-09-28 用户反馈:右二列列名右侧的常显手柄bar紧贴吸右操作列,末列手柄bar贴表尾,
+       都看着像最右列还能拖 → 这两处改仅 hover 显示,其余列保持常显 */
+    thead th:last-child .cd-col-grip::after,
+    table.pin-last thead th:nth-last-child(2) .cd-col-grip::after { display:none; }
+    thead th:last-child:hover .cd-col-grip::after,
+    table.pin-last thead th:nth-last-child(2):hover .cd-col-grip::after { display:block; }
+    .cd-table td { overflow:hidden; text-overflow:ellipsis; }  /* 用例表同为 fixed 布局,长内容同样裁切 */
+    .cd-table thead th:last-child, .cd-table tbody td:last-child { position:sticky; right:0; }
+    .cd-table thead th:last-child { z-index:3; }
+    .cd-table tbody td:last-child { z-index:1; background:var(--card); box-shadow:-8px 0 10px -8px rgba(23,32,51,.28); }
     @media (max-width:800px) { .cd-drawer { width:100vw; } }
     .hint { color:var(--muted); font-size:12px; margin-top:6px; }
     .captcha-card { padding:0; overflow:hidden; position:relative; }
@@ -203,7 +237,7 @@
     .mc-value small { font-size:13px; font-weight:400; color:var(--muted); }
     .mc-second { font-size:15px; font-weight:600; margin-bottom:2px; }
     .mc-meta { color:var(--muted); font-size:12px; }
-    .mc-model { vertical-align:bottom; }  // 型号全称直接显示,超长自然换行
+    .mc-model { vertical-align:bottom; }  /* 型号全称直接显示,超长自然换行 */
     .mc-up { color:var(--brand); } .mc-down { color:var(--ink); }
     .mc-spark { width:100%; height:34px; display:block; margin-top:6px; }
     .mc-disk-row { display:flex; align-items:center; gap:8px; margin-top:14px; }
@@ -268,21 +302,20 @@
       <section class="card" style="margin-bottom:16px">
         <h2 class="h-block">主动打包</h2>
         <p class="hint" style="margin:0 0 10px">触发 Jenkins 构建，完成后安装包自动登记到下方列表，无需手动登记</p>
-        <div class="form-grid" style="margin-top:0">
-          <div>
-            <label for="build-branch">分支 *</label>
+        <div class="build-row" style="margin-top:12px">
+          <div class="build-field">
+            <label for="build-branch">分支 <span class="req-star">*</span></label>
             <input id="build-branch" value="dev" placeholder="dev">
-            <span class="field-error" id="build-branch-err" hidden>分支必填</span>
           </div>
-          <div>
+          <div class="build-field">
             <label for="build-server">服别</label>
             <select id="build-server"><option value="test">测试服</option><option value="formal">正式服</option></select>
           </div>
-          <div>
+          <div class="build-field build-notes-field">
             <label for="build-notes">备注</label>
             <input id="build-notes" placeholder="可选，如：联调验证包">
           </div>
-          <div class="form-actions">
+          <div class="build-submit-wrap">
             <button class="primary" id="build-submit">打包</button>
             <span class="meta" id="build-msg"></span>
           </div>
@@ -326,7 +359,7 @@
       </div>
       <section class="card table-card"><table><thead><tr><th>名称</th><th>套件</th><th>含打包</th><th>频率</th><th>上次执行</th><th>下次执行</th><th>启用</th><th>操作</th></tr></thead><tbody id="pl-rows"><tr><td colspan="8" class="empty">加载中…</td></tr></tbody></table></section>
       <h2 class="h-section">最近执行（最近 10 条）</h2>
-      <section class="card table-card"><table><thead><tr><th>平台</th><th>执行目标</th><th>状态</th><th>创建时间</th><th>结束时间</th><th>Jenkins</th></tr></thead><tbody id="pl-job-rows"><tr><td colspan="6" class="empty">加载中…</td></tr></tbody></table></section>
+      <section class="card table-card"><table><thead><tr><th>平台</th><th>执行目标</th><th>状态</th><th>创建时间</th><th>结束时间</th><th>Jenkins 任务号</th></tr></thead><tbody id="pl-job-rows"><tr><td colspan="6" class="empty">加载中…</td></tr></tbody></table></section>
       <p class="hint">配置可关联测试套件，触发时按套件成员聚合执行目标；“立即执行”等同到点触发。任务由执行 agent 认领执行，结果见“执行会话”页。</p>
     </section>
     <section class="page" id="page-suites">
@@ -379,9 +412,10 @@
         </div>
         <button class="ghost" id="cd-mods-btn">模块管理</button>
         <button class="ghost" id="cd-imp-btn" title="按模板批量导入用例,支持 CSV / Excel / Markdown">批量导入</button>
+        <button class="ghost" id="cd-batch-btn" title="勾选多条用例,批量改优先级 / 模块或加入套件">批量编辑</button>
         <button class="primary" id="cd-new">＋ 新建用例</button>
       </div>
-      <section class="card table-card"><div class="cd-tablewrap"><table class="cd-table" id="cd-table-el"><colgroup id="cd-cols"></colgroup><thead><tr id="cd-thead"></tr></thead><tbody id="cd-rows"><tr><td class="empty">加载中…</td></tr></tbody></table></div></section>
+      <section class="card table-card"><div class="cd-tablewrap" id="cd-tablewrap"><table class="cd-table" id="cd-table-el"><colgroup id="cd-cols"></colgroup><thead><tr id="cd-thead"></tr></thead><tbody id="cd-rows"><tr><td class="empty">加载中…</td></tr></tbody></table></div></section>
       <div class="cd-pager">
         <span class="meta" id="cd-page-info">-</span>
         <button class="ghost" id="cd-prev">← 上一页</button>
@@ -403,11 +437,8 @@
     </section>
     <section class="page" id="page-machines">
       <div class="toolbar">
-        <span class="meta">167 平台机 / 176 构建机，1s 自动刷新（仅本页签激活时轮询）；打包/跑测试前瞄一眼资源余量，深度分析进 Grafana 大盘</span>
-        <span>
-          <button class="ghost" id="mc-refresh">刷新</button>
-          <button class="ghost" id="mc-grafana">Grafana 大盘</button>
-        </span>
+        <span></span>
+        <button class="ghost" id="mc-refresh">刷新</button>
       </div>
       <div id="mc-cards"><div class="empty">加载中…</div></div>
     </section>
@@ -547,6 +578,39 @@
         <span class="meta" id="cd-imp-msg"></span>
         <span style="flex:1"></span>
         <button class="ghost" id="cd-imp-close">关闭</button>
+      </div>
+    </div>
+  </div>
+  <div id="cd-batch-modal" hidden style="position:fixed;inset:0;background:rgba(15,23,42,.45);align-items:center;justify-content:center;z-index:50">
+    <div style="background:var(--card,#fff);border-radius:12px;padding:20px 22px;width:min(720px,94vw);max-height:88vh;overflow:auto">
+      <h3 style="margin:0 0 4px">批量编辑用例</h3>
+      <p class="meta" style="margin:0 0 10px">先勾选用例(已选跨筛选保留),再填要改的字段;加入套件仅对自动化用例生效。</p>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
+        <select id="cd-b-mod" style="width:150px"><option value="">全部模块</option></select>
+        <input id="cd-b-q" placeholder="搜编号 / 标题" style="flex:1;min-width:150px;max-width:260px">
+        <span class="meta" id="cd-b-count" style="font-weight:600">已选 0 条</span>
+        <button type="button" class="ghost" id="cd-b-all" style="padding:5px 10px;font-size:12px">全选当前结果</button>
+        <button type="button" class="ghost" id="cd-b-clear" style="padding:5px 10px;font-size:12px">清空</button>
+      </div>
+      <div class="cd-b-wrap">
+        <table>
+          <thead><tr><th style="width:34px"></th><th>编号</th><th>标题</th><th>类型</th><th>优先级</th><th>模块</th></tr></thead>
+          <tbody id="cd-b-rows"></tbody>
+        </table>
+      </div>
+      <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-top:12px">
+        <div><label for="cd-b-pri" style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px">优先级</label>
+          <select id="cd-b-pri"><option value="">不改</option><option>P0</option><option>P1</option><option>P2</option><option>P3</option></select></div>
+        <div style="flex:1;min-width:180px"><label for="cd-b-newmod" style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px">改为模块(英文标识,保存时自动登记)</label>
+          <input id="cd-b-newmod" placeholder="如 login,留空不改" style="width:100%"></div>
+        <div><label for="cd-b-suite" style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px">加入套件(仅自动化)</label>
+          <select id="cd-b-suite"><option value="">不改</option></select></div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;margin-top:16px">
+        <button class="primary" id="cd-b-submit" disabled title="需勾选用例且至少填一项要改的字段">应用修改</button>
+        <span class="meta" id="cd-b-msg"></span>
+        <span style="flex:1"></span>
+        <button class="ghost" id="cd-b-close">关闭</button>
       </div>
     </div>
   </div>
@@ -712,6 +776,7 @@
     };
     // 全站列表列宽拖拽(用例管理表同款交互推广:拖某列右缘,左缘不动、其他列不动;localStorage 持久化)
     // pinLast=true 时最后一列(操作按钮列)固定最右不提供拖拽(规范 4.2:按钮列固定)
+    const pinFit = [];  // 各 pinLast 表的右列补位函数,窗口 resize 后重算(2026-09-28)
     function makeTableResizable(tbl, storeKey, pinLast) {
       const thead = tbl.querySelector('thead');
       if (!thead || !thead.children.length) return;
@@ -721,15 +786,56 @@
       try { saved = JSON.parse(localStorage.getItem(storeKey) || 'null'); } catch (e) {}
       const lock = () => {  // 锁定:按当前渲染宽度转固定布局,此后拖拽互不影响
         if (colgroup) return;
-        const widths = Array.isArray(saved) && saved.length === ths.length ? saved : ths.map(th => Math.round(th.getBoundingClientRect().width) || 120);
+        // 列宽合计铺满容器(不足部分摊给可拖拽列),否则表头背景中途结束、
+        // 出现顶行"割裂"(2026-09-24);target 取表当前总宽=容器内容宽
+        const target = Math.round(tr.getBoundingClientRect().width) || 0;
+        let widths = Array.isArray(saved) && saved.length === ths.length
+          ? saved.slice() : ths.map(th => Math.round(th.getBoundingClientRect().width) || 120);
+        const fillable = pinLast ? widths.length - 1 : widths.length;
+        const sum = widths.reduce((a, b) => a + b, 0);
+        if (target > sum && fillable > 0) {
+          const extra = Math.floor((target - sum) / fillable);
+          for (let i = 0; i < fillable; i++) widths[i] += extra;
+        }
         tbl.style.tableLayout = 'fixed';
+        tbl.classList.add('rs-fixed');               // 裁切长内容,不再压到右侧列
+        if (pinLast) tbl.classList.add('pin-last');  // 操作列吸右固定
         colgroup = document.createElement('colgroup');
         widths.forEach(w => { const col = document.createElement('col'); col.style.width = w + 'px'; colgroup.appendChild(col); });
         tbl.insertBefore(colgroup, thead);
         ths.forEach((th, i) => th.style.width = widths[i] + 'px');
         tbl.style.width = widths.reduce((a, b) => a + b, 0) + 'px';
+        if (pinLast) fitLast(-1);  // 富余宽归右二列,操作列恒贴容器右缘(2026-09-28 冻结右列)
       };
-      if (Array.isArray(saved) && saved.length === ths.length) lock();  // 有存档直接锁宽;否则保持自动布局,首次拖动再锁
+      const fitLast = dragIdx => {  // 冻结最右列(2026-09-28):容器富余宽全给右二列(正拖右二列时给右三列),
+        // 操作列宽度恒定、恒贴容器右缘、不随横向滚动;只吃富余不缩用户拖过的宽
+        if (!pinLast || !colgroup) return;
+        const cols = [...colgroup.children], n = cols.length;
+        if (n < 3) return;
+        let abs = n - 2;
+        if (abs === dragIdx) abs = n - 3;
+        const old = parseInt(cols[abs].style.width) || 0;
+        const rest = cols.reduce((s, c, idx) => idx === abs ? s : s + (parseInt(c.style.width) || 0), 0);
+        const w = Math.max(old, Math.round(tbl.parentElement.clientWidth) - rest);
+        cols[abs].style.width = w + 'px'; ths[abs].style.width = w + 'px';
+        tbl.style.width = cols.reduce((s, c) => s + (parseInt(c.style.width) || 0), 0) + 'px';
+      };
+      if (pinLast) pinFit.push(fitLast);
+      // 一律锁宽(2026-09-24):出现第一条数据行就锁,操作列从加载起就固定最右,
+      // 不再"拖一次才固定";隐藏页签量不到容器宽,等首次可见再锁,填充才准
+      const ensureLock = () => {
+        if (colgroup || !tbl.querySelector('tbody tr td:not(.empty)')) return;  // 跳过"加载中…/空态"占位行
+        if (tbl.getClientRects().length || typeof IntersectionObserver !== 'function') { lock(); return true; }
+        const io = new IntersectionObserver(() => { io.disconnect(); lock(); });
+        io.observe(tbl);
+        return true;
+      };
+      if (pinLast) tbl.classList.add('pin-last');  // 吸右类绑定即挂,不依赖锁定时机(2026-09-28)
+      ensureLock();  // 数据已在且有存档就直接锁
+      if (!colgroup) {  // 没锁成(数据未到/页签隐藏):数据行一出现就补锁,操作列即刻固定最右
+        const mo = new MutationObserver(() => { if (ensureLock()) mo.disconnect(); });
+        mo.observe(tbl.querySelector('tbody') || tbl, { childList: true });
+      }
       ths.forEach((th, i) => {
         if (pinLast && i === ths.length - 1) return;  // 操作列固定,不挂拖拽
         const grip = document.createElement('span');
@@ -742,6 +848,7 @@
           const onMove = ev => {
             const w = Math.min(Math.max(startW + ev.clientX - startX, 56), 1200);
             th.style.width = w + 'px'; colgroup.children[i].style.width = w + 'px';
+            if (pinLast) fitLast(i);  // 冻结右列:富余归右二列(2026-09-28)
             tbl.style.width = [...colgroup.children].reduce((s, c) => s + (parseInt(c.style.width) || 0), 0) + 'px';
           };
           const onUp = () => {
@@ -807,7 +914,7 @@
       const tbody = $('runs'); tbody.innerHTML = '';
       if (!runs.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty">暂无执行记录</td></tr>'; return; }
       runs.forEach(r => { const row = document.createElement('tr'); row.className = 'clickable';
-        row.innerHTML = `<td>${safe(r.platform.toUpperCase())}</td><td>${safe(r.apk_id||'-')}</td><td>${safe(r.device||'-')}</td><td>${badge(r.status)}</td><td class="num"${r.total_cases ? ` style="color:${rateColor(r.pass_rate)}"` : ''}>${r.total_cases ? r.pass_rate.toFixed(1)+'%' : '-'}</td><td>${r.total_cases}</td><td>${formatDuration(r.duration_seconds)}</td><td>${safe(formatDate(r.started_at))}</td>`;
+        row.innerHTML = `<td>${safe(r.platform || '-')}</td><td>${safe(r.apk_id||'-')}</td><td>${safe(r.device||'-')}</td><td>${badge(r.status)}</td><td class="num"${r.total_cases ? ` style="color:${rateColor(r.pass_rate)}"` : ''}>${r.total_cases ? r.pass_rate.toFixed(1)+'%' : '-'}</td><td>${r.total_cases}</td><td>${formatDuration(r.duration_seconds)}</td><td>${safe(formatDate(r.started_at))}</td>`;
         row.onclick = () => showRun(r.run_id); tbody.appendChild(row); });
     }
     function rateColor(p) { return p >= 90 ? 'var(--good)' : p < 60 ? 'var(--bad)' : 'var(--ink)'; } // 6.1 通过率三档:数字文字色不动底
@@ -816,7 +923,7 @@
       const run = await (await fetch('/api/runs/' + encodeURIComponent(runId))).json();
       $('run-drawer').hidden = false;
       $('detail-run-id').textContent = run.run_id;
-      $('detail-title').textContent = `${run.platform.toUpperCase()} ${statusText[run.status]||run.status}`;
+      $('detail-title').textContent = `${run.platform || ''} ${statusText[run.status]||run.status}`;
       $('detail-meta').textContent = `设备：${run.device||'-'}　开始：${formatDate(run.started_at)}　结束：${formatDate(run.ended_at)}　耗时：${formatDuration(run.duration_seconds)}　通过率：${run.pass_rate.toFixed(1)}%　包体：${run.apk_id||'-'}`;
       // M6 回写禅道测试单:完成态才显示(running 隐藏),已回写过则按钮转"更新"语义
       const ztBtn = $('zt-sync-btn');
@@ -921,9 +1028,7 @@
     }
     async function buildApk() { // 主动打包:POST /api/builds(打包构建模块并行开发中,端点未上线时优雅降级)
       const branch = $('build-branch').value.trim();
-      const err = $('build-branch-err');
-      if (!branch) { err.hidden = false; $('build-branch').focus(); return; } // 规范 4.6:首错聚焦,错误写到字段下方,不清空输入
-      err.hidden = true;
+      if (!branch) { $('build-branch').focus(); return; }  // 红星标必填,空值不提交(2026-09-28:错误文案撤除)
       const btn = $('build-submit'); const msg = $('build-msg');
       btn.disabled = true; btn.style.opacity = '.5'; // 提交期间禁用(规范 4.7)
       msg.textContent = '';
@@ -1051,7 +1156,7 @@
         const t = dlTime(a);
         const disabled = a.file_exists ? '' : 'disabled title="文件已清理"'; // 3.3:文件已清理禁用置灰,防扫出 404
         const jkBtn = a.jenkins_log_url ? `<button class="icon-btn" data-act="jk" title="Jenkins 日志">${ICON.log}</button> ` : ''; // 无构建号的旧数据不渲染
-        row.innerHTML = `<td>${dlChip(a.server_type || 'test')}</td><td>${safe(a.app_version || '-')}</td><td>${safe(a.branch || '-')}</td><td title="${safe(formatDate(t))}">${dlRelTime(t)}</td><td><span class="note-clip" title="${safe(a.notes || '')}">${safe(a.notes || '-')}</span></td><td><button class="icon-btn" ${disabled} data-act="dl" title="下载">${ICON.download}</button> <button class="icon-btn" ${disabled} data-act="qr" title="二维码">${ICON.qr}</button> ${jkBtn}<button class="icon-btn danger" data-act="del" title="删除">${ICON.trash}</button></td>`;
+        row.innerHTML = `<td>${dlChip(a.server_type || 'test')}</td><td>${safe(a.app_version || '-')}</td><td>${safe(a.branch || '-')}</td><td title="${safe(formatDate(t))}">${dlRelTime(t)}</td><td><span class="note-clip" title="${safe(a.notes || '')}">${safe(dlNotesText(a.notes))}</span></td><td><button class="icon-btn" ${disabled} data-act="dl" title="下载">${ICON.download}</button> <button class="icon-btn" ${disabled} data-act="qr" title="二维码">${ICON.qr}</button> ${jkBtn}<button class="icon-btn danger" data-act="del" title="删除">${ICON.trash}</button></td>`;
         row.querySelectorAll('button[data-act]').forEach(b => {
           const act = b.dataset.act;
           if (act === 'dl') b.onclick = () => dlDownload(a);
@@ -1072,12 +1177,28 @@
         window.location.href = url;
       } catch (e) { showToast('下载失败：' + e, true); }
     }
+    // 备注列中文标记(2026-09-24):机器来源前缀→人工可读文案;原始值保留在 title 悬浮里
+    const DL_SOURCE_CN = [
+      [/^webhook(:|$)/, '自动构建'],
+      [/^pipeline:/, '流水线主动打包'],
+      [/^daily($|;)/, '定时构建'],
+      [/^archive-verify($|;)/, '归档校验'],
+      [/^jenkins-manual($|;)/, 'Jenkins 手动构建'],
+    ];
+    function dlNotesText(notes) {
+      const s = String(notes || '').trim();
+      if (!s) return '-';
+      const hit = DL_SOURCE_CN.find(([re]) => re.test(s));
+      if (!hit) return s;  // 人工填写的自由备注原样展示
+      const rest = s.includes(';') ? s.slice(s.indexOf(';') + 1).trim() : '';
+      return rest ? `${hit[1]} · ${rest}` : hit[1];
+    }
     function dlOpenModal(a) { // 3.4:大码 260px + 复制链接 + iOS 文案
       dlModalApk = a;
       $('dl-m-title').textContent = a.apk_id;
       $('dl-m-meta').textContent = `版本 ${a.app_version || '-'} · ${dlServerName(a.server_type)} · 分支 ${a.branch || '-'} · ${dlRelTime(dlTime(a))}`;
       const notes = $('dl-m-notes');
-      notes.hidden = !a.notes; notes.textContent = a.notes ? `备注：${a.notes}` : '';
+      notes.hidden = !a.notes; notes.textContent = a.notes ? `备注：${dlNotesText(a.notes)}` : '';
       const url = dlUrl(a);
       $('dl-m-url').textContent = url;
       dlRenderQR($('dl-m-qr'), url, 260);
@@ -1141,6 +1262,11 @@
     ];
     let cdCols = [];
 
+    // ---------- 批量编辑弹窗(2026-09-24):撤常驻勾选列与批量操作条,「批量编辑」按钮弹窗内完成勾选+改字段;
+    // 仅 改优先级/改模块/加入套件(套件仅收自动化用例),提交后刷新列表 ----------
+    let cdBSel = new Set();    // 弹窗内选中的 case_id 集合(跨过滤/重渲染保留)
+    let cdBSuites = [];        // 打开弹窗时拉取的套件列表(套件下拉与提交时查名称用)
+
     function cdLoadCols() {
       let saved = null;
       try { saved = JSON.parse(localStorage.getItem('cd-cols-v1') || 'null'); } catch (e) {}
@@ -1178,6 +1304,19 @@
     }
 
     function cdVisibleCols() { return cdCols.filter(c => c.visible); }
+    function cdFitLast(dragKey) {  // 冻结最右操作列(2026-09-28):容器富余宽全给右二列(正拖右二列时给右三列),
+      // 操作列宽度恒定、恒贴容器右缘;只吃富余不缩用户拖过的宽
+      const vis = cdVisibleCols(), n = vis.length;
+      if (n < 3 || vis[n - 1].key !== 'actions') return;
+      let abs = n - 2;
+      if (vis[abs].key === dragKey) abs = n - 3;
+      const rest = vis.reduce((s, c, idx) => idx === abs ? s : s + c.width, 0);
+      vis[abs].width = Math.max(vis[abs].width || 0, Math.round($('cd-tablewrap').clientWidth) - rest);
+      const colEl = $('cd-cols').children[abs], thEl = $('cd-thead').children[abs];
+      if (colEl) colEl.style.width = vis[abs].width + 'px';
+      if (thEl) thEl.style.width = vis[abs].width + 'px';
+      $('cd-table-el').style.width = vis.reduce((s, c) => s + c.width, 0) + 'px';
+    }
 
     // 优先级归一展示(UI 规范 2.3):L1/L2/L3 → P1/P2/P3,非标值归 P3
     function cdPriNorm(v) {
@@ -1187,6 +1326,109 @@
       return ['P0', 'P1', 'P2', 'P3'].includes(p) ? p : 'P3';
     }
 
+    function cdBSyncFooter() {  // 已选计数 + 提交按钮可用态:有勾选且三项至少填一项才可提交
+      $('cd-b-count').textContent = `已选 ${cdBSel.size} 条`;
+      const hasField = $('cd-b-pri').value || $('cd-b-newmod').value.trim() || $('cd-b-suite').value;
+      $('cd-b-submit').disabled = !cdBSel.size || !hasField;
+    }
+    function cdBFiltered() {  // 弹窗内过滤:模块下拉 + 编号/标题关键字(数据源=页面全量用例缓存)
+      const q = $('cd-b-q').value.trim().toLowerCase();
+      const mod = $('cd-b-mod').value;
+      let items = cdAllItems;
+      if (mod) items = items.filter(c => c.module === mod);
+      if (q) items = items.filter(c => `${c.case_id} ${c.title}`.toLowerCase().includes(q));
+      return items;
+    }
+    function cdBRenderRows() {  // 勾选列表(紧凑表格):勾选态以 cdBSel 为准,重渲染后保留
+      const items = cdBFiltered();
+      const tbody = $('cd-b-rows');
+      if (!items.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty">没有匹配的用例</td></tr>'; return; }
+      tbody.innerHTML = items.map(c => {
+        const pri = cdPriNorm(c.priority);
+        return `<tr><td class="cd-b-check"><input type="checkbox" class="cd-b-row-check" data-cid="${safe(c.case_id)}" ${cdBSel.has(c.case_id) ? 'checked' : ''}></td>`
+          + `<td>${safe(c.case_id)}</td>`
+          + `<td class="cd-b-title">${safe(c.title)}</td>`
+          + `<td><span class="badge t-${c.case_type}">${c.case_type === 'text' ? '文字' : '自动化'}</span></td>`
+          + `<td>${pri ? `<span class="chip ${pri.toLowerCase()}">${safe(pri)}</span>` : '<span class="cd-none">-</span>'}</td>`
+          + `<td>${safe(c.module_cn || c.module || '-')}</td></tr>`;
+      }).join('');
+    }
+    async function cdBOpen() {
+      if (!cdAllItems.length) await loadCaseDefs();  // 刚进页就开弹窗时兜底拉一次全量
+      cdBSel.clear();
+      $('cd-b-mod').value = ''; $('cd-b-q').value = '';
+      $('cd-b-pri').value = ''; $('cd-b-newmod').value = ''; $('cd-b-suite').value = '';
+      $('cd-b-msg').textContent = '';
+      // 模块过滤下拉:复用用例数据里的模块清单(值=slug,展示=中文名)
+      const modMap = new Map();
+      cdAllItems.forEach(i => { if (i.module && !modMap.has(i.module)) modMap.set(i.module, i.module_cn || i.module); });
+      $('cd-b-mod').innerHTML = '<option value="">全部模块</option>' + [...modMap.keys()].sort().map(m =>
+        `<option value="${safe(m)}">${safe(modMap.get(m))}</option>`).join('');
+      // 套件下拉现拉:失败时只剩"不改",不阻塞弹窗打开
+      try {
+        const data = await (await fetch('/api/suites')).json();
+        cdBSuites = data.items || [];
+      } catch (e) { cdBSuites = []; }
+      $('cd-b-suite').innerHTML = '<option value="">不改</option>' + cdBSuites.map(s =>
+        `<option value="${safe(s.suite_id)}">${safe(s.name || s.suite_id)}</option>`).join('');
+      cdBRenderRows();
+      cdBSyncFooter();
+      $('cd-batch-modal').hidden = false;
+    }
+    async function cdBSubmit() {
+      const ids = [...cdBSel];
+      if (!ids.length) { $('cd-b-msg').textContent = '先勾选要修改的用例'; return; }
+      const patch = {};
+      const pri = $('cd-b-pri').value;
+      const newMod = $('cd-b-newmod').value.trim();
+      const suiteId = $('cd-b-suite').value;
+      if (pri) patch.priority = pri;
+      if (newMod) patch.module = newMod;
+      $('cd-b-submit').disabled = true;  // 提交中防连点
+      try {
+        // ① 批量改字段(优先级/模块;模块填了新标识后端自动登记)
+        if (Object.keys(patch).length) {
+          const res = await fetch('/api/case-defs/batch-update', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ case_ids: ids, patch }) });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) { showToast((data && data.error) || '批量修改失败', true); return; }
+          showToast(`已更新 ${data.updated ?? ids.length} 条用例${pri ? ` · 优先级 ${pri}` : ''}${newMod ? ` · 模块 ${newMod}` : ''}`);
+        }
+        // ② 加入套件:套件仅收自动化用例,客户端先过滤;文字用例计数提示
+        if (suiteId) {
+          const autos = cdAllItems.filter(c => ids.includes(c.case_id) && c.case_type === 'auto').map(c => c.case_id);
+          const textN = ids.length - autos.length;
+          if (!autos.length) {
+            showToast('所选中没有自动化用例，套件仅收自动化用例', true);
+          } else {
+            const suite = cdBSuites.find(s => s.suite_id === suiteId);
+            const res = await fetch(`/api/suites/${encodeURIComponent(suiteId)}/cases`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ case_ids: autos }) });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) { showToast((data && data.error) || '加入套件失败', true); return; }
+            showToast(`已加入套件「${suite ? suite.name || suiteId : suiteId}」${data.added ?? autos.length} 条${textN ? `；${textN} 条文字用例未加入` : ''}`);
+          }
+        }
+        $('cd-batch-modal').hidden = true;
+        loadCaseDefs();  // 主列表同步刷新
+      } finally { $('cd-b-submit').disabled = false; }
+    }
+    // 弹窗事件绑定(脚本在 body 末尾,元素均已存在):勾选委托在 #cd-b-rows 上,内容常被重画
+    $('cd-batch-btn').onclick = cdBOpen;
+    $('cd-b-close').onclick = () => { $('cd-batch-modal').hidden = true; };
+    $('cd-b-mod').onchange = cdBRenderRows;
+    $('cd-b-q').oninput = cdBRenderRows;
+    $('cd-b-all').onclick = () => { cdBFiltered().forEach(c => cdBSel.add(c.case_id)); cdBRenderRows(); cdBSyncFooter(); };
+    $('cd-b-clear').onclick = () => { cdBSel.clear(); cdBRenderRows(); cdBSyncFooter(); };
+    $('cd-b-rows').addEventListener('change', e => {
+      const cb = e.target.closest('.cd-b-row-check');
+      if (!cb) return;
+      if (cb.checked) cdBSel.add(cb.dataset.cid); else cdBSel.delete(cb.dataset.cid);
+      cdBSyncFooter();
+    });
+    ['cd-b-pri', 'cd-b-newmod', 'cd-b-suite'].forEach(id => {
+      $(id).addEventListener('input', cdBSyncFooter);
+      $(id).addEventListener('change', cdBSyncFooter);
+    });
+    $('cd-b-submit').onclick = cdBSubmit;
     function renderCaseDefs() {
       // 统计卡片(始终基于全量)
       const nText = cdAllItems.filter(c => c.case_type === 'text').length;
@@ -1220,12 +1462,23 @@
       $('cd-next').disabled = cdPage >= totalPages;
       // 动态表头 + colgroup(可见列)
       const vis = cdVisibleCols();
+      // 列宽合计铺满容器(不足摊给非操作列)防表头割裂;摊完回写 cdCols,拖拽调宽起点一致
+      const dw = vis.map(c => c.width);
+      const wrapW = Math.round($('cd-tablewrap').getBoundingClientRect().width) || 0;
+      const sumW = dw.reduce((a, b) => a + b, 0);
+      if (wrapW > sumW && vis.length > 1) {
+        const extra = Math.floor((wrapW - sumW) / (vis.length - 1));
+        for (let i = 0; i < dw.length - 1; i++) dw[i] += extra;  // 操作列不加宽
+        vis.forEach((c, i) => c.width = dw[i]);
+      }
       $('cd-thead').innerHTML = vis.map(c =>
         c.key === 'actions'
           ? `<th data-key="${c.key}" style="width:${c.width}px"><span class="cd-th-label">${safe(c.label)}</span></th>`  // 操作列固定最右:不可拖拽换序、不可调宽
           : `<th draggable="true" data-key="${c.key}" style="width:${c.width}px"><span class="cd-th-label">${safe(c.label)}</span><span class="cd-col-grip" data-key="${c.key}"></span></th>`).join('');
       $('cd-cols').innerHTML = vis.map(c => `<col style="width:${c.width}px">`).join('');
       $('cd-table-el').style.width = vis.reduce((s, c) => s + c.width, 0) + 'px';
+      cdFitLast(null);  // 渲染即补位:富余归右二列,操作列恒贴容器右缘(2026-09-28)
+      $('cd-table-el').classList.toggle('pin-last', vis.length > 0 && vis[vis.length - 1].key === 'actions');  // 操作列吸右固定(列设置隐藏操作列时不吸)
       // 行
       const tbody = $('cd-rows'); tbody.innerHTML = '';
       if (!pageItems.length) {
@@ -1263,7 +1516,7 @@
     function bindThEvents() {
       $('cd-thead').querySelectorAll('th').forEach(th => {
         const key = th.dataset.key;
-        if (key === 'actions') return;  // 操作列固定:不参与拖拽换序与调宽
+        if (!key || key === 'actions') return;  // 操作列固定:不参与拖拽换序与调宽
         th.addEventListener('dragstart', e => e.dataTransfer.setData('text/plain', key));
         th.addEventListener('dragover', e => { e.preventDefault(); th.classList.add('drag-over'); });
         th.addEventListener('dragleave', () => th.classList.remove('drag-over'));
@@ -1288,7 +1541,7 @@
             const colEl = $('cd-cols').children[i], thEl = $('cd-thead').children[i];
             if (colEl) colEl.style.width = col.width + 'px';
             if (thEl) thEl.style.width = col.width + 'px';
-            $('cd-table-el').style.width = cdVisibleCols().reduce((s, c) => s + c.width, 0) + 'px';
+            cdFitLast(key);  // 冻结右列:富余归右二列(2026-09-28)
           };
           const onUp = () => {
             document.removeEventListener('mousemove', onMove);
@@ -1905,6 +2158,7 @@
       [['cfm-modal', () => cfmSettle(false)], ['run-drawer', closeRunDrawer], ['cd-drawer', closeCaseDefDrawer], ['cd-modal', cdCloseForm],
        ['su-drawer', suCloseDrawer], ['cd-mods-modal', () => { $('cd-mods-modal').hidden = true; }],
        ['cd-imp-modal', () => { $('cd-imp-modal').hidden = true; }],
+       ['cd-batch-modal', () => { $('cd-batch-modal').hidden = true; }],
        ['su-modal', () => { $('su-modal').hidden = true; }]].forEach(([id, close]) => {
         const el = $(id);
         if (el && !el.hidden) { close(); }
@@ -1974,14 +2228,17 @@
       jobs.forEach(j => { const row = document.createElement('tr');
         const isBuildRow = j.trigger_source === 'build' || j.trigger_source === 'webhook';
         const cancelable = j.status === 'pending' || (j.status === 'running' && !isBuildRow); // 规范 6.3:仅 pending/running 渲染取消;打包行运行中=Jenkins 构建进行中,平台无中止通道
-        const cancelBtn = cancelable ? `<button class="icon-btn danger" data-act="cancel" title="取消任务">${ICON.circleX}</button>` : '';
-        const jkBtn = j.jenkins_log_url ? `<button class="icon-btn" data-act="jk" title="Jenkins 日志">${ICON.log}</button>` : ''; // 未派发 Jenkins 的本地兜底任务不渲染
+        // 操作列已撤(2026-09-24):Jenkins 入口由任务号 #N 链接承担,取消按钮内联到状态徽标旁
+        const cancelBtn = cancelable ? ` <button class="icon-btn danger" data-act="cancel" title="取消任务">${ICON.circleX}</button>` : '';
         const target = (j.trigger_source === 'build' || j.trigger_source === 'webhook')
           ? '打包 ' + safe(j.branch || '') + (((j.result || {}).build || {}).server_type === 'formal' ? ' → 正式服' : ' → 测试服')
           : safe(j.case_filter || '-');
-        row.innerHTML = `<td>${safe((j.platform || '').toUpperCase())}</td><td>${target}</td><td><span class="badge ${PL_JOB_CLASS[j.status] || ''}">${PL_JOB_STATUS[j.status] || safe(j.status)}</span></td><td>${safe(formatDate(j.created_at))}</td><td>${j.finished_at ? safe(formatDate(j.finished_at)) : '-'}</td><td>${[cancelBtn, jkBtn].filter(Boolean).join(' ')}</td>`;
+        const bnum = Number(j.jenkins_build) || 0;  // Jenkins 任务号:#N 式展示,有日志链接则整体可点(未派发 Jenkins 的本地兜底任务仍是纯文本)
+        const bcell = bnum && j.jenkins_log_url
+          ? `<a class="cd-case-id" href="${safe(j.jenkins_log_url)}" target="_blank" rel="noopener" title="打开 Jenkins 日志">#${bnum}</a>`
+          : (bnum ? `#${bnum}` : '-');
+        row.innerHTML = `<td>${safe(j.platform || '-')}</td><td>${target}</td><td><span class="badge ${PL_JOB_CLASS[j.status] || ''}">${PL_JOB_STATUS[j.status] || safe(j.status)}</span>${cancelBtn}</td><td>${safe(formatDate(j.created_at))}</td><td>${j.finished_at ? safe(formatDate(j.finished_at)) : '-'}</td><td>${bcell}</td>`;
         row.querySelectorAll('button[data-act="cancel"]').forEach(b => { b.onclick = () => plCancelJob(j.job_id, j.status, b); });
-        row.querySelectorAll('button[data-act="jk"]').forEach(b => { b.onclick = () => window.open(j.jenkins_log_url, '_blank', 'noopener'); });
         tbody.appendChild(row); });
     }
     // 任务取消(规范 6.3):cfm-modal 确认文案按行状态两支;running 行点击后按钮转 disabled 直至终态
@@ -2303,9 +2560,9 @@
     // 全站列表启用列宽拖拽(用例管理表 cd-table 自带实现,不在其列)
     [['runs','tw-runs',false],['dl-rows','tw-dl',true],['pl-rows','tw-plcfg',true],['pl-job-rows','tw-pljob',true],['su-rows','tw-su',true],['cd-mods-rows','tw-mods',true]]
       .forEach(([id, key, pin]) => { const t = $(id) && $(id).closest('table'); if (t) makeTableResizable(t, key, pin); });
+    window.addEventListener('resize', () => { pinFit.forEach(f => f(-1)); try { cdFitLast(null); } catch (e) {} });  // 窗口宽变化后操作列仍贴右缘
 
     // ==================== 机器监控(machines,设计稿 docs/机器监控页设计.md;原生 SVG sparkline,不引图表库) ====================
-    const MC_GRAFANA_URL = 'http://192.168.12.167:3000';  // Grafana 独立大盘(部署计划 §7.5),仅入口链接不内嵌
     const MC_POLL_MS = 1000, MC_HISTORY_MS = 30000;       // summary 1s(2026-09-22 提速 5s→2s→1s)、走势 30s 一拉;两机 scrape_interval 已同步 15s→1s,数字粒度与页面刷新对齐
     const MC_STALE_SECONDS = 30;                          // 数据滞后阈值:summary.timestamp 与本地时间差,前端判定(设计稿 §四,主会话裁决 2026-09-21)
     const MC_ROLE_TEXT = { platform: '平台机', build: '构建机' };
@@ -2485,7 +2742,6 @@
     }
 
     $('mc-refresh').onclick = () => { mcPoll(); mcPollHistory(); };
-    $('mc-grafana').onclick = () => window.open(MC_GRAFANA_URL, '_blank', 'noopener');
   </script>
 </body>
 </html>

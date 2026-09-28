@@ -360,13 +360,13 @@ SWAN_PD_ROW_FAV_BTN = image_path("swan_歌单详情页_歌曲行收藏图标.png
 # 播放页底部三钮行中间的 [+]（无 key 无 desc 仅图可达，收藏链路入口）；
 # ⚠️ 现截模板下缘含「VIP歌曲只支持试听」提示文字像素，非 VIP 歌该提示
 # 可能不渲染，verify 失配时先复核裁剪（规则7：先查图片质量）
-SWAN_PLAYER_PLUS_BTN = image_path("swan_播放页_加号收藏钮.png", platform="flutter", draft=True)
+SWAN_PLAYER_PLUS_BTN = image_path("swan_播放页_加号收藏钮.png", platform="flutter")
 # 「选择平台收藏」底部弹层（存在性判据；弹层无取消钮、back 键关闭，
 # 平台行清单随歌曲来源变化，行定位走 OCR 不走图）
-SWAN_COLLECT_PLATFORM_SHEET = image_path("swan_收藏平台弹层.png", platform="flutter", draft=True)
+SWAN_COLLECT_PLATFORM_SHEET = image_path("swan_收藏平台弹层.png", platform="flutter")
 # 「已选N首歌」页顶栏（=KB 旧「选择歌单页」，标题含动态 N——[+] 单首
 # 相加恒为 1；若裁剪含 N 数字，跨 N 场景需复核裁剪）
-SWAN_COLLECT_SELECTED_TOPBAR = image_path("swan_已选歌曲顶栏.png", platform="flutter", draft=True)
+SWAN_COLLECT_SELECTED_TOPBAR = image_path("swan_已选歌曲顶栏.png", platform="flutter")
 
 
 # =====================================================================

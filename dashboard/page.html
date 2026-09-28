@@ -200,8 +200,8 @@
     table.rs-fixed th, table.rs-fixed td { overflow:hidden; text-overflow:ellipsis; }
     table.rs-fixed .cd-col-grip { right:0; }  /* th 裁切后 grip 贴回边缘内,否则被裁掉 */
     table.pin-last thead th:last-child, table.pin-last tbody td:last-child { position:sticky; right:0; }
-    table.pin-last thead th:last-child { z-index:3; }
-    table.pin-last tbody td:last-child { z-index:1; background:var(--card); box-shadow:-8px 0 10px -8px rgba(23,32,51,.28); }
+    table.pin-last thead th:last-child { z-index:5; }  /* 高于 .cd-col-grip(z2):手柄bar不得压在吸右列上(2026-09-28) */
+    table.pin-last tbody td:last-child { z-index:4; background:var(--card); box-shadow:-8px 0 10px -8px rgba(23,32,51,.28); }  /* z4 同样压过手柄z2 */
     .cd-table td { overflow:hidden; text-overflow:ellipsis; }  /* 用例表同为 fixed 布局,长内容同样裁切 */
     .cd-table thead th:last-child, .cd-table tbody td:last-child { position:sticky; right:0; }
     .cd-table thead th:last-child { z-index:3; }
@@ -808,6 +808,7 @@
         io.observe(tbl);
         return true;
       };
+      if (pinLast) tbl.classList.add('pin-last');  // 吸右类绑定即挂,不依赖锁定时机(2026-09-28)
       ensureLock();  // 数据已在且有存档就直接锁
       if (!colgroup) {  // 没锁成(数据未到/页签隐藏):数据行一出现就补锁,操作列即刻固定最右
         const mo = new MutationObserver(() => { if (ensureLock()) mo.disconnect(); });

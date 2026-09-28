@@ -351,9 +351,9 @@ SWAN_PLAYER_FAV_BTN = image_path("swan_播放页_收藏按钮.png", platform="fl
 SWAN_PLAYER_FAV_ON = image_path("swan_播放页_收藏按钮_已收藏.png", platform="flutter", draft=True)
 # 5.3.1 行内图标裁剪（40x40，内容=方框加号）；5.3.2 行内同位图标已改为
 # [+]（同设计方框加号），旧裁剪对 5.3.2 行内 [+] 实测 score≈0.34 失配，
-# collect_song 已停止引用（行内 [+] 暂行内定位，见 SwanBusiness.collect_song
-# 注；element 补行内 [+] 模板后可替换）
-SWAN_PD_ROW_FAV_BTN = image_path("swan_歌单详情页_歌曲行收藏图标.png", platform="flutter")  # [5.3.2 失配] 旧行内图标，待行内 [+] 模板替换
+# collect_song 已停止引用（行内 [+] 模板已交付登记为
+# SWAN_SONG_ROW_PLUS_BTN，见下方「收起钮双模板」段）
+SWAN_PD_ROW_FAV_BTN = image_path("swan_歌单详情页_歌曲行收藏图标.png", platform="flutter")  # [5.3.2 失配] 旧行内图标，已由行内 [+] 模板替换
 
 # --- 歌曲收藏 5.3.2 链路（A30；2026-09-28 aw-element 按 5.3.2 实测 §7
 # 附带清单截取，暂登记 draft 路径，verify 转正后改正式路径）---
@@ -367,6 +367,39 @@ SWAN_COLLECT_PLATFORM_SHEET = image_path("swan_收藏平台弹层.png", platform
 # 「已选N首歌」页顶栏（=KB 旧「选择歌单页」，标题含动态 N——[+] 单首
 # 相加恒为 1；若裁剪含 N 数字，跨 N 场景需复核裁剪）
 SWAN_COLLECT_SELECTED_TOPBAR = image_path("swan_已选歌曲顶栏.png", platform="flutter")
+
+
+# =====================================================================
+# Swan (Flutter) 收起钮双模板 / 音量滑条双模板 / 歌曲行内 [+]
+# 2026-09-28 aw-element 按 run4c/run4d 复盘清单交付，暂登记 draft 路径，
+# verify 转正后改正式路径。
+# =====================================================================
+
+# --- 播放页收起钮 浅底/深底双模板（run4c teardown 误点根因修复）---
+# run4c 实测旧单模板 SWAN_PLAYER_DISMISS_BTN（浅青背景态）跨背景失配
+# （播放中深色封面背景 score≈0.379），且与歌单详情页返回箭头同形互扰
+# （对返回箭头 score 0.997 → teardown 在歌单详情页误点返回）。双模板按
+# 背景极性分截（浅底/深底），实测极性 -0.9 根除互扰；探测另加顶栏
+# region（y<200）双保险（见 SwanBusiness._find_dismiss_btn）。
+# SWAN_PLAYER_DISMISS_BTN 保留登记作第三兜底（_find_dismiss_btn 探测链
+# 仍在引用，勿删登记）。
+SWAN_PLAYER_DISMISS_LIGHT = image_path("swan_播放页_收起按钮_浅底.png", platform="flutter", draft=True)
+SWAN_PLAYER_DISMISS_DARK = image_path("swan_播放页_收起按钮_深底.png", platform="flutter", draft=True)
+
+# --- 音量滑条 中填充态互补模板 ---
+# element 实测两图互补：纯轨道图 SWAN_PLAYER_VOLUME_SLIDER 覆盖空/低
+# 填充态，对 69% 填充态 score 0.712 失配；中填充图覆盖中高填充态，对
+# 空/低填充态失配。set_volume 滑条定位先纯轨道后中填充依次探测，命中
+# 哪个用哪个的 rect（见 SwanBusiness._find_volume_slider）。
+SWAN_PLAYER_VOLUME_SLIDER_MID = image_path("swan_播放页_音量滑条_中填充.png", platform="flutter", draft=True)
+
+# --- 歌单详情页/我喜欢页 歌曲行内 [+]（collect_song source="playlist_page"）---
+# 5.3.2 行内 [+] 实测 bounds (616,796)-(688,868)@720 宽；element 实测
+# 对同排垃圾桶区 score 0.268 无误触（垃圾桶与 [+] 中心相距 88px）、对
+# 播放页 [+] score 0.372 无互扰。_tap_song_row_plus 改模板优先图定位
+# （目标行 cy±40px 条带 region），_SONG_ROW_PLUS_TAP_X 保留作模板未命中
+# 时的 OCR 行锚兜底。
+SWAN_SONG_ROW_PLUS_BTN = image_path("swan_歌单详情页_歌曲行加号.png", platform="flutter", draft=True)
 
 
 # =====================================================================
@@ -411,6 +444,8 @@ __all__ = [
     "SWAN_ME_SOUND_QUALITY_ROW",
     "SWAN_PLATFORM_NETEASE_ROW",
     "SWAN_PLAYER_DISMISS_BTN",
+    "SWAN_PLAYER_DISMISS_DARK",
+    "SWAN_PLAYER_DISMISS_LIGHT",
     "SWAN_PLAYER_PLAY_PAUSE_BTN",
     "SWAN_SOUND_QUALITY_DONE_BUTTON",
     "SWAN_HOME_TAB_RECOMMEND",
@@ -472,6 +507,7 @@ __all__ = [
     "SWAN_PLAYER_VOLUME_ICON",
     "SWAN_PLAYER_VOLUME_POPUP",
     "SWAN_PLAYER_VOLUME_SLIDER",
+    "SWAN_PLAYER_VOLUME_SLIDER_MID",
     "SWAN_PLAYER_VOLUME_PLUS",
     "SWAN_PLAYER_VOLUME_MINUS",
     "SWAN_DEVICE_CARD_SELECTED",
@@ -486,6 +522,7 @@ __all__ = [
     "SWAN_PLAYER_FAV_BTN",
     "SWAN_PLAYER_FAV_ON",
     "SWAN_PD_ROW_FAV_BTN",
+    "SWAN_SONG_ROW_PLUS_BTN",
     "SWAN_PLAYER_PLUS_BTN",
     "SWAN_COLLECT_PLATFORM_SHEET",
     "SWAN_COLLECT_SELECTED_TOPBAR",

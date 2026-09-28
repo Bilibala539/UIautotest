@@ -40,6 +40,8 @@ from image.image_name_mapping import (
     SWAN_PD_PLAY_ALL,
     SWAN_PLAYER_DEVICE_BTN,
     SWAN_PLAYER_DISMISS_BTN,
+    SWAN_PLAYER_DISMISS_DARK,
+    SWAN_PLAYER_DISMISS_LIGHT,
     SWAN_PLAYER_LOOP_LIST,
     SWAN_PLAYER_LOOP_SHUFFLE,
     SWAN_PLAYER_LOOP_SINGLE,
@@ -54,9 +56,11 @@ from image.image_name_mapping import (
     SWAN_PLAYER_VOLUME_PLUS,
     SWAN_PLAYER_VOLUME_POPUP,
     SWAN_PLAYER_VOLUME_SLIDER,
+    SWAN_PLAYER_VOLUME_SLIDER_MID,
     SWAN_PLATFORM_NETEASE_ROW,
     SWAN_SEARCH_EMPTY,
     SWAN_SEARCH_SUBMIT,
+    SWAN_SONG_ROW_PLUS_BTN,
     SWAN_TAB_DEVICE,
     SWAN_TAB_HOME,
     SWAN_TAB_ME,
@@ -326,6 +330,10 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
 
     # 音量滑条方向（A19 默认横向；弹窗实际布局待真机校准，纵向改 "y"）
     _VOLUME_SLIDER_AXIS = "x"
+    # 音量滑条探测模板（A19）：纯轨道（覆盖空/低填充态）+ 中填充（覆盖
+    # 中高填充态）互补双模板，element 实测数据见 _find_volume_slider 注
+    _VOLUME_SLIDER_TEMPLATES = (SWAN_PLAYER_VOLUME_SLIDER,
+                                SWAN_PLAYER_VOLUME_SLIDER_MID)
     # 设备页卡片：设备名行到卡内可点内容行（状态行/媒体行）允许的最大
     # 纵向跨度（720x1600 口径，待真机校准）
     _CARD_BODY_SPAN = 300
@@ -711,10 +719,50 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
                 return False
             self.sleep(1.0)
 
-    def _dismiss_full_player(self) -> None:
-        """收起全屏播放页回列表页（收起钮 [图] 在位才点，不做盲 back）。"""
-        if self.find_image(SWAN_PLAYER_DISMISS_BTN, timeout=2) is not None:
-            self.click_image(SWAN_PLAYER_DISMISS_BTN, timeout=5)
+    # 播放页收起钮探测 region：顶栏条带 (0, 0, 720, 200)——收起钮恒在播放
+    # 页顶栏（页头设备名 band 上缘之上，同 _PLAYER_HEADER_DEVICE_REGION 的
+    # 720 宽口径）。region 限定为同形互扰的双保险：element 实测旧单模板
+    # 对歌单详情页返回箭头 score 0.997（teardown 误点返回箭头根因），双
+    # 模板极性已根除互扰，region 再兜一层。
+    _PLAYER_TOPBAR_REGION = (0, 0, 720, 200)
+
+    # 收起钮探测模板链（2026-09-28 element 交付双模板，run4c 复盘拍板）：
+    # 浅底（浅青背景态）/深底（深色封面背景态）跨背景极性互补（实测极性
+    # -0.9 根除互扰），任一命中即播放页在；旧单模板 SWAN_PLAYER_DISMISS_BTN
+    # 保留作第三兜底（对深色背景 0.379 失配、与歌单详情页返回箭头 0.997
+    # 同形互扰，登记注记见 image_name_mapping.py）。
+    _DISMISS_TEMPLATES = (SWAN_PLAYER_DISMISS_LIGHT, SWAN_PLAYER_DISMISS_DARK,
+                          SWAN_PLAYER_DISMISS_BTN)
+
+    def _find_dismiss_btn(self, timeout: float = 2.0) -> str | None:
+        """播放页收起钮探测：浅底/深底双模板依次匹配 + 顶栏 region 限定，
+        返回首个命中模板（供 click_image 精确点击命中位置），全未命中 None。
+
+        任一模板命中即播放页在；region 限定 _PLAYER_TOPBAR_REGION 防与
+        歌单详情页返回箭头同形互扰（双保险，见常量注）。
+        """
+        for template in self._DISMISS_TEMPLATES:
+            if self.find_image(template, timeout=timeout,
+                               region=self._PLAYER_TOPBAR_REGION) is not None:
+                return template
+        return None
+
+    def _dismiss_full_player(self, timeout: float = 2.0) -> None:
+        """收起全屏播放页回列表页（收起钮 [图] 在位才点，不做盲 back）。
+
+        2026-09-28 改双模板探测（run4c 复盘拍板）：旧单模板（浅青背景态）
+        跨背景失配——播放中深色封面背景 score 0.379，且与歌单详情页返回
+        箭头同形互扰（score 0.997，teardown 误点返回箭头根因）。element
+        交付收起钮浅底/深底双模板（极性实测 -0.9 根除互扰）后，探测改
+        _find_dismiss_btn（双模板 + 顶栏 region 双保险），点击仍点命中
+        模板位置；旧单模板保留作第三兜底。
+        swan_regression_common._dismiss_player_if_any（teardown 清理）与本
+        方法共用此实现，防两份收起逻辑漂移。
+        """
+        template = self._find_dismiss_btn(timeout=timeout)
+        if template is not None:
+            self.click_image(template, timeout=5,
+                             region=self._PLAYER_TOPBAR_REGION)
 
     def start_play(self, source: str = "favorite", mode: str = "all",
                    index: int = 0) -> None:
@@ -882,19 +930,40 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
             logger.warning("seek_to: OCR 未取得进度双时间，退化为播放态断言")
             self.assert_playing()
 
+    def _find_volume_slider(self, timeout: float = 10.0):
+        """音量滑条双模板定位（纯轨道 → 中填充依次探测），返回
+        (命中模板, rect) 或 None。
+
+        element 实测两图互补：纯轨道图 SWAN_PLAYER_VOLUME_SLIDER 覆盖空/
+        低填充态，对 69% 填充态 score 0.712 失配；中填充图
+        SWAN_PLAYER_VOLUME_SLIDER_MID 覆盖中高填充态，对空/低填充态失配
+        ——单图任取必有一种音量态失配。两图同一滑条几何位置，命中哪个
+        用哪个的 rect（drag/click 的比例换算结果一致）。
+        """
+        for template in self._VOLUME_SLIDER_TEMPLATES:
+            rect = self.find_image_rect(template, timeout=timeout)
+            if rect is not None:
+                return template, rect
+        return None
+
     def set_volume(self, value: int, action: str = "drag") -> None:
         """调节音量（A19，回归用例 25-26）。
 
         声学断言已拍板降级为 UI 态（方案 §5③）：
         - action="drag"：点音量图标 [图] 开弹窗 → 断言弹窗 [图] → 音量滑条
-          整条 [图] 元素锚定拖到 value/100 位置 → 关弹窗后 OCR 播放页音量
-          百分比核对 value（±5）。
-        - action="click"：同上，改为点击滑条上 value/100 比例位置。
+          整条 [图] 元素锚定拖到 value/100 位置 → **弹窗开启态** OCR 音量
+          百分比核对 value（±5）→ press_back 关弹窗 → 断言已回播放页。
+          run4c run2 实测改序：百分比文本只在弹窗内渲染，press_back 关弹窗
+          后播放页无百分比文本，旧实现「关弹窗后读百分比」OCR 必然读空。
+        - action="click"：同 drag，改为点击滑条上 value/100 比例位置。
         - action="plus"/"minus"：value 为加减钮连点次数，收尾断言弹窗关闭
-          且回到播放页（步进结果不核对具体百分比）。
+          且回到播放页（步进结果不核对具体百分比；该分支断言本就是页面态，
+          保持在关弹窗后做，run4c 复核位置正确）。
 
         音量滑条方向默认横向（_VOLUME_SLIDER_AXIS），弹窗实际布局待真机
-        校准，纵向改 "y" 即可。
+        校准，纵向改 "y" 即可。滑条定位走 _find_volume_slider（纯轨道/
+        中填充互补双模板依次探测，2026-09-28 element 交付；命中哪个用
+        哪个的 rect）。
         """
         if action not in ("drag", "click", "plus", "minus"):
             raise ValueError("action 仅支持 drag / click / plus / minus")
@@ -906,12 +975,16 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         self.image_exists(SWAN_PLAYER_VOLUME_POPUP, timeout=10)     # 弹窗在位
         if action == "drag":
             start_ratio, end_ratio = self._volume_ratios(value)
+            found = self._find_volume_slider(timeout=10)
+            assert found is not None, "音量滑条拖动失败: 未找到滑条（纯轨道/中填充双模板均未命中）"
+            slider, _rect = found
             assert self.drag_on_template(
-                SWAN_PLAYER_VOLUME_SLIDER, start_ratio, end_ratio,
+                slider, start_ratio, end_ratio,
                 axis=self._VOLUME_SLIDER_AXIS), "音量滑条拖动失败"
         elif action == "click":
-            rect = self.find_image_rect(SWAN_PLAYER_VOLUME_SLIDER, timeout=10)
-            assert rect is not None, "未找到音量滑条"
+            found = self._find_volume_slider(timeout=10)
+            assert found is not None, "音量滑条点击失败: 未找到滑条（纯轨道/中填充双模板均未命中）"
+            _slider, rect = found
             px, py = self._volume_point(rect, value)
             assert self.tap(px, py), "音量滑条点击失败"
         else:
@@ -919,10 +992,12 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
                         else SWAN_PLAYER_VOLUME_MINUS)
             for _ in range(value):
                 self.click_image(template, timeout=5)
+        if action in ("drag", "click"):
+            # 百分比断言必须在弹窗开启态完成（run4c run2 实测：press_back
+            # 关弹窗后播放页无百分比文本，_ocr_volume_percent 必然读空）
+            self._assert_volume_percent(value)
         self.press_back()  # 关弹窗回播放页（弹层关闭惯例，见知识库）
         self.image_exists(SWAN_PLAYER_VOLUME_ICON, timeout=10)      # 已回播放页
-        if action in ("drag", "click"):
-            self._assert_volume_percent(value)
 
     def volume_key(self, direction: str = "up", long_press: bool = False) -> None:
         """物理音量键调节音量（A20，回归用例 27-28）。
@@ -1357,10 +1432,11 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
 
     # 歌单详情页/我喜欢页歌曲行行内 [+] 中心 x（5.3.2 实测 bounds
     # (616,796)-(688,868)，720 宽口径；同排垃圾桶 bounds (528,796)-(600,868)，
-    # 中心相距 88px，勿左偏误触移除）。行内 [+] 无 key 无 desc 且现无入库
-    # 模板（播放页底部 [+] 模板对其 score≈0.31、旧 SWAN_PD_ROW_FAV_BTN 对其
-    # score≈0.34，尺寸/截取态均不同），element 补行内 [+] 模板前由
-    # _tap_song_row_plus 按此 x + OCR 行号 cy 定位（y 锚定 OCR 行，非盲坐标）。
+    # 中心相距 88px，勿左偏误触移除）。[仅剩兜底职能] 行内 [+] 模板
+    # SWAN_SONG_ROW_PLUS_BTN 已交付（2026-09-28，element 实测对垃圾桶区
+    # 0.268 无误触、对播放页 [+] 0.372 无互扰），_tap_song_row_plus 改
+    # 模板优先图定位；本 x 常量仅在模板未命中时与 OCR 行号 cy 组合作
+    # 兜底（y 锚定 OCR 行，非盲坐标）。
     _SONG_ROW_PLUS_TAP_X = 652
 
     def collect_song(self, target_platform: str, playlist: str,
@@ -1382,10 +1458,11 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         调用方须已在播放页且有播放任务，域3 start_play 发起）。
         source="playlist_page"：歌单详情页/我喜欢页歌曲行右侧 [+]（调用方
         须已在含歌曲行的页面；两处入口与播放页 [+] 实测同构，点击后均为
-        同一弹层）。⚠️ 行内 [+] 现无入库模板（播放页 [+] 模板对其
-        score≈0.31、旧 SWAN_PD_ROW_FAV_BTN 对其 score≈0.34），暂行内定位：
-        OCR 取最上方歌曲行行号（纯数字行，compact 归一化）得行 cy，x 取
-        _SONG_ROW_PLUS_TAP_X（见其注）；element 补行内 [+] 模板后应改图定位。
+        同一弹层）。行内定位已改模板优先（2026-09-28 element 交付
+        SWAN_SONG_ROW_PLUS_BTN，实测对垃圾桶区 0.268/对播放页 [+] 0.372
+        无互扰）：OCR 行锚取最上方歌曲行 cy 后，在行 cy±40px 条带 region
+        内图定位点击；模板未命中退化 _SONG_ROW_PLUS_TAP_X 行锚兜底
+        （见 _tap_song_row_plus）。
 
         流程与断言：
           1. 点 [+] 后断言「选择平台收藏」弹层锚 [图]。
@@ -1404,8 +1481,8 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
              新建歌单弹窗；不在首屏时上滑重扫最多 3 轮）。⚠️ SWAN 宫格无
              「我喜欢」块（SWAN 收藏即我喜欢、红心直达），QQ 宫格才有粉心
              「我喜欢」块。
-          5. 点块即完成；若捕获「收藏成功」toast 记录日志（辅助证据，文案
-             待校准不作断言）。
+          5. 点块即完成；若捕获「已添加至我的音乐」toast 记录日志（辅助
+             证据，不作断言；run4c 实测文案）。
         收尾断言回到来源页：播放页收起钮 [图] / 歌单详情页更多按钮 [图]。
         ⚠️ 宫格块点击后的终局行为（toast 文案/是否自动返回来源页）未实测
         （探索期零写入红线，知识库遗留1），若真机实测不自动返回需补 back
@@ -1431,19 +1508,32 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         self.image_exists(SWAN_COLLECT_SELECTED_TOPBAR, timeout=10)
         self.text_exists("已选", timeout=10)   # 动态 N 用 contains，勿用「选择歌单」
         self._click_collect_playlist_tile(playlist)
-        if self.wait_toast("收藏成功", timeout=3):
-            logger.info("collect_song: 「收藏成功」toast 已捕获（辅助证据，不作断言）")
+        # run4c 实测成功 toast 文案为「已添加至我的音乐」（探索期猜测的
+        # 「收藏成功」不出现）；重复收藏时 App 静默拦截、弹「添加失败，
+        # 请稍后重试」且停留「已选N首歌」页（测试层数据设计规避，见
+        # test_collect_song 注）。toast 仅辅助证据不作断言。
+        if self.wait_toast("已添加至我的音乐", timeout=3):
+            logger.info(
+                "collect_song: 「已添加至我的音乐」toast 已捕获（辅助证据，不作断言）")
         self.image_exists(back_anchor, timeout=10)
 
     def _tap_song_row_plus(self, timeout: float = 10.0) -> None:
         """歌单详情页/我喜欢页最上方歌曲行的行内 [+] 点击（collect_song
         source="playlist_page" 入口；行内定位口径见 collect_song 注）。
 
+        主路径（2026-09-28 element 交付行内 [+] 模板 SWAN_SONG_ROW_PLUS_BTN）：
+        OCR 行锚取最上方歌曲行 cy 后，在目标行 cy±40px 条带 region 内
+        find_image_rect 定位模板、点击 rect 中心。element 实测：模板对同排
+        垃圾桶区 score 0.268 无误触（垃圾桶与 [+] 中心相距 88px）、对播放页
+        [+] score 0.372 无互扰；条带高 80px 恰容纳行内 [+]（实测高 72px，
+        与行号同 cy——行 (0,772)-(720,892)、[+] (616,796)-(688,868)），且
+        行距 120px 下邻行 [+] 距目标行 cy ≥84px 不会串入条带。模板未命中
+        （截取态偏差/列表渲染差异）退化 OCR 行锚兜底：x 取
+        _SONG_ROW_PLUS_TAP_X（见其注）。
+
         行 desc='N\\n歌名\\n歌手'，行号列在行左缘（cx<120）：OCR 取纯数字
         行（compact 归一化吞 l/I/1 同形——行号可能被读成 l/I；容错尾随
-        「.、，」标点）得行 cy。行内 [+] 与行同 cy（5.3.2 实测行
-        (0,772)-(720,892)、[+] (616,796)-(688,868)），x 取
-        _SONG_ROW_PLUS_TAP_X。取 cy 最小（最上方）行，与旧实现 click_image
+        「.、，」标点）得行 cy。取 cy 最小（最上方）行，与旧实现 click_image
         首个命中行语义一致。
         """
         deadline = time.monotonic() + timeout
@@ -1464,8 +1554,16 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
                     "cx<120）。页面须已在含 ≥1 首歌曲行的歌单详情页/我喜欢页，"
                     f"当前屏 OCR 行首文字: {heads}")
             self.sleep(1.0)
-        self.tap(self._SONG_ROW_PLUS_TAP_X,
-                 min(rows, key=lambda i: i["cy"])["cy"])
+        row = min(rows, key=lambda i: i["cy"])
+        band = (0, max(0, row["cy"] - 40), 720, 80)  # 目标行 cy±40px 条带（几何依据见 docstring）
+        rect = self.find_image_rect(SWAN_SONG_ROW_PLUS_BTN, timeout=2, region=band)
+        if rect is not None:
+            self.tap(rect[0] + rect[2] // 2, rect[1] + rect[3] // 2)
+            return
+        logger.warning(
+            "_tap_song_row_plus: 行内 [+] 模板未命中（行 cy=%s），退化 "
+            "OCR 行锚 + _SONG_ROW_PLUS_TAP_X 兜底定位", row["cy"])
+        self.tap(self._SONG_ROW_PLUS_TAP_X, row["cy"])
 
     def _find_collect_platform_row(self, platform_text: str,
                                    timeout: float = 10.0) -> dict:
@@ -1563,19 +1661,63 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         self._click_ocr_until_found("已播歌曲", scroll="up")
         self.image_exists(SWAN_HISTORY_TOPBAR, timeout=15)
 
+    # back_to_tab_shell 防盲退探测的「App 内页面锚」集（run4c run3 实测：
+    # teardown 音量弹层假阳性误 back 把 App 退到桌面后，back_to_tab_shell
+    # 盲 back×3 仍在桌面空转，5 条 teardown ERROR 同因）。tab 壳锚由
+    # _tab_shell_anchor_visible 承担，此处补 back 链途经的 push 页锚 [图]
+    # （播放页收起钮/歌单详情页更多按钮/播放历史页顶栏/搜索提交钮），均
+    # 为已转正常量。
+    _APP_PAGE_ANCHORS = (SWAN_PLAYER_DISMISS_BTN, SWAN_PD_MORE_BTN,
+                         SWAN_HISTORY_TOPBAR, SWAN_SEARCH_SUBMIT)
+
+    def _app_page_anchor_visible(self, timeout: float = 1.0) -> bool:
+        """前台仍在 Swan App 内的页面锚探测（back_to_tab_shell 防盲退用）。
+
+        tab 壳锚（_tab_shell_anchor_visible）或 back 链途经 push 页锚
+        [图]（_APP_PAGE_ANCHORS）任一命中即在 App 内；全未命中再 dump
+        语义树兜底——bottom_player（贴底迷你播放条 key）除搜索全屏路由
+        外全页面常驻（explorer 各页 dump 实测恒有），桌面 launcher 恒无
+        此节点。探测口径宁缺勿滥：App 内未知页误判「退到桌面」的代价是
+        start_app 拉回（App 已在前台时为无害空操作）+ 提前中止 back 循环，
+        不会比原盲 back 行为更差（见 back_to_tab_shell 注）。
+        """
+        if self._tab_shell_anchor_visible(timeout=timeout):
+            return True
+        for template in self._APP_PAGE_ANCHORS:
+            if self.find_image(template, timeout=timeout) is not None:
+                return True
+        return any((node.get("resource_id") or "") == "bottom_player"
+                   for node in self.dump_semantics())
+
     def back_to_tab_shell(self, max_backs: int = 3) -> None:
         """从任意 push 页回到全局 tab 壳（一级页）：收播放页 -> 按需 press_back。
 
         每次 press_back 前先用一级页锚点 [图] 确认不在 tab 壳（首页按返回
         会退出 App）；供域7/域8 用例与清理流程从深层页面退出，已在 tab 壳
         时零操作。
+        run4c 防盲退加固：每次 press_back 后校验前台仍在 App 内
+        （_app_page_anchor_visible）——发现退到桌面（如前序 teardown 误
+        back 已把 App 退出，run3 实测场景）立即 start_app 拉回并中止 back
+        循环，杜绝在桌面继续盲 back；拉回后壳锚是否可见交由方法尾部断言
+        定论（App 恢复到深层 push 页时仍会报退出失败，但设备已回到 App
+        内，不再滞留桌面）。
         """
-        if self.find_image(SWAN_PLAYER_DISMISS_BTN, timeout=2) is not None:
-            self.click_image(SWAN_PLAYER_DISMISS_BTN, timeout=5)
+        # 收播放页改走 _dismiss_full_player（双模板+顶栏 region）：原处内联
+        # 的收起钮单模板探测对歌单详情页返回箭头 score 0.997 同形互扰
+        # （teardown 误点根因，见 _dismiss_full_player 注），2026-09-28 一并替换。
+        self._dismiss_full_player()
         for _ in range(max_backs):
             if self._tab_shell_anchor_visible():
                 return
             self.press_back()
+            if not self._app_page_anchor_visible():
+                logger.warning(
+                    "back_to_tab_shell: press_back 后未检测到任何 App 页面锚"
+                    "（已退到桌面），start_app 拉回并中止 back 循环")
+                self.driver.start_app(
+                    os.environ.get("SWAN_PACKAGE", "com.swan.network"))
+                self._tab_shell_anchor_visible(timeout=10)
+                break
         assert self._tab_shell_anchor_visible(), (
             f"退出 push 页失败：press_back {max_backs} 次后仍未到全局 tab 壳")
 
@@ -1689,7 +1831,8 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
             self.press_back()
 
     def assert_search_results(self, tab: str, platforms=None,
-                              timeout: float = 10.0) -> None:
+                              timeout: float = 10.0,
+                              allow_empty: bool = False) -> None:
         """搜索结果分类断言（A34，回归用例69-72后半）。
 
         须在搜索结果页调用（search() 收尾即停在此页）。tab ∈ 单曲/艺人/
@@ -1708,6 +1851,12 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
           结果区时提前通过（铁证）。不再逐个断言结果行内平台标注文案
           （该标注形式 5.3.2 未真机校准，原口径不可靠）。
           未列平台不受影响：对任一平台显式传空列表仍可断空态。
+        - allow_empty=True（仅 platforms 非空口径生效，run4 实测电台 Tab
+          专用）：run4 真机数据（qq/netease 授权 + 关键词 piano）——电台
+          Tab 结果区空态、播客 Tab 有结果，电台内容源不按关键词返回结果，
+          「有结果」断言对其不适用。该 Tab 降级为「空态或有结果均可」：
+          空态证据（图/文案）出现记日志提前通过，否则窗口内无空态证据
+          照旧按有结果放行；Tab 切换渲染本身仍是硬断言（click_text）。
         """
         tab_text = {"博客": "播客"}.get(tab, tab)
         if tab_text not in ("单曲", "艺人", "专辑", "歌单", "电台", "播客"):
@@ -1719,16 +1868,27 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
                 self.text_exists("没有找到相关结果", timeout=5)
             return
         # 有结果口径：空态证据（图/文案）在轮询窗口内出现即判失败
+        # （allow_empty=True 时降级为记日志提前通过，见 docstring）
         keyword = getattr(self, "_last_search_keyword", "")
         region = self._RESULTS_CONTENT_REGION
         deadline = time.monotonic() + timeout
         while True:
             if self.find_image(SWAN_SEARCH_EMPTY, timeout=1) is not None:
+                if allow_empty:
+                    logger.info(
+                        "assert_search_results: 「%s」结果区为空态 [图]"
+                        "（allow_empty 口径：空态或有结果均可）", tab_text)
+                    return
                 assert False, (
                     f"搜索「{tab_text}」结果区为空态 [图]（配置平台 {platforms} "
                     "应有结果；核对账号授权态与 SWAN_SEARCH_PLATFORMS 口径）")
             if self.find_text_by_ocr("没有找到相关结果", timeout=1,
                                      region=region) is not None:
+                if allow_empty:
+                    logger.info(
+                        "assert_search_results: 「%s」结果区 OCR 空态文案"
+                        "（allow_empty 口径：空态或有结果均可）", tab_text)
+                    return
                 assert False, (
                     f"搜索「{tab_text}」结果区 OCR 空态文案「没有找到相关结果」"
                     f"（配置平台 {platforms} 应有结果）")

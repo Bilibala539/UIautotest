@@ -677,3 +677,173 @@ def test_build_resolver_same_config_collision():
             jenkins_server.shutdown()
             jenkins_server.server_close()
             gc.collect()  # 例外/回溯帧可能循环引用 sqlite 连接;Windows 删库文件需句柄已关
+
+
+def test_apk_reconcile_from_jenkins():
+    """包管理↔Jenkins 对账(2026-09-28):SUCCESS 构建缺行补录/手跑行仅修关联。
+
+    覆盖:登记成功行补录(新旧 sha 格式)、登记失败行(产物仍在)补录、
+    FAILURE/进行中不动、已存在行绝不覆盖业务字段只回填空缺 jenkins 关联。
+    """
+    with tempfile.TemporaryDirectory() as temporary_directory:
+        from datetime import datetime, timezone
+
+        build_ts = int(time.time() * 1000) + 120_000
+        commit_32 = "cafe12a" + "a" * 33
+        commit_33 = "def0123" + "b" * 33
+        commit_36 = "beef45c" + "c" * 33
+        sha64 = "ab" * 32
+        apk_32 = "swan-dev-cafe12a-20260928-test"
+        apk_33 = "swan-dev-def0123-20260928-formal"
+        apk_36 = "swan-dev-beef45c-20260928-test"
+        builds = [
+            {"number": 36, "result": "SUCCESS", "building": False,
+             "timestamp": build_ts + 4000},
+            {"number": 35, "result": None, "building": True,
+             "timestamp": build_ts + 3000},
+            {"number": 34, "result": "FAILURE", "building": False,
+             "timestamp": build_ts + 2000},
+            {"number": 33, "result": "SUCCESS", "building": False,
+             "timestamp": build_ts + 1000},
+            {"number": 32, "result": "SUCCESS", "building": False,
+             "timestamp": build_ts},
+        ]
+        consoles = {
+            "32": ("== 步骤 1/3 检出源码 ==\n"
+                   f"检出完成 commit={commit_32}\n"
+                   "== 步骤 2/3 flutter build apk --profile ==\n"
+                   "== 步骤 3/3 登记平台(http://x/api/apks server_type=test)==\n"
+                   f"登记成功 apk_id={apk_32} sha256=0123456789ab… server_type=test\n"
+                   f"归档成功 bytes=82767093 → /opt/swan-build/apks/{apk_32}.apk\n"),
+            "33": ("== 步骤 1/3 检出源码 ==\n"
+                   f"检出完成 commit={commit_33}\n"
+                   "== 步骤 2/3 flutter build apk --release ==\n"
+                   "== 步骤 3/3 登记平台(http://x/api/apks server_type=formal)==\n"
+                   f"登记失败:HTTP Error 502: bad gateway(产物仍在 /opt/swan-build/apks/{apk_33}.apk)\n"),
+            "36": ("== 步骤 1/3 检出源码 ==\n"
+                   f"检出完成 commit={commit_36}\n"
+                   "== 步骤 2/3 flutter build apk --profile ==\n"
+                   f"登记成功 apk_id={apk_36} sha256={sha64} server_type=test\n"
+                   f"归档成功 bytes=58935403 → /opt/swan-build/apks/{apk_36}.apk\n"),
+        }
+        params = {
+            "32": [{"name": "BRANCH", "value": "dev"},
+                   {"name": "SERVER_TYPE", "value": "test"}],
+            "33": [{"name": "BRANCH", "value": "dev"},
+                   {"name": "SERVER_TYPE", "value": "formal"}],
+            "36": [{"name": "BRANCH", "value": "dev"},
+                   {"name": "SERVER_TYPE", "value": "test"}],
+        }
+
+        class MockJenkins(BaseHTTPRequestHandler):
+            def do_GET(self):
+                if self.path.endswith("/consoleText"):
+                    number = self.path.split("/")[-2]
+                    if number not in consoles:
+                        self.send_response(404)
+                        self.end_headers()
+                        return
+                    body = consoles[number].encode("utf-8")
+                    self.send_response(200)
+                    self.send_header("Content-Type", "text/plain; charset=utf-8")
+                    self.send_header("Content-Length", str(len(body)))
+                    self.end_headers()
+                    self.wfile.write(body)
+                    return
+
+                def reply(payload):
+                    body = json.dumps(payload).encode("utf-8")
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json")
+                    self.send_header("Content-Length", str(len(body)))
+                    self.end_headers()
+                    self.wfile.write(body)
+                if "tree=builds[" in self.path:
+                    reply({"builds": builds})
+                elif "tree=actions" in self.path:
+                    number = self.path.split("/")[-2]
+                    reply({"actions": [{"parameters": params.get(number, [])}]})
+                else:
+                    self.send_response(404)
+                    self.end_headers()
+
+            def log_message(self, *args):
+                pass
+
+        jenkins_server = ThreadingHTTPServer(("127.0.0.1", 0), MockJenkins)
+        threading.Thread(target=jenkins_server.serve_forever, daemon=True).start()
+        env_keys = ("JENKINS_BASE_URL", "JENKINS_USER", "JENKINS_API_TOKEN",
+                    "JENKINS_BUILD_JOB")
+        env_backup = {key: os.environ.get(key) for key in env_keys}
+        os.environ.update({
+            "JENKINS_BASE_URL": f"http://127.0.0.1:{jenkins_server.server_address[1]}",
+            "JENKINS_USER": "mock",
+            "JENKINS_API_TOKEN": "mock",
+        })
+        os.environ.pop("JENKINS_BUILD_JOB", None)  # 走默认 swan-audio-build
+        server = create_server("127.0.0.1", 0,
+                               Path(temporary_directory) / "dashboard.sqlite3")
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        base_url = f"http://127.0.0.1:{server.server_address[1]}"
+
+        import sqlite3
+        connection = sqlite3.connect(str(Path(temporary_directory) / "dashboard.sqlite3"))
+        # 预置手跑补录包行(32 号构建产物,登记时 Jenkins 号不可知→关联为空)
+        connection.execute(
+            "INSERT INTO apks (apk_id, branch, commit_hash, flavor, source,"
+            " file_path, file_hash, notes, server_type, build_time, jenkins_job,"
+            " jenkins_build, registered_at)"
+            " VALUES (?, '', '', '', 'auto-build', ?, ?, 'MANUAL-CATCHUP-0928',"
+            " 'test', NULL, '', '', '2026-09-28T11:00:00+00:00')",
+            (apk_32, f"/opt/swan-build/apks/{apk_32}.apk", "f" * 64))
+        connection.commit()
+        connection.close()
+
+        try:
+            status, _, body = request(base_url, "/api/apks?limit=50")
+            assert status == 200
+            rows = {item["apk_id"]: item for item in json.loads(body)["items"]}
+            assert set(rows) == {apk_32, apk_33, apk_36}  # 34 失败/35 进行中不补
+
+            # 手跑行:只回填空缺 jenkins 关联,业务字段原样
+            row = rows[apk_32]
+            assert row["jenkins_job"] == "swan-audio-build"
+            assert row["jenkins_build"] == "32"
+            assert row["file_hash"] == "f" * 64
+            assert row["notes"] == "MANUAL-CATCHUP-0928"
+            assert row["source"] == "auto-build"
+            assert row["jenkins_log_url"]  # 可跳转 Jenkins 日志
+
+            # 登记失败缺口:从"产物仍在"行补录,file_hash 留空注明缺口
+            expected_33 = datetime.fromtimestamp(
+                (build_ts + 1000) / 1000, tz=timezone.utc).isoformat(timespec="seconds")
+            row = rows[apk_33]
+            assert row["source"] == "jenkins-reconcile"
+            assert row["server_type"] == "formal"
+            assert row["branch"] == "dev"
+            assert row["commit_hash"] == "def0123"
+            assert row["flavor"] == "release"
+            assert row["file_path"] == f"/opt/swan-build/apks/{apk_33}.apk"
+            assert row["file_hash"] == ""
+            assert row["build_time"] == expected_33
+            assert row["registered_at"] == expected_33
+            assert "登记失败" in row["notes"]
+
+            # 登记成功全量字段(新版脚本 64 位 sha)
+            row = rows[apk_36]
+            assert row["file_hash"] == sha64
+            assert row["commit_hash"] == "beef45c"
+            assert row["flavor"] == "profile"
+            assert row["file_path"] == f"/opt/swan-build/apks/{apk_36}.apk"
+            assert row["jenkins_build"] == "36"
+        finally:
+            for key, value in env_backup.items():
+                if value is None:
+                    os.environ.pop(key, None)
+                else:
+                    os.environ[key] = value
+            server.shutdown()
+            server.server_close()
+            jenkins_server.shutdown()
+            jenkins_server.server_close()
+            gc.collect()

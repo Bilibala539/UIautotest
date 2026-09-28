@@ -502,6 +502,105 @@ def _reconcile_jenkins_builds(store) -> None:
         store.fix_reconciled_job_times(job["job_id"], start_at, end_at)
 
 
+# 包管理对账用控制台行(2026-09-28):build_swan_apk.py 的检出/登记/归档输出。
+# sha256 捕获兼容新旧脚本:旧版只打 12 位前缀+省略号,新版打全量 64 位。
+_APK_REG_OK_RE = re.compile(
+    r"^登记成功 apk_id=(\S+) sha256=([0-9a-f]+)…? server_type=(\S+)\s*$", re.M)
+_APK_REG_FAIL_RE = re.compile(r"^登记失败:.*产物仍在 (\S+)\s*$", re.M)
+_APK_ARCHIVE_RE = re.compile(r"^归档成功 bytes=(\d+) → (\S+)\s*$", re.M)
+_APK_CHECKOUT_RE = re.compile(r"^检出完成 commit=([0-9a-f]{7,40})\s*$", re.M)
+_APK_MODE_RE = re.compile(
+    r"^== 步骤 2/3 flutter build apk --(profile|release) ==\s*$", re.M)
+
+
+def reconcile_apks_from_jenkins(store) -> None:
+    """包管理↔Jenkins 对账(2026-09-28):swan-audio-build 的 SUCCESS 构建补录 apks。
+
+    背景:apks 行由打包脚本最后一步 POST /api/apks 直写,该步失败(平台
+    瞬断等)则 Jenkins SUCCESS 构建在包管理永久缺行——Jenkins/流水线页/
+    包管理三处历史要求一致,不可缺不可错(流水线页 2026-09-24 已有对账,
+    此处补齐包管理侧)。从构建入参+控制台文本反向补录:
+      - 只认 SUCCESS;FAILURE/UNSTABLE/进行中一律不动(失败本就不应有包行);
+      - 新行整行插入;已存在行仅回填空缺 jenkins_job/jenkins_build(手跑包行
+        的关联修复),其余字段绝不覆盖(register_apk_if_absent);
+      - 登记成功路径:字段来自控制台(sha256 新旧脚本格式都认,旧版仅 12 位
+        前缀,如需全量可由归档文件现算);
+      - 登记失败路径(平台瞬断的缺口本体):apk_id/产物路径取自"产物仍在"
+        行,file_hash 留空,notes 注明产物在构建机未上传平台;
+      - 惰性触发:GET /api/apks 列表时跑。稳态开销=list_builds 一次,控制台
+        只对 Jenkins 号未被 apks 覆盖的构建拉取;单条补录异常跳过不阻塞。
+    """
+    build_job = os.environ.get("JENKINS_BUILD_JOB", "").strip() or "swan-audio-build"
+    if not jenkins_client.config():
+        return
+    listing = jenkins_client.list_builds(build_job)
+    if not listing.get("ok"):
+        return
+    covered: set[int] = set()
+    for row in store.list_apks(limit=200):
+        number_text = str(row.get("jenkins_build") or "")
+        if str(row.get("jenkins_job") or "") == build_job and number_text.isdigit():
+            covered.add(int(number_text))
+    for entry in listing.get("builds") or []:
+        if entry.get("building") or entry.get("result") != "SUCCESS":
+            continue
+        number = entry.get("number")
+        if not isinstance(number, int) or number in covered:
+            continue
+        console = jenkins_client.console_text(build_job, number)
+        if not console.get("ok"):
+            continue
+        text = str(console.get("text") or "")
+        params = jenkins_client.build_parameters(build_job, number)
+        build_params = (params.get("params") or {}) if params.get("ok") else {}
+        start_at, _ = _jenkins_build_times(entry)
+        mode_match = _APK_MODE_RE.search(text)
+        checkout = _APK_CHECKOUT_RE.search(text)
+        registered = _APK_REG_OK_RE.search(text)
+        if registered:
+            archive = _APK_ARCHIVE_RE.search(text)
+            payload = {
+                "apk_id": registered.group(1),
+                "branch": str(build_params.get("BRANCH") or ""),
+                "commit_hash": checkout.group(1)[:7] if checkout else "",
+                "flavor": mode_match.group(1) if mode_match else "",
+                "source": "jenkins-reconcile",
+                "server_type": registered.group(3),
+                "build_time": start_at,
+                "registered_at": start_at,
+                "jenkins_job": build_job,
+                "jenkins_build": str(number),
+                "file_path": archive.group(2) if archive else "",
+                "file_hash": registered.group(2),
+                "notes": f"对账补录:Jenkins 构建 #{number},字段由控制台解析",
+            }
+        else:
+            missed = _APK_REG_FAIL_RE.search(text)
+            if not missed:
+                continue  # 登记步骤之前就失败/旧版脚本无登记行:无从补录
+            path = missed.group(1)
+            payload = {
+                "apk_id": os.path.basename(path).removesuffix(".apk"),
+                "branch": str(build_params.get("BRANCH") or ""),
+                "commit_hash": checkout.group(1)[:7] if checkout else "",
+                "flavor": mode_match.group(1) if mode_match else "",
+                "source": "jenkins-reconcile",
+                "server_type": str(build_params.get("SERVER_TYPE") or "").strip().lower(),
+                "build_time": start_at,
+                "registered_at": start_at,
+                "jenkins_job": build_job,
+                "jenkins_build": str(number),
+                "file_path": path,
+                "file_hash": "",
+                "notes": (f"对账补录:Jenkins 构建 #{number} 当时登记失败"
+                          "(产物仍在构建机,未上传平台,file_hash 缺)"),
+            }
+        try:
+            store.register_apk_if_absent(payload)
+        except ValueError:
+            continue  # server_type 等字段异常的构建:跳过,不影响其余补录
+
+
 def _reap_timeout_jobs(connection: sqlite3.Connection) -> list[dict[str, Any]]:
     """把 running 超过阈值的任务标记 error 并释放其占用设备(幂等,可重复调用)。
 
@@ -1938,6 +2037,56 @@ class DashboardStore:
             )
         return self.get_apk(apk_id)
 
+    def register_apk_if_absent(self, payload: dict[str, Any]) -> bool:
+        """对账补录用登记(2026-09-28):apk_id 不存在才整行插入,返回是否新插入。
+
+        与 register_apk 的差异:绝不覆盖已登记行的业务字段(对账数据来自
+        控制台解析,精度低于登记时的内存数据);已存在时仅回填空缺的
+        jenkins_job/jenkins_build(修复手跑补录包行无构建号关联,使包管理
+        行可跳转 Jenkins 日志)。
+        """
+        apk_id = str(payload.get("apk_id") or "").strip()
+        if not apk_id:
+            raise ValueError("apk_id is required")
+        server_type = str(payload.get("server_type") or "test").strip().lower()
+        if server_type not in VALID_SERVER_TYPES:
+            raise ValueError(f"server_type 必须是 {'/'.join(VALID_SERVER_TYPES)} 之一")
+        registered_at = str(payload.get("registered_at") or utc_now())
+        with self.transaction() as connection:
+            existed = connection.execute(
+                "SELECT 1 FROM apks WHERE apk_id=?", (apk_id,)).fetchone()
+            connection.execute(
+                """
+                INSERT INTO apks (
+                    apk_id, app_version, branch, commit_hash, flavor, source,
+                    file_path, file_hash, notes, server_type, build_time,
+                    jenkins_job, jenkins_build, registered_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(apk_id) DO UPDATE SET
+                    jenkins_job=CASE WHEN apks.jenkins_job=''
+                                     THEN excluded.jenkins_job ELSE apks.jenkins_job END,
+                    jenkins_build=CASE WHEN apks.jenkins_build=''
+                                       THEN excluded.jenkins_build ELSE apks.jenkins_build END
+                """,
+                (
+                    apk_id,
+                    str(payload.get("app_version") or ""),
+                    str(payload.get("branch") or ""),
+                    str(payload.get("commit_hash") or ""),
+                    str(payload.get("flavor") or ""),
+                    str(payload.get("source") or "manual"),
+                    str(payload.get("file_path") or ""),
+                    str(payload.get("file_hash") or ""),
+                    str(payload.get("notes") or ""),
+                    server_type,
+                    str(payload.get("build_time") or "").strip() or None,
+                    str(payload.get("jenkins_job") or ""),
+                    str(payload.get("jenkins_build") or ""),
+                    registered_at,
+                ),
+            )
+            return existed is None
+
     def get_apk(self, apk_id: str) -> dict[str, Any]:
         with self.transaction() as connection:
             row = connection.execute("SELECT * FROM apks WHERE apk_id=?", (apk_id,)).fetchone()
@@ -2892,6 +3041,11 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 self.send_error_json("limit must be an integer", HTTPStatus.BAD_REQUEST)
                 return
             server_type = query.get("server_type", [""])[0].strip().lower()
+            try:
+                reconcile_apks_from_jenkins(self.store)  # 缺行补录(2026-09-28)
+            except Exception as error:  # noqa: BLE001 — 对账失败不影响列表
+                _reap_log(f"reconcile apks 失败: {error}",
+                          filename="jenkins_dispatch.log")
             items = self.store.list_apks(limit=limit, server_type=server_type)
             base_url = self.base_url()
             # 日志链接给浏览器跳转用:优先 JENKINS_PUBLIC_URL(对外可达地址);未配置回退 JENKINS_BASE_URL

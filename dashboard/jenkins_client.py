@@ -11,7 +11,9 @@
   - queue_item 轮询队列项,executable.number 出现即拿到 build 号;
   - job_status 查询构建进行中/终态;
   - list_builds 列最近构建 / build_parameters 读构建入参——队列项被 Jenkins
-    清掉后的回查回退用(resolve_build_pipeline_jobs,2026-09-23)。
+    清掉后的回查回退用(resolve_build_pipeline_jobs,2026-09-23);
+  - console_text 拉构建控制台全文——包管理对账解析登记行用
+    (reconcile_apks_from_jenkins,2026-09-28)。
 """
 from __future__ import annotations
 
@@ -190,3 +192,23 @@ def build_parameters(job: str, build: int) -> dict:
             if item.get("name"):
                 params[str(item["name"])] = item.get("value")
     return {"ok": True, "params": params}
+
+def console_text(job: str, build: int) -> dict:
+    """拉构建控制台全文:{"ok": True, "text": str}(GET /job/<job>/<build>/consoleText)。
+
+    供包管理对账解析登记/归档行用(reconcile_apks_from_jenkins,2026-09-28);
+    失败口径同其他方法。
+    """
+    cfg = config()
+    if not cfg:
+        return _fail("JENKINS_BASE_URL/JENKINS_USER/JENKINS_API_TOKEN 未配置")
+    url = f"{cfg['base']}/job/{urllib.parse.quote(job, safe='')}/{int(build)}/consoleText"
+    try:
+        status, _, text = _request("GET", url, headers={"Authorization": _auth_header(cfg)})
+    except urllib.error.HTTPError as error:
+        return _fail(f"HTTP {error.code}", status_code=error.code)
+    except (urllib.error.URLError, TimeoutError, OSError) as error:
+        return _fail(f"Jenkins 连接失败: {error}")
+    if status != 200:
+        return _fail(f"HTTP {status}", status_code=status)
+    return {"ok": True, "text": text}

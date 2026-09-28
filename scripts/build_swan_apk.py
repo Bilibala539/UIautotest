@@ -529,7 +529,8 @@ def main() -> int:
     echo(f"== 步骤 3/3 登记平台({PLATFORM_URL}/api/apks server_type={args.server_type})==")
     try:
         result = register_apk(payload)
-        echo(f"登记成功 apk_id={result.get('apk_id')} sha256={file_hash[:12]}… server_type={args.server_type}")
+        # sha 打全量:包管理对账(reconcile_apks_from_jenkins)解析用,截断版无法校验
+        echo(f"登记成功 apk_id={result.get('apk_id')} sha256={file_hash} server_type={args.server_type}")
     except (urllib.error.URLError, OSError, ValueError) as error:
         echo(f"登记失败:{error}(产物仍在 {apk})")
         log.close()

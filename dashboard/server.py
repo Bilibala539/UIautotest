@@ -2847,6 +2847,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
             body = DASHBOARD_HTML.encode("utf-8")
             self.send_response(HTTPStatus.OK)
             self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Cache-Control", "no-cache")  # 页面即改即生效,防浏览器放旧页
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)

@@ -202,6 +202,12 @@
     table.pin-last thead th:last-child, table.pin-last tbody td:last-child { position:sticky; right:0; }
     table.pin-last thead th:last-child { z-index:5; }  /* 高于 .cd-col-grip(z2):手柄bar不得压在吸右列上(2026-09-28) */
     table.pin-last tbody td:last-child { z-index:4; background:var(--card); box-shadow:-8px 0 10px -8px rgba(23,32,51,.28); }  /* z4 同样压过手柄z2 */
+    /* 2026-09-28 用户反馈:右二列列名右侧的常显手柄bar紧贴吸右操作列,末列手柄bar贴表尾,
+       都看着像最右列还能拖 → 这两处改仅 hover 显示,其余列保持常显 */
+    thead th:last-child .cd-col-grip::after,
+    table.pin-last thead th:nth-last-child(2) .cd-col-grip::after { display:none; }
+    thead th:last-child:hover .cd-col-grip::after,
+    table.pin-last thead th:nth-last-child(2):hover .cd-col-grip::after { display:block; }
     .cd-table td { overflow:hidden; text-overflow:ellipsis; }  /* 用例表同为 fixed 布局,长内容同样裁切 */
     .cd-table thead th:last-child, .cd-table tbody td:last-child { position:sticky; right:0; }
     .cd-table thead th:last-child { z-index:3; }

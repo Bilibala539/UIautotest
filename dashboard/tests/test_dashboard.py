@@ -761,7 +761,7 @@ def test_apk_reconcile_from_jenkins():
                 if "tree=builds[" in self.path:
                     reply({"builds": builds})
                 elif "tree=actions" in self.path:
-                    number = self.path.split("/")[-2]
+                    number = self.path.split("/")[-3]  # /job/<job>/<n>/api/json
                     reply({"actions": [{"parameters": params.get(number, [])}]})
                 else:
                     self.send_response(404)

@@ -511,6 +511,8 @@ _APK_ARCHIVE_RE = re.compile(r"^归档成功 bytes=(\d+) → (\S+)\s*$", re.M)
 _APK_CHECKOUT_RE = re.compile(r"^检出完成 commit=([0-9a-f]{7,40})\s*$", re.M)
 _APK_MODE_RE = re.compile(
     r"^== 步骤 2/3 flutter build apk --(profile|release) ==\s*$", re.M)
+_APK_STEP3_RE = re.compile(
+    r"^== 步骤 3/3 登记平台\(\S+ server_type=(\w+)\)==\s*$", re.M)
 
 
 def reconcile_apks_from_jenkins(store) -> None:
@@ -555,6 +557,7 @@ def reconcile_apks_from_jenkins(store) -> None:
         build_params = (params.get("params") or {}) if params.get("ok") else {}
         start_at, _ = _jenkins_build_times(entry)
         mode_match = _APK_MODE_RE.search(text)
+        step3 = _APK_STEP3_RE.search(text)
         checkout = _APK_CHECKOUT_RE.search(text)
         registered = _APK_REG_OK_RE.search(text)
         if registered:
@@ -585,7 +588,9 @@ def reconcile_apks_from_jenkins(store) -> None:
                 "commit_hash": checkout.group(1)[:7] if checkout else "",
                 "flavor": mode_match.group(1) if mode_match else "",
                 "source": "jenkins-reconcile",
-                "server_type": str(build_params.get("SERVER_TYPE") or "").strip().lower(),
+                # 参数查询失败也不能默认 test(formal 会错标):回退脚本步骤 3 行
+                "server_type": str(build_params.get("SERVER_TYPE")
+                                   or (step3.group(1) if step3 else "")).strip().lower(),
                 "build_time": start_at,
                 "registered_at": start_at,
                 "jenkins_job": build_job,

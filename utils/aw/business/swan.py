@@ -12,7 +12,9 @@ import time
 
 from image.image_name_mapping import (
     SWAN_DEVICE_ADD_BTN,
-    SWAN_DEVICE_CARD_SELECTED,
+    # SWAN_DEVICE_CARD_SELECTED 已停止使用（2026-09-28 新构建口径废弃）：
+    # 点 WiFi 设备卡不再就地出现「选中标识」而是进播放页，映射文件登记
+    # 保留仅作历史记录，见 select_device docstring。
     SWAN_DEVICE_SHEET_CHECKED,
     SWAN_DEVICE_SHEET_TITLE,
     SWAN_FAVORITE_PLAY_ALL,
@@ -323,12 +325,22 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
 
     # 音量滑条方向（A19 默认横向；弹窗实际布局待真机校准，纵向改 "y"）
     _VOLUME_SLIDER_AXIS = "x"
-    # 设备页卡片：设备名行到状态行允许的最大纵向跨度（720x1600 口径，待真机校准）
+    # 设备页卡片：设备名行到卡内可点内容行（状态行/媒体行）允许的最大
+    # 纵向跨度（720x1600 口径，待真机校准）
     _CARD_BODY_SPAN = 300
     # 设备页 OCR 候选行下界（cy > 此值的项一律剔除，720x1600 口径）：底部
     # 播放条区 y≈1376-1476（verify-run3 实测），持久会话下播放条常驻设备名，
     # 不剔除会把设备名兜底匹配错配到播放条标题上（实测案例见 select_device 注）。
     _DEVICE_OCR_BOTTOM_LIMIT = 1350
+    # 播放页页头输出设备名 band（720x1600 口径；知识库 swan_设备详情页
+    # player_device_name bounds [128,91][592,149]，y 向外扩覆盖 OCR 抖动）。
+    # select_device via="card" WiFi 分支的切换收尾断言用。region 仅收窄
+    # OCR 断言范围，非坐标定位。
+    _PLAYER_HEADER_DEVICE_REGION = (0, 60, 720, 120)
+    # 设备页贴底播放条 band（720x1600 口径，与 _DEVICE_OCR_BOTTOM_LIMIT
+    # 同源 y≈1376-1476）。select_device 本机分支的切换断言用：内容区本机
+    # 卡自身文本也是「扬声器」，必须限定播放条区域才构成切换证据。
+    _DEVICE_PLAYBAR_REGION = (0, 1360, 720, 120)
 
     # OCR 设备名易混字符归一化映射（verify R2 实测：「HiVi M300MKII」被
     # 读成「HiVi M300MKIl」——罗马数字 II 与小写 l 同形，name in text
@@ -349,72 +361,232 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         return text.translate(cls._OCR_CONFUSABLE_TRANS).replace(" ", "")
 
     def select_device(self, name: str, via: str = "card") -> None:
-        """切换输出设备（A12，回归用例 11-12）。
+        """切换输出设备（A12，回归用例 11-12）。2026-09-28 口径重设计。
 
-        via="card"：设备页 OCR 定位目标设备名所在卡片（设备名精确包含
-        优先，失配时两侧 compact 归一化——去空格 + l/I/1 易混字符映射——
-        兜底再匹配，见 _ocr_compact 注；OCR 候选行剔除底部播放条区
-        cy > _DEVICE_OCR_BOTTOM_LIMIT，播放条常驻设备名不作候选），点卡片
-        状态行（「连接良好」行）。⚠️ 不点设备名本身——知识库实测设备名
-        节点是设置入口（wifi_device_settings_<UUID>），内含删除设备风险。
-        收尾断言卡片选中态 [图]。
+        探索依据：knowledge/swan/draft/swan_设备详情页.md（test/profile
+        5.3.1 新构建 2026-09-24 真机实测）。新旧口径差异：
 
-        via="player"：播放页右上角设备切换钮 [图] 开弹层 → 断言弹层标题
-        [图] → OCR 点目标设备行 → 断言行勾选态 [图]；若弹层随选择自动
-        关闭，退化为断言已回播放页且页顶输出设备名 OCR 出现目标名。
+        - 旧口径（已废弃）：点设备卡状态行即切换输出，收尾断言卡片选中
+          态图 SWAN_DEVICE_CARD_SELECTED。新构建点 WiFi 设备卡**不切换
+          输出**，而是进全屏播放页（full_player_page）；「选中标识」图在
+          新构建不复存在，常量停止使用（映射文件登记保留）。
+        - 新口径「当前输出」= 深色整卡容器 wifi_device_selected_<UUID>
+          （动态 UUID 无法截成图像模板），切换断言改走输出设备名 OCR
+          （播放页页头 / 贴底播放条，region 限定）。
 
-        ⚠️ 选择会真实下发到 rig 音箱（方案 §5② 回归须真点真音箱），
-        且跨用例不自动回切。
+        via="card"：
+        - WiFi 设备分支：设备页 OCR 定位目标设备卡（设备名精确包含优先，
+          失配时两侧 compact 归一化——去空格 + l/I/1 易混字符映射——兜底
+          再匹配，见 _ocr_compact 注；OCR 候选行剔除底部播放条区），点卡
+          → 断言进播放页（player_dismiss_button [图]）→ 经播放页设备切
+          换弹层点目标设备行完成真实切换（复用 _switch_output_in_sheet，
+          与 via="player" 共用同一弹层尾部）→ 断言播放页页头输出设备名
+          OCR = name。
+        - 本机扬声器分支（name 含「扬声器」或「本机」）：设备页定位本机
+          分区「扬声器」卡（分区在卡列表下方，未露出时上滑重找）→ 点卡
+          触发系统「是否忽略电池优化？」对话框（切本机输出的前置）→
+          _confirm_battery_optimization_dialog 点「忽略」→ 断言贴底播放
+          条 OCR「扬声器」。
+
+        ⚠️ 点卡两类点击点（状态行/卡体内容行）都避开设备名行本身——其上
+        覆盖 wifi_device_settings_<UUID> 设置入口，内含删除设备风险。
+        ⚠️ 选择会真实下发到 rig 音箱（方案 §5② 回归须真点真音箱），且跨
+        用例不自动回切。
+        ⚠️ 实验室 WiFi 音箱（M300MKII）2026-09-28 离线，WiFi 卡点击链路
+        代码按探索结论实现，真机复验待音箱上线。
         """
         assert via in ("card", "player"), "via 仅支持 card / player"
-        if via == "card":
-            # 先剔除底部播放条区 OCR 项（cy > _DEVICE_OCR_BOTTOM_LIMIT）：
-            # verify-run3 实测案例——卡片标题被 OCR 读成「HiViM300MKII>」
-            # （空格丢失）致名字精确匹配失败，兜底错配到播放条常驻标题
-            # 「HiVi M300MKII」（y≈1376-1476），随后以播放条 cy 找「连接
-            # 良好」必然失败。播放条区本就不可点，整体剔除。
-            items = [i for i in self.ocr_scan_page()
-                     if i["cy"] <= self._DEVICE_OCR_BOTTOM_LIMIT]
-            # 设备名比对：优先 OCR 文本精确包含；失配时两侧 compact 归一化
-            # （去空格 + l/I/1 易混字符映射，见 _ocr_compact 注）兜底再匹配。
-            # 实测案例1：OCR 把「HiVi M300MKII」读成「HiVi M300MKIl」
-            # （II→Il），归一化后命中；案例2：读成「HiViM300MKII>」（空格
-            # 丢失），去空格后命中。状态行「连接良好」定位逻辑不受影响。
-            name_item = next((i for i in items if name in i["text"]), None)
-            if name_item is None:
+        if via == "player":
+            self._switch_output_in_sheet(name)
+            return
+        # ---- via="card" ----
+        if "扬声器" in name or "本机" in name:
+            # 本机扬声器分支：点本机卡 → 系统电池优化弹窗点「忽略」→
+            # 贴底播放条断言（见 _DEVICE_PLAYBAR_REGION 注）。
+            self._tap_local_speaker_card()
+            self._confirm_battery_optimization_dialog()
+            self._wait_compact_text_in_region(
+                "扬声器", self._DEVICE_PLAYBAR_REGION, 10.0,
+                what="切换本机输出后的贴底播放条")
+            return
+        # WiFi 设备分支：点卡=进播放页（新构建行为，点卡本身不切换输出），
+        # 真实切换经播放页设备切换弹层完成。
+        tap_item = self._locate_wifi_device_card(name)
+        self.tap(tap_item["cx"], tap_item["cy"])
+        self.image_exists(SWAN_PLAYER_DISMISS_BTN, timeout=10)  # 已进播放页
+        self._switch_output_in_sheet(name)
+        self._wait_compact_text_in_region(
+            name, self._PLAYER_HEADER_DEVICE_REGION, 10.0,
+            what="切换输出后的播放页页头设备名")
+
+    def _switch_output_in_sheet(self, name: str) -> None:
+        """播放页设备切换弹层选行（select_device via="player" 与 via="card"
+        WiFi 分支共用尾部，避免两份弹层逻辑漂移）。调用方须已在全屏播放页。
+
+        右上角设备切换钮 [图] 开弹层 → 断言弹层标题 [图] → OCR 点目标
+        设备行 → 断言行勾选态 [图]；若弹层随选择自动关闭，退化为断言已
+        回播放页且页顶输出设备名 OCR 出现目标名。
+        """
+        self.click_image(SWAN_PLAYER_DEVICE_BTN, timeout=10)
+        self.image_exists(SWAN_DEVICE_SHEET_TITLE, timeout=10)
+        self.click_text(name, timeout=10)
+        if self.find_image(SWAN_DEVICE_SHEET_CHECKED, timeout=5) is not None:
+            logger.info("设备弹层勾选态 [图] 已确认")
+        else:
+            # 弹层可能已随选择自动关闭：退化为核对播放页顶部输出设备名
+            self.image_exists(SWAN_PLAYER_DISMISS_BTN, timeout=10)
+            self.text_exists(name, timeout=10)
+
+    def _locate_wifi_device_card(self, name: str) -> dict:
+        """设备页 OCR 定位 WiFi 设备卡，返回卡上点击点（OCR 项，含 cx/cy）。
+
+        设备名比对：优先 OCR 文本精确包含；失配时两侧 compact 归一化
+        （去空格 + l/I/1 易混字符映射，见 _ocr_compact 注）兜底再匹配。
+        实测案例1：OCR 把「HiVi M300MKII」读成「HiVi M300MKIl」（II→Il），
+        归一化后命中；案例2：读成「HiViM300MKII>」（空格丢失），去空格
+        后命中。OCR 候选行先剔除底部播放条区（cy > _DEVICE_OCR_BOTTOM_
+        LIMIT，verify-run3 实测播放条常驻标题会被兜底错配，且播放条区
+        本就不可点，整体剔除）。
+
+        点击点选择（知识库 swan_设备详情页 2026-09-24 实测）：状态行
+        「连接良好」优先（探索实测锚点，落在当前输出整卡容器
+        wifi_device_selected_<UUID> 内；整卡点击行为相同）；空闲卡无状态
+        行时退化点设备名行下方最靠上的一条卡体内容行（紧邻设备名行下方，
+        避免跨到下一张卡的设备名行）。⛔ 两类点击点都避开设备名行本身
+        （设置入口覆盖，见 select_device 注）。
+        """
+        def _match_name(scan: list[dict]) -> dict | None:
+            hit = next((i for i in scan if name in i["text"]), None)
+            if hit is None:
                 compact_name = self._ocr_compact(name)
-                name_item = next(
-                    (i for i in items
+                hit = next(
+                    (i for i in scan
                      if compact_name in self._ocr_compact(i["text"])),
                     None,
                 )
-                if name_item is not None:
+                if hit is not None:
                     logger.info(
                         "select_device: 设备名 %r 精确匹配失败，"
                         "compact 归一化（去空格+l/I/1）后命中 OCR 文本 %r",
-                        name, name_item["text"])
-            assert name_item is not None, f"设备页 OCR 未找到设备名 {name!r}"
-            status_item = next(
-                (i for i in items
-                 if "连接良好" in i["text"]
-                 and 0 < i["cy"] - name_item["cy"] <= self._CARD_BODY_SPAN),
+                        name, hit["text"])
+            return hit
+
+        items = [i for i in self.ocr_scan_page()
+                 if i["cy"] <= self._DEVICE_OCR_BOTTOM_LIMIT]
+        name_item = _match_name(items)
+        if name_item is None:
+            # 前序本机分支可能把设备页停在下滑位（_tap_local_speaker_card
+            # 上滑找卡），回滚到顶重扫一次再定论。
+            self.swipe_down()
+            items = [i for i in self.ocr_scan_page()
+                     if i["cy"] <= self._DEVICE_OCR_BOTTOM_LIMIT]
+            name_item = _match_name(items)
+        assert name_item is not None, (
+            f"设备页 OCR 未找到设备名 {name!r}（已回滚到顶重扫；WiFi 设备"
+            "可能离线显示空态卡，或卡文案 OCR 失真需校准）")
+        status_item = next(
+            (i for i in items
+             if "连接良好" in i["text"]
+             and 0 < i["cy"] - name_item["cy"] <= self._CARD_BODY_SPAN),
+            None,
+        )
+        if status_item is not None:
+            return status_item
+        body_candidates = [
+            i for i in items
+            if name_item["cy"] < i["cy"] <= name_item["cy"] + self._CARD_BODY_SPAN
+        ]
+        assert body_candidates, (
+            f"设备 {name!r} 卡片上未找到可点内容行（状态行「连接良好」缺失"
+            "且卡体无 OCR 内容，卡片布局变化需校准 _CARD_BODY_SPAN）")
+        return min(body_candidates, key=lambda i: i["cy"])
+
+    def _tap_local_speaker_card(self) -> None:
+        """设备页定位并点击本机分区「扬声器」卡（切本机输出入口）。
+
+        本机分区在 WiFi 卡列表下方（知识库 swan_设备详情页：下滑后可见），
+        未露出时上滑一屏重扫（最多 3 轮扫-滑轮替）。本机分区之下还有一张
+        Apple Music 分区的同名「扬声器」卡（行为未探索，⛔ 不可点），故取
+        最靠上一条命中行。本机卡名行无设置覆盖（wifi_device_settings_ 仅
+        WiFi 卡有），点名行中心即可（知识库实测整卡 click=True）。OCR
+        候选行照常剔除底部播放条区——当前输出若已是本机，播放条常驻
+        「扬声器」，不得误当卡片命中。
+        """
+        for _ in range(3):
+            card = min(
+                (i for i in self.ocr_scan_page()
+                 if i["cy"] <= self._DEVICE_OCR_BOTTOM_LIMIT
+                 and "扬声器" in self._ocr_compact(i["text"])),
+                key=lambda i: i["cy"],
+                default=None,
+            )
+            if card is not None:
+                self.tap(card["cx"], card["cy"])
+                return
+            self.swipe_up()
+        assert False, "设备页未找到本机分区「扬声器」卡（已上滑重试 3 次）"
+
+    def _confirm_battery_optimization_dialog(self, timeout: float = 6.0) -> bool:
+        """处置切本机输出触发的系统「是否忽略电池优化？」对话框。
+
+        点本机扬声器卡后系统弹「是否忽略电池优化？」（取消/忽略），点
+        「忽略」放行后台音频后切换继续（知识库 swan_设备详情页 2026-09-24
+        往返实测）。这是 Android 系统弹窗、一次性授权（放过一次后再次切
+        换多半不再弹），故：窗口期内等到弹窗 → 点「忽略」并返回 True；
+        未等到 → 视为已授权，返回 False 由调用方继续收尾断言（弹窗缺失
+        不算失败）。
+
+        ⚠️ 受控例外：本方法在业务层经 dump 定位系统弹窗按钮，突破
+        「业务方法禁止依赖 dump 做定位」的约定——系统弹窗不在 Flutter
+        语义树内、无图像模板可用、按钮为系统渲染（resource-id 惯例
+        button1=肯定键「忽略」/button2=否定键「取消」），且属一次性授权
+        的流程前置。弹窗处置收敛在本方法内，**不**并入 android_base
+        dismiss_app_popups 规则表（规则表按按钮文字自动点击，存在全局
+        误触状态变更的风险，同 _dismiss_auth_notice_popup 的考量）。
+        """
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            for node in self.dump_semantics():
+                node_id = (node.get("resource_id") or "").split("/")[-1]
+                label = node.get("text") or node.get("content_desc") or ""
+                if node_id == "button1" and "忽略" in label:
+                    center = node.get("center")
+                    assert center is not None, (
+                        "电池优化弹窗「忽略」按钮节点缺 bounds，无法点击")
+                    logger.info(
+                        "select_device: 系统电池优化弹窗出现，点「忽略」%s",
+                        center)
+                    self.tap(center[0], center[1])
+                    return True
+            self.sleep(1.0)
+        logger.info(
+            "select_device: 窗口期内未见电池优化弹窗（视为已授权，继续切换）")
+        return False
+
+    def _wait_compact_text_in_region(self, text: str, region, timeout: float,
+                                     what: str) -> None:
+        """region 内轮询 OCR 断言文本（两侧 compact 归一化比对）。
+
+        select_device 切换收尾断言专用：页头设备名/播放条设备名的 OCR 与
+        普通包含比对之间存在空格丢失（「HiViM300MKII>」）与 l/I/1 同形
+        失真，须两侧 compact 后比对（见 _ocr_compact 注）；切换生效有
+        延迟，故 deadline 轮询而非单次判定（知识库 swan_设备详情页：
+        语义树瞬时失败频发，OCR 同理勿单帧定生死）。
+        """
+        compact = self._ocr_compact(text)
+        deadline = time.monotonic() + timeout
+        while True:
+            hit = next(
+                (i for i in self.ocr_scan_page(region=region)
+                 if compact in self._ocr_compact(i["text"])),
                 None,
             )
-            assert status_item is not None, (
-                f"设备 {name!r} 卡片上未找到状态行「连接良好」"
-                "（设备可能离线，或卡片布局变化需校准 _CARD_BODY_SPAN）")
-            self.tap(status_item["cx"], status_item["cy"])
-            self.image_exists(SWAN_DEVICE_CARD_SELECTED, timeout=10)
-        else:
-            self.click_image(SWAN_PLAYER_DEVICE_BTN, timeout=10)
-            self.image_exists(SWAN_DEVICE_SHEET_TITLE, timeout=10)
-            self.click_text(name, timeout=10)
-            if self.find_image(SWAN_DEVICE_SHEET_CHECKED, timeout=5) is not None:
-                logger.info("设备弹层勾选态 [图] 已确认")
-            else:
-                # 弹层可能已随选择自动关闭：退化为核对播放页顶部输出设备名
-                self.image_exists(SWAN_PLAYER_DISMISS_BTN, timeout=10)
-                self.text_exists(name, timeout=10)
+            if hit is not None:
+                return
+            if time.monotonic() >= deadline:
+                break
+            self.sleep(1.0)
+        assert False, f"{what} region 内未出现 {text!r}（已轮询 {timeout:.0f}s）"
 
     def start_play(self, source: str = "favorite", mode: str = "all",
                    index: int = 0) -> None:

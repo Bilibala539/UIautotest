@@ -300,8 +300,20 @@ SWAN_PLAYER_VOLUME_PLUS = image_path("swan_播放页_音量加号按钮.png", pl
 SWAN_PLAYER_VOLUME_MINUS = image_path("swan_播放页_音量减号按钮.png", platform="flutter")
 
 # --- 设备页 / 切换设备弹层 选中态 ---
-SWAN_DEVICE_CARD_SELECTED = image_path("swan_设备页_设备卡片选中态.png", platform="flutter")  # 只截选中标识（边框/角标），勿含设备名
+# ⚠️ SWAN_DEVICE_CARD_SELECTED 已废弃（2026-09-28，业务代码停止引用）：
+# test/profile 5.3.1 新构建点 WiFi 设备卡不再就地出现「选中标识」，而是
+# 进全屏播放页（探索结论 knowledge/swan/draft/swan_设备详情页.md）；新口径
+# 「当前输出」= 深色整卡容器 wifi_device_selected_<UUID>（动态 UUID 无法
+# 截成模板），切换断言改走播放页页头/贴底播放条 OCR 设备名（见
+# SwanBusiness.select_device）。登记保留仅作历史记录。
+SWAN_DEVICE_CARD_SELECTED = image_path("swan_设备页_设备卡片选中态.png", platform="flutter")  # [废弃] 旧选中态口径，勿在新代码使用
 SWAN_DEVICE_SHEET_CHECKED = image_path("swan_切换设备弹层_勾选态.png", platform="flutter")    # 行首勾选圆点选中态（知识库未见此态，需真机人工选一次以截取）
+
+# --- 设备页 底栏切换设备入口 ---
+# 底栏播放条最右 cast 图标（无键无文案，仅图模板可达），点击直达切换设备
+# 弹层（不经过播放页）——explorer 已探明的输出切换最短路径
+# （knowledge/swan/draft/swan_设备详情页.md 用例11 短路径结论）。
+SWAN_BOTTOM_BAR_CAST_BTN = image_path("swan_底栏_切换设备钮.png", platform="flutter", draft=True)
 
 
 # =====================================================================
@@ -440,6 +452,7 @@ __all__ = [
     "SWAN_PLAYER_VOLUME_MINUS",
     "SWAN_DEVICE_CARD_SELECTED",
     "SWAN_DEVICE_SHEET_CHECKED",
+    "SWAN_BOTTOM_BAR_CAST_BTN",
     "SWAN_TAB_HOME",
     "SWAN_TAB_PLATFORM",
     "SWAN_TAB_DEVICE",

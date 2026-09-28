@@ -28,6 +28,7 @@
     table { border-collapse:collapse; width:100%; } th,td { padding:12px 15px; border-bottom:1px solid var(--line); text-align:left; white-space:nowrap; } th { color:var(--muted); background:#fafbfc; font-size:12px; font-weight:600; }
     .num { text-align:right; font-variant-numeric:tabular-nums; }
     tbody tr.clickable { cursor:pointer; } tbody tr.clickable:hover { background:#f8f9ff; }
+    table.pin-last tbody tr.clickable:hover td:last-child { background:#f8f9ff; }  /* 吸右列自带上底,hover 跟行同色(2026-09-28) */
     .badge { border-radius:999px; padding:3px 9px; font-size:12px; font-weight:600; display:inline-block; } .passed { color:var(--good); background:#e6fcf5; } .failed,.error { color:var(--bad); background:#fff5f5; } .running { color:var(--brand); background:#edf2ff; } .skipped { color:var(--warn); background:#fff9db; } .cancelling { color:var(--warn); background:var(--warn-weak); } .cancelled { color:var(--muted); background:var(--neutral-weak); }
     .empty { padding:44px; text-align:center; color:var(--muted); } .meta { color:var(--muted); font-size:13px; }
     .detail-head { display:flex; justify-content:space-between; gap:12px; align-items:start; } #run-drawer h2 { margin:0 0 14px; font-size:18px; }
@@ -281,7 +282,7 @@
         <div class="card"><div class="stat-label">最近一次状态</div><div class="stat-value" id="latest-status">-</div></div>
         <div class="card"><div class="stat-label">最近一次耗时</div><div class="stat-value" id="latest-duration">-</div></div>
       </section>
-      <section class="card table-card"><table><thead><tr><th>平台</th><th>包体</th><th>设备</th><th>状态</th><th class="num">通过率</th><th>用例数</th><th>耗时</th><th>开始时间</th></tr></thead><tbody id="runs"><tr><td colspan="8" class="empty">加载中…</td></tr></tbody></table></section>
+      <section class="card table-card"><table><thead><tr><th>平台</th><th>包体</th><th>设备</th><th>状态</th><th class="num">通过率</th><th>用例数</th><th>耗时</th><th>开始时间</th><th>操作</th></tr></thead><tbody id="runs"><tr><td colspan="9" class="empty">加载中…</td></tr></tbody></table></section>
       <div id="run-drawer" hidden>
         <div class="cd-drawer-mask" onclick="closeRunDrawer()"></div>
         <aside class="cd-drawer">
@@ -912,9 +913,9 @@
       $('latest-status').innerHTML = runs.length ? badge(runs[0].status) : '-';
       $('latest-duration').textContent = runs.length ? formatDuration(runs[0].duration_seconds) : '-';
       const tbody = $('runs'); tbody.innerHTML = '';
-      if (!runs.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty">暂无执行记录</td></tr>'; return; }
+      if (!runs.length) { tbody.innerHTML = '<tr><td colspan="9" class="empty">暂无执行记录</td></tr>'; return; }
       runs.forEach(r => { const row = document.createElement('tr'); row.className = 'clickable';
-        row.innerHTML = `<td>${safe(r.platform || '-')}</td><td>${safe(r.apk_id||'-')}</td><td>${safe(r.device||'-')}</td><td>${badge(r.status)}</td><td class="num"${r.total_cases ? ` style="color:${rateColor(r.pass_rate)}"` : ''}>${r.total_cases ? r.pass_rate.toFixed(1)+'%' : '-'}</td><td>${r.total_cases}</td><td>${formatDuration(r.duration_seconds)}</td><td>${safe(formatDate(r.started_at))}</td>`;
+        row.innerHTML = `<td>${safe(r.platform || '-')}</td><td>${safe(r.apk_id||'-')}</td><td>${safe(r.device||'-')}</td><td>${badge(r.status)}</td><td class="num"${r.total_cases ? ` style="color:${rateColor(r.pass_rate)}"` : ''}>${r.total_cases ? r.pass_rate.toFixed(1)+'%' : '-'}</td><td>${r.total_cases}</td><td>${formatDuration(r.duration_seconds)}</td><td>${safe(formatDate(r.started_at))}</td><td><button class="icon-btn" onclick="event.stopPropagation();showRun(decodeURIComponent('${encodeURIComponent(r.run_id)}'))" title="查看详情">${ICON.list}</button></td>`;
         row.onclick = () => showRun(r.run_id); tbody.appendChild(row); });
     }
     function rateColor(p) { return p >= 90 ? 'var(--good)' : p < 60 ? 'var(--bad)' : 'var(--ink)'; } // 6.1 通过率三档:数字文字色不动底
@@ -2558,7 +2559,7 @@
     $('case-load').onclick = loadCaseHistory; $('case-id').onkeydown = e => { if (e.key==='Enter') loadCaseHistory(); };
     loadRuns().catch(e => { $('runs').innerHTML = `<tr><td colspan="9" class="empty">加载失败：${e}</td></tr>`; });
     // 全站列表启用列宽拖拽(用例管理表 cd-table 自带实现,不在其列)
-    [['runs','tw-runs',false],['dl-rows','tw-dl',true],['pl-rows','tw-plcfg',true],['pl-job-rows','tw-pljob',true],['su-rows','tw-su',true],['cd-mods-rows','tw-mods',true]]
+    [['runs','tw-runs',true],['dl-rows','tw-dl',true],['pl-rows','tw-plcfg',true],['pl-job-rows','tw-pljob',true],['su-rows','tw-su',true],['cd-mods-rows','tw-mods',true]]
       .forEach(([id, key, pin]) => { const t = $(id) && $(id).closest('table'); if (t) makeTableResizable(t, key, pin); });
     window.addEventListener('resize', () => { pinFit.forEach(f => f(-1)); try { cdFitLast(null); } catch (e) {} });  // 窗口宽变化后操作列仍贴右缘
 

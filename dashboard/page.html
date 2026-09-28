@@ -84,7 +84,6 @@
     .build-field label { font-size:12px; color:var(--muted); }
     .build-field input, .build-field select { width:100%; }
     .build-notes-field { flex:1; min-width:220px; }
-    .build-err { position:absolute; top:100%; margin-top:2px; white-space:nowrap; }
     .build-submit-wrap { display:flex; align-items:center; gap:10px; }
     /* 规范 4.1 Danger 文字链:行内删除专用,无底 --bad 字,hover --bad-weak 底;padding 对齐行内档 5px 10px */
     /* 备注列超长截断:单元格内 inline-block 裁切,title 悬停看全文 */
@@ -301,7 +300,6 @@
           <div class="build-field">
             <label for="build-branch">分支 <span class="req-star">*</span></label>
             <input id="build-branch" value="dev" placeholder="dev">
-            <span class="field-error build-err" id="build-branch-err" hidden>请填写分支</span>
           </div>
           <div class="build-field">
             <label for="build-server">服别</label>
@@ -810,9 +808,8 @@
         io.observe(tbl);
         return true;
       };
-      if (Array.isArray(saved) && saved.length === ths.length) ensureLock();
-      else {
-        ensureLock();  // 渲染完成时已可见就直接锁
+      ensureLock();  // 数据已在且有存档就直接锁
+      if (!colgroup) {  // 没锁成(数据未到/页签隐藏):数据行一出现就补锁,操作列即刻固定最右
         const mo = new MutationObserver(() => { if (ensureLock()) mo.disconnect(); });
         mo.observe(tbl.querySelector('tbody') || tbl, { childList: true });
       }
@@ -1007,9 +1004,7 @@
     }
     async function buildApk() { // 主动打包:POST /api/builds(打包构建模块并行开发中,端点未上线时优雅降级)
       const branch = $('build-branch').value.trim();
-      const err = $('build-branch-err');
-      if (!branch) { err.hidden = false; $('build-branch').focus(); return; } // 规范 4.6:首错聚焦,错误写到字段下方,不清空输入
-      err.hidden = true;
+      if (!branch) { $('build-branch').focus(); return; }  // 红星标必填,空值不提交(2026-09-28:错误文案撤除)
       const btn = $('build-submit'); const msg = $('build-msg');
       btn.disabled = true; btn.style.opacity = '.5'; // 提交期间禁用(规范 4.7)
       msg.textContent = '';
@@ -1445,6 +1440,7 @@
           : `<th draggable="true" data-key="${c.key}" style="width:${c.width}px"><span class="cd-th-label">${safe(c.label)}</span><span class="cd-col-grip" data-key="${c.key}"></span></th>`).join('');
       $('cd-cols').innerHTML = vis.map(c => `<col style="width:${c.width}px">`).join('');
       $('cd-table-el').style.width = vis.reduce((s, c) => s + c.width, 0) + 'px';
+      $('cd-table-el').classList.toggle('pin-last', vis.length > 0 && vis[vis.length - 1].key === 'actions');  // 操作列吸右固定(列设置隐藏操作列时不吸)
       // 行
       const tbody = $('cd-rows'); tbody.innerHTML = '';
       if (!pageItems.length) {

@@ -74,10 +74,19 @@ class SwanPlayerRegressionMixin:
         self.phone = self.user.phone
 
     def teardown(self):
-        """G3/G4：关残留弹层 → 尽力暂停（rig 卫生）→ 收播放页 → 回首页。"""
+        """G3/G4：关残留弹层 → 尽力暂停（rig 卫生）→ 收播放页 → 退出 push 页 → 回首页。
+
+        verify-big52 根因4（explorer_output/verify_run4/run1_play_control.log）：
+        播放前置 _preset_playing 经我喜欢页（push 页）发起播放，收播放页后停在
+        我喜欢页——该页无底部导航无 tab_recommend，直接 go_home 的
+        click_accessibility(KEY_TAB_RECOMMEND) 必炸（run1 实测 6 条 teardown
+        ERROR 同因）。照搬 common2 范式：先 back_to_tab_shell [图] 逐级退出
+        （已在 tab 壳时零操作），go_home 保留作兜底（tab 壳内它正常工作）。
+        """
         self._close_sheet_if_any()
         self._pause_if_playing()
         self._dismiss_player_if_any()
+        self.user.back_to_tab_shell()
         self.user.go_home()
 
     # ---------- 锚点探测（模板缺失防护 + 首页壳判据） ----------

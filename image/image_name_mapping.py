@@ -342,6 +342,10 @@ SWAN_PD_FAV_ON = image_path("swan_歌单详情页_收藏图标_已收藏.png", p
 
 # --- 歌曲收藏入口（A30） ---
 SWAN_PLAYER_FAV_BTN = image_path("swan_播放页_收藏按钮.png", platform="flutter")       # 全屏播放页收藏入口（source="player"）
+# 播放页收藏按钮已收藏态（红心；verify-big52 根因6：已收藏歌红心对灰心
+# 模板实测 score≈0.47 必失配，collect_song 两态探测用；element 截图中，
+# 暂登记 draft 路径，verify 转正后改正式路径）
+SWAN_PLAYER_FAV_ON = image_path("swan_播放页_收藏按钮_已收藏.png", platform="flutter", draft=True)
 SWAN_PD_ROW_FAV_BTN = image_path("swan_歌单详情页_歌曲行收藏图标.png", platform="flutter")  # 歌单详情页歌曲行收藏图标（source="playlist_page"）
 
 
@@ -460,6 +464,7 @@ __all__ = [
     "SWAN_PD_FAV_OFF",
     "SWAN_PD_FAV_ON",
     "SWAN_PLAYER_FAV_BTN",
+    "SWAN_PLAYER_FAV_ON",
     "SWAN_PD_ROW_FAV_BTN",
     "WEB_DRAFT_IMAGE_DIR",
     "WEB_IMAGE_DIR",

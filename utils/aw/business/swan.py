@@ -40,6 +40,7 @@ from image.image_name_mapping import (
     SWAN_PLAYER_DEVICE_BTN,
     SWAN_PLAYER_DISMISS_BTN,
     SWAN_PLAYER_FAV_BTN,
+    SWAN_PLAYER_FAV_ON,
     SWAN_PLAYER_LOOP_LIST,
     SWAN_PLAYER_LOOP_SHUFFLE,
     SWAN_PLAYER_LOOP_SINGLE,
@@ -588,6 +589,31 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
             self.sleep(1.0)
         assert False, f"{what} region 内未出现 {text!r}（已轮询 {timeout:.0f}s）"
 
+    def _tap_song_row_by_ocr(self, song: str, index: int,
+                             scroll_rounds: int = 3) -> None:
+        """OCR 定位歌曲行点击；未命中上滑一屏重找（verify-big52 根因5）。
+
+        目标歌常不在列表首屏（实测 Booty Music 在我喜欢歌单约第 10 行，
+        首屏仅 6 行）：每轮 ocr_scan_page 全屏子串匹配（忽略大小写，取第
+        index 个同名命中）找到即点；未命中 swipe_up 滚一屏再试，最多
+        scroll_rounds 轮。滚满仍未命中显式 assert 报错，并列出当前屏 OCR
+        行首文字辅助归因（歌名拼错/页面不对/OCR 失真一眼可辨）。
+        index 语义沿用原实现：同名行按当前屏 OCR 返回顺序取第 index 个。
+        """
+        for attempt in range(scroll_rounds + 1):
+            matches = [i for i in self.ocr_scan_page()
+                       if song.lower() in i["text"].lower()]
+            if len(matches) > index:
+                self.tap(matches[index]["cx"], matches[index]["cy"])
+                return
+            if attempt < scroll_rounds:
+                self.swipe_up()
+        heads = [i["text"].strip()[:12] for i in self.ocr_scan_page()
+                 if i["text"].strip()]
+        assert False, (
+            f"OCR 点歌失败：滚动重找 {scroll_rounds} 轮未命中 {song!r}"
+            f"（取第 {index} 个同名行），当前屏 OCR 行首文字: {heads}")
+
     def start_play(self, source: str = "favorite", mode: str = "all",
                    index: int = 0) -> None:
         """发起播放（A13，回归用例 13-14 及各域播放前置）。
@@ -595,7 +621,11 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         mode="all"：点所在列表页的「播放全部」[图]。source 为列表页：
         favorite=我喜欢页 / playlist=歌单详情页（调用方须已在该页）。
         mode="song"：OCR 点歌名开播。source 为歌名文本，index 为同名
-        匹配序号（0=第一个，按 OCR 返回顺序）。
+        匹配序号（0=第一个，按当前屏 OCR 返回顺序）；目标歌不在首屏时
+        上滑一屏重找（最多 3 轮，见 _tap_song_row_by_ocr）。实测案例
+        （verify-big52 根因5，run1_play_control.log）：SWAN_TEST_SONG=
+        Booty Music 在我喜欢歌单约第 10 行、首屏仅前 6 行，原实现
+        click_text(timeout=10) 找不到必超时失败（test_play_single_song）。
 
         收尾断言：播放页顶栏已渲染 [图] + 播放态双证据（assert_playing）。
         ⚠️ 隐含假设「点播放全部/歌曲行会进入全屏播放页」——无任务态探索
@@ -609,14 +639,7 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
                     f"source 仅支持 {sorted(self._PLAY_ALL_TEMPLATES)}，收到 {source!r}")
             self.click_image(template, timeout=10)
         elif mode == "song":
-            if index == 0:
-                self.click_text(source, timeout=10)
-            else:
-                matches = [i for i in self.ocr_scan_page()
-                           if source.lower() in i["text"].lower()]
-                assert len(matches) > index, (
-                    f"OCR 仅匹配到 {len(matches)} 处 {source!r}，取第 {index} 个失败")
-                self.tap(matches[index]["cx"], matches[index]["cy"])
+            self._tap_song_row_by_ocr(source, index)
         else:
             raise ValueError("mode 仅支持 all / song")
         self.image_exists(SWAN_PLAYER_DISMISS_BTN, timeout=15)  # 已进入播放页
@@ -1184,8 +1207,9 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
                      source: str = "player") -> None:
         """收藏歌曲到指定歌单（A30，回归用例44-55，12条合1）。
 
-        source="player"：全屏播放页点歌曲收藏图标 [图]（调用方须已在播放页
-        且有播放任务，域3 start_play 发起）；source="playlist_page"：歌单
+        source="player"：全屏播放页点歌曲收藏图标（两态探测 [图]，见下；
+        调用方须已在播放页且有播放任务，域3 start_play 发起）；
+        source="playlist_page"：歌单
         详情页歌曲行收藏图标 [图]（调用方须已在含歌曲的歌单详情页）。
         两路均进入「选择歌单」页完成目标选择：
           1. 断言页标题 OCR「选择歌单」（⚠️ KB 无该页 UI 记录，文案待真机校准）
@@ -1200,7 +1224,23 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         assert source in ("player", "playlist_page"), "source 仅支持 player / playlist_page"
         platform_text = self._require_platform_text(target_platform)
         if source == "player":
-            self.click_image(SWAN_PLAYER_FAV_BTN, timeout=10)
+            # 两态探测（verify-big52 根因6）：收藏钮未收藏态=灰描边心形
+            # [图]、已收藏态=红心，红心对灰心模板实测 score≈0.47（阈值
+            # 0.8）必失配，原实现遇已收藏歌直接炸。两态各探测一次，命中
+            # 哪个态就点当前命中的那个图标——红心点击同样打开「选择歌单」
+            # 流程，两态后续路径一致。红心态模板 element 截图中尚未入库，
+            # 先 os.path.exists 防护（同 swan_regression_common._probe_image
+            # 口径：find_image 对缺失模板文件是 assert 崩溃而非返回 None）。
+            if self.find_image(SWAN_PLAYER_FAV_BTN, timeout=3) is not None:
+                self.click_image(SWAN_PLAYER_FAV_BTN, timeout=5)
+            elif (os.path.exists(SWAN_PLAYER_FAV_ON)
+                  and self.find_image(SWAN_PLAYER_FAV_ON, timeout=3) is not None):
+                self.click_image(SWAN_PLAYER_FAV_ON, timeout=5)
+            else:
+                assert False, (
+                    "播放页收藏图标两态均未命中：未收藏态 [图] "
+                    f"{SWAN_PLAYER_FAV_BTN} / 已收藏态 [图] {SWAN_PLAYER_FAV_ON}"
+                    "（红心模板未入库时按未命中处理），请核对页面改版或截图质量")
             back_anchor = SWAN_PLAYER_DISMISS_BTN
         else:
             self.click_image(SWAN_PD_ROW_FAV_BTN, timeout=10)

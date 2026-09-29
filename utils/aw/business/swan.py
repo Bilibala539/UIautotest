@@ -1629,6 +1629,21 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
     # y 上界 600 排除歌单头/我喜欢头区页面级控件，下界 1360 排除底部播放
     # 条（run3 实测 y1376-1476）。
     _SONG_PLUS_STRIP = (560, 600, 160, 760)
+    # 行内垃圾桶中心 x（5.3.2 实测 bounds (528,796)-(600,868)，720 宽口径；
+    # 与 [+] 中心相距 88px，见上方注）。remove_song_from_playlist 用：
+    # x 为行内静态布局常量、y 锚定目标歌曲行 OCR 行 cy（同
+    # _SONG_ROW_PLUS_TAP_X 口径，非盲坐标）；行内 [+] 模板命中该行时优先
+    # 取「模板矩形中心 x - 88」动态推导（随视口漂移自适配），模板未命中
+    # 退化本常量。测试清理语境可点的语义评估依据见
+    # remove_song_from_playlist docstring。
+    _SONG_ROW_TRASH_TAP_X = 564
+    # 歌单详情页歌曲列表内容区（720x1600 口径）：上界 y=700 在平台筛选
+    # Tab（5.3.2 实测 y606-684）之下、首行（y772-892）之上；下界 y=1370
+    # 在贴底播放条（y1376-1476）之上——播放条常驻当前曲名，不剔除会把
+    # 歌曲名匹配错配到播放条文本。remove_song_from_playlist 行定位与
+    # top_song_row_name 行号兜底共用（region 仅收窄 OCR 范围非坐标定位；
+    # OCR 坐标已含 region 偏移回窗口系，AWBase._ocr_raw 保证）。
+    _PLAYLIST_SONGS_REGION = (0, 700, 720, 670)
 
     def collect_song(self, target_platform: str, playlist: str,
                      source: str = "player") -> None:
@@ -1681,9 +1696,16 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         ⚠️ 弹层打开时来源页被纱罩遮盖，full_player_page 从 dump 消失属纱罩
         语义替换（页面视觉仍在），勿以播放页锚消失判定离页；异常退出关弹层
         用 back 键（弹层无取消钮，勿 tap 纱罩坐标）。
-        ⚠️ 收藏结果无自动化回滚（行内垃圾桶为移除入口，红线禁点），目标
-        歌单建议用 rig 测试账号聚合歌单（如「我的音乐」），数据污染由设备
-        管理流程定期重置。
+        收藏结果回滚（run6 可重复性设计，取代旧「无自动化回滚、设备管理
+        定期重置」口径）：行内垃圾桶即「移出歌单」入口，测试清理语境可点
+        （评估依据见 remove_song_from_playlist docstring）——调用方在收藏
+        前经 remove_song_from_playlist 预清理目标曲（已在目标歌单内则移除，
+        不在则空转），任意歌即可无限重复收藏；不预清理则同曲二轮收藏必
+        触发 App「添加失败，请稍后重试」静默拦截且停留「已选N首歌」页
+        （run4c/run5 双实测）。预清理编排在用例层（test_collect_song）：
+        player 分支曲名已知先行清理，playlist_page 分支先提取源页最上行
+        歌名（top_song_row_name，与 _tap_song_row_plus 同锚定逻辑保证
+        「提取行」=「将收藏行」）再清理。
         """
         assert source in ("player", "playlist_page"), "source 仅支持 player / playlist_page"
         platform_text = self._require_platform_text(target_platform)
@@ -1867,6 +1889,192 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
             f"「已选N首歌」页未找到歌单宫格块 {playlist!r}（已上滑重扫 "
             f"{scrolls} 轮；⚠️ SWAN 宫格无「我喜欢」块——SWAN 收藏即我喜欢，"
             f"QQ 宫格才有，见知识库 5.3.2 实测），当前屏 OCR 行首文字: {heads}")
+
+    # =================================================================
+    # 域 7 扩展（run6 collect 可重复性设计）：行内垃圾桶移除清理。
+    # 背景：收藏写入账号数据持久且 App 对同曲重复收藏静默拦截（toast
+    # 「添加失败，请稍后重试」，run4c/run5 双实测），collect 用例若无回滚
+    # 手段则任意目标曲一次收藏成功后即报废。行内垃圾桶是歌单成员关系的
+    # 唯一移除入口（⋮ 菜单的「删除歌单」为整单危险操作禁点）。
+    # =================================================================
+
+    def remove_song_from_playlist(self, platform: str, playlist: str,
+                                  song: str, scrolls: int = 3,
+                                  timeout: float = 15.0) -> bool:
+        """从歌单详情页移除指定歌曲（歌曲行行内垃圾桶；collect 预清理）。
+
+        测试清理语境可点的语义评估依据（run6 设计，三重依据）：
+        1. KB 显式许可：knowledge/swan/digest/features/feature_收藏管理.md
+           「边界与危险操作」明载「删除分组/移除歌曲：测试环境可点，但用
+           例需自清理（操作后恢复）」——与 ⛔ 禁点的「删除歌单」明确区分；
+        2. 5.3.2 实测（knowledge/swan/draft/swan_收藏流程_532实测.md §5）：
+           歌曲行右侧并排 垃圾桶(528,796)-(600,868)/[+](616,796)-(688,868)，
+           explorer dump 分析标注垃圾桶为「移除」语义（无 desc 无 key，
+           仅图/几何可达）；
+        3. 不可逆风险评估：App 为跨平台聚合器（歌曲实体存于 QQ音乐/网易云
+           等平台侧），无「删除歌曲」能力——歌单详情页行内垃圾桶只可能=
+           「移出当前歌单」（我喜欢页同构行垃圾桶同理=取消我喜欢），最坏
+           效果即本清理的预期效果，且可经 [+] 重新收藏完整回滚。
+        ⚠️ 点后行为未实测（探索期红线禁点，本方法首跑即验证）：可能直接
+        移除或弹确认弹层——按两态处理：点后轮询行消失；行仍在且屏上出现
+        确认/确定/移除/删除 文本钮（compact 全等匹配，绝不匹配「取消」，
+        防误点；不用包含匹配防把「已移除」toast 当钮点——toast 触摸穿透
+        下方控件）时点它再继续轮询；超时行仍在则显式报错并列当前屏 OCR
+        （不做静默回退，规则6）。
+
+        流程：back_to_tab_shell（open_playlist_detail 对「任意歌单详情页」
+        短路，须先离页防同页短路误清）-> open_playlist_detail(platform,
+        playlist) -> 行定位（OCR 精确包含→compact 两级，同 _match_ocr_name；
+        不在首屏上滑重扫最多 scrolls 轮）-> 点行内垃圾桶 -> 轮询移除证据 ->
+        back_to_tab_shell。
+        返回是否实际发生移除（False=歌不在歌单内，清理空转）；后置条件=
+        全局 tab 壳（player 分支后续 _ensure_logged_in_on_home 与
+        playlist_page 分支重进源歌单均要求壳态起点）。
+        """
+        if not song or not song.strip():
+            logger.info("remove_song_from_playlist: 歌名为空，跳过预清理")
+            return False
+        self.back_to_tab_shell()
+        self.open_playlist_detail(platform, playlist)
+        removed = self._remove_song_row_on_page(song, scrolls, timeout)
+        self.back_to_tab_shell()
+        return removed
+
+    def _remove_song_row_on_page(self, song: str, scrolls: int,
+                                 timeout: float) -> bool:
+        """在已打开的歌单详情页上移除歌曲行（remove_song_from_playlist
+        页内段，供独立复用；导航由调用方负责）。
+
+        行内垃圾桶定位：行内 [+] 模板命中且其行带覆盖目标行 cy 时取
+        「模板矩形中心 x - 88」（同排垃圾桶与 [+] 中心实测相距 88px，随
+        视口漂移自适配）；否则退化 _SONG_ROW_TRASH_TAP_X + 目标行 OCR cy
+        （y 锚定 OCR 行非盲坐标，同 _SONG_ROW_PLUS_TAP_X 兜底口径）。
+        移除证据=目标行从内容区（_PLAYLIST_SONGS_REGION）OCR 消失 且 歌单
+        详情页更多按钮 [图] 仍在位（仍在详情页——排除垃圾桶误导航/误弹层
+        时行「不可见」造成的假成功；弹层纱罩下 MORE_BTN 模板可能失配，
+        故行消失后 MORE_BTN 探测最多等 2s，超时按未确认走报错）。
+        """
+        if not song or not song.strip():
+            logger.info("_remove_song_row_on_page: 歌名为空，跳过")
+            return False
+        hit = None
+        for attempt in range(scrolls + 1):
+            self._wait_list_settled()
+            items = self.ocr_scan_page(region=self._PLAYLIST_SONGS_REGION)
+            hit = self._match_ocr_name(items, song)
+            if hit is not None:
+                break
+            if attempt < scrolls:
+                self.swipe_up()
+        if hit is None:
+            logger.info(
+                "remove_song_from_playlist: %r 不在歌单可见范围（含上滑重扫 "
+                "%d 轮），按不在歌单内处理（清理空转）", song, scrolls)
+            return False
+        plus_rect = self.find_image_rect(SWAN_SONG_ROW_PLUS_BTN, timeout=2,
+                                         region=self._SONG_PLUS_STRIP)
+        if plus_rect is not None and abs(
+                (plus_rect[1] + plus_rect[3] // 2) - hit["cy"]) <= 60:
+            trash_x = plus_rect[0] + plus_rect[2] // 2 - 88
+            trash_y = plus_rect[1] + plus_rect[3] // 2
+        else:
+            trash_x, trash_y = self._SONG_ROW_TRASH_TAP_X, hit["cy"]
+        logger.info("remove_song_from_playlist: 移除 %r（垃圾桶 tap "
+                    "(%d,%d)，OCR 行 %r）", song, trash_x, trash_y, hit["text"])
+        self.tap(trash_x, trash_y)
+        deadline = time.monotonic() + timeout
+        while True:
+            if time.monotonic() >= deadline:
+                break
+            confirm = next(
+                (i for i in self.ocr_scan_page()
+                 if self._ocr_compact(i["text"].strip())
+                 in ("确认", "确定", "移除", "删除")), None)
+            if confirm is not None:
+                logger.info("remove_song_from_playlist: 确认弹层在位（%r @ "
+                            "(%d,%d)），点确认", confirm["text"],
+                            confirm["cx"], confirm["cy"])
+                self.tap(confirm["cx"], confirm["cy"])
+                self.sleep(1.0)
+                continue
+            if self._match_ocr_name(
+                    self.ocr_scan_page(region=self._PLAYLIST_SONGS_REGION),
+                    song) is None:
+                if self.find_image(SWAN_PD_MORE_BTN, timeout=2) is not None:
+                    logger.info("remove_song_from_playlist: 歌曲行已从歌单"
+                                "移除（行消失且详情页在位）")
+                    return True
+            self.sleep(1.0)
+        heads = [i["text"].strip()[:12] for i in self.ocr_scan_page()
+                 if i["text"].strip()]
+        assert False, (
+            f"移除歌曲 {song!r} 未确认成功（点垃圾桶后 {timeout:.0f}s 内目标行"
+            "未从歌单消失，或行消失但详情页锚不在位=可能误导航/误弹层；确认"
+            f"弹层未捕获），当前屏 OCR 行首文字: {heads}")
+
+    def top_song_row_name(self, timeout: float = 10.0) -> str:
+        """歌单详情页最上方歌曲行的歌名（OCR 提取；collect playlist_page
+        分支预清理定位用）。
+
+        ⚠️ 与 playlist_top_song（run5 方案C 预校验，并行交付）语义重复：
+        本方法为其超集——模板未命中时多 OCR 行号锚兜底（与 _tap_song_row_plus
+        兜底对称，收藏链路不因模板失配提前断）、歌名残留行号剥离（OCR 偶发
+        把行号并进歌名行，contains 匹配不失真）。二方法整合去留待 main
+        仲裁（见 run6 交付回报），整合前 test_collect_song 统一引用本方法。
+
+        前置：调用方已在含 ≥1 首歌曲行的歌单详情页。行锚定与 _tap_song_row_plus
+        同逻辑，保证「提取歌名的行」=「随后 collect_song 行内 [+] 将点的行」：
+        - 主路径：行内 [+] 模板 SWAN_SONG_ROW_PLUS_BTN 在 _SONG_PLUS_STRIP
+          命中（同构行得分并列取最上行，cv2 minMaxLoc 行优先序，见
+          _tap_song_row_plus 注）→ 模板矩形中心为行锚；
+        - 兜底（模板未命中）：OCR 行号列（纯数字行 cx<120，容错尾随标点，
+          在 _PLAYLIST_SONGS_REGION 内）取 cy 最小行 → 行 cy 为行锚。
+        行带（锚 cy ±60px，行高 120px 实测口径）内取 cx>120 的最上 OCR 行
+        为歌名行（行结构 desc='N\\n歌名\\n歌手'：行号列在 cx<120，歌名行
+        恒在歌手行上方；VIP 角标为图不产 OCR 文本）。提取结果剥前导行号
+        残留（OCR 偶发把行号并进歌名行：`^[0-9lI]{1,3}+分隔符`——剥出串
+        仍为原名子串，contains 匹配不失真）。
+        """
+        rect = self.find_image_rect(SWAN_SONG_ROW_PLUS_BTN, timeout=timeout,
+                                    region=self._SONG_PLUS_STRIP)
+        row_cy = None
+        if rect is not None:
+            row_cy = rect[1] + rect[3] // 2
+        else:
+            logger.warning(
+                "top_song_row_name: 行内 [+] 模板未命中，退化 OCR 行号锚")
+            deadline = time.monotonic() + timeout
+            while True:
+                items = self.ocr_scan_page(region=self._PLAYLIST_SONGS_REGION)
+                rows = [i for i in items
+                        if i["cx"] < 120
+                        and self._ocr_compact(i["text"]).strip()
+                        .strip(".、，,").isdigit()]
+                if rows:
+                    row_cy = min(rows, key=lambda i: i["cy"])["cy"]
+                    break
+                if time.monotonic() >= deadline:
+                    heads = [i["text"].strip()[:12] for i in items
+                             if i["text"].strip()]
+                    assert False, (
+                        "歌单详情页未定位到最上方歌曲行（[+] 模板与 OCR 行号"
+                        "均未命中），页面须已在含 ≥1 首歌曲行的歌单详情页，"
+                        f"当前屏内容区 OCR 行首文字: {heads}")
+                self.sleep(1.0)
+        lines = [i for i in self.ocr_scan_page()
+                 if row_cy - 60 <= i["cy"] <= row_cy + 60
+                 and i["cx"] > 120 and i["text"].strip()]
+        assert lines, (
+            f"最上方歌曲行（锚 cy={row_cy}）行带内未 OCR 到歌名行"
+            "（cx>120 最上文本行，页面须已在含 ≥1 首歌曲行的歌单详情页）")
+        name = min(lines, key=lambda i: i["cy"])["text"].strip()
+        stripped = re.sub(r"^[0-9lI]{1,3}[\s.、，,]+", "", name).strip()
+        if stripped and stripped != name:
+            logger.info("top_song_row_name: 歌名行 %r 剥前导行号残留 -> %r",
+                        name, stripped)
+        name = stripped or name
+        logger.info("top_song_row_name: 最上方歌曲行歌名 OCR 提取 = %r", name)
+        return name
 
     def recent_played_visible(self, kind: str, name: str,
                               timeout: float = 6.0) -> bool:

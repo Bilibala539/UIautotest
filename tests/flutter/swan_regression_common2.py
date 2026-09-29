@@ -22,18 +22,20 @@ rig 环境变量（本批新增，均可在不配置时走默认/skip）：
                            第三方平台须授权态，见方案 §5⑤）
 - SWAN_COLLECT_PLATFORMS   用例44-55 目标歌单平台代码列表（默认 swan）
 - SWAN_COLLECT_PLAYLIST    用例44-55 目标歌单名（默认 我的音乐；收藏结果
-                           无自动化回滚，见 SwanBusiness.collect_song 注记）
+                           由 remove_song_from_playlist 垃圾桶预清理回滚，
+                           run6 可重复性设计，见 SwanBusiness
+                           .remove_song_from_playlist 注记）
 - SWAN_COLLECT_PLAYER_SONG 用例44-55 source="player" 分支的收藏曲（默认
                            回落 SWAN_TEST_SONG；run5 改版——原「播放全部
                            首曲」疑已在目标歌单触发重复收藏拦截，改为点
-                           名播放指定曲；数据一次性约定见 test_collect_song 注）
+                           名播放指定曲；run6 起预清理自动移除往轮残留，
+                           任意歌可重复收藏，见 test_collect_song 注）
 - SWAN_COLLECT_SOURCE_PLAYLIST
                            用例44-55 source="playlist_page" 的收藏源歌单
-                           （默认 我的家庭）。⚠️ 数据态耗尽运维口径（方案
-                           A，run5 拍板）：预校验 skip 报「数据态耗尽」时
-                           轮换本变量指向顶行曲不在目标歌单内的歌单，或由
-                           设备管理流程清理目标歌单；用例预校验（方案 C）
-                           保证耗尽时诚实 skip 不产假红
+                           （默认 我的家庭）。run6 起预清理运行时强制
+                           「顶行曲不在目标歌单内」（收藏前先经垃圾桶移除），
+                           不再依赖 rig 数据态，仅须该歌单含 ≥1 首歌；
+                           rig 数据变化（清空/改名）时用本变量覆盖
 - SWAN_HISTORY_PLAYLIST / SWAN_HISTORY_ARTIST / SWAN_HISTORY_ALBUM /
   SWAN_HISTORY_RADIO / SWAN_HISTORY_PODCAST
                            用例56-68 各分类断言条目名（未配置该类 skip）；
@@ -66,7 +68,7 @@ class SwanContentRegressionMixin(SwanPlayerRegressionMixin):
     COLLECT_PLAYLIST = os.environ.get("SWAN_COLLECT_PLAYLIST", "我的音乐")
     # source="player" 分支收藏曲：显式配置优先，回落 SWAN_TEST_SONG（rig
     # 我喜欢页已验证可达的歌名，见 start_play mode="song" 注）——二者皆空
-    # 时 collect_song[player] 走播放全部首曲（数据一次性约定，见
+    # 时 collect_song[player] 走播放全部首曲（无预清理遗留分支，见
     # test_collect_song 注）
     COLLECT_PLAYER_SONG = (os.environ.get("SWAN_COLLECT_PLAYER_SONG", "").strip()
                            or os.environ.get("SWAN_TEST_SONG", "").strip())

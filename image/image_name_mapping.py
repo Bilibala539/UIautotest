@@ -357,10 +357,18 @@ SWAN_PD_ROW_FAV_BTN = image_path("swan_歌单详情页_歌曲行收藏图标.png
 
 # --- 歌曲收藏 5.3.2 链路（A30；2026-09-28 aw-element 按 5.3.2 实测 §7
 # 附带清单截取，暂登记 draft 路径，verify 转正后改正式路径）---
-# 播放页底部三钮行中间的 [+]（无 key 无 desc 仅图可达，收藏链路入口）；
-# ⚠️ 现截模板下缘含「VIP歌曲只支持试听」提示文字像素，非 VIP 歌该提示
-# 可能不渲染，verify 失配时先复核裁剪（规则7：先查图片质量）
-SWAN_PLAYER_PLUS_BTN = image_path("swan_播放页_加号收藏钮.png", platform="flutter")
+# 播放页底部三钮行中间的 [+]（无 key 无 desc 仅图可达，收藏链路入口）。
+# ⚠️ 旧单模板 SWAN_PLAYER_PLUS_BTN（88x63）下缘含「VIP歌曲只支持试听」
+#    提示文字像素且背景依赖：自家浅底实测 0.793 已不达 0.8 阈值（run5
+#    文件3 collect[player] 死亡帧）——2026-09-29 aw-element 补截四模板
+#    （image_ai draft），业务改 _PLUS_TEMPLATES 链式匹配（glyph→浅→深→
+#    彩→旧单末位兜底，见 SwanBusiness._find_plus_btn）；[+] 配色随背景
+#    明度自适应（浅底灰 glyph/深底白 glyph），跨族最高 0.402 必须链式。
+SWAN_PLAYER_PLUS_BTN = image_path("swan_播放页_加号收藏钮.png", platform="flutter")  # [退役末位兜底] 88x63 含 VIP 横幅残留
+SWAN_PLAYER_PLUS_BTN_GLYPH = image_path("swan_播放页_加号收藏钮_glyph.png", platform="flutter", draft=True)  # 38x38 紧贴 glyph，浅族通吃含无任务白底
+SWAN_PLAYER_PLUS_BTN_LIGHT = image_path("swan_播放页_加号收藏钮_浅底.png", platform="flutter", draft=True)   # 50x50
+SWAN_PLAYER_PLUS_BTN_DARK = image_path("swan_播放页_加号收藏钮_深底.png", platform="flutter", draft=True)    # 50x50 深/彩族 0.997+
+SWAN_PLAYER_PLUS_BTN_COLOR = image_path("swan_播放页_加号收藏钮_彩底.png", platform="flutter", draft=True)   # 50x50
 # 「选择平台收藏」底部弹层（存在性判据；弹层无取消钮、back 键关闭，
 # 平台行清单随歌曲来源变化，行定位走 OCR 不走图）
 SWAN_COLLECT_PLATFORM_SHEET = image_path("swan_收藏平台弹层.png", platform="flutter")
@@ -561,6 +569,10 @@ __all__ = [
     "SWAN_PD_ROW_FAV_BTN",
     "SWAN_SONG_ROW_PLUS_BTN",
     "SWAN_PLAYER_PLUS_BTN",
+    "SWAN_PLAYER_PLUS_BTN_GLYPH",
+    "SWAN_PLAYER_PLUS_BTN_LIGHT",
+    "SWAN_PLAYER_PLUS_BTN_DARK",
+    "SWAN_PLAYER_PLUS_BTN_COLOR",
     "SWAN_COLLECT_PLATFORM_SHEET",
     "SWAN_COLLECT_SELECTED_TOPBAR",
     "WEB_DRAFT_IMAGE_DIR",

@@ -336,12 +336,25 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
     _VOLUME_TRACK_INSET_L = 51   # 减钮矩形右缘(93) → 轨道左端(144)
     _VOLUME_TRACK_INSET_R = 56   # 加钮矩形左缘(547) → 轨道右端(491)
     _VOLUME_TRACK_HEIGHT = 32    # 轨道纵向全高（y 1450-1482，中线与 ± 钮同行）
-    # 音量百分比 OCR 双通道（run4d run2 实测）：弹窗标题行 "Speaker N"（数字
-    # 可见但无 % 符号，弹窗开启态唯一数据通道）+ 播放页音量行 "N%"（KB
-    # swan_播放页 Wave2 实测 OCR "0%"，弹窗关闭态/volume_key 通道）。
-    # ⚠️ 状态栏电量 "100"（OCR 无 % 尾）两条模式均不命中，无误采。
+    # 音量百分比 OCR 三通道（run4d/run5 run2 实测）：
+    # - 弹窗标题（speaker 态）："Speaker N"（数字可见但无 % 符号）；
+    # - 弹窗标题（rig 态）："<输出设备名> <N>"（run5 终判实测
+    #   'HiVi M300MKIl 40'，OCR l/II 易混但行尾数字稳定）——_VOLUME_TITLE_RE
+    #   通用行尾数字模式：行须含 ≥3 连续字母（排除状态栏 '14:340'/电量
+    #   '100' 等纯数字项）且行尾数字前须有空白（排除 'Libretto_0E00' 类
+    #   设备名自身尾随数字误采）；
+    # - 播放页音量行（弹窗关闭态）："N%"（KB swan_播放页 Wave2 实测
+    #   OCR "0%"）——volume_key 前后读通道。
+    # 同屏多命中取 cy 最大：弹窗为底部弹层，标题恒为最下命中，歌曲/歌词
+    # 行潜在尾随数字假阳性（如歌名自带数字）在其上方被 cy 序压制。
     _VOLUME_PCT_RE = re.compile(r"(\d{1,3})\s*%")
     _VOLUME_SPEAKER_RE = re.compile(r"Speaker\s*(\d{1,3})", re.IGNORECASE)
+    _VOLUME_TITLE_RE = re.compile(
+        r"(?i)[a-z]{3,}[a-z0-9 .()\-\_&]*\s(\d{1,3})\s*$")
+    # 音量弹窗标题行 cy 下界（_VOLUME_TITLE_RE 采集门限）：弹窗为底部弹层，
+    # 实测上缘 y≈1264（fix4c/fix532 X 钮 @ (656,1294)，标题行 y≈1395）——
+    # 门限外的行尾数字（歌曲/歌词行假阳性）一律不采。
+    _VOLUME_POPUP_TITLE_Y = 1260
     # 设备页卡片：设备名行到卡内可点内容行（状态行/媒体行）允许的最大
     # 纵向跨度（720x1600 口径，待真机校准）
     _CARD_BODY_SPAN = 300
@@ -558,30 +571,57 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
             "且卡体无 OCR 内容，卡片布局变化需校准 _CARD_BODY_SPAN）")
         return min(body_candidates, key=lambda i: i["cy"])
 
+    # 本机扬声器卡点击位相对「扬声器」节头的纵向偏移（2026-09-29 设备页
+    # 新双栏布局实测，switchback_FAIL.png：节头 cy≈241、卡体 y283-475，
+    # 节头 cy+140 落卡体中部）。⚠️ 单截图实测值，跨分辨率待复验。
+    _LOCAL_CARD_DROP = 140
+
     def _tap_local_speaker_card(self) -> None:
         """设备页定位并点击本机分区「扬声器」卡（切本机输出入口）。
 
-        本机分区在 WiFi 卡列表下方（知识库 swan_设备详情页：下滑后可见），
-        未露出时上滑一屏重扫（最多 3 轮扫-滑轮替）。本机分区之下还有一张
-        Apple Music 分区的同名「扬声器」卡（行为未探索，⛔ 不可点），故取
-        最靠上一条命中行。本机卡名行无设置覆盖（wifi_device_settings_ 仅
-        WiFi 卡有），点名行中心即可（知识库实测整卡 click=True）。OCR
-        候选行照常剔除底部播放条区——当前输出若已是本机，播放条常驻
-        「扬声器」，不得误当卡片命中。
+        ⚠️ 设备页已改版为「左侧分类栏（WIFI/本机/Apple/低音炮/DSP）+ 右侧
+        卡片区」双栏布局（run5 切回实证 switchback_1_devicepage.png /
+        switchback_FAIL.png），旧单栏「整卡点名行」口径作废，重写：
+        1. 先点左栏「本机」分类 tab（OCR 限左栏 x<140 定位；分类内容靠切
+           tab 露出、滚动无效——旧上滑重扫逻辑对新布局必然空转）；
+        2. 右栏最靠上「扬声器」文本为本机分区**节头标签**（cy≈241，点它
+           无效——run5 脏跑 9 条 speaker 前置同死于此：节头被当卡点，无
+           电池弹窗、切换未发生）；卡体在节头下方且卡内无名字文本（新版
+           卡体=封面+曲目动态区），点 (节头.cx, 节头.cy+_LOCAL_CARD_DROP)。
+        3. Apple Music 分区同名「扬声器」节头在更下方（其卡 ⛔ 不可点），
+           节头取最靠上即本机分区，语义与旧口径一致。
+        OCR 候选行照常剔除底部播放条区——当前输出若已是本机，播放条常驻
+        「扬声器」，不得误当节头命中。
+        ⚠️ 卡体可点性系知识库旧口径（整卡 click=True）+ 新布局推定，真机
+        复验前为本修复的待证实假设；若点卡体仍不触发切换（无电池弹窗且
+        贴底条断言超时），需 aw-element 补截新布局元素或改走播放页设备
+        弹层选行通道（dev-runner 手工实证可行，但其入口设备钮模板 rig 态
+        失配，需 element 补浅底变体）。
         """
-        for _ in range(3):
-            card = min(
-                (i for i in self.ocr_scan_page()
-                 if i["cy"] <= self._DEVICE_OCR_BOTTOM_LIMIT
-                 and "扬声器" in self._ocr_compact(i["text"])),
-                key=lambda i: i["cy"],
-                default=None,
-            )
-            if card is not None:
-                self.tap(card["cx"], card["cy"])
-                return
-            self.swipe_up()
-        assert False, "设备页未找到本机分区「扬声器」卡（已上滑重试 3 次）"
+        deadline = time.monotonic() + 15
+        rail_tapped = False
+        while time.monotonic() < deadline:
+            items = [i for i in self.ocr_scan_page()
+                     if i["cy"] <= self._DEVICE_OCR_BOTTOM_LIMIT]
+            if not rail_tapped:
+                # 左栏「本机」分类 tab（已选中态再点为无害 no-op）
+                rail = next((i for i in items
+                             if i["cx"] < 140
+                             and "本机" in self._ocr_compact(i["text"])), None)
+                if rail is not None:
+                    self.tap(rail["cx"], rail["cy"])
+                    rail_tapped = True
+            else:
+                header = next((i for i in items
+                               if i["cx"] > 140
+                               and "扬声器" in self._ocr_compact(i["text"])), None)
+                if header is not None:
+                    self.tap(header["cx"], header["cy"] + self._LOCAL_CARD_DROP)
+                    return
+            self.sleep(1.0)
+        assert False, (
+            "设备页未完成本机扬声器卡定位（新双栏布局：左栏「本机」tab 或"
+            "右栏「扬声器」节头未识别，已轮询 15s）")
 
     def _confirm_battery_optimization_dialog(self, timeout: float = 6.0) -> bool:
         """处置切本机输出触发的系统「是否忽略电池优化？」对话框。
@@ -1117,21 +1157,33 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
     def _ocr_volume_percent(self, timeout: float = 5.0) -> int | None:
         """OCR 读取音量百分比，返回整数；读不到返回 None。
 
-        双数据通道（run4d run2 实测，_VOLUME_PCT_RE/_VOLUME_SPEAKER_RE）：
-        - 弹窗开启态：弹窗标题行 "Speaker N"，数字可见但**无 % 符号**（每
-          用例 5 次弹窗期全量扫描仅出 'Speaker 70/69/80/86/93'，从无 N%）
-          ——set_volume 弹窗态断言唯一通道；
+        三数据通道（run4d/run5 run2 终判实测，_VOLUME_PCT_RE/_VOLUME_SPEAKER_RE
+        /_VOLUME_TITLE_RE）：
+        - 弹窗开启态 speaker 输出：弹窗标题行 "Speaker N"——数字可见但
+          **无 % 符号**（每用例 5 次弹窗期全量扫描仅出 'Speaker 70/69/80/
+          86/93'，从无 N%）；
+        - 弹窗开启态 rig 输出：弹窗标题行 "<输出设备名> <N>"（实测
+          'HiVi M300MKIl 40'，OCR l/II 易混但行尾数字稳定；拖 40 读 40，
+          ±锚定滑条数学同步实证）——通用行尾数字模式采集门限
+          cy ≥ _VOLUME_POPUP_TITLE_Y（弹窗底部弹层实测上缘），门限外
+          歌曲等行的尾随数字假阳性不采（限定弹窗标题上下文口径）；
         - 弹窗关闭态：播放页音量行 "N%"（KB swan_播放页 Wave2 实测 OCR
           "0%"）——volume_key 前后读的通道。
-        状态栏电量 "100"（无 % 尾、无 Speaker 前缀）两模式均不命中。
+        同屏多命中取 **cy 最大**：弹窗为底部弹层，标题/音量行恒为最下
+        命中，上方任何残漏假阳性被 cy 序压制。
         """
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
+            hits = []
             for item in self.ocr_scan_page():
-                m = self._VOLUME_PCT_RE.search(item["text"]) or \
-                    self._VOLUME_SPEAKER_RE.search(item["text"])
+                m = (self._VOLUME_PCT_RE.search(item["text"])
+                     or self._VOLUME_SPEAKER_RE.search(item["text"]))
+                if m is None and item["cy"] >= self._VOLUME_POPUP_TITLE_Y:
+                    m = self._VOLUME_TITLE_RE.search(item["text"])
                 if m:
-                    return int(m.group(1))
+                    hits.append((item["cy"], int(m.group(1))))
+            if hits:
+                return max(hits)[1]
             self.sleep(0.5)
         return None
 

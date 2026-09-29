@@ -368,8 +368,9 @@ class SwanPlayerRegressionMixin:
         2026-09-28 起委托 SwanBusiness._dismiss_full_player 共用实现
         （run4c 复盘拍板）：收起钮浅底/深底双模板探测 + 顶栏 region 限定
         ——旧单模板对歌单详情页返回箭头 score 0.997 同形互扰为 teardown
-        误点返回箭头根因，双模板极性实测 -0.9 根除；探测链含旧单模板
-        第三兜底（image_name_mapping.py 登记注记）。timeout=1 维持 teardown
-        快探测口径（播放页未开时三模板逐个失配，最坏约 3s）。
+        误点返回箭头根因，双模板极性实测 -0.9 根除；探测链含旧单模板与
+        返回箭头态兜底（2026-09-29 追加，image_name_mapping.py 登记注记）。
+        timeout=1 维持 teardown 快探测口径（播放页未开时四模板逐个失配，
+        最坏约 4s）。
         """
         self.aw._dismiss_full_player(timeout=1)

@@ -404,6 +404,36 @@ SWAN_SONG_ROW_PLUS_BTN = image_path("swan_歌单详情页_歌曲行加号.png", 
 
 
 # =====================================================================
+# Swan (Flutter) 设备钮变体 / 收起钮返回态 / 设备页本机分区锚点
+# 2026-09-29 aw-element 按 A3（设备切换实弹）/B6（本机卡定位复测）
+# 复盘清单交付，暂登记 draft 路径，verify 转正后改正式路径。
+# =====================================================================
+
+# --- 播放页设备切换钮 背景极性变体（A3 实弹：glyph 极性随背景亮度自适应）---
+# 正式图 SWAN_PLAYER_DEVICE_BTN（浅底黑 glyph）只覆盖浅背景；rig 深色/
+# 彩色封面背景失配（_switch_output_in_sheet 开弹层入口 rig 态失败根因）。
+# GLYPH=白 glyph 裁剪（暗/彩底通吃，element 实测绿/黄底均 0.96+），
+# GREEN=绿底整钮（兜底）。探测顺序 = 正式图 → GLYPH → GREEN，
+# 见 SwanBusiness._find_device_btn。
+SWAN_PLAYER_DEVICE_BTN_GLYPH = image_path("swan_播放页_设备切换钮_glyph.png", platform="flutter", draft=True)
+SWAN_PLAYER_DEVICE_BTN_GREEN = image_path("swan_播放页_设备切换钮_绿底.png", platform="flutter", draft=True)
+
+# --- 播放页收起钮 返回箭头态（白 chevron 深底；A3 开+收全流程实弹验证）---
+# ⚠️ 与歌单详情页返回箭头同形，只准经 _find_dismiss_btn 模板组使用
+# （组内统一 _PLAYER_TOPBAR_REGION region 限定，勿裸 find_image/click_image）。
+SWAN_PLAYER_DISMISS_RETURN = image_path("swan_播放页_收起按钮_返回箭头态.png", platform="flutter", draft=True)
+
+# --- 设备页 本机分区锚点（B6 新双栏布局）---
+# 左栏「本机」分类 tab 选中/未选中两态 + 右栏「扬声器」节头标签（element
+# 实测 cy≈357、bbox (185,339)-(280,369)；节头点击无效，卡体=节头 cy+140，
+# 见 SwanBusiness._tap_local_speaker_card）。业务暂走实时 OCR（动态适配），
+# 三图登记备用（OCR 失真时的图定位备选）。
+SWAN_DEVICE_TAB_LOCAL_SEL = image_path("swan_设备页_本机tab_选中态.png", platform="flutter", draft=True)
+SWAN_DEVICE_TAB_LOCAL_UNSEL = image_path("swan_设备页_本机tab_未选中态.png", platform="flutter", draft=True)
+SWAN_DEVICE_SPEAKER_HEADER = image_path("swan_设备页_扬声器节头.png", platform="flutter", draft=True)
+
+
+# =====================================================================
 # Swan (Flutter) 回归第三轮修复·首页顶 Tab 选中态锚点（verify R2）
 # 2026-09-24 aw-codegen 按 aw-verify 第二轮报告登记，PNG 由 aw-element
 # 并行截取（A 组 5 张新名）。go_top_tab 到位断言统一换锚为「目标 Tab
@@ -447,6 +477,7 @@ __all__ = [
     "SWAN_PLAYER_DISMISS_BTN",
     "SWAN_PLAYER_DISMISS_DARK",
     "SWAN_PLAYER_DISMISS_LIGHT",
+    "SWAN_PLAYER_DISMISS_RETURN",
     "SWAN_PLAYER_PLAY_PAUSE_BTN",
     "SWAN_SOUND_QUALITY_DONE_BUTTON",
     "SWAN_HOME_TAB_RECOMMEND",
@@ -479,6 +510,8 @@ __all__ = [
     "SWAN_HISTORY_TABBAR",
     "SWAN_DEVICE_SHEET_TITLE",
     "SWAN_PLAYER_DEVICE_BTN",
+    "SWAN_PLAYER_DEVICE_BTN_GLYPH",
+    "SWAN_PLAYER_DEVICE_BTN_GREEN",
     "SWAN_AI_CHAT_VOICE_BTN",
     "SWAN_AI_CHAT_INPUT",
     "SWAN_SEARCH_BACK",
@@ -513,6 +546,9 @@ __all__ = [
     "SWAN_PLAYER_VOLUME_MINUS",
     "SWAN_DEVICE_CARD_SELECTED",
     "SWAN_DEVICE_SHEET_CHECKED",
+    "SWAN_DEVICE_SPEAKER_HEADER",
+    "SWAN_DEVICE_TAB_LOCAL_SEL",
+    "SWAN_DEVICE_TAB_LOCAL_UNSEL",
     "SWAN_BOTTOM_BAR_CAST_BTN",
     "SWAN_TAB_HOME",
     "SWAN_TAB_PLATFORM",

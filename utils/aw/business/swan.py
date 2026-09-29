@@ -39,9 +39,12 @@ from image.image_name_mapping import (
     SWAN_PD_MORE_BTN,
     SWAN_PD_PLAY_ALL,
     SWAN_PLAYER_DEVICE_BTN,
+    SWAN_PLAYER_DEVICE_BTN_GLYPH,
+    SWAN_PLAYER_DEVICE_BTN_GREEN,
     SWAN_PLAYER_DISMISS_BTN,
     SWAN_PLAYER_DISMISS_DARK,
     SWAN_PLAYER_DISMISS_LIGHT,
+    SWAN_PLAYER_DISMISS_RETURN,
     SWAN_PLAYER_LOOP_LIST,
     SWAN_PLAYER_LOOP_SHUFFLE,
     SWAN_PLAYER_LOOP_SINGLE,
@@ -454,10 +457,8 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         - WiFi 设备分支：设备页 OCR 定位目标设备卡（设备名精确包含优先，
           失配时两侧 compact 归一化——去空格 + l/I/1 易混字符映射——兜底
           再匹配，见 _ocr_compact 注；OCR 候选行剔除底部播放条区），点卡
-          → 断言进播放页（player_dismiss_button [图]）→ 经播放页设备切
-          换弹层点目标设备行完成真实切换（复用 _switch_output_in_sheet，
-          与 via="player" 共用同一弹层尾部）→ 断言播放页页头输出设备名
-          OCR = name。
+          → 断言停留全屏播放页（_wait_player_page_open）→ 断言播放页页
+          头输出设备名 OCR（region 限定）= name，设备名=目标即切换成功。
         - 本机扬声器分支（name 含「扬声器」或「本机」）：设备页定位本机
           分区「扬声器」卡（分区在卡列表下方，未露出时上滑重找）→ 点卡
           触发系统「是否忽略电池优化？」对话框（切本机输出的前置）→
@@ -468,8 +469,12 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         覆盖 wifi_device_settings_<UUID> 设置入口，内含删除设备风险。
         ⚠️ 选择会真实下发到 rig 音箱（方案 §5② 回归须真点真音箱），且跨
         用例不自动回切。
-        ⚠️ 实验室 WiFi 音箱（M300MKII）2026-09-28 离线，WiFi 卡点击链路
-        代码按探索结论实现，真机复验待音箱上线。
+        ⚠️ 口径变更（2026-09-29 element 实弹 A3）：点 M300MKII 卡 → 输出
+        切换生效且停留全屏播放页（无贴底条）——draft「点卡不切换输出」
+        （knowledge/swan/draft/swan_设备详情页.md，2026-09-24 5.3.1 实测）
+        被证伪（或 5.3.2 行为再变）。据此 WiFi 分支删除「经播放页设备切
+        换弹层选行」中段（_switch_output_in_sheet 保留，via="player" 仍
+        用）；收尾断言不再依赖贴底条 region，改页头设备名 region OCR 确认。
         """
         assert via in ("card", "player"), "via 仅支持 card / player"
         if via == "player":
@@ -485,27 +490,57 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
                 "扬声器", self._DEVICE_PLAYBAR_REGION, 10.0,
                 what="切换本机输出后的贴底播放条")
             return
-        # WiFi 设备分支：点卡=进播放页（新构建行为，点卡本身不切换输出），
-        # 真实切换经播放页设备切换弹层完成。
+        # WiFi 设备分支：点卡=切换输出并停留全屏播放页（2026-09-29 A3 实弹
+        # 口径，见 docstring「口径变更」注；不再经设备切换弹层中转）。
         tap_item = self._locate_wifi_device_card(name)
         self.tap(tap_item["cx"], tap_item["cy"])
-        self._wait_player_page_open(timeout=10)  # 已进播放页（点卡=进播放页）
-        self._switch_output_in_sheet(name)
+        self._wait_player_page_open(timeout=10)  # 点卡后停留全屏播放页（无贴底条）
         self._wait_compact_text_in_region(
             name, self._PLAYER_HEADER_DEVICE_REGION, 10.0,
             what="切换输出后的播放页页头设备名")
 
-    def _switch_output_in_sheet(self, name: str) -> None:
-        """播放页设备切换弹层选行（select_device via="player" 与 via="card"
-        WiFi 分支共用尾部，避免两份弹层逻辑漂移）。调用方须已在全屏播放页。
+    # 播放页设备切换钮探测模板链（2026-09-29 element 按 A3 实弹交付变体）：
+    # glyph 极性随背景亮度自适应——正式图（浅底黑 glyph）只覆盖浅背景，
+    # rig 深色/彩色封面背景失配（开弹层入口 rig 态失败根因）；GLYPH=白
+    # glyph 裁剪暗/彩底通吃（element 实测绿/黄底均 0.96+），GREEN=绿底
+    # 整钮兜底。探测顺序 = 正式图 → GLYPH → GREEN（见 _find_device_btn）。
+    _DEVICE_BTN_TEMPLATES = (SWAN_PLAYER_DEVICE_BTN,
+                             SWAN_PLAYER_DEVICE_BTN_GLYPH,
+                             SWAN_PLAYER_DEVICE_BTN_GREEN)
 
-        右上角设备切换钮 [图] 开弹层 → 断言弹层标题 [图] → OCR 点目标
-        设备行（精确→compact 两级比对，run4b 实测弹层行被读作
-        「OHiViM300MKIl」精确包含失配，见 _find_ocr_row 注）→ 断言行
-        勾选态 [图]；若弹层随选择自动关闭，退化为断言已回播放页且页头
-        输出设备名 OCR（compact 归一化轮询）出现目标名。
+    def _find_device_btn(self, timeout: float = 2.0) -> str | None:
+        """播放页设备切换钮探测：浅底正式图/白 glyph/绿底三模板依次匹配，
+        返回首个命中模板（供 click_image 精确点击命中位置），全未命中 None。
+
+        参照 _find_dismiss_btn 多模板模式（跨背景失配根因修复，A3 实弹：
+        glyph 极性随背景亮度自适应——浅底黑 glyph=正式图已覆盖，深/彩底
+        白 glyph=GLYPH 补口，绿底=GREEN 兜底）。
         """
-        self.click_image(SWAN_PLAYER_DEVICE_BTN, timeout=10)
+        for template in self._DEVICE_BTN_TEMPLATES:
+            if self.find_image(template, timeout=timeout) is not None:
+                return template
+        return None
+
+    def _switch_output_in_sheet(self, name: str) -> None:
+        """播放页设备切换弹层选行（select_device via="player" 专用尾部）。
+        调用方须已在全屏播放页。
+
+        右上角设备切换钮 [图] 开弹层（_find_device_btn 三模板探测，跨背景
+        失配根因修复）→ 断言弹层标题 [图] → OCR 点目标设备行（精确→
+        compact 两级比对，run4b 实测弹层行被读作「OHiViM300MKIl」精确包含
+        失配，见 _find_ocr_row 注）→ 断言行勾选态 [图]；若弹层随选择自动
+        关闭，退化为断言已回播放页且页头输出设备名 OCR（compact 归一化
+        轮询）出现目标名。
+
+        ⚠️ 2026-09-29 起 via="card" WiFi 分支不再复用本方法（A3 实弹：
+        点卡即切换输出并停留播放页，弹层中转被证伪为多余），见 select_device
+        「口径变更」注。
+        """
+        template = self._find_device_btn(timeout=5)
+        assert template is not None, (
+            "播放页设备切换钮未命中（浅底正式图/GLYPH/GREEN 三模板均失配，"
+            "背景极性或布局变化需校准）")
+        self.click_image(template, timeout=5)
         self.image_exists(SWAN_DEVICE_SHEET_TITLE, timeout=10)
         row = self._find_ocr_row(name, timeout=10)
         assert row is not None, (
@@ -571,9 +606,10 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
             "且卡体无 OCR 内容，卡片布局变化需校准 _CARD_BODY_SPAN）")
         return min(body_candidates, key=lambda i: i["cy"])
 
-    # 本机扬声器卡点击位相对「扬声器」节头的纵向偏移（2026-09-29 设备页
-    # 新双栏布局实测，switchback_FAIL.png：节头 cy≈241、卡体 y283-475，
-    # 节头 cy+140 落卡体中部）。⚠️ 单截图实测值，跨分辨率待复验。
+    # 本机扬声器卡点击位相对「扬声器」节头的纵向偏移（2026-09-29 element
+    # B6 复测更正：节头标签 cy≈357、bbox (185,339)-(280,369)——早前 fixer
+    # 记录的 cy≈241 系误读，以本值为准；357+140=497 落卡体
+    # (128,367)-(720,678) 内 ✓）。⚠️ 单截图实测值，跨分辨率待复验。
     _LOCAL_CARD_DROP = 140
 
     def _tap_local_speaker_card(self) -> None:
@@ -584,8 +620,9 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         switchback_FAIL.png），旧单栏「整卡点名行」口径作废，重写：
         1. 先点左栏「本机」分类 tab（OCR 限左栏 x<140 定位；分类内容靠切
            tab 露出、滚动无效——旧上滑重扫逻辑对新布局必然空转）；
-        2. 右栏最靠上「扬声器」文本为本机分区**节头标签**（cy≈241，点它
-           无效——run5 脏跑 9 条 speaker 前置同死于此：节头被当卡点，无
+        2. 右栏最靠上「扬声器」文本为本机分区**节头标签**（2026-09-29
+           element B6 实测 cy≈357、bbox (185,339)-(280,369)，点它无效
+           ——run5 脏跑 9 条 speaker 前置同死于此：节头被当卡点，无
            电池弹窗、切换未发生）；卡体在节头下方且卡内无名字文本（新版
            卡体=封面+曲目动态区），点 (节头.cx, 节头.cy+_LOCAL_CARD_DROP)。
         3. Apple Music 分区同名「扬声器」节头在更下方（其卡 ⛔ 不可点），
@@ -595,8 +632,8 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         ⚠️ 卡体可点性系知识库旧口径（整卡 click=True）+ 新布局推定，真机
         复验前为本修复的待证实假设；若点卡体仍不触发切换（无电池弹窗且
         贴底条断言超时），需 aw-element 补截新布局元素或改走播放页设备
-        弹层选行通道（dev-runner 手工实证可行，但其入口设备钮模板 rig 态
-        失配，需 element 补浅底变体）。
+        弹层选行通道（dev-runner 手工实证可行；入口设备钮跨背景变体
+        2026-09-29 已交付，见 _find_device_btn）。
         """
         deadline = time.monotonic() + 15
         rail_tapped = False
@@ -750,7 +787,8 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
     def _now_playing_is(self, song: str, open_timeout: float = 15.0) -> bool:
         """点歌行后的播放页曲目软核对（不 assert，供点错行自愈判定）。
 
-        已进全屏播放页（收起钮探测，浅底/深底/旧单模板任一）且当前曲目
+        已进全屏播放页（收起钮探测，浅底/深底/旧单/返回箭头态模板任一）
+        且当前曲目
         OCR（两侧 compact 归一化，比用例层 assert_now_playing 的精确包含
         更容忍失真，避免 OCR 抖动触发无谓重点）出现歌名 → True；播放页
         未打开或曲目不符 → False（是否收播放页重试由调用方定）。
@@ -774,20 +812,26 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
     # 模板极性已根除互扰，region 再兜一层。
     _PLAYER_TOPBAR_REGION = (0, 0, 720, 200)
 
-    # 收起钮探测模板链（2026-09-28 element 交付双模板，run4c 复盘拍板）：
+    # 收起钮探测模板链（2026-09-28 element 交付双模板，run4c 复盘拍板；
+    # 2026-09-29 追加返回箭头态，A3 开+收全流程实弹验证）：
     # 浅底（浅青背景态）/深底（深色封面背景态）跨背景极性互补（实测极性
     # -0.9 根除互扰），任一命中即播放页在；旧单模板 SWAN_PLAYER_DISMISS_BTN
-    # 保留作第三兜底（对深色背景 0.379 失配、与歌单详情页返回箭头 0.997
-    # 同形互扰，登记注记见 image_name_mapping.py）。
+    # 保留作兜底（对深色背景 0.379 失配、与歌单详情页返回箭头 0.997
+    # 同形互扰，登记注记见 image_name_mapping.py）；RETURN=返回箭头态
+    # （白 chevron 深底）补同族第四态——⚠️ 与歌单详情页返回箭头同形，
+    # 只准在本组内配 _PLAYER_TOPBAR_REGION 使用（_find_dismiss_btn 统一
+    # region 限定，勿裸 find_image/click_image）。
     _DISMISS_TEMPLATES = (SWAN_PLAYER_DISMISS_LIGHT, SWAN_PLAYER_DISMISS_DARK,
-                          SWAN_PLAYER_DISMISS_BTN)
+                          SWAN_PLAYER_DISMISS_BTN, SWAN_PLAYER_DISMISS_RETURN)
 
     def _find_dismiss_btn(self, timeout: float = 2.0) -> str | None:
-        """播放页收起钮探测：浅底/深底双模板依次匹配 + 顶栏 region 限定，
-        返回首个命中模板（供 click_image 精确点击命中位置），全未命中 None。
+        """播放页收起钮探测：浅底/深底/旧单/返回箭头态四模板依次匹配 +
+        顶栏 region 限定，返回首个命中模板（供 click_image 精确点击命中
+        位置），全未命中 None。
 
         任一模板命中即播放页在；region 限定 _PLAYER_TOPBAR_REGION 防与
-        歌单详情页返回箭头同形互扰（双保险，见常量注）。
+        歌单详情页返回箭头同形互扰（双保险，见常量注；RETURN 态同为返回
+        箭头形，尤其依赖该 region）。
         """
         for template in self._DISMISS_TEMPLATES:
             if self.find_image(template, timeout=timeout,
@@ -803,7 +847,7 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         箭头同形互扰（score 0.997，teardown 误点返回箭头根因）。element
         交付收起钮浅底/深底双模板（极性实测 -0.9 根除互扰）后，探测改
         _find_dismiss_btn（双模板 + 顶栏 region 双保险），点击仍点命中
-        模板位置；旧单模板保留作第三兜底。
+        模板位置；旧单模板与返回箭头态模板保留作兜底。
         swan_regression_common._dismiss_player_if_any（teardown 清理）与本
         方法共用此实现，防两份收起逻辑漂移。
         """
@@ -814,7 +858,7 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
 
     def _wait_player_page_open(self, timeout: float = 15.0) -> None:
         """断言全屏播放页已打开：顶栏收起钮探测（_find_dismiss_btn：浅底/
-        深底/旧单模板 + 顶栏 region），deadline 内轮询，超时硬断言。
+        深底/旧单/返回箭头态模板 + 顶栏 region），deadline 内轮询，超时硬断言。
 
         run5 run1 改版（文件2 脏跑 wifi 9 条死亡帧）：旧 image_exists 单模板
         对电台播放页浅底失配——rig 持久电台会话（Radio Dum-Dum 亮黄模糊
@@ -831,8 +875,8 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
                 return
             if time.monotonic() >= deadline:
                 assert False, (
-                    "播放页顶栏未渲染（收起钮浅底/深底/旧单模板均未命中，"
-                    f"顶栏 region 内已轮询 {timeout:.0f}s）")
+                    "播放页顶栏未渲染（收起钮浅底/深底/旧单/返回箭头态模板"
+                    f"均未命中，顶栏 region 内已轮询 {timeout:.0f}s）")
 
     def start_play(self, source: str = "favorite", mode: str = "all",
                    index: int = 0) -> None:

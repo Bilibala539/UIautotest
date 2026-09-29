@@ -1762,6 +1762,48 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         row = min(rows, key=lambda i: i["cy"])
         self.tap(self._SONG_ROW_PLUS_TAP_X, row["cy"])
 
+    # ---------- 收藏数据态预校验（run5 对账拍板方案 C，非断言） ----------
+
+    def playlist_top_song(self, timeout: float = 10.0) -> str:
+        """歌单详情页最上方歌曲行的歌名（数据态预校验用）。
+
+        定位几何与 _tap_song_row_plus 同源：行内 [+] 模板条带最上命中 →
+        其 cy±40px 条带内取 cx≥120、非纯数字、cy 最小的 OCR 文本项 = 歌名
+        （歌名在歌手上方；行号列 cx<120 已排除）。
+        ⚠️ 仅数据态预校验用途，不替代收藏流程运行时定位（收藏仍由
+        _tap_song_row_plus 点 [+]，两者共用 _SONG_PLUS_STRIP 条带常量）。
+        调用方须已在含 ≥1 首歌曲行的歌单详情页。
+        """
+        rect = self.find_image_rect(SWAN_SONG_ROW_PLUS_BTN, timeout=timeout,
+                                    region=self._SONG_PLUS_STRIP)
+        assert rect is not None, (
+            "歌单详情页最上方歌曲行定位失败：行内 [+] 模板未命中"
+            "（须已在含 ≥1 首歌曲行的歌单详情页）")
+        cy = rect[1] + rect[3] // 2
+        band = (0, max(0, cy - 40), 560, 80)   # [+] 列以左的行名区
+        cands = [i for i in self.ocr_scan_page(region=band)
+                 if i["cx"] >= 120 and i["text"].strip()
+                 and not self._ocr_compact(i["text"]).strip().strip(".、，,")
+                 .isdigit()]
+        assert cands, (
+            f"歌单详情页最上方歌曲行歌名读取失败（cy={cy} 条带内无有效文本项）")
+        return min(cands, key=lambda i: i["cy"])["text"].strip()
+
+    def playlist_has_song(self, song: str, timeout: float = 8.0) -> bool:
+        """当前歌单详情页是否已含指定歌曲（非断言，数据态预校验用）。
+
+        首屏 OCR 包含匹配；未命中上滑一屏重试（目标歌单曲目多时）。
+        ⚠️ 全页包含口径：歌单名/歌曲名同词时可能过采——预校验用途可接受
+        （过采只会多 skip 不产假红，见 test_collect_song 注）。
+        调用方须已在目标歌单详情页。
+        """
+        for attempt in range(2):
+            if self.find_text_by_ocr(song, timeout=int(timeout)) is not None:
+                return True
+            if attempt == 0:
+                self.swipe_up()
+        return False
+
     def _find_collect_platform_row(self, platform_text: str,
                                    timeout: float = 10.0) -> dict:
         """「选择平台收藏」弹层定位目标平台行（OCR 项，含 cx/cy）。

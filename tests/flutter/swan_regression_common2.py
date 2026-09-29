@@ -27,6 +27,13 @@ rig 环境变量（本批新增，均可在不配置时走默认/skip）：
                            回落 SWAN_TEST_SONG；run5 改版——原「播放全部
                            首曲」疑已在目标歌单触发重复收藏拦截，改为点
                            名播放指定曲；数据一次性约定见 test_collect_song 注）
+- SWAN_COLLECT_SOURCE_PLAYLIST
+                           用例44-55 source="playlist_page" 的收藏源歌单
+                           （默认 我的家庭）。⚠️ 数据态耗尽运维口径（方案
+                           A，run5 拍板）：预校验 skip 报「数据态耗尽」时
+                           轮换本变量指向顶行曲不在目标歌单内的歌单，或由
+                           设备管理流程清理目标歌单；用例预校验（方案 C）
+                           保证耗尽时诚实 skip 不产假红
 - SWAN_HISTORY_PLAYLIST / SWAN_HISTORY_ARTIST / SWAN_HISTORY_ALBUM /
   SWAN_HISTORY_RADIO / SWAN_HISTORY_PODCAST
                            用例56-68 各分类断言条目名（未配置该类 skip）；

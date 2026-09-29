@@ -74,7 +74,7 @@ class TestPlaylistFavoriteAndHistory(SwanContentRegressionMixin, BaseTest):
     def test_collect_song(self, target_platform, source):
         """用例44-55：歌曲收藏到目标歌单（来源 player/playlist_page × 目标平台）。
 
-        数据设计（run4c 修正，run5 再修正）：两参数须收藏不同歌曲到目标
+        数据设计（run4c 修正，run5 两次修正）：两参数须收藏不同歌曲到目标
         歌单——同曲重复收藏会触发 App「重复收藏」静默拦截（run4c run3 /
         run5 run1 双实测：宫格块点击后 toast「添加失败，请稍后重试」、停留
         「已选N首歌」页无跳转，收尾断言必炸）。
@@ -84,23 +84,48 @@ class TestPlaylistFavoriteAndHistory(SwanContentRegressionMixin, BaseTest):
           首曲 Black White (AB) 已在目标歌单——run4c 该用例成功的收藏本身
           把曲送进了目标歌单，属一次性数据设计），改为点名播放
           COLLECT_PLAYER_SONG（SWAN_COLLECT_PLAYER_SONG 优先，回落
-          SWAN_TEST_SONG）后收藏当前曲。⚠️ 一次性约定仍在：某曲收藏成功
-          一次后即在目标歌单内，下轮回归须换 SWAN_COLLECT_PLAYER_SONG 或
-          由设备管理流程重置 rig 数据（无自动化回滚，见 collect_song 注）。
+          SWAN_TEST_SONG）后收藏当前曲。
+        - **数据态预校验（方案 C，run5 拍板）**：进收藏流程前先开目标歌单
+          核对将收藏曲是否已在其中（playlist_has_song / playlist_top_song
+          非断言探测），已在则 pytest.skip 带清晰理由——每轮诚实报数据态
+          而非假红。耗尽时轮换手段（方案 A，运维口径）：换
+          SWAN_COLLECT_SOURCE_PLAYLIST / SWAN_COLLECT_PLAYER_SONG，或由
+          设备管理流程清理目标歌单（收藏结果无自动化回滚，行内垃圾桶
+          红线禁点，见 collect_song 注）。
         source="player" 前置复用域3 start_play（经 _preset_playing_on_favorite
         到我喜欢页，收尾已在播放页）。"""
         self._ensure_logged_in_on_home()
         if source == "player":
             # 点名播放指定曲（不在目标歌单内的数据约定）；无配置回落
-            # SWAN_TEST_SONG，二者皆空才走播放全部首曲（旧行为）
-            if self.COLLECT_PLAYER_SONG:
-                self._preset_playing_on_favorite(
-                    source=self.COLLECT_PLAYER_SONG, mode="song")
+            # SWAN_TEST_SONG，二者皆空才走播放全部首曲（旧行为，无预校验——
+            # 播放曲须开播后才可知，预校验不覆盖该遗留分支）
+            song = self.COLLECT_PLAYER_SONG
+            if song:
+                self.user.open_playlist_detail(target_platform,
+                                               self.COLLECT_PLAYLIST)
+                if self.user.playlist_has_song(song):
+                    pytest.skip(
+                        f"数据态耗尽：{song!r} 已在目标歌单 "
+                        f"{self.COLLECT_PLAYLIST!r}，请轮换 "
+                        "SWAN_COLLECT_PLAYER_SONG 或清理目标歌单后重跑")
+                self.user.back_to_tab_shell()
+                self._preset_playing_on_favorite(source=song, mode="song")
             else:
                 self._preset_playing_on_favorite()
         else:
             # 前置：源歌单详情页含 ≥1 首歌（SOURCE_PLAYLIST，与目标歌单
             # 错开的数据设计见本方法 docstring 与 SOURCE_PLAYLIST 注）
+            self.user.open_playlist_detail("swan", self.SOURCE_PLAYLIST)
+            source_song = self.user.playlist_top_song()
+            self.user.back_to_tab_shell()
+            self.user.open_playlist_detail(target_platform,
+                                           self.COLLECT_PLAYLIST)
+            if self.user.playlist_has_song(source_song):
+                pytest.skip(
+                    f"数据态耗尽：源顶行 {source_song!r} 已在目标歌单 "
+                    f"{self.COLLECT_PLAYLIST!r}，请轮换 "
+                    "SWAN_COLLECT_SOURCE_PLAYLIST 或清理目标歌单后重跑")
+            self.user.back_to_tab_shell()
             self.user.open_playlist_detail("swan", self.SOURCE_PLAYLIST)
         self.user.collect_song(target_platform, self.COLLECT_PLAYLIST,
                                source=source)

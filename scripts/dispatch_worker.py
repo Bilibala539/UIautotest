@@ -1,0 +1,475 @@
+"""AI 任务派发 worker(大领导):分析 → worktree → 派发小领导 → 收报告 → 回写状态机。
+
+职责(设计 docs/AI任务与平台登录设计.md 7.2 + 两级 agent 编排先例):
+  1. 轮询 GET /api/tasks/queue(机器通道,免登录)
+  2. 待分析任务 → claude -p 无头分析(读 scripts/dispatch_charter.md)→ POST analyze;
+     信息不足 → POST question 转疑问待答,提交人答复后任务自动回队列
+  3. 代码修改类 → 本仓库建 worktree,分支 u/<提交人>/t<任务号>-<标题slug>
+  4. 按目标机派发小领导:inbox 文件 + tmux send-keys(.176 经 SSH,.167/本机直接 tmux)
+  5. 轮询 outbox(本机 + .176 经 SSH)收报告 → POST progress/merge/finish 回写状态机
+  6. 终态 → notify_wecom() 独立函数发测试部群:先做 wecom-cli 命令存在性检测
+     (本机优先,退回经 SSH 平台机),失败只记 task_events(note),绝不阻塞任务状态;
+     @发布人依赖 users.wecom_userid,未配置降级不 @;纯文字无 emoji,中间态绝不发
+  7. DISPATCH_STUB=1 全流程本地模拟(不调 claude/不 tmux/不 ssh/绝不外发企微),
+     供本地验证与 dashboard/tests/test_dispatch_worker_stub.py 状态机联测
+
+硬性边界见 scripts/dispatch_charter.md(.167 平台库只读/不碰服务进程;.176 不碰 Jenkins)。
+凭据:群 chat_id 只从后端 .env.local 读 WECOM_CHAT_ID,不进 git(团队纪律)。
+
+用法:
+  python scripts/dispatch_worker.py           # 常驻(部署机 systemd 拉起)
+  python scripts/dispatch_worker.py --once    # 扫一轮即退出(调试用)
+  python scripts/dispatch_worker.py --loop 5  # 自定义轮询间隔(默认 10s)
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+import shlex
+import shutil
+import subprocess
+import sys
+import time
+import urllib.error
+import urllib.request
+from datetime import datetime
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PLATFORM_URL = os.environ.get("DASHBOARD_URL", "http://127.0.0.1:8080").rstrip("/")
+LOG_PATH = PROJECT_ROOT / "logs" / "dispatch_worker.log"
+CHARTER_PATH = PROJECT_ROOT / "scripts" / "dispatch_charter.md"
+LOOP_SECONDS = 10
+ANALYZE_TIMEOUT = 600  # 大领导分析是重调用,给足 10 分钟
+CLAUDE_BIN = os.environ.get("DISPATCH_CLAUDE", "claude")
+STUB = os.environ.get("DISPATCH_STUB", "") == "1"
+
+# 派发通道:与两级编排先例对齐(~/leader/inbox + tmux session leader)。
+# STUB 模式默认落 logs/dispatch-stub,避免污染本机 ~/leader。
+if STUB:
+    _default_leader_home = PROJECT_ROOT / "logs" / "dispatch-stub"
+else:
+    _default_leader_home = Path.home() / "leader"
+INBOX_DIR = Path(os.environ.get("DISPATCH_INBOX", _default_leader_home / "inbox"))
+OUTBOX_DIR = Path(os.environ.get("DISPATCH_OUTBOX", _default_leader_home / "outbox"))
+TMUX_SESSION = os.environ.get("DISPATCH_TMUX_SESSION", "leader")
+MACHINE_SSH = {"176": os.environ.get("DISPATCH_SSH_176", "192.168.12.176")}
+SSH_167 = os.environ.get("DISPATCH_SSH_167", "192.168.12.167")
+REPO_ROOT = Path(os.environ.get("DISPATCH_REPO", PROJECT_ROOT))
+WORKTREE_PARENT = Path(os.environ.get("DISPATCH_WORKTREES", REPO_ROOT.parent / "uiautotest-worktrees"))
+
+TASK_TYPES = ("code_change", "test_run", "troubleshoot", "env_maint", "other")
+TASK_RISKS = ("high", "mid", "low")
+TARGET_MACHINES = ("167", "176")
+
+
+def log(message: str) -> None:
+    """写日志文件(pythonw/systemd 下 stdout 可能为 None,print 前判空)。"""
+    line = f"[dispatch-worker {datetime.now().isoformat(timespec='seconds')}] {message}"
+    try:
+        LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with open(LOG_PATH, "a", encoding="utf-8") as log_file:
+            log_file.write(line + "\n")
+    except OSError:
+        pass  # 日志目录不可写不能挡住派发本身
+    if sys.stdout:
+        print(line, flush=True)
+
+
+def _get(path: str) -> dict:
+    with urllib.request.urlopen(f"{PLATFORM_URL}{path}", timeout=15) as response:
+        return json.loads(response.read().decode("utf-8"))
+
+
+def _post(path: str, payload: dict) -> dict:
+    request = urllib.request.Request(
+        f"{PLATFORM_URL}{path}",
+        data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+        headers={"Content-Type": "application/json; charset=utf-8"},
+        method="POST",
+    )
+    with urllib.request.urlopen(request, timeout=15) as response:
+        return json.loads(response.read().decode("utf-8"))
+
+
+def _int(value: object) -> int:
+    try:
+        return max(0, int(value))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _run(args: list[str], input_bytes: bytes | None = None, timeout: int = 30) -> subprocess.CompletedProcess:
+    return subprocess.run(args, input=input_bytes, capture_output=True, timeout=timeout)
+
+
+def slugify(title: str) -> str:
+    """标题转分支 slug;纯中文标题返回空串,分支名只剩任务号部分。"""
+    return re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")[:24]
+
+
+def claude_analyze(task: dict) -> dict:
+    """大领导分析:返回 {question} 或完整五元组;字段经 _validate_analysis 收敛。"""
+    if STUB:
+        return _validate_analysis(_stub_analyze(task))
+    charter = CHARTER_PATH.read_text(encoding="utf-8") if CHARTER_PATH.is_file() else "(章程缺失)"
+    qa = "\n".join(
+        f"问:{q.get('question', '')} / 答:{q.get('answer') or '(未答)'}"
+        for q in task.get("questions") or []) or "(无)"
+    prompt = (
+        "你是测试部 AI 任务大领导。按章程分析任务,只输出一个 JSON 对象,不要输出任何其他文字。\n"
+        f"{charter}\n任务号:{task.get('task_id')}\n标题:{task.get('title')}\n"
+        f"描述:\n{task.get('description') or ''}\n历史问答:{qa}\n"
+        '输出形状(question 为空字符串表示无疑问):'
+        '{"task_type": "code_change|test_run|troubleshoot|env_maint|other",'
+        ' "risk": "high|mid|low", "target_machine": "167|176",'
+        ' "analysis_note": "做什么/改哪里/怎么验收", "question": ""}')
+    run = _run([CLAUDE_BIN, "-p", prompt], timeout=ANALYZE_TIMEOUT)
+    if run.returncode != 0:
+        raise RuntimeError(f"claude -p rc={run.returncode}: {run.stderr.decode('utf-8', 'replace')[:200]}")
+    text = run.stdout.decode("utf-8", "replace")
+    match = re.search(r"\{.*\}", text, re.DOTALL)
+    if not match:
+        raise RuntimeError(f"claude 输出无 JSON: {text[:200]}")
+    return _validate_analysis(json.loads(match.group()))
+
+
+def _stub_analyze(task: dict) -> dict:
+    """STUB 分析:标题关键词启发式,固定 token 数,联测可断言。"""
+    text = f"{task.get('title', '')}{task.get('description', '')}"
+    if any(key in text for key in ("为什么", "排查", "挂了", "原因")):
+        kind, risk, machine, note = "troubleshoot", "mid", "176", "stub 分析:先排查再定论"
+    elif any(key in text for key in ("修", "改", "修复", "选择器", "代码")):
+        kind, risk, machine, note = "code_change", "high", "176", "stub 分析:定位需修改代码,先跑回归再合并"
+    else:
+        kind, risk, machine, note = "test_run", "low", "167", "stub 分析:按现有套件执行一遍"
+    return {"task_type": kind, "risk": risk, "target_machine": machine, "analysis_note": note,
+            "tokens_in": 12000, "tokens_out": 800}
+
+
+def _validate_analysis(data: dict) -> dict:
+    """把大领导产出收敛到平台接受的枚举;非法即抛,由调用方退避重试。"""
+    question = str(data.get("question") or "").strip()
+    if question:
+        return {"question": question[:2000]}
+    kind = str(data.get("task_type") or "").strip()
+    if kind not in TASK_TYPES:
+        raise ValueError(f"task_type 非法: {kind!r}")
+    risk = str(data.get("risk") or "").strip()
+    if risk not in TASK_RISKS:
+        raise ValueError(f"risk 非法: {risk!r}")
+    machine = str(data.get("target_machine") or "").strip()
+    if machine and machine not in TARGET_MACHINES:
+        raise ValueError(f"target_machine 非法: {machine!r}")
+    return {"task_type": kind, "risk": risk, "target_machine": machine,
+            "analysis_note": str(data.get("analysis_note") or "")[:500],
+            "tokens_in": _int(data.get("tokens_in")), "tokens_out": _int(data.get("tokens_out"))}
+
+
+def ensure_worktree(task: dict) -> tuple[str | None, str | None]:
+    """代码类任务建隔离 worktree(章程三-1);非代码类返回 (None, None)。
+
+    STUB 模式不碰 git、不建目录,但分支名照常计算(stub 报告带名,联测协议)。
+    """
+    if task.get("task_type") != "code_change":
+        return None, None
+    task_id = task["task_id"]
+    branch = (f"u/{task.get('submitter') or 'ai'}/t{task_id.replace('TASK-', '').lower()}"
+              f"-{slugify(task.get('title') or '')}").rstrip("-")
+    if STUB:
+        return branch, None
+    path = WORKTREE_PARENT / task_id
+    if path.exists():
+        return branch, str(path)
+    WORKTREE_PARENT.mkdir(parents=True, exist_ok=True)
+    add = _run(["git", "-C", str(REPO_ROOT), "worktree", "add", "-b", branch, str(path)])
+    if add.returncode != 0:  # 分支已存在(上次派发建过)→ 直接挂分支
+        add = _run(["git", "-C", str(REPO_ROOT), "worktree", "add", str(path), branch])
+    if add.returncode != 0:
+        raise RuntimeError(f"worktree 创建失败: {add.stderr.decode('utf-8', 'replace')[:200]}")
+    log(f"worktree 就绪 {task_id} branch={branch} path={path}")
+    return branch, str(path)
+
+
+DISPATCH_PROMPT = ("读取执行 {inbox} 中的任务 {task_id},遵守其中的章程边界,"
+                   "进度与结果按协议写 {outbox}")
+
+
+def dispatch_task(task: dict, branch: str | None, worktree: str | None) -> bool:
+    """任务卡投递到目标机小领导:inbox 文件 + tmux send-keys(.176 经 SSH)。
+
+    STUB 模式同时模拟小领导回写(先 progress 后 finish),驱动 outbox 处理路径。
+    """
+    machine = str(task.get("target_machine") or "167")
+    task_id = task["task_id"]
+    payload = {key: task.get(key) for key in
+               ("task_id", "title", "description", "task_type", "risk", "analysis_note", "submitter")}
+    payload.update({"target_machine": machine, "branch_name": branch, "worktree_path": worktree,
+                    "questions": task.get("questions") or []})
+    body = json.dumps(payload, ensure_ascii=False)
+    inbox_name = f"{datetime.now().strftime('%H%M%S')}-{task_id}.json"
+    if STUB:
+        INBOX_DIR.mkdir(parents=True, exist_ok=True)
+        (INBOX_DIR / inbox_name).write_text(body, encoding="utf-8")
+        OUTBOX_DIR.mkdir(parents=True, exist_ok=True)
+        (OUTBOX_DIR / f"1-{task_id}.json").write_text(json.dumps(
+            {"task_id": task_id, "phase": "progress", "detail": "stub 小领导已开工",
+             "tokens_in": 500, "tokens_out": 200}, ensure_ascii=False), encoding="utf-8")
+        report: dict = {"task_id": task_id, "phase": "finish", "ok": True,
+                        "report_md": "## 结论\nstub 模式模拟执行完成\n\n- 状态机走通\n- 未外发任何命令",
+                        "tokens_in": 1000, "tokens_out": 400}
+        if task.get("task_type") == "code_change":
+            report.update({"merge_status": "merged", "branch_name": branch, "worktree_path": worktree})
+        (OUTBOX_DIR / f"2-{task_id}.json").write_text(json.dumps(report, ensure_ascii=False), encoding="utf-8")
+        log(f"stub dispatch {task_id} → {machine} inbox={inbox_name}")
+        return True
+    outbox_hint = f"$HOME/leader/outbox/{task_id}.json"
+    if machine in MACHINE_SSH:  # .176:文件与按键都经 SSH 一条会话完成
+        inbox_hint = f"$HOME/leader/inbox/{inbox_name}"
+        prompt = DISPATCH_PROMPT.format(inbox=inbox_hint, task_id=task_id, outbox=outbox_hint)
+        script = (f"mkdir -p ~/leader/inbox ~/leader/outbox && "
+                  f"cat > {inbox_hint} && "
+                  f"tmux send-keys -t {shlex.quote(TMUX_SESSION)} {shlex.quote(prompt)} Enter")
+        run = _run(["ssh", MACHINE_SSH[machine], script], body.encode("utf-8"))
+    else:  # 本机/.167:直接写文件 + 本地 tmux
+        INBOX_DIR.mkdir(parents=True, exist_ok=True)
+        inbox_path = INBOX_DIR / inbox_name
+        inbox_path.write_text(body, encoding="utf-8")
+        prompt = DISPATCH_PROMPT.format(inbox=inbox_path, task_id=task_id, outbox=outbox_hint)
+        run = _run(["tmux", "send-keys", "-t", TMUX_SESSION, prompt, "Enter"])
+    if run.returncode != 0:
+        raise RuntimeError(f"派发失败 {machine}: "
+                           f"{(run.stderr or run.stdout).decode('utf-8', 'replace')[:200]}")
+    log(f"dispatched {task_id} → {machine} inbox={inbox_name}")
+    return True
+
+
+def wecom_cli_command() -> list[str] | None:
+    """企微发送命令存在性检测:本机 which 优先,退回经 SSH 平台机(设计 7.2 部署注意)。"""
+    if shutil.which("wecom-cli"):
+        return ["wecom-cli"]
+    try:
+        probe = _run(["ssh", SSH_167, "command -v wecom-cli"], timeout=15)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if probe.returncode == 0 and probe.stdout.strip():
+        return ["ssh", SSH_167, probe.stdout.decode("utf-8", "replace").strip()]
+    return None
+
+
+def notify_wecom(task: dict, queue_item: dict | None = None) -> None:
+    """任务终态企微群通知(独立函数)。失败只记 task_events(note),绝不阻塞任务状态。
+
+    纯文字无 emoji;失败附一行原因;@发布人靠 users.wecom_userid(队列带
+    submitter_wecom_userid),未配置降级不 @。中间态绝不发。凭据只认
+    WECOM_CHAT_ID(后端 .env.local);未配置或 STUB 一律不外发。
+    """
+    task_id = str(task.get("task_id") or "?")
+
+    def note(detail: str) -> None:
+        try:
+            _post("/api/dispatch/update", {"action": "note", "task_id": task_id,
+                                           "event_type": "wecom_failed", "detail": detail})
+        except Exception as error:  # noqa: BLE001 — 旁路日志再失败只剩本地日志
+            log(f"wecom note 落库失败 {task_id}: {error}")
+
+    try:
+        if STUB:
+            note("stub 模式不发送企微")
+            return
+        chat_id = os.environ.get("WECOM_CHAT_ID", "")
+        if not chat_id:
+            note("未配置 WECOM_CHAT_ID,群消息未发")
+            return
+        status = task.get("status")
+        title = (queue_item or {}).get("title") or task.get("title") or ""
+        if status == "done":
+            text = f"「Swan 测试平台」任务 {task_id}「{title}」已完成"
+        elif status == "failed":
+            text = f"「Swan 测试平台」任务 {task_id}「{title}」已失败"
+            reason = (task.get("error_message") or "")[:100]
+            if reason:
+                text += f"\n原因:{reason}"
+        else:
+            return  # 非终态绝不发
+        userid = (queue_item or {}).get("submitter_wecom_userid")
+        if userid:
+            text += f" <@{userid}>"
+        cli = wecom_cli_command()
+        if not cli:
+            note("wecom-cli 不存在(本机与平台机均未安装),群消息未发")
+            return
+        run = _run(cli + ["message", "aibot", "send", "--chat-id", chat_id, "--msg-type", "markdown",
+                          "--markdown", json.dumps({"content": text}, ensure_ascii=False)], timeout=30)
+        if run.returncode != 0:
+            tail = (run.stderr or run.stdout).decode("utf-8", "replace")[:120]
+            note(f"企微发送失败 rc={run.returncode}: {tail}")
+        else:
+            log(f"wecom notified {task_id}")
+    except Exception as error:  # noqa: BLE001 — 通知是旁路,任何异常都不外抛
+        note(f"企微通知异常:{error}")
+
+
+def _iter_outbox():
+    """产出 (source, 文件名, 文本):本机 outbox + .176 远端 outbox(经 SSH)。"""
+    if OUTBOX_DIR.is_dir():
+        for path in sorted(OUTBOX_DIR.glob("*.json")):
+            try:
+                yield "local", path.name, path.read_text(encoding="utf-8")
+            except OSError as error:
+                log(f"读 outbox 失败 {path.name}: {error}")
+    host = MACHINE_SSH.get("176")
+    if not host:
+        return
+    try:
+        listed = _run(["ssh", host, "ls -1 $HOME/leader/outbox/*.json 2>/dev/null"], timeout=20)
+        for line in listed.stdout.decode("utf-8", "replace").splitlines():
+            name = Path(line.strip()).name
+            if not name:
+                continue
+            cat = _run(["ssh", host, f"cat $HOME/leader/outbox/{shlex.quote(name)}"], timeout=20)
+            if cat.returncode == 0:
+                yield f"176:{host}", name, cat.stdout.decode("utf-8", "replace")
+    except (OSError, subprocess.TimeoutExpired) as error:
+        log(f".176 outbox 读取失败: {error}")
+
+
+def _discard_outbox(source: str, name: str) -> None:
+    try:
+        if source == "local":
+            (OUTBOX_DIR / name).unlink(missing_ok=True)
+        elif source.startswith("176:"):
+            _run(["ssh", source.split(":", 1)[1],
+                  f"rm -f $HOME/leader/outbox/{shlex.quote(name)}"], timeout=20)
+    except OSError as error:
+        log(f"清理 outbox 失败 {name}: {error}")
+
+
+def _apply_report(report: dict, queue_item: dict) -> bool:
+    """把一条 outbox 报告回写到状态机;返回 True 表示已处理(可删文件)。"""
+    task_id = report["task_id"]
+    phase = report.get("phase")
+    tokens = {"tokens_in": _int(report.get("tokens_in")), "tokens_out": _int(report.get("tokens_out"))}
+    if phase == "progress":
+        _post("/api/dispatch/update", {"action": "progress", "task_id": task_id,
+                                       "detail": str(report.get("detail") or "小领导进展"), **tokens})
+        return True
+    if phase == "merge":
+        _post("/api/dispatch/update", {"action": "merge", "task_id": task_id,
+                                       "event": report.get("event"),
+                                       "detail": str(report.get("detail") or "")})
+        return True
+    if phase == "finish":
+        result = _post("/api/dispatch/update", {
+            "action": "finish", "task_id": task_id, "ok": bool(report.get("ok")),
+            "report_md": str(report.get("report_md") or ""),
+            "error_message": str(report.get("error_message") or ""),
+            "branch_name": str(report.get("branch_name") or ""),
+            "worktree_path": str(report.get("worktree_path") or ""),
+            "merge_status": str(report.get("merge_status") or ""), **tokens})
+        notify_wecom(result, queue_item)
+        return True
+    log(f"未知 phase {phase!r} task={task_id}")
+    return True  # 未知报告同样清走,不无限重试
+
+
+def process_outbox(active: dict[str, dict]) -> int:
+    """扫本机与 .176 outbox,回写报告;4xx(含 409 过期报告)丢弃,5xx/网络错误留待重试。"""
+    handled = 0
+    for source, name, raw in _iter_outbox():
+        try:
+            report = json.loads(raw)
+        except ValueError:
+            log(f"outbox 非法 JSON {source}:{name},丢弃")
+            _discard_outbox(source, name)
+            continue
+        task_id = str(report.get("task_id") or "")
+        if task_id not in active:
+            log(f"报告任务不在队列 {source}:{name} task={task_id},丢弃")
+            _discard_outbox(source, name)
+            continue
+        try:
+            if _apply_report(report, active[task_id]):
+                _discard_outbox(source, name)
+                handled += 1
+        except urllib.error.HTTPError as error:
+            if 400 <= error.code < 500:
+                log(f"报告被平台拒绝({error.code}) task={task_id},丢弃")
+                _discard_outbox(source, name)
+            else:
+                log(f"平台 {error.code} task={task_id},下轮重试")
+        except Exception as error:  # noqa: BLE001 — 单条报告失败不影响其他
+            log(f"报告处理失败 {source}:{name}: {error},下轮重试")
+    return handled
+
+
+def tick(state: dict) -> int:
+    """扫一轮:分析/派发待分析任务,收 outbox 报告;返回本轮处理条数。"""
+    active = {t["task_id"]: t for t in _get("/api/tasks/queue").get("items") or []}
+    handled = 0
+    for task in list(active.values()):
+        task_id = task["task_id"]
+        if task["status"] != "pending_analysis":
+            continue  # questioning 等提交人答复;running 等小领导 outbox
+        if time.time() < state.get(f"cool:{task_id}", 0):
+            continue  # 上轮启动失败,退避中
+        if task.get("task_type"):  # 上轮已分析(启动失败重入)→ 直接补启动,不重复分析
+            analysis: dict = {}
+        else:
+            try:
+                analysis = claude_analyze(task)
+            except Exception as error:  # noqa: BLE001 — 分析失败退避重试,不挡其他任务
+                log(f"分析失败 {task_id}: {error},60s 后重试")
+                state[f"cool:{task_id}"] = time.time() + 60
+                continue
+            if analysis.get("question"):
+                _post("/api/dispatch/update", {"action": "question", "task_id": task_id,
+                                               "question": analysis["question"]})
+                log(f"提问 {task_id}: {analysis['question'][:60]}")
+                handled += 1
+                continue
+            _post("/api/dispatch/update", {
+                "action": "analyze", "task_id": task_id,
+                "task_type": analysis["task_type"], "risk": analysis["risk"],
+                "target_machine": analysis["target_machine"],
+                "analysis_note": analysis["analysis_note"],
+                "tokens_in": analysis["tokens_in"], "tokens_out": analysis["tokens_out"]})
+            task = {**task, "task_type": analysis["task_type"],
+                    "target_machine": analysis["target_machine"] or "167"}
+        try:
+            branch, worktree = ensure_worktree(task)
+            _post("/api/dispatch/update", {"action": "start", "task_id": task_id})
+            dispatch_task(task, branch, worktree)
+        except Exception as error:  # noqa: BLE001 — 启动失败退避重试(任务仍在待分析/running)
+            log(f"启动失败 {task_id}: {error},60s 后重试")
+            state[f"cool:{task_id}"] = time.time() + 60
+        handled += 1
+    return handled + process_outbox(active)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Swan 平台 AI 任务派发 worker(大领导)")
+    parser.add_argument("--once", action="store_true", help="扫一轮即退出(调试用)")
+    parser.add_argument("--loop", type=int, default=LOOP_SECONDS, help="轮询间隔秒数(默认 10)")
+    args = parser.parse_args()
+    log(f"启动: platform={PLATFORM_URL} stub={STUB} mode={'once' if args.once else 'loop'} "
+        f"inbox={INBOX_DIR} outbox={OUTBOX_DIR}")
+    state: dict = {}
+    try:
+        while True:
+            try:
+                tick(state)
+            except Exception as error:  # noqa: BLE001 — 单轮失败不退出,等下一轮
+                log(f"tick error: {error}")
+            if args.once:
+                break
+            time.sleep(args.loop)
+    except KeyboardInterrupt:
+        log("收到中断,退出")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

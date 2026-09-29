@@ -271,14 +271,14 @@ def test_manual_build_notes_prefix():
             # 带备注 → manual:<备注>(中文经 quote 编码;备注黑名单字符已在上游拒绝)
             status, _, body = request(base_url, "/api/builds", "POST", {
                 "branch": "dev", "server_type": "test", "notes": "冒烟"})
-            assert status == 200 and body["ok"] is True
+            assert status == 200 and json.loads(body)["ok"] is True
             assert captured[-1] == {"BRANCH": "dev", "SERVER_TYPE": "test",
                                     "NOTES": "manual%3A%E5%86%92%E7%83%9F"}
 
             # 无备注 → 固定 manual(前端仍按前缀归"流水线主动打包")
             status, _, body = request(base_url, "/api/builds", "POST",
                                       {"branch": "dev", "server_type": "formal"})
-            assert status == 200 and body["ok"] is True
+            assert status == 200 and json.loads(body)["ok"] is True
             assert captured[-1] == {"BRANCH": "dev", "SERVER_TYPE": "formal",
                                     "NOTES": "manual"}
         finally:

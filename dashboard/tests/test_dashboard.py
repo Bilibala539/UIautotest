@@ -3,6 +3,7 @@ from __future__ import annotations
 import gc
 import json
 import os
+import re
 import tempfile
 import time
 import threading
@@ -609,11 +610,15 @@ def test_build_pipeline_config():
         build_result = {"building": False, "result": "SUCCESS"}
 
         class MockJenkins(BaseHTTPRequestHandler):
+            queue_counter = 8  # 类属性:handler 每请求新建实例,计数不能挂 self
+
             def do_POST(self):
                 length = int(self.headers.get("Content-Length", "0") or 0)
                 captured.append(dict(urllib.parse.parse_qsl(self.rfile.read(length).decode("utf-8"))))
+                MockJenkins.queue_counter += 1
                 self.send_response(201)
-                self.send_header("Location", "http://mock-jenkins/queue/item/88/")
+                self.send_header("Location",
+                                 f"http://mock-jenkins/queue/item/{MockJenkins.queue_counter}/")
                 self.end_headers()
 
             def do_GET(self):
@@ -624,9 +629,13 @@ def test_build_pipeline_config():
                     self.send_header("Content-Length", str(len(body)))
                     self.end_headers()
                     self.wfile.write(body)
-                if "/queue/item/88/" in self.path:
-                    reply({"executable": {"number": 9}})
-                elif "/job/swan-audio-build/9/" in self.path:
+                queue_match = re.search(r"/queue/item/(\d+)/", self.path)
+                build_match = re.search(r"/job/swan-audio-build/(\d+)/", self.path)
+                if queue_match:
+                    # 构建号=队列项号(9,10,11…):每次触发各得一个构建号。不能共用——
+                    # 同构建号双行会被对账去重删一行(4cf7a32),测试会随机挂
+                    reply({"executable": {"number": int(queue_match.group(1))}})
+                elif build_match:
                     reply(build_result)
                 else:
                     self.send_response(404)

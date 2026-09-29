@@ -74,6 +74,62 @@ WEBHOOK_BUILD_MAP = {
 # COMMIT 透传/同 commit 去重按 app 仓 commit 口径(apks.commit_hash 记 app commit)
 WEBHOOK_APP_REPOS = {"swan-app/swan-audio/hivi-network-flutterapp"}
 
+# ---- 平台登录与 AI 任务看板(2026-09-29 v1.1,设计见 docs/AI任务与平台登录设计.md)----
+# 预设账号:users 空表时由 initialize() 播种;后续账号走设置弹窗添加,不做删除只停用
+PRESET_USERS = ("yumiao", "fushenghao", "wuhouju", "menglingzhao")
+AUTH_COOKIE = "swan_user"
+AUTH_COOKIE_MAX_AGE = 7 * 24 * 3600  # 固定 7 天,到期 401 重进(设计 §2.2)
+# 登录闸豁免的公开 auth 端点(presets 供登录页头像卡;me 是探测本身)
+AUTH_PUBLIC_PATHS = {
+    "/api/auth/presets", "/api/auth/login", "/api/auth/logout", "/api/auth/me",
+}
+# 机器对机器通道:带不了浏览器 cookie,逐一登记豁免(规范 5.6 的"全站 401"
+# 只闸浏览器面)。每条注明调用方;新增机器通道必须先在此登记,不得为省事放开整个方法。
+# 内网信任模型与"先不做安全"的拍板一致;逐通道加 token 加固列为后续演进项。
+MACHINE_EXEMPT_EXACT = {
+    ("GET", "/api/health"),                # 各机探活
+    ("POST", "/api/runs"),                 # pytest 插件 / seed_dashboard_fake_data.py 会话上报
+    ("POST", "/api/apks"),                 # build_swan_apk.py / register_apk.py 打包登记
+    ("POST", "/api/builds"),               # build_swan_apk.py 主动打包触发
+    ("POST", "/api/webhooks/gitlab"),      # GitLab webhook(自带 X-GitLab-Token 校验)
+    ("POST", "/api/pipeline/trigger"),     # trigger_smoke.py / nightly_trigger.py 套件触发
+    ("POST", "/api/pipeline/claim"),       # pipeline_agent.py 任务认领
+    ("GET", "/api/pipeline-configs"),      # pipeline_scheduler.py 定时轮询配置
+    ("POST", "/api/devices/register"),     # qa_platform/device_pool.py 设备登记/心跳
+    ("POST", "/api/devices/acquire"),      # 同上:用例会话领设备
+    ("GET", "/api/case-defs"),             # nightly_trigger.py 组每日套件
+    ("POST", "/api/suites"),               # nightly_trigger.py 套件维护
+    ("GET", "/api/tasks/queue"),           # dispatch_worker.py 领活(新机器通道)
+    ("POST", "/api/dispatch/update"),      # dispatch_worker.py 回写(分析/疑问/合并/终态)
+}
+MACHINE_EXEMPT_PREFIX = {
+    ("POST", "/api/runs/"),                # pytest 插件 cases/complete 上报
+    ("GET", "/api/runs/"),                 # evidence_cleanup.py 孤儿证据判定
+    ("POST", "/api/pipeline/jobs/"),       # pipeline_agent.py finish;cancel 页面触发但同前缀
+    ("GET", "/api/pipeline/jobs/"),        # pipeline_agent.py 轮询任务详情
+    ("POST", "/api/pipeline-configs/"),    # pipeline_scheduler.py 到点 run
+    ("POST", "/api/devices/"),             # device_pool.py release/status
+    ("PUT", "/api/case-defs/"),            # sync_cases.py 用例同步(浏览器编辑同走 PUT,一并放开)
+    ("GET", "/api/suites/"),               # trigger_smoke.py case-paths;nightly 套件读取
+    ("POST", "/api/suites/"),              # nightly_trigger.py 套件成员维护
+    ("GET", "/api/apks/"),                 # pipeline_agent.py 按 apk_id 下载安装包
+}
+# AI 任务状态机(设计 §3.1/§3.2;merge_status 是任务属性,不是状态)
+TASK_STATUSES = ("pending_analysis", "questioning", "running", "done", "failed", "cancelled")
+TASK_ACTIVE_STATUSES = ("pending_analysis", "questioning", "running")
+TASK_TERMINAL_STATUSES = ("done", "failed", "cancelled")
+TASK_TYPES = ("code_change", "test_run", "troubleshoot", "env_maint", "other")
+TASK_RISKS = ("high", "mid", "low")
+TARGET_MACHINES = ("167", "176")
+
+
+class DuplicateUserError(ValueError):
+    """设置弹窗添加账号:用户名与既有账号重复(路由层转 409)。"""
+
+
+class TaskStateError(ValueError):
+    """任务状态机非法迁移(dispatch_worker 通道,路由层转 409)。"""
+
 
 class RunNotFinalizedError(RuntimeError):
     """run 尚未结束(running),不允许回写禅道测试单(路由层转 409)。"""
@@ -934,6 +990,7 @@ class DashboardStore:
     def __init__(self, database_path: str | Path = DEFAULT_DATABASE):
         self.database_path = Path(database_path)
         self.database_path.parent.mkdir(parents=True, exist_ok=True)
+        self._active_users: set[str] | None = None  # 启用用户名缓存,写操作时置 None
         self.initialize()
 
     def connect(self) -> sqlite3.Connection:
@@ -1196,6 +1253,537 @@ class DashboardStore:
                 connection.execute("ALTER TABLE pipeline_jobs ADD COLUMN jenkins_job TEXT NOT NULL DEFAULT ''")
             if "jenkins_build" not in job_columns:
                 connection.execute("ALTER TABLE pipeline_jobs ADD COLUMN jenkins_build INTEGER")
+            # 平台登录与 AI 任务看板(v1.1,设计 §8):users=登录身份+企微映射,
+            # sessions 表有意不做(cookie 即身份,无服务端会话状态可存)
+            connection.executescript(
+                """
+                CREATE TABLE IF NOT EXISTS users (
+                    username TEXT PRIMARY KEY,
+                    wecom_userid TEXT NOT NULL DEFAULT '',
+                    status TEXT NOT NULL DEFAULT 'active',
+                    created_at TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS tasks (
+                    task_id TEXT PRIMARY KEY,
+                    title TEXT NOT NULL,
+                    description TEXT NOT NULL,
+                    submitter TEXT NOT NULL,
+                    desired_time TEXT,
+                    status TEXT NOT NULL DEFAULT 'pending_analysis',
+                    paused_phase TEXT,
+                    task_type TEXT,
+                    risk TEXT,
+                    target_machine TEXT,
+                    analysis_note TEXT,
+                    branch_name TEXT,
+                    worktree_path TEXT,
+                    merge_status TEXT,
+                    report_md TEXT,
+                    error_message TEXT,
+                    tokens_in INTEGER NOT NULL DEFAULT 0,
+                    tokens_out INTEGER NOT NULL DEFAULT 0,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    finished_at TEXT
+                );
+                CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
+                CREATE INDEX IF NOT EXISTS idx_tasks_created_at ON tasks(created_at DESC);
+                CREATE TABLE IF NOT EXISTS task_questions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    task_id TEXT NOT NULL,
+                    question TEXT NOT NULL,
+                    answer TEXT,
+                    status TEXT NOT NULL DEFAULT 'open',
+                    asked_at TEXT NOT NULL,
+                    answered_at TEXT
+                );
+                CREATE INDEX IF NOT EXISTS idx_task_questions_task ON task_questions(task_id);
+                CREATE TABLE IF NOT EXISTS task_events (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    task_id TEXT NOT NULL,
+                    event_type TEXT NOT NULL,
+                    actor TEXT NOT NULL,
+                    detail TEXT,
+                    created_at TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_task_events_task ON task_events(task_id);
+                """
+            )
+            # 预设账号种子:users 空表时写入 4 个预设账号("部署侧种子"的落地形态,
+            # 幂等可重复执行;否则空 users 表等于全平台锁死,无人能登录也无人能加账号)
+            if connection.execute("SELECT COUNT(*) AS n FROM users").fetchone()["n"] == 0:
+                for username in PRESET_USERS:
+                    connection.execute(
+                        "INSERT INTO users (username, wecom_userid, status, created_at)"
+                        " VALUES (?, '', 'active', ?)",
+                        (username, utc_now()),
+                    )
+
+    # ---- 平台登录(users 表;cookie 即身份,逐请求校验在册且启用)----
+
+    def auth_check(self, username: str) -> str | None:
+        """cookie 里的用户名 → 在册且启用返回原名,否则 None(名单缓存,写操作失效)。"""
+        if self._active_users is None:
+            with self.transaction() as connection:
+                rows = connection.execute(
+                    "SELECT username FROM users WHERE status='active'").fetchall()
+            self._active_users = {row["username"] for row in rows}
+        return username if username in self._active_users else None
+
+    def list_presets(self) -> list[dict[str, Any]]:
+        """登录页头像卡名单:仅启用账号(停用即退出名单,设计 §2.4)。"""
+        with self.transaction() as connection:
+            rows = connection.execute(
+                "SELECT username FROM users WHERE status='active' ORDER BY created_at").fetchall()
+        return [{"username": row["username"]} for row in rows]
+
+    @staticmethod
+    def _serialize_user(row: sqlite3.Row) -> dict[str, Any]:
+        return {
+            "username": row["username"],
+            "wecom_userid": row["wecom_userid"],
+            "status": row["status"],
+            "created_at": row["created_at"],
+        }
+
+    def list_users(self) -> list[dict[str, Any]]:
+        with self.transaction() as connection:
+            rows = connection.execute("SELECT * FROM users ORDER BY created_at").fetchall()
+        return [self._serialize_user(row) for row in rows]
+
+    def get_user(self, username: str) -> dict[str, Any]:
+        with self.transaction() as connection:
+            row = connection.execute("SELECT * FROM users WHERE username=?", (username,)).fetchone()
+        if row is None:
+            raise KeyError(f"用户 {username} 不存在")
+        return self._serialize_user(row)
+
+    def create_user(self, payload: dict[str, Any]) -> dict[str, Any]:
+        username = str(payload.get("username") or "").strip()
+        wecom_userid = str(payload.get("wecom_userid") or "").strip()
+        if not username:
+            raise ValueError("用户名必填")
+        if len(username) > 40 or re.search(r"\s", username):
+            raise ValueError("用户名须在 40 字以内且不含空白字符")
+        if len(wecom_userid) > 64:
+            raise ValueError("企微 userid 64 字以内")
+        with self.transaction() as connection:
+            exists = connection.execute(
+                "SELECT 1 FROM users WHERE username=?", (username,)).fetchone()
+            if exists:
+                raise DuplicateUserError("用户名已存在")
+            connection.execute(
+                "INSERT INTO users (username, wecom_userid, status, created_at)"
+                " VALUES (?, ?, 'active', ?)",
+                (username, wecom_userid, utc_now()),
+            )
+        self._active_users = None
+        return self.get_user(username)
+
+    def update_user(self, username: str, payload: dict[str, Any]) -> dict[str, Any]:
+        """改企微映射/停用启用;不做删除(历史任务挂在用户名上,设计 §2.4)。"""
+        updates: dict[str, str] = {}
+        if "wecom_userid" in payload:
+            wecom_userid = str(payload.get("wecom_userid") or "").strip()
+            if len(wecom_userid) > 64:
+                raise ValueError("企微 userid 64 字以内")
+            updates["wecom_userid"] = wecom_userid
+        if "status" in payload:
+            status = str(payload.get("status") or "").strip()
+            if status not in ("active", "disabled"):
+                raise ValueError("status 只接受 active/disabled")
+            updates["status"] = status
+        if not updates:
+            raise ValueError("无可更新字段(wecom_userid / status)")
+        with self.transaction() as connection:
+            cursor = connection.execute(
+                f"UPDATE users SET {', '.join(f'{k}=?' for k in updates)} WHERE username=?",
+                (*updates.values(), username),
+            )
+            if cursor.rowcount == 0:
+                raise KeyError(f"用户 {username} 不存在")
+        self._active_users = None  # 停用/启用下一次请求即生效(设计自查 #2)
+        return self.get_user(username)
+
+    # ---- AI 任务看板(tasks;状态机见设计 §3.2,页面只读,仅提交/答复可写)----
+
+    TASK_TYPE_CN = {"code_change": "代码修改", "test_run": "测试执行",
+                    "troubleshoot": "问题排查", "env_maint": "环境维护", "other": "其他"}
+    TASK_RISK_CN = {"high": "高风险", "mid": "中风险", "low": "低风险"}
+    TASK_MACHINE_CN = {"167": "167 平台机", "176": "176 构建机"}
+
+    def _next_task_id(self, connection: sqlite3.Connection) -> str:
+        """TASK-YYYYMMDD-NNN 日序号(本地日期;流水产物,用户不可自定义)。"""
+        prefix = f"TASK-{datetime.now().strftime('%Y%m%d')}-"
+        row = connection.execute(
+            "SELECT task_id FROM tasks WHERE task_id LIKE ? ORDER BY task_id DESC LIMIT 1",
+            (prefix + "%",),
+        ).fetchone()
+        seq = int(row["task_id"].rsplit("-", 1)[1]) + 1 if row else 1
+        return f"{prefix}{seq:03d}"
+
+    def _task_event(self, connection: sqlite3.Connection, task_id: str,
+                    event_type: str, actor: str, detail: str = "") -> None:
+        connection.execute(
+            "INSERT INTO task_events (task_id, event_type, actor, detail, created_at)"
+            " VALUES (?, ?, ?, ?, ?)",
+            (task_id, event_type, actor, detail, utc_now()),
+        )
+
+    @classmethod
+    def _serialize_task(cls, row: sqlite3.Row, detail: bool = False) -> dict[str, Any]:
+        item = {
+            "task_id": row["task_id"],
+            "title": row["title"],
+            "status": row["status"],
+            "task_type": row["task_type"],
+            "risk": row["risk"],
+            "target_machine": row["target_machine"],
+            "submitter": row["submitter"],
+            "tokens_total": int(row["tokens_in"] or 0) + int(row["tokens_out"] or 0),
+            "created_at": row["created_at"],
+        }
+        if detail:
+            item.update({
+                "description": row["description"],
+                "desired_time": row["desired_time"],
+                "paused_phase": row["paused_phase"],
+                "analysis_note": row["analysis_note"],
+                "branch_name": row["branch_name"],
+                "worktree_path": row["worktree_path"],
+                "merge_status": row["merge_status"],
+                "report_md": row["report_md"],
+                "error_message": row["error_message"],
+                "tokens_in": int(row["tokens_in"] or 0),
+                "tokens_out": int(row["tokens_out"] or 0),
+                "updated_at": row["updated_at"],
+                "finished_at": row["finished_at"],
+            })
+        return item
+
+    @staticmethod
+    def _serialize_question(row: sqlite3.Row) -> dict[str, Any]:
+        return {
+            "id": row["id"],
+            "question": row["question"],
+            "answer": row["answer"],
+            "status": row["status"],
+            "asked_at": row["asked_at"],
+            "answered_at": row["answered_at"],
+        }
+
+    def create_task(self, payload: dict[str, Any]) -> dict[str, Any]:
+        title = str(payload.get("title") or "").strip()
+        description = str(payload.get("description") or "").strip()
+        submitter = str(payload.get("submitter") or "").strip()
+        desired_time = str(payload.get("desired_time") or "").strip()
+        if not submitter:
+            raise ValueError("submitter 必填(取当前登录人)")
+        if not title:
+            raise ValueError("标题必填")
+        if len(title) > 60:
+            raise ValueError("标题 60 字以内")
+        if not description:
+            raise ValueError("详细描述必填")
+        if len(description) > 5000:
+            raise ValueError("详细描述 5000 字以内")
+        if desired_time:
+            try:
+                datetime.fromisoformat(desired_time)
+            except ValueError as error:
+                raise ValueError("期望完成时间格式不合法") from error
+        now = utc_now()
+        for _ in range(5):  # 日序号并发撞号重试(ThreadingHTTPServer 下两提交同秒)
+            task_id = None
+            with self.transaction() as connection:
+                try:
+                    task_id = self._next_task_id(connection)
+                    connection.execute(
+                        "INSERT INTO tasks (task_id, title, description, submitter,"
+                        " desired_time, status, created_at, updated_at)"
+                        " VALUES (?, ?, ?, ?, ?, 'pending_analysis', ?, ?)",
+                        (task_id, title, description, submitter,
+                         desired_time or None, now, now),
+                    )
+                except sqlite3.IntegrityError:
+                    continue  # 重取序号再试
+                self._task_event(connection, task_id, "submitted", submitter, "提交任务")
+            return self.get_task(task_id)
+        raise RuntimeError("任务号生成连续冲突,请重试")
+
+    def list_tasks(self, bucket: str = "", status: str = "", q: str = "",
+                   page: int = 1, pagesize: int = 10, viewer: str = "") -> dict[str, Any]:
+        where: list[str] = []
+        params: list[Any] = []
+        if status:
+            if status not in TASK_STATUSES:
+                raise ValueError(f"未知状态 {status}")
+            where.append("status=?")
+            params.append(status)
+        elif bucket == "active":
+            where.append(
+                f"status IN ({', '.join('?' * len(TASK_ACTIVE_STATUSES))})")
+            params.extend(TASK_ACTIVE_STATUSES)
+        elif bucket == "done":
+            where.append(
+                f"status IN ({', '.join('?' * len(TASK_TERMINAL_STATUSES))})")
+            params.extend(TASK_TERMINAL_STATUSES)
+        elif bucket == "mine":
+            # 需我处理=疑问待答且提交人是当前登录人(工作流口径,非权限,设计 §2.5)
+            where.append("status='questioning' AND submitter=?")
+            params.append(viewer)
+        if q:
+            where.append("(title LIKE ? OR task_id LIKE ? OR submitter LIKE ?)")
+            like = f"%{q}%"
+            params.extend([like, like, like])
+        clause = f" WHERE {' AND '.join(where)}" if where else ""
+        page = max(1, page)
+        pagesize = min(max(1, pagesize), 200)
+        with self.transaction() as connection:
+            total = connection.execute(
+                f"SELECT COUNT(*) AS n FROM tasks{clause}", params).fetchone()["n"]
+            rows = connection.execute(
+                f"SELECT * FROM tasks{clause} ORDER BY created_at DESC, task_id DESC"
+                f" LIMIT ? OFFSET ?",
+                (*params, pagesize, (page - 1) * pagesize),
+            ).fetchall()
+        return {
+            "items": [self._serialize_task(row) for row in rows],
+            "total": total, "page": page, "pagesize": pagesize,
+        }
+
+    def task_stats(self, viewer: str = "") -> dict[str, int]:
+        """统计卡四格(全员同口径=全部数据;待我处理按登录人)。"""
+        with self.transaction() as connection:
+            def count(sql: str, *bind: Any) -> int:
+                return int(connection.execute(sql, bind).fetchone()[0])
+            return {
+                "active": count(
+                    f"SELECT COUNT(*) FROM tasks WHERE status IN"
+                    f" ({', '.join('?' * len(TASK_ACTIVE_STATUSES))})",
+                    *TASK_ACTIVE_STATUSES),
+                "mine": count(
+                    "SELECT COUNT(*) FROM tasks WHERE status='questioning' AND submitter=?",
+                    viewer),
+                "done": count("SELECT COUNT(*) FROM tasks WHERE status='done'"),
+                "tokens_total": count(
+                    "SELECT COALESCE(SUM(tokens_in + tokens_out), 0) FROM tasks"),
+            }
+
+    def get_task(self, task_id: str) -> dict[str, Any]:
+        with self.transaction() as connection:
+            row = connection.execute("SELECT * FROM tasks WHERE task_id=?", (task_id,)).fetchone()
+            if row is None:
+                raise KeyError(f"任务 {task_id} 不存在")
+            questions = connection.execute(
+                "SELECT * FROM task_questions WHERE task_id=? ORDER BY id", (task_id,)
+            ).fetchall()
+            events = connection.execute(
+                "SELECT * FROM task_events WHERE task_id=? ORDER BY id", (task_id,)
+            ).fetchall()
+        item = self._serialize_task(row, detail=True)
+        item["questions"] = [self._serialize_question(q) for q in questions]
+        item["events"] = [dict(e) for e in events]
+        return item
+
+    def answer_task(self, task_id: str, payload: dict[str, Any], actor: str) -> dict[str, Any]:
+        answer = str(payload.get("answer") or "").strip()
+        if not answer:
+            raise ValueError("答复内容必填")
+        if len(answer) > 5000:
+            raise ValueError("答复内容 5000 字以内")
+        with self.transaction() as connection:
+            row = connection.execute("SELECT * FROM tasks WHERE task_id=?", (task_id,)).fetchone()
+            if row is None:
+                raise KeyError(f"任务 {task_id} 不存在")
+            if row["status"] != "questioning":
+                raise TaskStateError(f"任务不在疑问待答状态(当前 {row['status']})")
+            open_question = connection.execute(
+                "SELECT id FROM task_questions WHERE task_id=? AND status='open'"
+                " ORDER BY id DESC LIMIT 1", (task_id,)).fetchone()
+            if open_question is None:
+                raise TaskStateError("没有待答复的疑问")
+            resume = row["paused_phase"] or "pending_analysis"
+            connection.execute(
+                "UPDATE task_questions SET answer=?, status='answered', answered_at=?"
+                " WHERE id=?", (answer, utc_now(), open_question["id"]))
+            connection.execute(
+                "UPDATE tasks SET status=?, paused_phase=NULL, updated_at=? WHERE task_id=?",
+                (resume, utc_now(), task_id))
+            resume_cn = "待分析" if resume == "pending_analysis" else "执行中"
+            self._task_event(connection, task_id, "answered", actor,
+                             f"已答复,任务回到{resume_cn}")
+        return self.get_task(task_id)
+
+    def task_usage(self) -> list[dict[str, Any]]:
+        """按人用量(全员可见;按 token 合计倒序;无任务账号也列出)。"""
+        with self.transaction() as connection:
+            rows = connection.execute(
+                """
+                SELECT u.username,
+                       COUNT(t.task_id) AS submitted,
+                       COALESCE(SUM(CASE WHEN t.status IN
+                           ('pending_analysis','questioning','running')
+                           THEN 1 ELSE 0 END), 0) AS running,
+                       COALESCE(SUM(CASE WHEN t.status='done' THEN 1 ELSE 0 END), 0) AS done,
+                       COALESCE(SUM(CASE WHEN t.status='failed' THEN 1 ELSE 0 END), 0) AS failed,
+                       COALESCE(SUM(t.tokens_in + t.tokens_out), 0) AS tokens_total
+                FROM users u LEFT JOIN tasks t ON t.submitter = u.username
+                GROUP BY u.username
+                ORDER BY tokens_total DESC, submitted DESC, u.username
+                """
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    # ---- dispatch worker 内部通道(设计 §9:worker 内部通道由后端自定)----
+
+    def dispatch_queue(self) -> dict[str, Any]:
+        """活跃任务全量(含问答历史),worker 据此决策:分析/答复后续跑/盯执行。"""
+        with self.transaction() as connection:
+            rows = connection.execute(
+                f"SELECT * FROM tasks WHERE status IN"
+                f" ({', '.join('?' * len(TASK_ACTIVE_STATUSES))}) ORDER BY created_at",
+                TASK_ACTIVE_STATUSES,
+            ).fetchall()
+            items = []
+            for row in rows:
+                item = self._serialize_task(row, detail=True)
+                item["questions"] = [self._serialize_question(q) for q in connection.execute(
+                    "SELECT * FROM task_questions WHERE task_id=? ORDER BY id",
+                    (row["task_id"],)).fetchall()]
+                # 终态企微群消息 @发布人用(用户台账只有 worker 内部通道可见)
+                wecom = connection.execute("SELECT wecom_userid FROM users WHERE username=?",
+                                           (row["submitter"],)).fetchone()
+                item["submitter_wecom_userid"] = wecom["wecom_userid"] if wecom else None
+                items.append(item)
+        return {"items": items}
+
+    def dispatch_update(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """worker 回写:按 action 走状态机(设计 §3.2)。非法迁移抛 TaskStateError→409。"""
+        action = str(payload.get("action") or "").strip()
+        task_id = str(payload.get("task_id") or "").strip()
+        if not task_id:
+            raise ValueError("task_id 必填")
+        try:
+            tokens_in = max(0, int(payload.get("tokens_in") or 0))
+            tokens_out = max(0, int(payload.get("tokens_out") or 0))
+        except (TypeError, ValueError) as error:
+            raise ValueError("tokens_in/tokens_out 须为非负整数") from error
+        now = utc_now()
+        with self.transaction() as connection:
+            row = connection.execute("SELECT * FROM tasks WHERE task_id=?", (task_id,)).fetchone()
+            if row is None:
+                raise KeyError(f"任务 {task_id} 不存在")
+            status = row["status"]
+            token_sql = ", tokens_in=tokens_in+?, tokens_out=tokens_out+?"
+            token_params: tuple[Any, ...] = ()
+            if tokens_in or tokens_out:
+                token_params = (tokens_in, tokens_out)
+
+            def run_update(sets: str, params: tuple[Any, ...]) -> None:
+                sql = f"UPDATE tasks SET {sets}{token_sql if token_params else ''}, updated_at=? WHERE task_id=?"
+                connection.execute(sql, (*params, *token_params, now, task_id))
+
+            if action == "analyze":
+                if status != "pending_analysis":
+                    raise TaskStateError(f"任务状态为 {status},不能写入分析结论")
+                task_type = str(payload.get("task_type") or "").strip()
+                risk = str(payload.get("risk") or "").strip()
+                target_machine = str(payload.get("target_machine") or "").strip()
+                if task_type not in TASK_TYPES:
+                    raise ValueError(f"task_type 只接受 {'/'.join(TASK_TYPES)}")
+                if risk not in TASK_RISKS:
+                    raise ValueError(f"risk 只接受 {'/'.join(TASK_RISKS)}")
+                if target_machine and target_machine not in TARGET_MACHINES:
+                    raise ValueError(f"target_machine 只接受 {'/'.join(TARGET_MACHINES)}")
+                analysis_note = str(payload.get("analysis_note") or "").strip()
+                run_update(
+                    "task_type=?, risk=?, target_machine=?, analysis_note=?",
+                    (task_type, risk, target_machine or None, analysis_note or None))
+                self._task_event(connection, task_id, "analyzed", "大领导",
+                                 f"分析完成:{self.TASK_TYPE_CN[task_type]}/{self.TASK_RISK_CN[risk]}")
+            elif action == "start":
+                if status != "pending_analysis":
+                    raise TaskStateError(f"任务状态为 {status},不能开始执行")
+                merge_status = "pending" if row["task_type"] == "code_change" else None
+                run_update("status=?, paused_phase=NULL, merge_status=?", ("running", merge_status))
+                machine_cn = self.TASK_MACHINE_CN.get(str(row["target_machine"] or ""), "")
+                self._task_event(connection, task_id, "started", "小领导",
+                                 f"开始执行({machine_cn})" if machine_cn else "开始执行")
+            elif action == "question":
+                if status not in ("pending_analysis", "running"):
+                    raise TaskStateError(f"任务状态为 {status},不能提出疑问")
+                question = str(payload.get("question") or "").strip()
+                if not question:
+                    raise ValueError("question 必填")
+                if len(question) > 2000:
+                    raise ValueError("question 2000 字以内")
+                connection.execute(
+                    "UPDATE tasks SET status='questioning', paused_phase=?, updated_at=?"
+                    " WHERE task_id=?", (status, now, task_id))
+                connection.execute(
+                    "INSERT INTO task_questions (task_id, question, status, asked_at)"
+                    " VALUES (?, ?, 'open', ?)", (task_id, question, now))
+                self._task_event(connection, task_id, "question", "大领导", question)
+            elif action == "progress":
+                detail = str(payload.get("detail") or "").strip()
+                if not detail:
+                    raise ValueError("detail 必填")
+                run_update("status=status", ())  # 不改状态,只累计 token + 事件
+                self._task_event(connection, task_id, "progress",
+                                 str(payload.get("actor") or "小领导"), detail)
+            elif action == "merge":
+                event_type = str(payload.get("event") or "").strip()
+                if event_type not in ("merge_conflict", "merge_retry"):
+                    raise ValueError("event 只接受 merge_conflict/merge_retry")
+                if status != "running":
+                    raise TaskStateError(f"任务状态为 {status},不能记合并事件")
+                detail = str(payload.get("detail") or "").strip() or (
+                    "合并冲突,AI 处理中" if event_type == "merge_conflict" else "AI 重试合并")
+                run_update("merge_status=?", ("conflict",))
+                self._task_event(connection, task_id, event_type, "小领导", detail)
+            elif action == "finish":
+                if status != "running":
+                    raise TaskStateError(f"任务状态为 {status},不能收尾")
+                ok = bool(payload.get("ok"))
+                report_md = str(payload.get("report_md") or "").strip()
+                error_message = str(payload.get("error_message") or "").strip()
+                branch_name = str(payload.get("branch_name") or "").strip() or None
+                worktree_path = str(payload.get("worktree_path") or "").strip() or None
+                merge_status = str(payload.get("merge_status") or "").strip() or None
+                if merge_status and merge_status not in ("merged", "pending", "conflict", "abandoned"):
+                    raise ValueError("merge_status 非法")
+                if ok:
+                    run_update(
+                        "status=?, finished_at=?, report_md=?, branch_name=?,"
+                        " worktree_path=?, merge_status=?, error_message=NULL",
+                        ("done", now, report_md or None, branch_name, worktree_path,
+                         merge_status or ("merged" if row["task_type"] == "code_change" else None)))
+                    self._task_event(connection, task_id, "finished", "大领导", "执行完成")
+                else:
+                    if not error_message:
+                        raise ValueError("失败收尾须带 error_message")
+                    if merge_status == "abandoned":
+                        self._task_event(connection, task_id, "merge_abandon",
+                                         "小领导", "合并冲突未解决,AI 放弃合并")
+                    run_update(
+                        "status=?, finished_at=?, report_md=?, branch_name=?,"
+                        " worktree_path=?, merge_status=?, error_message=?",
+                        ("failed", now, report_md or None, branch_name, worktree_path,
+                         merge_status, error_message))
+                    self._task_event(connection, task_id, "finished", "大领导",
+                                     f"执行失败:{error_message[:80]}")
+            elif action == "note":
+                # 只追加事件不改状态(终态任务也可记):企微通知失败等旁路日志用
+                detail = str(payload.get("detail") or "").strip()
+                if not detail:
+                    raise ValueError("detail 必填")
+                self._task_event(connection, task_id,
+                                 str(payload.get("event_type") or "note"),
+                                 str(payload.get("actor") or "系统"), detail)
+            else:
+                raise ValueError(f"未知 action {action}")
+        return self.get_task(task_id)
 
     def create_run(self, payload: dict[str, Any]) -> dict[str, Any]:
         run_id = str(payload.get("run_id") or "").strip()
@@ -3050,17 +3638,42 @@ class DashboardHandler(BaseHTTPRequestHandler):
     def log_message(self, format_string: str, *args: Any) -> None:
         return
 
-    def send_json(self, payload: Any, status: int = HTTPStatus.OK) -> None:
+    def send_json(self, payload: Any, status: int = HTTPStatus.OK,
+                  set_cookie: str | None = None) -> None:
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
+        if set_cookie:
+            self.send_header("Set-Cookie", set_cookie)
         self.send_header("Access-Control-Allow-Origin", "*")
         self.end_headers()
         self.wfile.write(body)
 
     def send_error_json(self, message: str, status: int) -> None:
         self.send_json({"error": message}, status)
+
+    def _session_user(self) -> str | None:
+        """cookie 用户名 → 对照 users 表确认在册且启用(逐请求真闸门,规范 5.6)。"""
+        for part in self.headers.get("Cookie", "").split(";"):
+            name, _, value = part.strip().partition("=")
+            if name == AUTH_COOKIE and value:
+                try:
+                    return self.store.auth_check(unquote(value))
+                except Exception:
+                    return None  # 名单读取失败按未登录处理,不放行
+        return None
+
+    def _gate_authorized(self, parsed) -> bool:
+        """浏览器面登录闸:公开 auth 端点与机器白名单之外,一律要求有效会话。"""
+        if parsed.path in AUTH_PUBLIC_PATHS:
+            return True
+        if (self.command, parsed.path) in MACHINE_EXEMPT_EXACT:
+            return True
+        for method, prefix in MACHINE_EXEMPT_PREFIX:
+            if self.command == method and parsed.path.startswith(prefix):
+                return True
+        return self._session_user() is not None
 
     def base_url(self) -> str:
         """按请求 Host 还原绝对地址基座(下载链接/二维码用),无 Host 头时退回本机端口。"""
@@ -3104,8 +3717,57 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(body)
             return
+        # ---- 浏览器面登录闸(规范 5.6):页面/静态资源公开,其余除公开 auth 端点
+        # 与机器白名单外一律 401;前端遇 401 统一转登录视图 ----
+        if not self._gate_authorized(parsed):
+            self.send_error_json("未登录", HTTPStatus.UNAUTHORIZED)
+            return
         if parsed.path == "/api/health":
             self.send_json({"status": "ok"})
+            return
+        # ---- 平台登录(auth)----
+        if parsed.path == "/api/auth/presets":
+            self.send_json({"items": self.store.list_presets()})
+            return
+        if parsed.path == "/api/auth/me":
+            user = self._session_user()
+            if user is None:
+                self.send_error_json("未登录", HTTPStatus.UNAUTHORIZED)
+            else:
+                self.send_json({"username": user})
+            return
+        if parsed.path == "/api/auth/users":
+            self.send_json({"items": self.store.list_users()})
+            return
+        # ---- AI 任务看板(列表/统计/用量/详情;/api/tasks/usage 须先于 /api/tasks/ 前缀)----
+        if parsed.path == "/api/tasks":
+            query = parse_qs(parsed.query)
+            viewer = self._session_user() or ""
+            self.send_json(self.store.list_tasks(
+                bucket=(query.get("bucket") or [""])[0],
+                status=(query.get("status") or [""])[0],
+                q=(query.get("q") or [""])[0].strip(),
+                page=int((query.get("page") or ["1"])[0] or 1),
+                pagesize=int((query.get("pagesize") or ["10"])[0] or 10),
+                viewer=viewer,
+            ))
+            return
+        if parsed.path == "/api/tasks/stats":
+            self.send_json(self.store.task_stats(self._session_user() or ""))
+            return
+        if parsed.path == "/api/tasks/usage":
+            self.send_json({"items": self.store.task_usage()})
+            return
+        if parsed.path == "/api/tasks/queue":
+            # dispatch_worker 领活通道(机器豁免):活跃任务全量+问答历史
+            self.send_json(self.store.dispatch_queue())
+            return
+        if parsed.path.startswith("/api/tasks/"):
+            task_id = parsed.path.removeprefix("/api/tasks/").strip("/")
+            try:
+                self.send_json(self.store.get_task(task_id))
+            except KeyError as error:
+                self.send_error_json(str(error), HTTPStatus.NOT_FOUND)
             return
         if parsed.path == "/api/runs":
             query = parse_qs(parsed.query)
@@ -3420,6 +4082,10 @@ class DashboardHandler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:
         try:
             parsed = urlparse(self.path)
+            # 浏览器面登录闸(同 do_GET;公开 auth 端点与机器白名单豁免)
+            if not self._gate_authorized(parsed):
+                self.send_error_json("未登录", HTTPStatus.UNAUTHORIZED)
+                return
             # 立即执行允许空请求体,须先于 read_json 分流(否则空 body 直接 400)
             if parsed.path.startswith("/api/pipeline-configs/") and parsed.path.endswith("/run"):
                 config_id = parsed.path.removeprefix("/api/pipeline-configs/").removesuffix("/run").strip("/")
@@ -3478,6 +4144,64 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 self.send_json({"ok": True, "apk_id": apk_id, "bytes": received, "stored": str(dest)})
                 return
             payload = self.read_json()
+            # ---- 平台登录(auth;公开端点 presets/me 在 GET,login/logout 公开可匿名)----
+            if parsed.path == "/api/auth/login":
+                username = self.store.auth_check(str(payload.get("username") or "").strip())
+                if username is None:
+                    # 名单本就公开,不存在/停用统一"用户名不存在",不做模糊提示(设计 §2.1)
+                    self.send_error_json("用户名不存在", HTTPStatus.NOT_FOUND)
+                    return
+                cookie = (f"{AUTH_COOKIE}={quote(username)}; Path=/; HttpOnly;"
+                          f" SameSite=Lax; Max-Age={AUTH_COOKIE_MAX_AGE}")
+                self.send_json({"username": username}, set_cookie=cookie)
+                return
+            if parsed.path == "/api/auth/logout":
+                cookie = f"{AUTH_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0"
+                self.send_json({"ok": True}, set_cookie=cookie)
+                return
+            # ---- 设置弹窗账号台账(登录后全员可用,无角色)----
+            if parsed.path == "/api/auth/users":
+                try:
+                    self.send_json(self.store.create_user(payload), HTTPStatus.CREATED)
+                except DuplicateUserError as error:
+                    self.send_error_json(str(error), HTTPStatus.CONFLICT)
+                return
+            if parsed.path.startswith("/api/auth/users/"):
+                username = unquote(parsed.path.removeprefix("/api/auth/users/").strip("/"))
+                try:
+                    self.send_json(self.store.update_user(username, payload))
+                except KeyError as error:
+                    self.send_error_json(str(error), HTTPStatus.NOT_FOUND)
+                return
+            # ---- AI 任务看板 ----
+            if parsed.path == "/api/tasks":
+                payload["submitter"] = self._session_user()  # 提交人=当前登录人,不收前端值
+                self.send_json(self.store.create_task(payload), HTTPStatus.CREATED)
+                return
+            if parsed.path.startswith("/api/tasks/") and parsed.path.endswith("/answer"):
+                task_id = parsed.path.removeprefix("/api/tasks/").removesuffix("/answer").strip("/")
+                user = self._session_user()
+                try:
+                    task = self.store.get_task(task_id)
+                except KeyError as error:
+                    self.send_error_json(str(error), HTTPStatus.NOT_FOUND)
+                    return
+                # 答复框只对提交人渲染是工作流语义;服务端同样按提交人校验(设计 §2.5)
+                if not user or task["submitter"] != user:
+                    self.send_error_json("仅任务提交人可答复", HTTPStatus.FORBIDDEN)
+                    return
+                try:
+                    self.send_json(self.store.answer_task(task_id, payload, user))
+                except TaskStateError as error:
+                    self.send_error_json(str(error), HTTPStatus.CONFLICT)
+                return
+            # ---- dispatch worker 内部通道(机器豁免,见模块头 MACHINE_EXEMPT_*)----
+            if parsed.path == "/api/dispatch/update":
+                try:
+                    self.send_json(self.store.dispatch_update(payload))
+                except TaskStateError as error:
+                    self.send_error_json(str(error), HTTPStatus.CONFLICT)
+                return
             if parsed.path == "/api/runs":
                 self.send_json(self.store.create_run(payload), HTTPStatus.CREATED)
                 return
@@ -3763,8 +4487,11 @@ class DashboardHandler(BaseHTTPRequestHandler):
 
     def do_PUT(self) -> None:
         try:
-            payload = self.read_json()
             parsed = urlparse(self.path)
+            if not self._gate_authorized(parsed):
+                self.send_error_json("未登录", HTTPStatus.UNAUTHORIZED)
+                return
+            payload = self.read_json()
             if parsed.path.startswith("/api/case-defs/"):
                 case_id = parsed.path.removeprefix("/api/case-defs/").strip("/")
                 if not case_id:
@@ -3804,6 +4531,9 @@ class DashboardHandler(BaseHTTPRequestHandler):
 
     def do_DELETE(self) -> None:
         parsed = urlparse(self.path)
+        if not self._gate_authorized(parsed):
+            self.send_error_json("未登录", HTTPStatus.UNAUTHORIZED)
+            return
         # 删除安装包台账行(磁盘文件与执行历史不动)
         if parsed.path.startswith("/api/apks/"):
             apk_id = parsed.path.removeprefix("/api/apks/").strip("/")

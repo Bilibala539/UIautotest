@@ -15,17 +15,35 @@ from pathlib import Path
 
 from dashboard.server import create_server
 
+# 平台登录闸(2026-09-29)后的测试适配:浏览器面 API 未登录 401,这里对 401 自动
+# 用预设账号登录一次(按 base_url 缓存 cookie)重试。机器通道豁免不受影响。
+_SESSION_COOKIES: dict[str, str] = {}
+
 
 def request(base_url: str, path: str, method: str = "GET", payload: dict | None = None):
     body = None if payload is None else json.dumps(payload).encode("utf-8")
-    request_object = urllib.request.Request(
-        f"{base_url}{path}",
-        data=body,
-        method=method,
-        headers={"Content-Type": "application/json"},
-    )
-    with urllib.request.urlopen(request_object, timeout=5) as response:
-        return response.status, response.headers.get_content_type(), response.read()
+
+    def send(cookie: str | None):
+        headers = {"Content-Type": "application/json"}
+        if cookie:
+            headers["Cookie"] = cookie
+        request_object = urllib.request.Request(
+            f"{base_url}{path}", data=body, method=method, headers=headers)
+        with urllib.request.urlopen(request_object, timeout=5) as response:
+            return response.status, response.headers.get_content_type(), response.read()
+
+    try:
+        return send(_SESSION_COOKIES.get(base_url))
+    except urllib.error.HTTPError as error:
+        if error.code != 401 or path.startswith("/api/auth/"):
+            raise
+        login = urllib.request.Request(
+            f"{base_url}/api/auth/login",
+            data=json.dumps({"username": "yumiao"}).encode("utf-8"),
+            method="POST", headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(login, timeout=5) as response:
+            _SESSION_COOKIES[base_url] = response.headers.get("Set-Cookie", "").split(";")[0]
+        return send(_SESSION_COOKIES[base_url])
 
 
 def test_dashboard_run_lifecycle_and_history():

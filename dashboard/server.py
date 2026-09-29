@@ -3691,6 +3691,26 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 self.send_json(result, HTTPStatus.CREATED)
                 return
             if parsed.path == "/api/pipeline/trigger":
+                # 平台策略(2026-09-29):UI 自动化仅用测试服包。formal 包是 Release
+                # 构建,kReleaseMode 锁死正式服,验证码网关(testnetwork)取不到它的
+                # 验证码,${otp} 用例必失败(jenkins-swan-autotest #37/#38/#39 实证)。
+                # 触发入口一律拦截:build-downstream 由 trigger_smoke 按预期跳过
+                # (409 优雅退出),手动/其他来源直接 409 提示。apk 查不到(异常路径)
+                # 不拦截,维持原行为由装包环节兜底报错。
+                trigger_apk_id = str(payload.get("apk_id") or "").strip()
+                if trigger_apk_id:
+                    try:
+                        trigger_server_type = str(
+                            self.store.get_apk(trigger_apk_id).get("server_type") or "")
+                    except KeyError:
+                        trigger_server_type = ""
+                    if trigger_server_type == "formal":
+                        self.send_error_json(
+                            f"UI 自动化仅允许测试服包: {trigger_apk_id} 是 formal 包"
+                            "(Release 构建锁正式服,验证码网关取不到码),任务未创建",
+                            HTTPStatus.CONFLICT,
+                        )
+                        return
                 job = self.store.create_pipeline_job(payload)
                 # M3:建完尝试派 Jenkins;失败留 pending 本地兜底(try_jenkins_dispatch 内消化)
                 self.send_json(try_jenkins_dispatch(self.store, job), HTTPStatus.CREATED)

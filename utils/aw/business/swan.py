@@ -55,8 +55,6 @@ from image.image_name_mapping import (
     SWAN_PLAYER_VOLUME_MINUS,
     SWAN_PLAYER_VOLUME_PLUS,
     SWAN_PLAYER_VOLUME_POPUP,
-    SWAN_PLAYER_VOLUME_SLIDER,
-    SWAN_PLAYER_VOLUME_SLIDER_MID,
     SWAN_PLATFORM_NETEASE_ROW,
     SWAN_SEARCH_EMPTY,
     SWAN_SEARCH_SUBMIT,
@@ -330,10 +328,20 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
 
     # 音量滑条方向（A19 默认横向；弹窗实际布局待真机校准，纵向改 "y"）
     _VOLUME_SLIDER_AXIS = "x"
-    # 音量滑条探测模板（A19）：纯轨道（覆盖空/低填充态）+ 中填充（覆盖
-    # 中高填充态）互补双模板，element 实测数据见 _find_volume_slider 注
-    _VOLUME_SLIDER_TEMPLATES = (SWAN_PLAYER_VOLUME_SLIDER,
-                                SWAN_PLAYER_VOLUME_SLIDER_MID)
+    # 音量滑条真轨道推导（A19，2026-09-28 fix4c/fix532 两态弹窗截图像素级
+    # 实测，720x1600 口径）：弹窗为固定底部弹层，真轨道 x[144..491] 与 ± 钮
+    # 模板矩形间隙恒定（± 钮静态、两态复配 score=1.00 同位）。旧「中填充
+    # 滑条模板」锚定已废弃——其匹配矩形随音量态水平漂移（run4d 实测同一
+    # 轨道 x0=227/248/269/293），比例换算必错（拖 40 实得 70）。
+    _VOLUME_TRACK_INSET_L = 51   # 减钮矩形右缘(93) → 轨道左端(144)
+    _VOLUME_TRACK_INSET_R = 56   # 加钮矩形左缘(547) → 轨道右端(491)
+    _VOLUME_TRACK_HEIGHT = 32    # 轨道纵向全高（y 1450-1482，中线与 ± 钮同行）
+    # 音量百分比 OCR 双通道（run4d run2 实测）：弹窗标题行 "Speaker N"（数字
+    # 可见但无 % 符号，弹窗开启态唯一数据通道）+ 播放页音量行 "N%"（KB
+    # swan_播放页 Wave2 实测 OCR "0%"，弹窗关闭态/volume_key 通道）。
+    # ⚠️ 状态栏电量 "100"（OCR 无 % 尾）两条模式均不命中，无误采。
+    _VOLUME_PCT_RE = re.compile(r"(\d{1,3})\s*%")
+    _VOLUME_SPEAKER_RE = re.compile(r"Speaker\s*(\d{1,3})", re.IGNORECASE)
     # 设备页卡片：设备名行到卡内可点内容行（状态行/媒体行）允许的最大
     # 纵向跨度（720x1600 口径，待真机校准）
     _CARD_BODY_SPAN = 300
@@ -931,39 +939,50 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
             self.assert_playing()
 
     def _find_volume_slider(self, timeout: float = 10.0):
-        """音量滑条双模板定位（纯轨道 → 中填充依次探测），返回
-        (命中模板, rect) 或 None。
+        """定位音量滑条真轨道矩形（± 钮锚定推导），返回 rect 或 None。
 
-        element 实测两图互补：纯轨道图 SWAN_PLAYER_VOLUME_SLIDER 覆盖空/
-        低填充态，对 69% 填充态 score 0.712 失配；中填充图
-        SWAN_PLAYER_VOLUME_SLIDER_MID 覆盖中高填充态，对空/低填充态失配
-        ——单图任取必有一种音量态失配。两图同一滑条几何位置，命中哪个
-        用哪个的 rect（drag/click 的比例换算结果一致）。
+        ± 钮为弹窗静态控件（SWAN_PLAYER_VOLUME_MINUS/PLUS 正式模板），匹配
+        矩形与音量填充态无关：fix4c/fix532 两态截图复配均 (31/547,1440)
+        score=1.00，run4d 真机点击 (62/578,1466) 同证。真轨道 =
+        减钮右缘+_VOLUME_TRACK_INSET_L → 加钮左缘-_VOLUME_TRACK_INSET_R，
+        中线与 ± 钮同行。旧「中填充滑条模板」的匹配矩形随填充态漂移
+        （run4d 实测同一轨道 x0=227~293），作几何锚比例换算必错，弃用。
         """
-        for template in self._VOLUME_SLIDER_TEMPLATES:
-            rect = self.find_image_rect(template, timeout=timeout)
-            if rect is not None:
-                return template, rect
-        return None
+        minus = self.find_image_rect(SWAN_PLAYER_VOLUME_MINUS, timeout=timeout)
+        plus = self.find_image_rect(SWAN_PLAYER_VOLUME_PLUS, timeout=timeout)
+        if minus is None or plus is None:
+            return None
+        x0 = minus[0] + minus[2] + self._VOLUME_TRACK_INSET_L
+        x1 = plus[0] - self._VOLUME_TRACK_INSET_R
+        if x1 <= x0:
+            logger.warning("_find_volume_slider: ± 钮矩形异常 minus=%s plus=%s",
+                           minus, plus)
+            return None
+        cy = minus[1] + minus[3] // 2
+        return (x0, cy - self._VOLUME_TRACK_HEIGHT // 2,
+                x1 - x0, self._VOLUME_TRACK_HEIGHT)
 
     def set_volume(self, value: int, action: str = "drag") -> None:
         """调节音量（A19，回归用例 25-26）。
 
         声学断言已拍板降级为 UI 态（方案 §5③）：
         - action="drag"：点音量图标 [图] 开弹窗 → 断言弹窗 [图] → 音量滑条
-          整条 [图] 元素锚定拖到 value/100 位置 → **弹窗开启态** OCR 音量
-          百分比核对 value（±5）→ press_back 关弹窗 → 断言已回播放页。
-          run4c run2 实测改序：百分比文本只在弹窗内渲染，press_back 关弹窗
-          后播放页无百分比文本，旧实现「关弹窗后读百分比」OCR 必然读空。
-        - action="click"：同 drag，改为点击滑条上 value/100 比例位置。
+          真轨道（± 钮锚定推导，_find_volume_slider）元素锚定拖到
+          value/100 位置 → **弹窗开启态** OCR 音量核对 value（±5）→
+          press_back 关弹窗 → 断言已回播放页。百分比核对在弹窗开启态做：
+          弹窗标题行 "Speaker N"（run4d 实测数字可见但无 % 符号）是弹窗态
+          唯一数据通道；press_back 后播放页走音量行 "N%" 通道（KB Wave2）。
+        - action="click"：同 drag，落点为滑条 value/100 比例位。产品滑条
+          忽略裸点（run4d 实测 tap@64.3% 位置 5 次扫描值不变，仅拖动生效），
+          以 ≤2% 微拖实现点击定位（_click_track，落点即 pointer 终点）。
         - action="plus"/"minus"：value 为加减钮连点次数，收尾断言弹窗关闭
           且回到播放页（步进结果不核对具体百分比；该分支断言本就是页面态，
           保持在关弹窗后做，run4c 复核位置正确）。
 
-        音量滑条方向默认横向（_VOLUME_SLIDER_AXIS），弹窗实际布局待真机
-        校准，纵向改 "y" 即可。滑条定位走 _find_volume_slider（纯轨道/
-        中填充互补双模板依次探测，2026-09-28 element 交付；命中哪个用
-        哪个的 rect）。
+        音量滑条方向默认横向（_VOLUME_SLIDER_AXIS），纵向布局改 "y"（同时
+        需重校 _VOLUME_TRACK_* 常量与 _volume_ratios 上下翻转）。滑条定位
+        走 _find_volume_slider（± 钮静态锚定推真轨道，2026-09-28 run4d
+        run2 实测旧填充态模板锚定漂移废弃）。
         """
         if action not in ("drag", "click", "plus", "minus"):
             raise ValueError("action 仅支持 drag / click / plus / minus")
@@ -975,26 +994,25 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         self.image_exists(SWAN_PLAYER_VOLUME_POPUP, timeout=10)     # 弹窗在位
         if action == "drag":
             start_ratio, end_ratio = self._volume_ratios(value)
-            found = self._find_volume_slider(timeout=10)
-            assert found is not None, "音量滑条拖动失败: 未找到滑条（纯轨道/中填充双模板均未命中）"
-            slider, _rect = found
-            assert self.drag_on_template(
-                slider, start_ratio, end_ratio,
+            rect = self._find_volume_slider(timeout=10)
+            assert rect is not None, "音量滑条拖动失败: 未定位到滑条真轨道（± 钮锚定失败）"
+            assert self._swipe_track(
+                rect, start_ratio, end_ratio,
                 axis=self._VOLUME_SLIDER_AXIS), "音量滑条拖动失败"
         elif action == "click":
-            found = self._find_volume_slider(timeout=10)
-            assert found is not None, "音量滑条点击失败: 未找到滑条（纯轨道/中填充双模板均未命中）"
-            _slider, rect = found
-            px, py = self._volume_point(rect, value)
-            assert self.tap(px, py), "音量滑条点击失败"
+            rect = self._find_volume_slider(timeout=10)
+            assert rect is not None, "音量滑条点击失败: 未定位到滑条真轨道（± 钮锚定失败）"
+            assert self._click_track(
+                rect, value, axis=self._VOLUME_SLIDER_AXIS), "音量滑条点击失败"
         else:
             template = (SWAN_PLAYER_VOLUME_PLUS if action == "plus"
                         else SWAN_PLAYER_VOLUME_MINUS)
             for _ in range(value):
                 self.click_image(template, timeout=5)
         if action in ("drag", "click"):
-            # 百分比断言必须在弹窗开启态完成（run4c run2 实测：press_back
-            # 关弹窗后播放页无百分比文本，_ocr_volume_percent 必然读空）
+            # 百分比断言必须在弹窗开启态完成：弹窗标题行 "Speaker N" 是
+            # 弹窗态唯一数据通道（run4d run2 实测无 % 符号，正则需 Speaker
+            # 模式；run4c run2 实测 press_back 后播放页仅存音量行 "N%" 通道）
             self._assert_volume_percent(value)
         self.press_back()  # 关弹窗回播放页（弹层关闭惯例，见知识库）
         self.image_exists(SWAN_PLAYER_VOLUME_ICON, timeout=10)      # 已回播放页
@@ -1075,11 +1093,21 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         return second[0] > first[0]
 
     def _ocr_volume_percent(self, timeout: float = 5.0) -> int | None:
-        """OCR 页面音量百分比文本（如"35%"），返回整数；读不到返回 None。"""
+        """OCR 读取音量百分比，返回整数；读不到返回 None。
+
+        双数据通道（run4d run2 实测，_VOLUME_PCT_RE/_VOLUME_SPEAKER_RE）：
+        - 弹窗开启态：弹窗标题行 "Speaker N"，数字可见但**无 % 符号**（每
+          用例 5 次弹窗期全量扫描仅出 'Speaker 70/69/80/86/93'，从无 N%）
+          ——set_volume 弹窗态断言唯一通道；
+        - 弹窗关闭态：播放页音量行 "N%"（KB swan_播放页 Wave2 实测 OCR
+          "0%"）——volume_key 前后读的通道。
+        状态栏电量 "100"（无 % 尾、无 Speaker 前缀）两模式均不命中。
+        """
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             for item in self.ocr_scan_page():
-                m = re.search(r"(\d{1,3})\s*%", item["text"])
+                m = self._VOLUME_PCT_RE.search(item["text"]) or \
+                    self._VOLUME_SPEAKER_RE.search(item["text"])
                 if m:
                     return int(m.group(1))
             self.sleep(0.5)
@@ -1089,7 +1117,9 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
                                timeout: float = 8.0) -> None:
         """核对音量 UI 态：OCR 百分比与目标差值 ≤ tolerance。"""
         actual = self._ocr_volume_percent(timeout=timeout)
-        assert actual is not None, "OCR 未读到音量百分比文本，无法核对音量 UI 态"
+        assert actual is not None, (
+            "OCR 未读到音量百分比（弹窗标题 Speaker N / 播放页音量行 N% "
+            "两通道均未命中），无法核对音量 UI 态")
         assert abs(actual - expected) <= tolerance, (
             f"音量 UI 显示 {actual}%，偏离目标 {expected}%（±{tolerance}）")
 
@@ -1102,14 +1132,47 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         return 1.0, 1.0 - ratio
 
     @classmethod
-    def _volume_point(cls, rect: tuple[int, int, int, int],
-                      value: int) -> tuple[int, int]:
-        """音量百分比 → 滑条矩形上的点击点。"""
+    def _track_point(cls, rect: tuple[int, int, int, int], ratio: float,
+                     axis: str = "x") -> tuple[int, int]:
+        """轨道矩形 + 比例 → 屏幕点（矩形中线取点）。"""
         x, y, w, h = rect
-        ratio = value / 100.0
-        if cls._VOLUME_SLIDER_AXIS == "x":
+        if axis == "x":
             return x + int(w * ratio), y + h // 2
-        return x + w // 2, y + int(h * (1.0 - ratio))
+        return x + w // 2, y + int(h * ratio)
+
+    def _swipe_track(self, rect: tuple[int, int, int, int],
+                     start_ratio: float, end_ratio: float,
+                     axis: str = "x", duration: float = 0.5) -> bool:
+        """在 _find_volume_slider 推导的真轨道矩形上按比例元素锚定滑动。
+
+        与 drag_on_template 的差异仅在于矩形来源：后者由滑动模板自身匹配
+        （音量滑条的填充态模板匹配矩形会漂移，run4d run2 实测废弃），此处
+        由静态 ± 钮锚定推导，几何稳定。
+        """
+        start = self._track_point(rect, start_ratio, axis)
+        end = self._track_point(rect, end_ratio, axis)
+        return self.swipe(start[0], start[1], end[0], end[1], duration)
+
+    def _click_track(self, rect: tuple[int, int, int, int], value: int,
+                     axis: str = "x", duration: float = 0.4) -> bool:
+        """「点击」轨道 value/100 比例位（≤2% 微拖实现）。
+
+        产品行为依据（run4d run2 实测）：音量弹窗滑条忽略裸点——tap 在
+        64.3% 位置后 5 次弹窗期 OCR 扫描值恒不变（Speaker 69），仅拖动手势
+        生效。故点击定位以微拖实现：起点取目标位沿值增长反方向回退 2%，
+        终点即目标比例位，落点为 pointer 手势终点，与点击语义等价。
+        轴向与 _volume_ratios 同约定：x 轴值随比例增，纵轴下小上大。
+        """
+        ratio = value / 100.0
+        if axis == "x":
+            start_ratio = max(0.0, ratio - 0.02)     # 目标位左邻 2%
+            end_ratio = ratio
+        else:
+            start_ratio = min(1.0, 1.0 - ratio + 0.02)  # 目标位下方 2%
+            end_ratio = 1.0 - ratio
+        start = self._track_point(rect, start_ratio, axis)
+        end = self._track_point(rect, end_ratio, axis)
+        return self.swipe(start[0], start[1], end[0], end[1], duration)
 
     # =================================================================
     # 域 4：导航（回归用例 29-31，方案 A21-A23）
@@ -1438,6 +1501,11 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
     # 模板优先图定位；本 x 常量仅在模板未命中时与 OCR 行号 cy 组合作
     # 兜底（y 锚定 OCR 行，非盲坐标）。
     _SONG_ROW_PLUS_TAP_X = 652
+    # 行内 [+] 模板主搜索条带（run5 改版主路径，720x1600 口径）：右侧
+    # [+] 列（模板实测命中 x=635..669，中心 652 同 _SONG_ROW_PLUS_TAP_X）；
+    # y 上界 600 排除歌单头/我喜欢头区页面级控件，下界 1360 排除底部播放
+    # 条（run3 实测 y1376-1476）。
+    _SONG_PLUS_STRIP = (560, 600, 160, 760)
 
     def collect_song(self, target_platform: str, playlist: str,
                      source: str = "player") -> None:
@@ -1458,11 +1526,10 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         调用方须已在播放页且有播放任务，域3 start_play 发起）。
         source="playlist_page"：歌单详情页/我喜欢页歌曲行右侧 [+]（调用方
         须已在含歌曲行的页面；两处入口与播放页 [+] 实测同构，点击后均为
-        同一弹层）。行内定位已改模板优先（2026-09-28 element 交付
-        SWAN_SONG_ROW_PLUS_BTN，实测对垃圾桶区 0.268/对播放页 [+] 0.372
-        无互扰）：OCR 行锚取最上方歌曲行 cy 后，在行 cy±40px 条带 region
-        内图定位点击；模板未命中退化 _SONG_ROW_PLUS_TAP_X 行锚兜底
-        （见 _tap_song_row_plus）。
+        同一弹层）。行内定位 run5 改版模板优先：[+] 模板在右侧 [+] 列
+        条带直接图定位（同构行并列得分取最上行，run5 实测行号纯数字为
+        OCR 弱项不可作主路径依赖）；模板未命中退化 OCR 行号锚 +
+        _SONG_ROW_PLUS_TAP_X 兜底（见 _tap_song_row_plus）。
 
         流程与断言：
           1. 点 [+] 后断言「选择平台收藏」弹层锚 [图]。
@@ -1519,23 +1586,32 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
 
     def _tap_song_row_plus(self, timeout: float = 10.0) -> None:
         """歌单详情页/我喜欢页最上方歌曲行的行内 [+] 点击（collect_song
-        source="playlist_page" 入口；行内定位口径见 collect_song 注）。
+        source="playlist_page" 入口）。
 
-        主路径（2026-09-28 element 交付行内 [+] 模板 SWAN_SONG_ROW_PLUS_BTN）：
-        OCR 行锚取最上方歌曲行 cy 后，在目标行 cy±40px 条带 region 内
-        find_image_rect 定位模板、点击 rect 中心。element 实测：模板对同排
-        垃圾桶区 score 0.268 无误触（垃圾桶与 [+] 中心相距 88px）、对播放页
-        [+] score 0.372 无互扰；条带高 80px 恰容纳行内 [+]（实测高 72px，
-        与行号同 cy——行 (0,772)-(720,892)、[+] (616,796)-(688,868)），且
-        行距 120px 下邻行 [+] 距目标行 cy ≥84px 不会串入条带。模板未命中
-        （截取态偏差/列表渲染差异）退化 OCR 行锚兜底：x 取
-        _SONG_ROW_PLUS_TAP_X（见其注）。
+        主路径（run5 改版——模板优先，OCR 行号降为兜底）：行内 [+] 模板
+        SWAN_SONG_ROW_PLUS_BTN 在右侧 [+] 列条带（_SONG_PLUS_STRIP）直接
+        图定位点击 rect 中心。同构行 [+] 匹配得分并列时 cv2 minMaxLoc 按
+        行优先序返回最上命中——「最上方歌曲行」语义保持（源歌单数据约定
+        仅保证顶行曲不在目标歌单内，见 test_歌单收藏与历史 SOURCE_PLAYLIST
+        注）；fix4c/fix532 三张歌单详情截图实测两行 [+] 全部 score=1.000
+        并列、minMaxLoc 恒返顶行 (635,815)。
+        ⚠️ 为什么不以 OCR 行号锚作主路径：run5 实测行号纯数字是 OCR 弱项
+        （cx<120 的 1/2/3 被识别为「田/盲」等汉字），行号锚断言直接失败，
+        模板根本没机会执行；模板几何独立于 OCR，命中即点。
 
-        行 desc='N\\n歌名\\n歌手'，行号列在行左缘（cx<120）：OCR 取纯数字
-        行（compact 归一化吞 l/I/1 同形——行号可能被读成 l/I；容错尾随
-        「.、，」标点）得行 cy。取 cy 最小（最上方）行，与旧实现 click_image
-        首个命中行语义一致。
+        模板未命中（截取态偏差/页面改版）退化旧 OCR 行锚兜底：行 desc=
+        'N\\n歌名\\n歌手'，行号列在行左缘（cx<120）：OCR 取纯数字行
+        （compact 归一化吞 l/I/1 同形——行号可能被读成 l/I；容错尾随
+        「.、，」标点）得行 cy，取 cy 最小（最上方）行；x 取
+        _SONG_ROW_PLUS_TAP_X（见其注，y 锚定 OCR 行非盲坐标）。
         """
+        rect = self.find_image_rect(SWAN_SONG_ROW_PLUS_BTN, timeout=timeout,
+                                    region=self._SONG_PLUS_STRIP)
+        if rect is not None:
+            self.tap(rect[0] + rect[2] // 2, rect[1] + rect[3] // 2)
+            return
+        logger.warning(
+            "_tap_song_row_plus: 行内 [+] 模板全条带未命中，退化 OCR 行号锚兜底")
         deadline = time.monotonic() + timeout
         heads: list[str] = []
         while True:
@@ -1550,19 +1626,11 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
                 break
             if time.monotonic() >= deadline:
                 assert False, (
-                    "歌单行内 [+] 定位失败：OCR 未找到歌曲行行号（纯数字行，"
-                    "cx<120）。页面须已在含 ≥1 首歌曲行的歌单详情页/我喜欢页，"
-                    f"当前屏 OCR 行首文字: {heads}")
+                    "歌单行内 [+] 定位失败：模板未命中且 OCR 未找到歌曲行行号"
+                    "（纯数字行，cx<120）。页面须已在含 ≥1 首歌曲行的歌单详情页"
+                    f"/我喜欢页，当前屏 OCR 行首文字: {heads}")
             self.sleep(1.0)
         row = min(rows, key=lambda i: i["cy"])
-        band = (0, max(0, row["cy"] - 40), 720, 80)  # 目标行 cy±40px 条带（几何依据见 docstring）
-        rect = self.find_image_rect(SWAN_SONG_ROW_PLUS_BTN, timeout=2, region=band)
-        if rect is not None:
-            self.tap(rect[0] + rect[2] // 2, rect[1] + rect[3] // 2)
-            return
-        logger.warning(
-            "_tap_song_row_plus: 行内 [+] 模板未命中（行 cy=%s），退化 "
-            "OCR 行锚 + _SONG_ROW_PLUS_TAP_X 兜底定位", row["cy"])
         self.tap(self._SONG_ROW_PLUS_TAP_X, row["cy"])
 
     def _find_collect_platform_row(self, platform_text: str,
@@ -1628,6 +1696,26 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
             f"「已选N首歌」页未找到歌单宫格块 {playlist!r}（已上滑重扫 "
             f"{scrolls} 轮；⚠️ SWAN 宫格无「我喜欢」块——SWAN 收藏即我喜欢，"
             f"QQ 宫格才有，见知识库 5.3.2 实测），当前屏 OCR 行首文字: {heads}")
+
+    def recent_played_visible(self, kind: str, name: str,
+                              timeout: float = 6.0) -> bool:
+        """最近播放页目标条目可见性探测（非断言，返回 bool）。
+
+        assert_recent_played 的造数前置判据（run5 新增）：进入播放历史页 +
+        切分类 Tab 后 OCR 探测 name 是否已在内容区可见——可见则用例层无需
+        现场播放造数（SWAN_HISTORY_FRESH_PLAY 条件触发口径），不可见才造。
+        与 assert_recent_played 同导航（幂等 _open_recent_played），探完即
+        返回，不做内容区断言、不上滑。
+        """
+        tab = self._HISTORY_TAB_ALIASES.get(kind)
+        if tab is None:
+            raise ValueError(
+                f"kind 仅支持 {sorted(set(self._HISTORY_TAB_ALIASES))}，收到 {kind!r}")
+        self._open_recent_played()
+        if tab != "歌曲":
+            self.click_text(tab, timeout=10, region=self._HISTORY_TAB_ROW_REGION)
+        return self.find_text_by_ocr(
+            name, timeout=int(timeout), region=self._HISTORY_CONTENT_REGION) is not None
 
     def assert_recent_played(self, kind: str, name: str, timeout: float = 10.0) -> None:
         """最近播放断言（A31，回归用例56-68，13条合1）。

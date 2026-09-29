@@ -294,10 +294,10 @@ SWAN_PLAYER_PROGRESS_BAR = image_path("swan_播放页_进度条.png", platform="
 
 # --- 播放页 音量弹窗 ---
 SWAN_PLAYER_VOLUME_ICON = image_path("swan_播放页_音量图标.png", platform="flutter")   # 播放页底部音量入口图标
-SWAN_PLAYER_VOLUME_POPUP = image_path("swan_播放页_音量弹窗.png", platform="flutter")  # 弹窗整体或标题区（存在性判据）
-SWAN_PLAYER_VOLUME_SLIDER = image_path("swan_播放页_音量滑条.png", platform="flutter")  # 弹窗内滑条整条（拖动锚）
-SWAN_PLAYER_VOLUME_PLUS = image_path("swan_播放页_音量加号按钮.png", platform="flutter")
-SWAN_PLAYER_VOLUME_MINUS = image_path("swan_播放页_音量减号按钮.png", platform="flutter")
+SWAN_PLAYER_VOLUME_POPUP = image_path("swan_播放页_音量弹窗.png", platform="flutter")  # 弹窗右上角 X 关闭钮 36x36（存在性判据；非弹窗整体）
+SWAN_PLAYER_VOLUME_SLIDER = image_path("swan_播放页_音量滑条.png", platform="flutter")  # ⚠️ 已废弃为几何锚（2026-09-28 run4d：填充态模板匹配矩形随音量漂移）——业务改 ± 钮锚定，留档不引用
+SWAN_PLAYER_VOLUME_PLUS = image_path("swan_播放页_音量加号按钮.png", platform="flutter")   # 静态控件，滑条真轨道左界锚（见 SwanBusiness._find_volume_slider）
+SWAN_PLAYER_VOLUME_MINUS = image_path("swan_播放页_音量减号按钮.png", platform="flutter")  # 静态控件，滑条真轨道右界锚
 
 # --- 设备页 / 切换设备弹层 选中态 ---
 # ⚠️ SWAN_DEVICE_CARD_SELECTED 已废弃（2026-09-28，业务代码停止引用）：
@@ -387,10 +387,11 @@ SWAN_PLAYER_DISMISS_LIGHT = image_path("swan_播放页_收起按钮_浅底.png",
 SWAN_PLAYER_DISMISS_DARK = image_path("swan_播放页_收起按钮_深底.png", platform="flutter", draft=True)
 
 # --- 音量滑条 中填充态互补模板 ---
-# element 实测两图互补：纯轨道图 SWAN_PLAYER_VOLUME_SLIDER 覆盖空/低
-# 填充态，对 69% 填充态 score 0.712 失配；中填充图覆盖中高填充态，对
-# 空/低填充态失配。set_volume 滑条定位先纯轨道后中填充依次探测，命中
-# 哪个用哪个的 rect（见 SwanBusiness._find_volume_slider）。
+# ⚠️ 已废弃（2026-09-28 run4d run2 实测）：中填充图匹配矩形随音量态水平
+# 漂移（同一轨道 x0=227/248/269/293），作几何锚比例换算必错（拖 40 实得
+# 70）；纯轨道图对 69% 填充态 score 0.712 同样不可靠。set_volume 滑条定位
+# 已改 ± 钮静态锚定推真轨道（见 SwanBusiness._find_volume_slider），两图
+# 留档不引用。
 SWAN_PLAYER_VOLUME_SLIDER_MID = image_path("swan_播放页_音量滑条_中填充.png", platform="flutter", draft=True)
 
 # --- 歌单详情页/我喜欢页 歌曲行内 [+]（collect_song source="playlist_page"）---

@@ -226,18 +226,20 @@ def _collect_group_candidates(jenkins_job: str, pipeline_value: str,
 
     NOTES 触发时 quote 编码(build_swan_apk.py 同规 unquote 解码);列表倒序,
     遇早于下限的构建提前收兵省参数查询。查询失败/无匹配返回 [] → 调用方保持 pending。
-    kind=pipeline:NOTES 精确等于 pipeline:<pipeline_value>;
+    kind=pipeline:NOTES 为 pipeline:<pipeline_value>(立即执行)或 daily:<同值>
+    (定时任务,2026-09-29 起区分来源,认领两前缀等价);
     kind=webhook(2026-09-24):NOTES 为 webhook 前缀(裸 webhook 或 webhook:<pusher>)。
     """
     listing = jenkins_client.list_builds(jenkins_job)
     if not listing.get("ok"):
         return []
     expected = f"pipeline:{pipeline_value}"
+    expected_daily = f"daily:{pipeline_value}"
 
     def _match(notes: str) -> bool:
         if kind == "webhook":
             return notes == "webhook" or notes.startswith("webhook:")
-        return notes == expected
+        return notes == expected or notes == expected_daily
 
     matched: list[tuple[int, float]] = []
     for entry in listing.get("builds") or []:
@@ -258,7 +260,7 @@ def resolve_build_pipeline_jobs(store) -> None:
 
     build/webhook 任务均无 agent 回报,靠列表读取时向 Jenkins 回查闭环
     (webhook 行 2026-09-24 加入,候选匹配 NOTES 走 webhook 前缀,build 行
-    匹配 pipeline:<config_id>):
+    匹配 pipeline:<config_id> 或 daily:<config_id>):
       - 有构建号 → 查构建结果,终态落库;
       - 只有 queue_id(还在排队)→ 先查队列拿构建号回填,结果下次读取再查;
       - 队列项已被 Jenkins 清掉(构建完成/取消后 404,2026-09-23 补)→
@@ -456,21 +458,23 @@ def _reconcile_jenkins_builds(store) -> None:
                     matched = notes == "webhook" or notes.startswith("webhook:")
                 else:
                     expected = str(((job.get("result") or {}).get("build") or {}).get("pipeline") or "")
-                    matched = bool(expected) and notes == f"pipeline:{expected}"
+                    # pipeline:<id>(立即执行)与 daily:<id>(定时任务)都归属 build 任务行
+                    matched = bool(expected) and notes in (f"pipeline:{expected}",
+                                                           f"daily:{expected}")
                 if matched:
                     adopted = job
                     taken.add(job["job_id"])
                     break
-        # 归类:webhook 前缀 → webhook 行;pipeline:<id> → build 行;其余为手动构建
+        # 归类:webhook 前缀 → webhook 行;pipeline:/daily:<id> → build 行;其余为手动构建
         meta: dict[str, Any] = {"branch": str(bp.get("BRANCH") or ""),
                                 "server_type": str(bp.get("SERVER_TYPE") or "")}
         if notes == "webhook" or notes.startswith("webhook:"):
             source = "webhook"
             meta["notes"] = notes
-        elif notes.startswith("pipeline:"):
+        elif notes.startswith("pipeline:") or notes.startswith("daily:"):
             source = "build"
             meta["notes"] = notes
-            meta["pipeline"] = notes.removeprefix("pipeline:")
+            meta["pipeline"] = notes.removeprefix("pipeline:").removeprefix("daily:")
         else:
             source = "build"
             meta["notes"] = notes or "jenkins-manual"
@@ -2644,8 +2648,10 @@ class DashboardStore:
         """
         config = self.get_pipeline_config(config_id)  # 不存在抛 KeyError → 404
         if str(config.get("kind") or "suite") == "build":
-            # 打包型流水线:不建用例执行任务,直接触发打包 job;任务行仅作执行记录
-            job = self._run_build_pipeline(config)
+            # 打包型流水线:不建用例执行任务,直接触发打包 job;任务行仅作执行记录。
+            # body 带 {"source":"schedule"} 的调用来自调度器,NOTES 前缀记 daily:(定时)
+            scheduled = str(payload.get("source") or "") == "schedule"
+            job = self._run_build_pipeline(config, scheduled=scheduled)
             with self.transaction() as connection:
                 connection.execute(
                     "UPDATE pipeline_configs SET last_run_at=? WHERE config_id=?",
@@ -2684,13 +2690,16 @@ class DashboardStore:
             "case_filter_source": filter_source or "default",
         }
 
-    def _run_build_pipeline(self, config: dict[str, Any]) -> dict[str, Any]:
+    def _run_build_pipeline(self, config: dict[str, Any],
+                            scheduled: bool = False) -> dict[str, Any]:
         """打包型流水线(kind=build)执行:触发 swan-audio-build 出包,不跑用例。
 
         任务行 trigger_source='build' 仅作执行记录:轮询认领在 SQL 里排除 build 来源,
         终态由读取路径的 resolve_build_pipeline_jobs 向 Jenkins 惰性回查(排队中无构建号,
         构建号由 resolver 从 queue_id 补拿)。触发即失败(Jenkins 未配置/触发报错)直接落
-        failed,不留 pending。
+        failed,不留 pending。NOTES 前缀区分来源(2026-09-29):定时任务 daily:<配置ID>
+        (包管理页显示"定时自动构建"),页面"立即执行" pipeline:<配置ID>("流水线主动
+        打包");对账认领按两前缀等价匹配。
         """
         build = config.get("build") or {}
         branch = str(build.get("branch") or "dev")
@@ -2710,10 +2719,11 @@ class DashboardStore:
                 job["job_id"], "failed",
                 {**result, "error": "Jenkins 未配置(JENKINS_BASE_URL/JENKINS_USER/JENKINS_API_TOKEN)"})
         build_job = os.environ.get("JENKINS_BUILD_JOB", "").strip() or "swan-audio-build"
-        # NOTES 与 /api/builds 同规:URL 编码后传,build_swan_apk.py 侧 unquote 解码
+        # NOTES 与 /api/builds 同规:URL 编码后传,build_swan_apk.py 侧 unquote 解码;
+        # 前缀标来源(daily:=定时任务 / pipeline:=立即执行),见方法 docstring
         outcome = jenkins_client.trigger(build_job, {
             "BRANCH": branch, "SERVER_TYPE": server_type,
-            "NOTES": quote(f"pipeline:{config_id}")})
+            "NOTES": quote(f"{'daily' if scheduled else 'pipeline'}:{config_id}")})
         if not outcome.get("ok"):
             return self.finish_build_pipeline_job(
                 job["job_id"], "failed",
@@ -3609,8 +3619,9 @@ class DashboardHandler(BaseHTTPRequestHandler):
                                              HTTPStatus.BAD_REQUEST)
                         return
                     params["COMMIT"] = commit
-                if notes:
-                    params["NOTES"] = quote(notes)
+                # 来源前缀:手动打包(包管理页"主动打包")记 manual:*,无备注也记 manual,
+                # 与 pipeline:/daily:/webhook: 前缀并列供前端分类展示(2026-09-29)
+                params["NOTES"] = quote(f"manual:{notes}" if notes else "manual")
                 outcome = jenkins_client.trigger(build_job, params)
                 if not outcome.get("ok"):
                     self.send_error_json(f"Jenkins 触发失败: {outcome.get('error')}",

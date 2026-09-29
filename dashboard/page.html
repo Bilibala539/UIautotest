@@ -1196,10 +1196,15 @@
         window.location.href = url;
       } catch (e) { showToast('下载失败：' + e, true); }
     }
-    // 备注列中文标记(2026-09-24):机器来源前缀→人工可读文案;原始值保留在 title 悬浮里
+    // 备注列中文标记(2026-09-24;2026-09-29 起按来源三分类):机器来源前缀→人工可读文案;
+    // 原始值保留在 title 悬浮里。三分类(用户口径):manual:/pipeline:=流水线主动打包,
+    // daily:=定时自动构建(凌晨定时任务),webhook:=合入自动构建(开发合入触发)
     const DL_SOURCE_CN = [
-      [/^webhook(:|$)/, '自动构建'],
+      [/^webhook(:|$)/, '合入自动构建'],
       [/^pipeline:/, '流水线主动打包'],
+      [/^daily:/, '定时自动构建'],
+      [/^manual($|;|:)/, '流水线主动打包'],
+      // 旧档(2026-09-29 前):daily;xxx=定时登记的遗留格式,pipeline: 旧行当时不分定时/手动
       [/^daily($|;)/, '定时构建'],
       [/^archive-verify($|;)/, '归档校验'],
       [/^jenkins-manual($|;)/, 'Jenkins 手动构建'],

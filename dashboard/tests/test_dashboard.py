@@ -236,6 +236,65 @@ def test_gitlab_webhook_auto_build():
 
 
 
+def test_manual_build_notes_prefix():
+    """手动打包(包管理页"主动打包",POST /api/builds)NOTES 记 manual: 前缀
+    (2026-09-29 来源三分类):带备注 manual:<备注>,无备注固定 manual,
+    与 pipeline:/daily:/webhook: 并列供前端分类展示。"""
+    with tempfile.TemporaryDirectory() as temporary_directory:
+        captured = []
+
+        class MockJenkins(BaseHTTPRequestHandler):
+            def do_POST(self):
+                length = int(self.headers.get("Content-Length", "0") or 0)
+                captured.append(dict(urllib.parse.parse_qsl(self.rfile.read(length).decode("utf-8"))))
+                self.send_response(201)
+                self.send_header("Location", "http://mock-jenkins/queue/item/88/")
+                self.end_headers()
+
+            def log_message(self, *args):
+                pass
+
+        jenkins_server = ThreadingHTTPServer(("127.0.0.1", 0), MockJenkins)
+        threading.Thread(target=jenkins_server.serve_forever, daemon=True).start()
+        env_keys = ("JENKINS_BASE_URL", "JENKINS_USER", "JENKINS_API_TOKEN")
+        env_backup = {key: os.environ.get(key) for key in env_keys}
+        os.environ.update({
+            "JENKINS_BASE_URL": f"http://127.0.0.1:{jenkins_server.server_address[1]}",
+            "JENKINS_USER": "mock",
+            "JENKINS_API_TOKEN": "mock",
+        })
+        server = create_server("127.0.0.1", 0, Path(temporary_directory) / "dashboard.sqlite3")
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        base_url = f"http://127.0.0.1:{server.server_address[1]}"
+
+        try:
+            # 带备注 → manual:<备注>(中文经 quote 编码;备注黑名单字符已在上游拒绝)
+            status, _, body = request(base_url, "/api/builds", "POST", {
+                "branch": "dev", "server_type": "test", "notes": "冒烟"})
+            assert status == 200 and body["ok"] is True
+            assert captured[-1] == {"BRANCH": "dev", "SERVER_TYPE": "test",
+                                    "NOTES": "manual%3A%E5%86%92%E7%83%9F"}
+
+            # 无备注 → 固定 manual(前端仍按前缀归"流水线主动打包")
+            status, _, body = request(base_url, "/api/builds", "POST",
+                                      {"branch": "dev", "server_type": "formal"})
+            assert status == 200 and body["ok"] is True
+            assert captured[-1] == {"BRANCH": "dev", "SERVER_TYPE": "formal",
+                                    "NOTES": "manual"}
+        finally:
+            for key, value in env_backup.items():
+                if value is None:
+                    os.environ.pop(key, None)
+                else:
+                    os.environ[key] = value
+            server.shutdown()
+            server.server_close()
+            jenkins_server.shutdown()
+            jenkins_server.server_close()
+            gc.collect()  # 例外/回溯帧可能循环引用 sqlite 连接;Windows 删库文件需句柄已关
+
+
+
 def test_webhook_build_resolver():
     """webhook 触发的流水线任务行:队列项已被清后按 NOTES webhook 前缀回查闭环(2026-09-24)。"""
     with tempfile.TemporaryDirectory() as temporary_directory:
@@ -659,6 +718,14 @@ def test_build_pipeline_config():
                               and j["status"] != "succeeded")
             assert failed_job["status"] == "failed"
             assert "FAILURE" in failed_job["result"]["error"]
+
+            # 定时通道:调度器带 {"source":"schedule"} → NOTES 记 daily: 前缀(定时自动构建)
+            build_result.update({"result": "SUCCESS"})
+            status, _, body = request(base_url, "/api/pipeline-configs/PIPE-BUILD-TEST/run",
+                                      "POST", {"source": "schedule"})
+            assert status == 201
+            assert captured[-1] == {"BRANCH": "dev", "SERVER_TYPE": "test",
+                                    "NOTES": "daily%3APIPE-BUILD-TEST"}
 
             # 测试流水线行为不变:kind 缺省 suite,run 照旧走执行任务通道
             status, _, body = create({

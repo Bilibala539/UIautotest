@@ -970,8 +970,12 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         双通道：黑胶动检作快路径（命中即通过），未命中再比对进度时间递增
         （_ocr_progress_increasing，播放中进度时间必然递增），任一成立即判
         在播；两者均不成立才判失败（region_changed 保留但不再单独否决）。
+
+        ⏸ 图标断言轮询窗 20s（run5 文件1 speaker-shuffle 死亡帧）：切随机
+        后播放页瞬态 loading（换曲/队列重排），死亡帧屏面近乎无文字——
+        10s 轮询可整段落在瞬态内；20s 覆盖缓冲恢复后按钮必然回来。
         """
-        self.image_exists(SWAN_PLAYER_PAUSE_BTN, timeout=10)
+        self.image_exists(SWAN_PLAYER_PAUSE_BTN, timeout=20)
         if self.region_changed(*self._vinyl_region()):
             return
         increasing = self._ocr_progress_increasing()
@@ -990,9 +994,10 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         进度双时间）时退回旧口径黑胶动检兜底——这是 region_changed 唯一
         仍可单独判定的场合（此时它是唯一可用证据）。
         注意不区分「无播放任务」与「已暂停」（两者都是 ▶ + 时间静止），
-        调用方须保证当前存在播放任务。
+        调用方须保证当前存在播放任务。▶ 图标断言轮询窗 20s（与 assert_
+        playing 对偶，覆盖操作后瞬态 loading，见其注）。
         """
-        self.image_exists(SWAN_PLAYER_PLAY_PAUSE_BTN, timeout=10)
+        self.image_exists(SWAN_PLAYER_PLAY_PAUSE_BTN, timeout=20)
         increasing = self._ocr_progress_increasing()
         if increasing is False:
             return

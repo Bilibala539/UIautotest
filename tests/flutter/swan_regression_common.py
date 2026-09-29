@@ -24,7 +24,6 @@ from image.image_name_mapping import (
     SWAN_HOME_TAB_RECOMMEND,
     SWAN_LOGIN_PRIVACY_POLICY_LINK,
     SWAN_LOGIN_SUBMIT_BTN,
-    SWAN_PLAYER_DISMISS_BTN,
     SWAN_PLAYER_PAUSE_BTN,
     SWAN_PLAYER_VOLUME_POPUP,
     SWAN_TAB_DEVICE,
@@ -186,7 +185,7 @@ class SwanPlayerRegressionMixin:
         self.aw.image_exists(SWAN_DEVICE_ADD_BTN, timeout=15)  # 右上角「添加设备」
 
     def _open_player_page(self) -> None:
-        """首页 → 点底部播放条进全屏播放页 → 断言顶栏渲染 [图]。
+        """首页 → 点底部播放条进全屏播放页 → 断言顶栏渲染到位。
 
         主路径：底部播放条 [图] click_image——模板截于「输出=扬声器/无曲目」
         态，无播放会话时可用。
@@ -196,11 +195,13 @@ class SwanPlayerRegressionMixin:
         HiVi M300MKII+「多远都要在一起」），含动态内容区的模板永久失配。
         此时改在底部条带 region（_BOTTOM_BAR_REGION）内 OCR 定位点击——
         播放条必显示输出设备名或「- -」文字，OCR 定位对动态内容免疫；
-        到位仍以播放页收起钮 [图] 硬断言收口。
+        到位断言走 _wait_player_page_open（收起钮浅底/深底/旧单三模板，
+        run5 脏跑实证单模板对电台播放页浅底失配——Radio Dum-Dum 亮黄
+        背景下 9 条 wifi 用例全灭同因）。
         """
         self._ensure_logged_in_on_home()
         self._click_bottom_player_bar()
-        self.aw.image_exists(SWAN_PLAYER_DISMISS_BTN, timeout=15)
+        self.aw._wait_player_page_open(timeout=15)
 
     def _click_bottom_player_bar(self) -> None:
         """点底部播放条：模板命中走 click_image，失配走条带 OCR 兜底。"""

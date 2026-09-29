@@ -476,7 +476,7 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         # 真实切换经播放页设备切换弹层完成。
         tap_item = self._locate_wifi_device_card(name)
         self.tap(tap_item["cx"], tap_item["cy"])
-        self.image_exists(SWAN_PLAYER_DISMISS_BTN, timeout=10)  # 已进播放页
+        self._wait_player_page_open(timeout=10)  # 已进播放页（点卡=进播放页）
         self._switch_output_in_sheet(name)
         self._wait_compact_text_in_region(
             name, self._PLAYER_HEADER_DEVICE_REGION, 10.0,
@@ -505,7 +505,7 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
             # 弹层可能已随选择自动关闭：退化为核对播放页页头输出设备名
             # （compact 归一化轮询，同 select_device via="card" 收尾口径，
             # 页头 OCR 同样存在空格丢失/易混字符失真）
-            self.image_exists(SWAN_PLAYER_DISMISS_BTN, timeout=10)
+            self._wait_player_page_open(timeout=10)
             self._wait_compact_text_in_region(
                 name, self._PLAYER_HEADER_DEVICE_REGION, 10.0,
                 what="切换输出后的播放页页头设备名")
@@ -710,12 +710,12 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
     def _now_playing_is(self, song: str, open_timeout: float = 15.0) -> bool:
         """点歌行后的播放页曲目软核对（不 assert，供点错行自愈判定）。
 
-        已进全屏播放页（收起钮 [图] 出现）且当前曲目 OCR（两侧 compact
-        归一化，比用例层 assert_now_playing 的精确包含更容忍失真，避免
-        OCR 抖动触发无谓重点）出现歌名 → True；播放页未打开或曲目不符
-        → False（是否收播放页重试由调用方定）。
+        已进全屏播放页（收起钮探测，浅底/深底/旧单模板任一）且当前曲目
+        OCR（两侧 compact 归一化，比用例层 assert_now_playing 的精确包含
+        更容忍失真，避免 OCR 抖动触发无谓重点）出现歌名 → True；播放页
+        未打开或曲目不符 → False（是否收播放页重试由调用方定）。
         """
-        if self.find_image(SWAN_PLAYER_DISMISS_BTN, timeout=open_timeout) is None:
+        if self._find_dismiss_btn(timeout=open_timeout) is None:
             return False
         compact = self._ocr_compact(song).lower()
         deadline = time.monotonic() + 5.0
@@ -772,6 +772,28 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
             self.click_image(template, timeout=5,
                              region=self._PLAYER_TOPBAR_REGION)
 
+    def _wait_player_page_open(self, timeout: float = 15.0) -> None:
+        """断言全屏播放页已打开：顶栏收起钮探测（_find_dismiss_btn：浅底/
+        深底/旧单模板 + 顶栏 region），deadline 内轮询，超时硬断言。
+
+        run5 run1 改版（文件2 脏跑 wifi 9 条死亡帧）：旧 image_exists 单模板
+        对电台播放页浅底失配——rig 持久电台会话（Radio Dum-Dum 亮黄模糊
+        背景）下点播放条进页成功、收起钮白 chevron 落在亮背景上 score<0.8
+        被误判未进页（13:35 FAIL 截图实证页面已开）。播放页到位断言统一
+        收口本方法（start_play / select_device WiFi 分支 / 设备弹层退化
+        分支 / collect_song player 收尾 / swan_regression_common.
+        _open_player_page），检测器与 _dismiss_full_player 共用
+        _find_dismiss_btn，防两份收起逻辑漂移。
+        """
+        deadline = time.monotonic() + timeout
+        while True:
+            if self._find_dismiss_btn(timeout=1) is not None:
+                return
+            if time.monotonic() >= deadline:
+                assert False, (
+                    "播放页顶栏未渲染（收起钮浅底/深底/旧单模板均未命中，"
+                    f"顶栏 region 内已轮询 {timeout:.0f}s）")
+
     def start_play(self, source: str = "favorite", mode: str = "all",
                    index: int = 0) -> None:
         """发起播放（A13，回归用例 13-14 及各域播放前置）。
@@ -800,7 +822,7 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
             self._tap_song_row_by_ocr(source, index)
         else:
             raise ValueError("mode 仅支持 all / song")
-        self.image_exists(SWAN_PLAYER_DISMISS_BTN, timeout=15)  # 已进入播放页
+        self._wait_player_page_open(timeout=15)  # 已进入播放页（收起钮三模板探测）
         self.assert_playing()
 
     def player_control(self, action: str = "play") -> None:
@@ -1550,7 +1572,8 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
              「我喜欢」块。
           5. 点块即完成；若捕获「已添加至我的音乐」toast 记录日志（辅助
              证据，不作断言；run4c 实测文案）。
-        收尾断言回到来源页：播放页收起钮 [图] / 歌单详情页更多按钮 [图]。
+        收尾断言回到来源页：播放页（收起钮三模板探测 _wait_player_page_open）
+        / 歌单详情页更多按钮 [图]。
         ⚠️ 宫格块点击后的终局行为（toast 文案/是否自动返回来源页）未实测
         （探索期零写入红线，知识库遗留1），若真机实测不自动返回需补 back
         收尾。
@@ -1565,7 +1588,7 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         platform_text = self._require_platform_text(target_platform)
         if source == "player":
             self.click_image(SWAN_PLAYER_PLUS_BTN, timeout=10)
-            back_anchor = SWAN_PLAYER_DISMISS_BTN
+            back_anchor = None   # player 收尾走 _wait_player_page_open（三模板）
         else:
             self._tap_song_row_plus()
             back_anchor = SWAN_PD_MORE_BTN
@@ -1582,7 +1605,12 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         if self.wait_toast("已添加至我的音乐", timeout=3):
             logger.info(
                 "collect_song: 「已添加至我的音乐」toast 已捕获（辅助证据，不作断言）")
-        self.image_exists(back_anchor, timeout=10)
+        if back_anchor is None:
+            # 已回播放页：收起钮浅底/深底/单模板任一在位（电台页浅底单模板
+            # 失配教训，run5 脏跑 wifi 9 条同因，见 _wait_player_page_open 注）
+            self._wait_player_page_open(timeout=10)
+        else:
+            self.image_exists(back_anchor, timeout=10)
 
     def _tap_song_row_plus(self, timeout: float = 10.0) -> None:
         """歌单详情页/我喜欢页最上方歌曲行的行内 [+] 点击（collect_song

@@ -5,6 +5,7 @@
 """
 from __future__ import annotations
 
+import glob
 import logging
 import os
 import re
@@ -52,6 +53,10 @@ from image.image_name_mapping import (
     SWAN_PLAYER_PAUSE_BTN,
     SWAN_PLAYER_PLAY_PAUSE_BTN,
     SWAN_PLAYER_PLUS_BTN,
+    SWAN_PLAYER_PLUS_BTN_COLOR,
+    SWAN_PLAYER_PLUS_BTN_DARK,
+    SWAN_PLAYER_PLUS_BTN_GLYPH,
+    SWAN_PLAYER_PLUS_BTN_LIGHT,
     SWAN_PLAYER_PREV_BTN,
     SWAN_PLAYER_PROGRESS_BAR,
     SWAN_PLAYER_VOLUME_ICON,
@@ -67,6 +72,7 @@ from image.image_name_mapping import (
     SWAN_TAB_ME,
     SWAN_TAB_PLATFORM,
 )
+from utils.aw.aw_base import SCREENSHOT_DIR
 from utils.aw.base.flutter_base import FlutterBaseAW
 from utils.aw.business.common import CommonBusinessMixin
 
@@ -521,6 +527,30 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
                 return template
         return None
 
+    # 播放页 [+] 收藏钮探测模板链（2026-09-29 element 补截，run5 文件3
+    # collect[player] 死亡帧根因）：[+] 配色随背景明度自适应（浅底灰
+    # glyph/深底白 glyph），旧单模板 88x63 含 VIP 试听横幅残留且背景依赖
+    # （自家浅底实测 0.793 不达 0.8，跨族最高 0.402）——四模板链式匹配 +
+    # 旧单末位兜底（见 _find_plus_btn 与 image_name_mapping.py 退役注记）。
+    _PLUS_TEMPLATES = (SWAN_PLAYER_PLUS_BTN_GLYPH,
+                       SWAN_PLAYER_PLUS_BTN_LIGHT,
+                       SWAN_PLAYER_PLUS_BTN_DARK,
+                       SWAN_PLAYER_PLUS_BTN_COLOR,
+                       SWAN_PLAYER_PLUS_BTN)
+
+    def _find_plus_btn(self, timeout: float = 2.0) -> str | None:
+        """播放页 [+] 收藏钮探测：glyph（浅族通吃含无任务白底）→浅底→
+        深底→彩底→旧单模板依次匹配，返回首个命中模板（供 click_image
+        精确点击命中位置），全未命中 None。
+
+        参照 _find_dismiss_btn/_find_device_btn 多模板模式（同因：glyph
+        极性随背景明度自适应，单模板背景依赖必失配）。
+        """
+        for template in self._PLUS_TEMPLATES:
+            if self.find_image(template, timeout=timeout) is not None:
+                return template
+        return None
+
     def _switch_output_in_sheet(self, name: str) -> None:
         """播放页设备切换弹层选行（select_device via="player" 专用尾部）。
         调用方须已在全屏播放页。
@@ -891,7 +921,11 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         Booty Music 在我喜欢歌单约第 10 行、首屏仅前 6 行，原实现
         click_text(timeout=10) 找不到必超时失败（test_play_single_song）。
 
-        收尾断言：播放页顶栏已渲染 [图] + 播放态双证据（assert_playing）。
+        收尾断言：播放页在位（收起钮三模板）+ 播放态双证据（assert_
+        playing）；失败**单次有界重试**（重发播放 + 再等 20s 窗口，仍失败
+        断言死亡并引用首次证据帧路径——run5 文件3 collect[player] 死亡帧
+        实证 QQ 源 VIP 试听即停场景；单次重试不掩盖真 bug，见
+        collect_song 产品疑点注）。
         ⚠️ 隐含假设「点播放全部/歌曲行会进入全屏播放页」——无任务态探索
         未能验证，若真机实测不自动进入，需补一张迷你播放条控制区小图改走
         主动进播放页的路径（见交接遗留）。
@@ -907,7 +941,33 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         else:
             raise ValueError("mode 仅支持 all / song")
         self._wait_player_page_open(timeout=15)  # 已进入播放页（收起钮三模板探测）
-        self.assert_playing()
+        try:
+            self.assert_playing()
+        except AssertionError:
+            # 单次有界重试（main 拍板，run5 文件3 collect[player] 死亡帧
+            # 实证：QQ 源 VIP 试听即停——起播 6s 自动暂停，首次 20s 窗口
+            # 整段落在暂停后）：重发一次播放再给完整 20s 窗口。单次重试
+            # 不掩盖真 bug——连源侧失败都扛不住的链路本就不该静默过。
+            shot = self._latest_fail_shot()
+            logger.warning(
+                "start_play: 首次播放态断言失败（证据帧 %s），重发一次播放重试",
+                shot)
+            try:
+                self.player_control("play")   # 内含 ▶ 点击 + 20s 播放态断言
+            except AssertionError as retry_fail:
+                raise AssertionError(
+                    "起播失败：单次重发播放后仍暂停（疑 QQ 源 VIP 试听即停"
+                    f"/源侧起播抖动；首次失败证据帧 {shot}）") from retry_fail
+
+    @staticmethod
+    def _latest_fail_shot(prefix: str = "FAIL_image_exists") -> str:
+        """最近一张失败截图路径（断言错误信息引用证据帧用；无存档给占位）。
+
+        失败截图由 AWBase._screenshot_on_failure 装饰器统一落盘
+        （aw_base.SCREENSHOT_DIR/FAIL_<方法>_<时间戳>.png）。
+        """
+        shots = glob.glob(os.path.join(SCREENSHOT_DIR, prefix + "_*.png"))
+        return max(shots, key=os.path.getmtime) if shots else "（无失败截图存档）"
 
     def player_control(self, action: str = "play") -> None:
         """播放控制（A14，回归用例 16-22）。
@@ -1662,6 +1722,13 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
 
         source="player"：全屏播放页底部 [+] [图]（无 key 无 desc 仅图可达；
         调用方须已在播放页且有播放任务，域3 start_play 发起）。
+        ⚠️ 产品疑点在案（run5 文件3 复验死亡帧
+        output/screenshots/FAIL_image_exists_20260929_182713.png）：QQ 源
+        （QQ音乐）VIP 试听即停——Booty Music 起播 6s（00:06/03:01）自动
+        暂停，播放页已结算非模板问题。已按 main 拍板处理：start_play 单次
+        有界重试 + 本流程不依赖持续播放（[+] 在暂停态同样在位）。
+        ⚠️ 若三轮内多次复现，升级为正式产品 bug 报告（源侧 VIP 试听策略
+        或起播链路缺陷待产品定位）。
         source="playlist_page"：歌单详情页/我喜欢页歌曲行右侧 [+]（调用方
         须已在含歌曲行的页面；两处入口与播放页 [+] 实测同构，点击后均为
         同一弹层）。行内定位 run5 改版模板优先：[+] 模板在右侧 [+] 列
@@ -1710,7 +1777,14 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         assert source in ("player", "playlist_page"), "source 仅支持 player / playlist_page"
         platform_text = self._require_platform_text(target_platform)
         if source == "player":
-            self.click_image(SWAN_PLAYER_PLUS_BTN, timeout=10)
+            # [+] 收藏钮链式探测（run5 文件3 死亡帧：旧单模板背景依赖
+            # 失配，见 _PLUS_TEMPLATES 注）；预算与旧 click_image(timeout=10)
+            # 同为 ~10s（5 模板 × timeout=2）
+            template = self._find_plus_btn(timeout=2)
+            assert template is not None, (
+                "播放页 [+] 收藏钮未找到（glyph/浅/深/彩四模板+旧单模板"
+                "均未命中，须已在全屏播放页）")
+            self.click_image(template, timeout=5)
             back_anchor = None   # player 收尾走 _wait_player_page_open（三模板）
         else:
             self._tap_song_row_plus()

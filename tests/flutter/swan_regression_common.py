@@ -75,7 +75,8 @@ class SwanPlayerRegressionMixin:
         self.phone = self.user.phone
 
     def teardown(self):
-        """G3/G4：关残留弹层 → 尽力暂停（rig 卫生）→ 收播放页 → 退出 push 页 → 回首页。
+        """G3/G4：关残留弹层 → 尽力暂停（rig 卫生）→ 收播放页 → 输出恢复 →
+        退出 push 页 → 回首页。
 
         verify-big52 根因4（explorer_output/verify_run4/run1_play_control.log）：
         播放前置 _preset_playing 经我喜欢页（push 页）发起播放，收播放页后停在
@@ -83,6 +84,9 @@ class SwanPlayerRegressionMixin:
         click_accessibility(KEY_TAB_RECOMMEND) 必炸（run1 实测 6 条 teardown
         ERROR 同因）。照搬 common2 范式：先 back_to_tab_shell [图] 逐级退出
         （已在 tab 壳时零操作），go_home 保留作兜底（tab 壳内它正常工作）。
+        输出恢复（run5 对账新增，main 批准双保险）见 _restore_speaker_output_
+        if_needed：wifi_device 用例切输出后跨用例不回切，残留污染后续
+        speaker 用例（run4c run2 / run5 run1 两轮实测）。
         """
         self._close_sheet_if_any()
         # 音量弹层显式探测关闭（verify-run4b：文件2 后半 wifi 用例「播放条
@@ -90,6 +94,7 @@ class SwanPlayerRegressionMixin:
         self._close_volume_popup_if_any()
         self._pause_if_playing()
         self._dismiss_player_if_any()
+        self._restore_speaker_output_if_needed()
         self.user.back_to_tab_shell()
         self.user.go_home()
 
@@ -252,6 +257,41 @@ class SwanPlayerRegressionMixin:
         self.aw.click_text("我喜欢", timeout=10)                   # 我喜欢卡片 [OCR]
         self.aw.image_exists(SWAN_FAVORITE_PLAY_ALL, timeout=15)  # 已到我喜欢页
         self.user.start_play(source=source, mode=mode)
+
+    def _restore_speaker_output_if_needed(self) -> None:
+        """teardown 输出恢复（run5 对账新增，main 批准双保险）：输出非本机
+        时经设备页切回「扬声器」。
+
+        与 _preset_playing("speaker") 的 _ensure_speaker_output 前置校验
+        互补：前置版在下场 speaker 用例开场兜底（硬断言），本版在每条用例
+        收尾就把输出切回，根除「wifi 用例 → 后续 speaker 用例」的污染级联
+        （run4c run2 / run5 run1 两轮实测同因）。状态判定与前置版同源：
+        贴底播放条（_BOTTOM_BAR_REGION）OCR 读输出设备名——空/「- -」/含
+        「扬声器」视为本机输出；其它（rig 会话残留）恢复。
+
+        与前置版的差异：teardown 版**非断言**——恢复失败（select_device
+        对 rig 电台活跃场景疑似不生效，run5 run1 实测 5 次恢复均无效，
+        定责挂起待干净态复跑）只记 warning 不阻断收尾链，下场用例的前置
+        恢复仍是第二道保险。此处 try/except 仅限清理动作，不掩盖任何
+        用例断言（规则 6 口径）。
+        """
+        items = self.aw.ocr_scan_page(region=self._BOTTOM_BAR_REGION)
+        bar_text = "".join(item["text"] for item in items).strip()
+        compact = bar_text.replace(" ", "")
+        if not compact or "扬声器" in compact or set(compact) <= {"-", "."}:
+            return
+        logger.warning(
+            "teardown 输出恢复：播放条输出设备 %r 非本机扬声器，经设备页切回",
+            bar_text)
+        try:
+            self._open_device_page()
+            self.user.select_device("扬声器", via="card")
+            logger.info("teardown 输出恢复：已切回本机扬声器（select_device "
+                        "本机分支含贴底条「扬声器」断言）")
+        except AssertionError as exc:
+            logger.warning(
+                "teardown 输出恢复失败（不阻断收尾；下场 speaker 前置恢复"
+                "仍会兜底）: %s", exc)
 
     def _ensure_speaker_output(self) -> None:
         """speaker 参数播放前置的输出防污染校验（run4c run2 实测新增）。

@@ -9,9 +9,12 @@
     * { box-sizing:border-box; } body { margin:0; color:var(--ink); background:var(--bg); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif; }
     header { background:var(--ink); color:#fff; padding:22px max(24px,calc((100% - 1240px)/2)) 0; }
     header h1 { margin:0 0 4px; font-size:23px; } header p { margin:0 0 14px; opacity:.78; }
-    nav { display:flex; gap:4px; } nav button { border:none; border-radius:10px 10px 0 0; background:transparent; color:rgba(255,255,255,.72); padding:10px 22px; font-size:14px; cursor:pointer; }
+    nav { display:flex; flex-wrap:wrap; gap:4px; } nav button { border:none; border-radius:10px 10px 0 0; background:transparent; color:rgba(255,255,255,.72); padding:10px 22px; font-size:14px; cursor:pointer; }
     nav button:hover { color:#fff; }
     nav button.active { background:var(--bg); color:var(--ink); font-weight:600; }
+    /* 外部入口(2026-09-30):Swan 项目介绍(功能地图工作站),↗ 表示新窗口外跳 */
+    nav a.nav-ext { border-radius:10px 10px 0 0; color:rgba(255,255,255,.72); padding:10px 22px; font-size:14px; text-decoration:none; margin-left:14px; }
+    nav a.nav-ext:hover { color:#fff; background:rgba(255,255,255,.08); }
     main { max-width:1240px; margin:0 auto; padding:22px 20px 48px; }
     section.page { display:none; } section.page.active { display:block; }
     .toolbar { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:16px; flex-wrap:wrap; }
@@ -348,6 +351,7 @@
       <button data-page="cases">用例历史</button>
       <button data-page="machines">机器监控</button>
       <button data-page="captcha">短信验证码</button>
+      <a class="nav-ext" href="http://192.168.12.167:8090/" target="_blank" rel="noopener" title="Swan 功能地图工作站:项目介绍 / 模块功能点 / 缺陷候选 / 变更记录(新窗口打开)">Swan 项目介绍 ↗</a>
     </nav>
   </header>
   <aside class="rail" id="rail">

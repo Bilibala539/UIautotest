@@ -342,3 +342,64 @@ def test_pull_assigns_biz_no(monkeypatch, _case_api_env):
             server.server_close()
             gc.collect()  # Windows 删库文件需 sqlite 句柄已关
 
+
+
+def test_pull_reanchors_former_id(monkeypatch, _case_api_env):
+    """工作站改号重锚(2026-09-30):报文携带 formerId 时旧行原地改新编号,
+    biz_no/人工确认态平移、套件成员与双向关联引用同步改写,不产生重复行;
+    幂等重拉;目标编号已存在时该条计入 failed,库不受影响。"""
+    monkeypatch.setenv("CASE_API_URL", "http://case-api-stub")
+    rows_old = [{"id": "AUTH-001", "title": "未登录启动显示登录页",
+                 "moduleL1": "登录模块", "status": "stored"}]
+    monkeypatch.setattr("dashboard.case_api_client._request",
+                        lambda path: {"schema": "cases/0.3", "cases": list(rows_old)})
+    with tempfile.TemporaryDirectory() as temporary_directory:
+        server = create_server("127.0.0.1", 0, Path(temporary_directory) / "dashboard.sqlite3")
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        base_url = f"http://127.0.0.1:{server.server_address[1]}"
+        try:
+            # 旧编号首拉:biz_no 按模块分配;挂套件 + 建关联 auto 用例
+            request(base_url, "/api/case-defs/pull-api", "POST", {})
+            request(base_url, "/api/suites", "POST", {"suite_id": "S1", "name": "套件一"})
+            request(base_url, "/api/suites/S1/cases", "POST", {"case_id": "AUTH-001"})
+            request(base_url, "/api/case-defs", "POST", {
+                "case_id": "AUTO-1", "case_type": "auto", "title": "脚本用例",
+                "linked_case_id": "AUTH-001"})
+            # 工作站改号:AUTH-001 -> login-001(报文带 formerId 过渡字段)
+            rows_new = [{"id": "login-001", "formerId": "AUTH-001",
+                         "title": "未登录启动显示登录页", "moduleL1": "登录模块",
+                         "status": "stored"}]
+            monkeypatch.setattr("dashboard.case_api_client._request",
+                                lambda path: {"schema": "cases/0.3", "cases": list(rows_new)})
+            status, _, body = request(base_url, "/api/case-defs/pull-api", "POST", {})
+            result = json.loads(body)
+            assert (result["created"], result["updated"], result["failed"]) == (0, 1, [])
+            status, _, body = request(base_url, "/api/case-defs?limit=100")
+            items = {c["case_id"]: c for c in json.loads(body)["items"]}
+            assert set(items) == {"login-001", "AUTO-1"}  # 无重复行
+            assert items["login-001"]["biz_no"] == "login-001"  # 编号平移不重排
+            assert items["login-001"]["human_confirmed"] == 1
+            assert items["login-001"]["suites"] == ["S1"]  # 套件成员跟着改
+            assert items["AUTO-1"]["linked_case_id"] == "login-001"  # 关联引用跟着改
+            # 幂等重拉:旧行已不在库,按正常更新处理,不重复
+            status, _, body = request(base_url, "/api/case-defs/pull-api", "POST", {})
+            result = json.loads(body)
+            assert (result["created"], result["updated"]) == (0, 1)
+            status, _, body = request(base_url, "/api/case-defs?limit=100")
+            assert len(json.loads(body)["items"]) == 2
+            # 冲突:重锚目标编号已被别的行占用 => 该条 failed,库不受影响
+            rows_conflict = [{"id": "AUTO-1", "formerId": "login-001",
+                              "title": "撞号用例", "moduleL1": "登录模块"}]
+            monkeypatch.setattr("dashboard.case_api_client._request",
+                                lambda path: {"schema": "cases/0.3", "cases": list(rows_conflict)})
+            status, _, body = request(base_url, "/api/case-defs/pull-api", "POST", {})
+            result = json.loads(body)
+            assert len(result["failed"]) == 1 and "重锚冲突" in result["failed"][0]["reason"]
+            status, _, body = request(base_url, "/api/case-defs?limit=100")
+            items = {c["case_id"]: c for c in json.loads(body)["items"]}
+            assert items["login-001"]["title"] == "未登录启动显示登录页"  # 原行未被动
+        finally:
+            server.shutdown()
+            server.server_close()
+            gc.collect()  # Windows 删库文件需 sqlite 句柄已关

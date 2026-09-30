@@ -48,7 +48,9 @@
 
 ## 五、outbox 报告协议
 
-小领导把 JSON 报告写 `~/leader/outbox/<任务号>.json`（一次一条，finish 写完即终）：
+小领导把 JSON 报告写 `~/leader/outbox/<序号>-<任务号>.json`（progress 可多条、
+序号递增防覆盖；finish 写完即终；**phase 字段必填**，缺了平台无法受理；
+协议全文随任务卡 outbox_protocol 字段下发，不依赖本文件版本）：
 
 ```json
 {"task_id": "TASK-20260929-003", "phase": "progress", "detail": "已提交修复,回归 12/12 通过",

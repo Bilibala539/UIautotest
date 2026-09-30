@@ -61,16 +61,21 @@ def test_route_167_via_ssh_when_configured():
     assert ("167", "jks@127.0.0.1") in worker._remote_hosts()  # outbox 回读同构
     assert worker.dispatch_task(_task("167"), None, None) is True
 
-    (args, body), = calls  # 一条 SSH 会话:远端 inbox 文件 + jks 身份的 tmux 按键
+    (args, body), = calls  # 一条 SSH 会话:远端 inbox 文件 + C-m 按键 + capture-pane 回执
     assert args[0] == "ssh" and args[1] == "jks@127.0.0.1"
     assert "tmux send-keys" in args[2] and "$HOME/leader/inbox/" in args[2]
-    assert json.loads(body.decode("utf-8"))["task_id"] == "TASK-20260930-001"
+    assert "C-m" in args[2] and "capture-pane" in args[2] and "esc to interrupt" in args[2]
+    payload = json.loads(body.decode("utf-8"))
+    assert payload["task_id"] == "TASK-20260930-001"
+    # 任务卡自包含 outbox 协议(小领导侧 LEADER.md 是 9-22 老章程,不能依赖)
+    assert all(word in payload["outbox_protocol"] for word in ("progress", "merge", "finish"))
 
 
-def test_route_167_local_when_unset():
+def test_route_167_local_when_unset(monkeypatch):
     worker = _load_worker()
     worker.STUB = False
     worker.SSH_167 = ""
+    monkeypatch.setattr("time.sleep", lambda seconds: None)  # 跳过提交回执等待
     calls: list = []
     worker._run = _fake_run(calls)
     with tempfile.TemporaryDirectory() as temporary_directory:
@@ -80,11 +85,14 @@ def test_route_167_local_when_unset():
         assert not [machine for machine, _ in worker._remote_hosts() if machine == "167"]
         assert worker.dispatch_task(_task("167"), None, None) is True
 
-        (args, _), = calls  # 本地直连:本地 tmux,不碰 ssh
-        assert args[0] == "tmux" and args[1] == "send-keys"
-        assert not any(args[0] == "ssh" for args, _ in calls)
+        # 本地直连三步:C-m 提交 → capture-pane 回执 → 未受理补发 C-m;全程不碰 ssh
+        assert [call[0][0] for call in calls] == ["tmux"] * 3
+        assert calls[0][0][-1] == "C-m" and calls[1][0][1] == "capture-pane"
+        assert calls[2][0] == ["tmux", "send-keys", "-t", worker.TMUX_SESSION, "C-m"]
         inbox_file, = worker.INBOX_DIR.glob("*.json")
-        assert json.loads(inbox_file.read_text(encoding="utf-8"))["task_id"] == "TASK-20260930-001"
+        payload = json.loads(inbox_file.read_text(encoding="utf-8"))
+        assert payload["task_id"] == "TASK-20260930-001"
+        assert "outbox_protocol" in payload
 
 
 def test_route_176_always_ssh():
@@ -98,6 +106,7 @@ def test_route_176_always_ssh():
     assert worker.dispatch_task(_task("176"), None, None) is True
     (args, _), = calls
     assert args[0] == "ssh" and args[1] == worker.MACHINE_SSH["176"]
+    assert "C-m" in args[2]  # 派发回车一律 C-m(claude TUI 不认 Enter)
 
 
 def test_outbox_readback_mirrors_dispatch_channel():
@@ -169,3 +178,28 @@ def test_wecom_fallback_chain(monkeypatch):
 
     worker._run = raise_timeout
     assert worker.wecom_cli_command() is None
+
+
+def test_quarantine_preserves_content():
+    """非法/未知 phase/任务不在队列的报告挪 outbox/bad/,内容不销毁(2026-09-30 丢报告教训)。"""
+    worker = _load_worker()
+    worker.STUB = False
+    calls: list = []
+    worker._run = _fake_run(calls)  # 防误触:本地隔离不应碰 ssh
+    with tempfile.TemporaryDirectory() as temporary_directory:
+        outbox = Path(temporary_directory) / "outbox"
+        outbox.mkdir()
+        cases = {
+            "a-bad-phase.json": '{"task_id": "TASK-X", "detail": "没有 phase 字段的现场报告"}',
+            "b-invalid.json": '{"task_id": 截断的非法 JSON',
+            "c-stale.json": '{"task_id": "TASK-GONE", "phase": "finish", "ok": true}',
+        }
+        for name, text in cases.items():
+            (outbox / name).write_text(text, encoding="utf-8")
+        worker.OUTBOX_DIR = outbox
+        handled = worker.process_outbox({"TASK-X": {"task_id": "TASK-X"}})
+        assert handled == 0
+        assert not list(outbox.glob("*.json"))  # 根层清空,下轮不会反复处理
+        bad = {path.name: path.read_text(encoding="utf-8") for path in (outbox / "bad").glob("*")}
+        assert bad == cases  # 三份原样保留,内容零销毁
+        assert not [args for args, _ in calls if "bad" in " ".join(args)]  # 隔离走本地 mv,不经 ssh

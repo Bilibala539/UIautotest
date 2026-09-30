@@ -5,10 +5,12 @@
   2. 待分析任务 → claude -p 无头分析(读 scripts/dispatch_charter.md)→ POST analyze;
      信息不足 → POST question 转疑问待答,提交人答复后任务自动回队列
   3. 代码修改类 → 本仓库建 worktree,分支 u/<提交人>/t<任务号>-<标题slug>
-  4. 按目标机派发小领导:inbox 文件 + tmux send-keys(.176 常规经 SSH;.167 配置
-     DISPATCH_SSH_167 后同样走 SSH——生产 worker 以 autotest 跑而小领导 tmux/inbox
-     属 jks,本地直连会打错人;未配则本地直连,.229 本机联测用)
-  5. 轮询 outbox(本机 + .176 经 SSH)收报告 → POST progress/merge/finish 回写状态机
+  4. 按目标机派发小领导:inbox 文件(自包含 outbox 协议)+ tmux send-keys 一律 C-m
+     并 capture-pane 验证受理(未受理补发一次;claude TUI 不认 Enter,2026-09-30 教训)。
+     .176 常规经 SSH;.167 配置 DISPATCH_SSH_167 后同样走 SSH——生产 worker 以
+     autotest 跑而小领导 tmux/inbox 属 jks,本地直连会打错人;未配则本地直连,.229 本机联测用
+  5. 轮询 outbox(本机 + 远端经 SSH,与派发同构)收报告 → POST progress/merge/finish
+     回写状态机;非法/未知/过期报告挪 outbox/bad/ 留查,内容绝不销毁
   6. 终态 → notify_wecom() 独立函数发测试部群:先做 wecom-cli 命令存在性检测
      (本机优先,退回经 SSH DISPATCH_SSH_WECOM,默认 .176 已装),失败只记
      task_events(note),绝不阻塞任务状态;
@@ -215,8 +217,26 @@ def _remote_hosts() -> list[tuple[str, str]]:
     return remotes
 
 
-DISPATCH_PROMPT = ("读取执行 {inbox} 中的任务 {task_id},遵守其中的章程边界,"
-                   "进度与结果按协议写 {outbox}")
+SUBMIT_MARK = "esc to interrupt"  # claude TUI 受理标志;Enter 键 TUI 不受理,派发一律 C-m
+
+DISPATCH_PROMPT = ("读取执行 {inbox} 中的任务 {task_id},遵守其中的章程边界;"
+                   "进度与结果按任务卡 outbox_protocol 字段的协议写 {outbox}")
+
+# outbox 报告协议随任务卡自包含下发(小领导侧 LEADER.md 是 9-22 老章程,没有这套协议;
+# 缺 phase 字段的报告平台无法受理)。文件名带序号防 progress 多条互相覆盖。
+OUTBOX_PROTOCOL = (
+    "outbox 报告协议(把 JSON 报告写到 $HOME/leader/outbox/<序号>-<任务号>.json,"
+    "progress 可多条序号递增,finish 写完即终;phase 必填,缺了平台无法受理):\n"
+    '进度: {"task_id": "<任务号>", "phase": "progress", "detail": "一句话进展",'
+    ' "tokens_in": 0, "tokens_out": 0}\n'
+    '合并: {"task_id": "<任务号>", "phase": "merge", "event": "merge_conflict|merge_retry",'
+    ' "detail": "冲突说明"}\n'
+    '完成: {"task_id": "<任务号>", "phase": "finish", "ok": true,'
+    ' "report_md": "## 结论…(Markdown 报告,结论先行附验证证据)",'
+    ' "merge_status": "merged|pending|conflict|abandoned", "branch_name": "…",'
+    ' "worktree_path": "…", "tokens_in": 0, "tokens_out": 0}\n'
+    '失败: finish 同一条,ok=false 必带 "error_message";放弃合并带'
+    ' "merge_status": "abandoned"。token 为该轮增量,平台侧累计。')
 
 
 def dispatch_task(task: dict, branch: str | None, worktree: str | None) -> bool:
@@ -229,7 +249,8 @@ def dispatch_task(task: dict, branch: str | None, worktree: str | None) -> bool:
     payload = {key: task.get(key) for key in
                ("task_id", "title", "description", "task_type", "risk", "analysis_note", "submitter")}
     payload.update({"target_machine": machine, "branch_name": branch, "worktree_path": worktree,
-                    "questions": task.get("questions") or []})
+                    "questions": task.get("questions") or [],
+                    "outbox_protocol": OUTBOX_PROTOCOL})  # 任务卡自包含,不依赖 leader 侧章程版本
     body = json.dumps(payload, ensure_ascii=False)
     inbox_name = f"{datetime.now().strftime('%H%M%S')}-{task_id}.json"
     if STUB:
@@ -249,22 +270,34 @@ def dispatch_task(task: dict, branch: str | None, worktree: str | None) -> bool:
         return True
     outbox_hint = f"$HOME/leader/outbox/{task_id}.json"
     host = _ssh_host_for(machine)
-    if host:  # 远端(176 常规;167 配置 DISPATCH_SSH_167 后同构):文件与按键一条 SSH 会话
+    if host:  # 远端(176 常规;167 配置 DISPATCH_SSH_167 后同构):文件/按键/回执一条 SSH 会话
         inbox_hint = f"$HOME/leader/inbox/{inbox_name}"
         prompt = DISPATCH_PROMPT.format(inbox=inbox_hint, task_id=task_id, outbox=outbox_hint)
-        script = (f"mkdir -p ~/leader/inbox ~/leader/outbox && "
-                  f"cat > {inbox_hint} && "
-                  f"tmux send-keys -t {shlex.quote(TMUX_SESSION)} {shlex.quote(prompt)} Enter")
+        quoted_session = shlex.quote(TMUX_SESSION)
+        script = (
+            f"mkdir -p ~/leader/inbox ~/leader/outbox && "
+            f"cat > {inbox_hint} && "
+            f"tmux send-keys -t {quoted_session} {shlex.quote(prompt)} C-m && sleep 2; "
+            f"if tmux capture-pane -t {quoted_session} -p | grep -qi '{SUBMIT_MARK}'; then "
+            f"echo submitted; else tmux send-keys -t {quoted_session} C-m; echo resent; fi")
         run = _run(["ssh", host, script], body.encode("utf-8"))
     else:  # 本地直连:直接写文件 + 本地 tmux(.229 本机联测用)
         INBOX_DIR.mkdir(parents=True, exist_ok=True)
         inbox_path = INBOX_DIR / inbox_name
         inbox_path.write_text(body, encoding="utf-8")
         prompt = DISPATCH_PROMPT.format(inbox=inbox_path, task_id=task_id, outbox=outbox_hint)
-        run = _run(["tmux", "send-keys", "-t", TMUX_SESSION, prompt, "Enter"])
+        run = _run(["tmux", "send-keys", "-t", TMUX_SESSION, prompt, "C-m"])
+        if run.returncode == 0:
+            time.sleep(2)
+            pane = _run(["tmux", "capture-pane", "-t", TMUX_SESSION, "-p"]).stdout
+            if SUBMIT_MARK not in pane.decode("utf-8", "replace").lower():
+                _run(["tmux", "send-keys", "-t", TMUX_SESSION, "C-m"])
+                log(f"leader 未受理,补发 C-m {task_id}")
     if run.returncode != 0:
         raise RuntimeError(f"派发失败 {machine}: "
                            f"{(run.stderr or run.stdout).decode('utf-8', 'replace')[:200]}")
+    if "resent" in run.stdout.decode("utf-8", "replace").lower():
+        log(f"leader 未受理已补发 C-m {task_id}(若仍未执行需人工看一眼)")
     log(f"dispatched {task_id} → {machine} inbox={inbox_name}")
     return True
 
@@ -373,8 +406,23 @@ def _discard_outbox(source: str, name: str) -> None:
         log(f"清理 outbox 失败 {name}: {error}")
 
 
+def _quarantine_outbox(source: str, name: str) -> None:
+    """报告挪 outbox/bad/ 留查——内容绝不销毁,现场随时可回放(2026-09-30 丢报告教训)。"""
+    try:
+        if source == "local":
+            bad = OUTBOX_DIR / "bad"
+            bad.mkdir(parents=True, exist_ok=True)
+            (OUTBOX_DIR / name).replace(bad / name)
+        else:
+            _run(["ssh", source.split(":", 1)[1],
+                  f"mkdir -p $HOME/leader/outbox/bad && "
+                  f"mv $HOME/leader/outbox/{shlex.quote(name)} $HOME/leader/outbox/bad/"], timeout=20)
+    except OSError as error:
+        log(f"挪 bad/ 失败 {name}: {error}")
+
+
 def _apply_report(report: dict, queue_item: dict) -> bool:
-    """把一条 outbox 报告回写到状态机;返回 True 表示已处理(可删文件)。"""
+    """把一条 outbox 报告回写到状态机;True=已受理,False=隔离留查。"""
     task_id = report["task_id"]
     phase = report.get("phase")
     tokens = {"tokens_in": _int(report.get("tokens_in")), "tokens_out": _int(report.get("tokens_out"))}
@@ -397,37 +445,51 @@ def _apply_report(report: dict, queue_item: dict) -> bool:
             "merge_status": str(report.get("merge_status") or ""), **tokens})
         notify_wecom(result, queue_item)
         return True
-    log(f"未知 phase {phase!r} task={task_id}")
-    return True  # 未知报告同样清走,不无限重试
+    log(f"未知 phase {phase!r} task={task_id},挪 bad/ 留查")
+    return False  # 报告内容不能销毁,由调用方隔离留查
 
 
 def process_outbox(active: dict[str, dict]) -> int:
-    """扫本机与 .176 outbox,回写报告;4xx(含 409 过期报告)丢弃,5xx/网络错误留待重试。"""
+    """扫本机与远端 outbox,回写报告。
+
+    已受理的报告清走;非法 JSON/任务不在队列/未知 phase/被平台拒绝(4xx)的挪
+    outbox/bad/ 留查不销毁;5xx/网络错误原地保留待重试。bad/ 不在扫描范围
+    (只扫根层 *.json),不会反复处理。
+    """
     handled = 0
     for source, name, raw in _iter_outbox():
+        quarantine = False
+        report = None
         try:
             report = json.loads(raw)
         except ValueError:
-            log(f"outbox 非法 JSON {source}:{name},丢弃")
-            _discard_outbox(source, name)
-            continue
-        task_id = str(report.get("task_id") or "")
-        if task_id not in active:
-            log(f"报告任务不在队列 {source}:{name} task={task_id},丢弃")
-            _discard_outbox(source, name)
-            continue
-        try:
-            if _apply_report(report, active[task_id]):
-                _discard_outbox(source, name)
-                handled += 1
-        except urllib.error.HTTPError as error:
-            if 400 <= error.code < 500:
-                log(f"报告被平台拒绝({error.code}) task={task_id},丢弃")
-                _discard_outbox(source, name)
+            log(f"outbox 非法 JSON {source}:{name},挪 bad/ 留查")
+            quarantine = True
+        if report is not None:
+            task_id = str(report.get("task_id") or "")
+            if task_id not in active:
+                log(f"报告任务不在队列 {source}:{name} task={task_id},挪 bad/ 留查")
+                quarantine = True
             else:
-                log(f"平台 {error.code} task={task_id},下轮重试")
-        except Exception as error:  # noqa: BLE001 — 单条报告失败不影响其他
-            log(f"报告处理失败 {source}:{name}: {error},下轮重试")
+                try:
+                    if _apply_report(report, active[task_id]):
+                        handled += 1
+                    else:
+                        quarantine = True
+                except urllib.error.HTTPError as error:
+                    if 400 <= error.code < 500:
+                        log(f"报告被平台拒绝({error.code}) task={task_id},挪 bad/ 留查")
+                        quarantine = True
+                    else:
+                        log(f"平台 {error.code} task={task_id},下轮重试")
+                        continue
+                except Exception as error:  # noqa: BLE001 — 单条报告失败不影响其他
+                    log(f"报告处理失败 {source}:{name}: {error},下轮重试")
+                    continue
+        if quarantine:
+            _quarantine_outbox(source, name)
+        else:
+            _discard_outbox(source, name)
     return handled
 
 

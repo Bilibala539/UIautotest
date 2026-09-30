@@ -238,15 +238,29 @@ class SwanPlayerRegressionMixin:
         会让后续 speaker 用例起始态连红），再走默认输出，不做切换。
 
         device_type="wifi_device"：先在播放页弹层把输出切到 DEVICE_NAME
-        （rig 音箱），并核对播放页顶部输出设备名已切换。
+        （rig 音箱），并核对播放页顶部输出设备名已切换。⚠️ 输出已是目标时
+        短路跳过弹层切换（run5 终账实测：rig 行已选中态重入弹层选行导航
+        分叉，失败帧落设备页非播放页；进批时输出=rig 的场景有文件2 遗留
+        与恢复脚本只暂停不切回两种来源）。
 
         source/mode 透传 start_play（A13）；发起前确保首页停在推荐顶 Tab。
         """
         self._ensure_logged_in_on_home()
         if device_type == "wifi_device":
             self._open_player_page()
-            self.user.select_device(self.DEVICE_NAME, via="player")
-            self._close_sheet_if_any()
+            # run5 终账新签名：输出已=目标时重入弹层选行导航分叉（rig 行
+            # 已选中态的点击行为未定义，失败帧 App 落设备页非播放页；进本
+            # 批时输出已是 rig——文件2 遗留+恢复脚本只暂停不切回）——先探
+            # 测页顶设备名已是目标则短路跳过弹层切换（方案①，实现最简）
+            if self.aw._wait_compact_text_in_region(
+                    self.DEVICE_NAME, self.aw._PLAYER_HEADER_DEVICE_REGION,
+                    3.0, what="wifi 前置短路径探测", must=False):
+                logger.info(
+                    "wifi 前置：页顶输出设备名已是 %r，跳过弹层切换",
+                    self.DEVICE_NAME)
+            else:
+                self.user.select_device(self.DEVICE_NAME, via="player")
+                self._close_sheet_if_any()
             self.aw.text_exists(self.DEVICE_NAME, timeout=10)  # 页顶输出设备名已切
             self._dismiss_player_if_any()
         elif device_type == "speaker":

@@ -728,14 +728,16 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         return False
 
     def _wait_compact_text_in_region(self, text: str, region, timeout: float,
-                                     what: str) -> None:
-        """region 内轮询 OCR 断言文本（两侧 compact 归一化比对）。
+                                     what: str, must: bool = True) -> bool:
+        """region 内轮询 OCR 断言/探测文本（两侧 compact 归一化比对）。
 
         select_device 切换收尾断言专用：页头设备名/播放条设备名的 OCR 与
         普通包含比对之间存在空格丢失（「HiViM300MKII>」）与 l/I/1 同形
         失真，须两侧 compact 后比对（见 _ocr_compact 注）；切换生效有
         延迟，故 deadline 轮询而非单次判定（知识库 swan_设备详情页：
         语义树瞬时失败频发，OCR 同理勿单帧定生死）。
+        must=False 为非断言探测（run5 终账 wifi 前置短路径用）：命中
+        True/超时 False，由调用方取舍。
         """
         compact = self._ocr_compact(text)
         deadline = time.monotonic() + timeout
@@ -746,10 +748,12 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
                 None,
             )
             if hit is not None:
-                return
+                return True
             if time.monotonic() >= deadline:
                 break
             self.sleep(1.0)
+        if not must:
+            return False
         assert False, f"{what} region 内未出现 {text!r}（已轮询 {timeout:.0f}s）"
 
     def _tap_song_row_by_ocr(self, song: str, index: int,

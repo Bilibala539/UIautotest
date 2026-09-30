@@ -1142,6 +1142,7 @@ class DashboardStore:
                     content TEXT NOT NULL DEFAULT '',
                     linked_case_id TEXT NOT NULL DEFAULT '',
                     link_strength TEXT NOT NULL DEFAULT 'strong',
+                    human_confirmed INTEGER NOT NULL DEFAULT 0,
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL
                 );
@@ -1153,6 +1154,12 @@ class DashboardStore:
             if "link_strength" not in existing_cols:
                 connection.execute(
                     "ALTER TABLE case_defs ADD COLUMN link_strength TEXT NOT NULL DEFAULT 'strong'"
+                )
+            # human_confirmed 为后加列(2026-09-29):「经人审工作站两道门确认」标志,
+            # 0=未确认 1=已确认;仅 API 拉取(status=stored)显式写 1,其余来源缺省 0
+            if "human_confirmed" not in existing_cols:
+                connection.execute(
+                    "ALTER TABLE case_defs ADD COLUMN human_confirmed INTEGER NOT NULL DEFAULT 0"
                 )
             # 流水线定时配置(调度器每 30s 轮询,到点 POST {id}/run 建 schedule 任务)
             connection.executescript(
@@ -2916,6 +2923,18 @@ class DashboardStore:
         new_link = str(payload.get("link_strength") or "").strip().lower()
         if new_link not in {"strong", "weak"}:
             new_link = ""
+        # human_confirmed(2026-09-29):「经人审工作站两道门确认」标志,0/1。
+        # 与 link_strength 同构:只在 payload 显式携带时才生效,否则 INSERT 默认 0、
+        # UPDATE 保留原值——防止页面编辑/sync_cases 重跑(不传该字段)冲掉已确认标志;
+        # API 拉取每次显式带值,工作站改判(stored→pending)重拉即如实回写
+        raw_human = payload.get("human_confirmed")
+        new_human: int | None
+        if raw_human is None:
+            new_human = None  # 未携带:INSERT 落 0,UPDATE 保留原值
+        elif str(raw_human).strip().lower() in ("1", "true", "yes"):
+            new_human = 1
+        else:
+            new_human = 0  # 显式携带但非真值 => 0(pending 重拉/显式撤销确认)
         with self.transaction() as connection:
             # 新模块 slug 自动登记进 modules(中文名优先取已知映射,否则先同 slug,
             # 后续可在模块管理里改),保证 sync_cases.py 再同步时筛选项与中文名映射不回退
@@ -2925,29 +2944,32 @@ class DashboardStore:
                     (fields["module"], MODULE_CN_SEED.get(fields["module"], fields["module"])),
                 )
             row = connection.execute(
-                "SELECT case_id, link_strength FROM case_defs WHERE case_id=?", (fields["case_id"],)
+                "SELECT case_id, link_strength, human_confirmed FROM case_defs WHERE case_id=?",
+                (fields["case_id"],),
             ).fetchone()
             if row is None:
                 connection.execute(
                     """INSERT INTO case_defs (
                         case_id, case_type, title, module, priority, source,
                         source_bug, file_path, content, linked_case_id,
-                        link_strength, created_at, updated_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                        link_strength, human_confirmed, created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (fields["case_id"], fields["case_type"], fields["title"],
                      fields["module"], fields["priority"], fields["source"],
                      fields["source_bug"], fields["file_path"], fields["content"],
-                     fields["linked_case_id"], new_link or "strong", now, now),
+                     fields["linked_case_id"], new_link or "strong",
+                     new_human if new_human is not None else 0, now, now),
                 )
             else:
                 connection.execute(
                     """UPDATE case_defs SET case_type=?, title=?, module=?,
                        priority=?, source=?, source_bug=?, file_path=?, content=?,
-                       linked_case_id=?, link_strength=?, updated_at=? WHERE case_id=?""",
+                       linked_case_id=?, link_strength=?, human_confirmed=?, updated_at=? WHERE case_id=?""",
                     (fields["case_type"], fields["title"], fields["module"],
                      fields["priority"], fields["source"], fields["source_bug"],
                      fields["file_path"], fields["content"], fields["linked_case_id"],
                      new_link or row["link_strength"] or "strong",
+                     new_human if new_human is not None else (row["human_confirmed"] or 0),
                      now, fields["case_id"]),
                 )
         return self.get_case_def(fields["case_id"])
@@ -2959,6 +2981,10 @@ class DashboardStore:
         (填英文标识也兼容);映射不到的行报 failed 并提示先在模块管理创建,
         不自动建模块、不静默丢弃。case_id 重复走 upsert 更新;缺 case_id/标题
         为空的行走 failed;单行失败不影响其他行。
+
+        注(2026-09-28):外部用例 API 源启用后,文字用例唯一来源将切换为
+        POST /api/case-defs/pull-api(dashboard/case_api_client.py);本导入途径
+        在过渡期保留,切换后是否退役待定,注释先行。同步脚本 sync_cases.py 同理。
         """
         if not isinstance(rows, list) or not rows:
             raise ValueError("rows 必须是非空数组")
@@ -3073,7 +3099,8 @@ class DashboardStore:
         with self.connect() as connection:
             rows = connection.execute(
                 f"""SELECT case_id, case_type, title, module, priority, source,
-                    source_bug, file_path, linked_case_id, link_strength, updated_at
+                    source_bug, file_path, linked_case_id, link_strength,
+                    human_confirmed, updated_at
                     FROM case_defs{where} ORDER BY case_type, module, case_id
                     LIMIT ?""",
                 (*params, limit),
@@ -4366,6 +4393,26 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 # 批量编辑(2026-09-24,规范 4.2/8.6):仅管理属性 priority/module
                 self.send_json(self.store.batch_update_case_defs(
                     payload.get("case_ids"), payload.get("patch") or {}))
+                return
+            if parsed.path == "/api/case-defs/pull-api":
+                # 从外部用例 API 拉取文字用例(2026-09-28 管理端点,手动触发;页面
+                # 按钮/脚本都走这里)。API 源启用后将成为文字用例唯一来源。
+                # stub 约定:CASE_API_URL 未配置时不报错,返回 skipped=true 明确跳过,
+                # 不写库;配置了但拉取/鉴权失败(CaseApiError)转 502,同样不写库。
+                from dashboard.case_api_client import CaseApiError, is_configured, pull_text_cases_into
+                if not is_configured():
+                    print("[case-api] 未配置 CASE_API_URL,跳过拉取(等待配置 API 接口)", flush=True)
+                    self.send_json({
+                        "ok": True, "skipped": True, "total": 0, "created": 0,
+                        "updated": 0, "failed": [], "source": "case-api",
+                        "message": "等待配置 API 接口:请在部署机 .env.local 配置 "
+                                   "CASE_API_URL / CASE_API_TOKEN 后重试",
+                    })
+                    return
+                try:
+                    self.send_json(pull_text_cases_into(self.store))
+                except CaseApiError as error:
+                    self.send_error_json(str(error), HTTPStatus.BAD_GATEWAY)
                 return
             if parsed.path == "/api/modules":
                 self.send_json(self.store.create_module(payload), HTTPStatus.CREATED)

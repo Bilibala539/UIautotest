@@ -154,9 +154,10 @@
     .cd-search { display:flex; gap:8px; align-items:center; flex:1; min-width:250px; max-width:440px; }
     .cd-search input { flex:1; }
     .cd-table td { vertical-align:top; }
-    .cd-case-id { font-weight:600; cursor:pointer; }
+    .cd-case-title { font-weight:600; cursor:pointer; white-space:normal; max-width:380px; line-height:1.45; }
+    .cd-case-title:hover { color:var(--brand); }
+    .cd-case-id { color:var(--muted); font-size:12px; cursor:pointer; white-space:nowrap; margin-top:3px; }
     .cd-case-id:hover { color:var(--brand); }
-    .cd-case-title { color:var(--muted); font-size:12px; white-space:normal; max-width:380px; margin-top:3px; line-height:1.45; }
     .chip { display:inline-block; border-radius:999px; padding:2px 10px; font-size:12px; background:#f1f3f8; color:var(--ink); margin:1px 4px 1px 0; cursor:pointer; }
     .chip:hover { background:#e6ebff; }
     .chip.bug { color:var(--bad); background:#fff5f5; } .chip.bug:hover { background:#ffe9e9; }
@@ -401,6 +402,7 @@
           </div>
           <select id="cd-module"><option value="">全部模块</option></select>
           <select id="cd-human" title="人工确认状态(仅文字用例有此属性)"><option value="">全部确认态</option><option value="1">已确认</option><option value="0">未确认</option></select>
+          <select id="cd-src" title="用例来源"><option value="">全部来源</option><option value="api">API(人审工作站)</option><option value="repo">仓库 YAML</option></select>
           <div class="cd-search">
             <input id="cd-q" placeholder="搜索编号 / 标题 / 内容…">
             <button class="ghost" id="cd-search">搜索</button>
@@ -1363,7 +1365,7 @@
       const mod = $('cd-b-mod').value;
       let items = cdAllItems;
       if (mod) items = items.filter(c => c.module === mod);
-      if (q) items = items.filter(c => `${c.case_id} ${c.title}`.toLowerCase().includes(q));
+      if (q) items = items.filter(c => `${c.case_id} ${c.biz_no||''} ${c.title}`.toLowerCase().includes(q));
       return items;
     }
     function cdBRenderRows() {  // 勾选列表(紧凑表格):勾选态以 cdBSel 为准,重渲染后保留
@@ -1373,7 +1375,7 @@
       tbody.innerHTML = items.map(c => {
         const pri = cdPriNorm(c.priority);
         return `<tr><td class="cd-b-check"><input type="checkbox" class="cd-b-row-check" data-cid="${safe(c.case_id)}" ${cdBSel.has(c.case_id) ? 'checked' : ''}></td>`
-          + `<td>${safe(c.case_id)}</td>`
+          + `<td>${safe(c.biz_no || c.case_id)}</td>`
           + `<td class="cd-b-title">${safe(c.title)}</td>`
           + `<td><span class="badge t-${c.case_type}">${c.case_type === 'text' ? '文字' : '自动化'}</span></td>`
           + `<td>${pri ? `<span class="chip ${pri.toLowerCase()}">${safe(pri)}</span>` : '<span class="cd-none">-</span>'}</td>`
@@ -1476,11 +1478,14 @@
       const q = $('cd-q').value.trim().toLowerCase();
       const module = sel.value;
       const humanSel = $('cd-human').value; // ''=全部 '1'=已确认 '0'=未确认(仅文字用例有此属性,auto 不参与)
+      const srcSel = $('cd-src').value; // ''=全部 'api'=工作站API 'repo'=仓库YAML同步
       let shown = cdAllItems;
       if (cdTypeFilter) shown = shown.filter(c => c.case_type === cdTypeFilter);
       if (module) shown = shown.filter(c => c.module === module);
       if (humanSel !== '') shown = shown.filter(c => c.case_type === 'text' && (c.human_confirmed ? 1 : 0) === Number(humanSel));
-      if (q) shown = shown.filter(c => `${c.case_id} ${c.title} ${c.module||''} ${c.source_bug||''}`.toLowerCase().includes(q));
+      if (srcSel === 'api') shown = shown.filter(c => c.source === 'case-api');
+      else if (srcSel === 'repo') shown = shown.filter(c => String(c.source || '').startsWith('knowledge/'));
+      if (q) shown = shown.filter(c => `${c.case_id} ${c.biz_no||''} ${c.title} ${c.module||''} ${c.source_bug||''}`.toLowerCase().includes(q));
       // 分页
       const totalPages = Math.max(1, Math.ceil(shown.length / cdPageSize));
       if (cdPage > totalPages) cdPage = totalPages;
@@ -1532,8 +1537,13 @@
           : (Number(c.human_confirmed)
             ? '<span class="chip p2" title="经人审工作站两道门确认">已确认</span>'
             : '<span class="chip p3" title="尚未通过人审工作站确认">未确认</span>');
+        // 展示编号(2026-09-30):优先平台有义编号 biz_no(wifi-001 式),无则回退原始编号;
+        // 来源徽章:API=人审工作站,仓库=sync_cases YAML 同步
+        const dispNo = c.biz_no || c.case_id;
+        const srcChip = c.source === 'case-api' ? '<span class="chip p2" title="来自人审工作站 API" style="margin-left:6px">API</span>'
+          : String(c.source || '').startsWith('knowledge/') ? '<span class="chip p3" title="来自仓库用例 YAML 同步" style="margin-left:6px">仓库</span>' : '';
         const cells = {
-          id: `<span class="cd-case-id" onclick="showCaseDefDrawer(decodeURIComponent('${encodeURIComponent(c.case_id)}'))">${hl(c.case_id, q)}</span><div class="cd-case-title">${hl(c.title, q)}</div>`,
+          id: `<span class="cd-case-title" onclick="showCaseDefDrawer(decodeURIComponent('${encodeURIComponent(c.case_id)}'))">${hl(c.title, q)}</span><div class="cd-case-id">${hl(dispNo, q)}${srcChip}</div>`,
           type: typeBadge,
           module: `${hl(c.module_cn || c.module || '-', q)}${lvl ? ' ' + lvl : ''}`,
           human: humanChip,
@@ -1617,10 +1627,11 @@
     async function showCaseDefDrawer(caseId) {
       const c = await (await fetch('/api/case-defs/' + encodeURIComponent(caseId))).json();
       if (c.error) { showToast(c.error, true); return; }
-      $('cdd-id').textContent = c.case_id;
+      $('cdd-id').textContent = c.biz_no || c.case_id;
       $('cdd-title').textContent = c.title || caseId;
       const chips = [`<span class="badge t-${c.case_type}">${c.case_type === 'text' ? '文字用例' : '自动化用例'}</span>`];
       if (c.module_cn || c.module) chips.push(`<span class="chip lvl">${safe(c.module_cn || c.module)}</span>`);
+      if (c.biz_no) chips.push(`<span class="chip lvl" title="人审工作站原始编号">工作站 ${safe(c.case_id)}</span>`);
       const pri = cdPriNorm(c.priority);
       if (pri) chips.push(`<span class="chip ${pri.toLowerCase()}">${safe(pri)}</span>`);
       if (c.case_type === 'text') {
@@ -1821,12 +1832,13 @@
     $('cd-q').oninput = () => { cdPage = 1; renderCaseDefs(); };
     $('cd-q').onkeydown = e => { if (e.key==='Enter') { cdPage = 1; renderCaseDefs(); } };
     $('cd-reset').onclick = () => {
-      $('cd-q').value=''; $('cd-module').value=''; $('cd-human').value=''; cdTypeFilter=''; cdPage = 1;
+      $('cd-q').value=''; $('cd-module').value=''; $('cd-human').value=''; $('cd-src').value=''; cdTypeFilter=''; cdPage = 1;
       document.querySelectorAll('#cd-pills .cd-pill').forEach(x => x.classList.toggle('active', !x.dataset.type));
       renderCaseDefs();
     };
     $('cd-module').onchange = () => { cdPage = 1; renderCaseDefs(); };
     $('cd-human').onchange = () => { cdPage = 1; renderCaseDefs(); };
+    $('cd-src').onchange = () => { cdPage = 1; renderCaseDefs(); };
     $('cd-prev').onclick = () => { cdPage--; renderCaseDefs(); };
     $('cd-next').onclick = () => { cdPage++; renderCaseDefs(); };
     $('cd-pagesize').onchange = e => { cdPageSize = Number(e.target.value) || 35; cdPage = 1; renderCaseDefs(); };

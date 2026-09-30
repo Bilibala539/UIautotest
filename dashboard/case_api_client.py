@@ -142,6 +142,43 @@ _FIELD_CANDIDATES = {
     # 人审工作站报文无上述 module 键,由 _normalize_case 回退取 moduleL1/moduleL2
     "priority": ("priority", "level", "pri"),
 }
+# ---- 有义展示编号(2026-09-30):wifi-001 / login-001 式 ----
+# 模块名(中文原样,来自 module/moduleL1) -> 编号前缀 slug。映射不到返回 "",
+# 该条不分配编号,展示回退工作站原始编号;新模块出现时在此补一行即可。
+_MODULE_SLUG_MAP = {
+    "登录": "login",
+    "wi-fi": "wifi", "wifi": "wifi",
+    "网络": "network",
+    "播放器": "player",
+    "基建": "infra",
+    "平台集成": "platform",
+    "其它": "misc", "其他": "misc",
+}
+_BIZ_NO_PATTERN = re.compile(r"^([a-z][a-z0-9]*)-(\d+)$")
+
+
+def module_slug(module: Any) -> str:
+    """模块名 -> 有义编号前缀(login/wifi/...);映射不到返回空串。
+
+    宽容匹配:大小写归一,剥掉「设备模块/模块/层」等后缀再查表
+    (登录模块→login、Wi-Fi 设备模块→wifi、网络层→network)。
+    """
+    text = _as_text(module)
+    if not text:
+        return ""
+    key = re.sub(r"(设备模块|模块|层)$", "", text.strip()).strip().lower()
+    return _MODULE_SLUG_MAP.get(key, "")
+
+
+def next_biz_no(slug: str, counters: dict[str, int]) -> str:
+    """分配模块内下一个编号(调用方保证 slug 非空);counters 就地 +1。
+
+    counters 由管线从库中已分配编号取各前缀 max 初始化,重拉/补号幂等。
+    """
+    counters[slug] = counters.get(slug, 0) + 1
+    return f"{slug}-{counters[slug]:03d}"
+
+
 _STEPS_KEYS = ("steps", "step", "procedure", "test_steps")
 _PRE_KEYS = ("precondition", "preconditions", "pre_condition", "preReq")
 _EXPECT_KEYS = ("expected", "expected_result", "expectation", "expect")
@@ -334,21 +371,33 @@ def pull_text_cases_into(store: Any) -> dict[str, Any]:
     """
     raw_items = fetch_text_cases()
     with store.connect() as connection:
-        existing = {
-            row["case_id"]
-            for row in connection.execute("SELECT case_id FROM case_defs").fetchall()
+        existing_biz = {
+            row["case_id"]: (row["biz_no"] or "")
+            for row in connection.execute("SELECT case_id, biz_no FROM case_defs").fetchall()
         }
+    # 有义编号(2026-09-30):新行/老行空编号时按模块分配 wifi-001 式,已分配的
+    # 终身不变(重拉不重排);计数器从库中现有编号取 max+1,补号不撞号
+    biz_counters: dict[str, int] = {}
+    for biz in existing_biz.values():
+        matched = _BIZ_NO_PATTERN.match(biz)
+        if matched:
+            biz_counters[matched.group(1)] = max(
+                biz_counters.get(matched.group(1), 0), int(matched.group(2)))
     created = updated = 0
     failed: list[dict[str, Any]] = []
     for index, raw in enumerate(raw_items):
         try:
             case = _normalize_case(raw)
+            if not existing_biz.get(case["case_id"], ""):
+                slug = module_slug(case["module"])
+                if slug:
+                    case["biz_no"] = next_biz_no(slug, biz_counters)
             store.upsert_case_def(case)
-            if case["case_id"] in existing:
+            if case["case_id"] in existing_biz:
                 updated += 1
             else:
                 created += 1
-                existing.add(case["case_id"])
+                existing_biz[case["case_id"]] = case.get("biz_no", "")
         except (ValueError, CaseApiError) as error:
             bad_id = raw.get("case_id", raw.get("id", "")) if isinstance(raw, dict) else ""
             failed.append({"row": index + 1, "case_id": str(bad_id), "reason": str(error)})

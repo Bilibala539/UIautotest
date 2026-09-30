@@ -16,6 +16,7 @@ from dashboard.case_api_client import (
     _normalize_case,
     fetch_text_cases,
     is_configured,
+    module_slug,
 )
 from dashboard.server import create_server
 from dashboard.tests.test_dashboard import request
@@ -268,3 +269,76 @@ def test_upsert_human_confirmed_retention(_case_api_env):
             server.shutdown()
             server.server_close()
             gc.collect()  # Windows 删库文件需 sqlite 句柄已关
+
+
+def test_module_slug_mapping():
+    """模块名 -> 有义编号前缀:后缀剥离 + 大小写归一;映射不到返回空串。"""
+    assert module_slug("登录模块") == "login"
+    assert module_slug("Wi-Fi 设备模块") == "wifi"
+    assert module_slug("wifi 设备模块") == "wifi"
+    assert module_slug("网络层") == "network"
+    assert module_slug("播放器模块") == "player"
+    assert module_slug("基建") == "infra"
+    assert module_slug("平台集成") == "platform"
+    assert module_slug("其它") == "misc"
+    assert module_slug("神秘模块") == ""  # 未映射:不分配编号,展示回退原始编号
+    assert module_slug("") == ""
+
+
+def test_pull_assigns_biz_no(monkeypatch, _case_api_env):
+    """有义编号(2026-09-30):拉取管线按模块分配 wifi-001 式编号;存量空编号行
+    (biz_no 上线前的库)重拉自动补号;编号终身不变、模块内接着 max+1;
+    未映射模块不分配;页面编辑(payload 不带 biz_no)不冲掉已分配编号。"""
+    monkeypatch.setenv("CASE_API_URL", "http://case-api-stub")
+    rows = [
+        {"id": "TS-001", "title": "WiFi 扫描列表正常", "moduleL1": "Wi-Fi 设备模块", "status": "stored"},
+        {"id": "TS-002", "title": "WiFi 连接后图标显示", "moduleL1": "Wi-Fi 设备模块"},
+        {"id": "AUTH-001", "title": "未登录启动显示登录页", "moduleL1": "登录模块", "status": "stored"},
+        {"id": "TS-003", "title": "神秘模块用例", "moduleL1": "神秘模块"},
+    ]
+    monkeypatch.setattr("dashboard.case_api_client._request",
+                        lambda path: {"schema": "cases/0.3", "cases": list(rows)})
+    with tempfile.TemporaryDirectory() as temporary_directory:
+        server = create_server("127.0.0.1", 0, Path(temporary_directory) / "dashboard.sqlite3")
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        base_url = f"http://127.0.0.1:{server.server_address[1]}"
+        try:
+            # 存量空编号行(biz_no 上线前的库):TS-001 已在库、编号为空
+            status, _, body = request(base_url, "/api/case-defs", "POST", {
+                "case_id": "TS-001", "case_type": "text", "title": "存量空编号行",
+                "module": "Wi-Fi 设备模块"})
+            assert status == 201
+            # 首拉:TS-001 走补号 wifi-001;其余新行分配 wifi-002/login-001;
+            # 未映射模块不分配(留空,展示回退原始编号)
+            status, _, body = request(base_url, "/api/case-defs/pull-api", "POST", {})
+            assert (json.loads(body)["created"], json.loads(body)["updated"]) == (3, 1)
+            status, _, body = request(base_url, "/api/case-defs")
+            items = {c["case_id"]: c for c in json.loads(body)["items"]}
+            assert items["TS-001"]["biz_no"] == "wifi-001"
+            assert items["TS-002"]["biz_no"] == "wifi-002"
+            assert items["AUTH-001"]["biz_no"] == "login-001"
+            assert items["TS-003"]["biz_no"] == ""
+            # 幂等重拉:编号终身不变,不重排
+            request(base_url, "/api/case-defs/pull-api", "POST", {})
+            status, _, body = request(base_url, "/api/case-defs")
+            items2 = {c["case_id"]: c for c in json.loads(body)["items"]}
+            assert [items2[k]["biz_no"] for k in ("TS-001", "TS-002", "AUTH-001")] ==                    [items[k]["biz_no"] for k in ("TS-001", "TS-002", "AUTH-001")]
+            # 补拉新用例:模块内接着 max+1
+            rows.append({"id": "AUTH-002", "title": "密码登录成功",
+                         "moduleL1": "登录模块", "status": "stored"})
+            status, _, body = request(base_url, "/api/case-defs/pull-api", "POST", {})
+            result = json.loads(body)
+            assert (result["created"], result["updated"]) == (1, 4)
+            status, _, body = request(base_url, "/api/case-defs")
+            items3 = {c["case_id"]: c for c in json.loads(body)["items"]}
+            assert items3["AUTH-002"]["biz_no"] == "login-002"
+            # 页面编辑(payload 不带 biz_no)=> UPDATE 保留原值
+            status, _, body = request(base_url, "/api/case-defs/AUTH-001", "PUT", {
+                "case_id": "AUTH-001", "case_type": "text", "title": "页面改标题"})
+            assert json.loads(body)["biz_no"] == "login-001"
+        finally:
+            server.shutdown()
+            server.server_close()
+            gc.collect()  # Windows 删库文件需 sqlite 句柄已关
+

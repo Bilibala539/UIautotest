@@ -1143,6 +1143,7 @@ class DashboardStore:
                     linked_case_id TEXT NOT NULL DEFAULT '',
                     link_strength TEXT NOT NULL DEFAULT 'strong',
                     human_confirmed INTEGER NOT NULL DEFAULT 0,
+                    biz_no TEXT NOT NULL DEFAULT '',
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL
                 );
@@ -1160,6 +1161,12 @@ class DashboardStore:
             if "human_confirmed" not in existing_cols:
                 connection.execute(
                     "ALTER TABLE case_defs ADD COLUMN human_confirmed INTEGER NOT NULL DEFAULT 0"
+                )
+            # biz_no 为后加列(2026-09-30):平台有义展示编号(wifi-001 式),仅 API
+            # 拉取管线按模块分配;存量行留空,下次重拉自动补号,展示回退原始编号
+            if "biz_no" not in existing_cols:
+                connection.execute(
+                    "ALTER TABLE case_defs ADD COLUMN biz_no TEXT NOT NULL DEFAULT ''"
                 )
             # 流水线定时配置(调度器每 30s 轮询,到点 POST {id}/run 建 schedule 任务)
             connection.executescript(
@@ -2935,6 +2942,10 @@ class DashboardStore:
             new_human = 1
         else:
             new_human = 0  # 显式携带但非真值 => 0(pending 重拉/显式撤销确认)
+        # biz_no(2026-09-30):平台有义展示编号(wifi-001 式),仅 API 拉取管线分配。
+        # 与 human_confirmed 同构:payload 不携带时 INSERT 落 ''、UPDATE 保留原值——
+        # 页面编辑/sync_cases 重跑不会冲掉;编号一经分配终身不变,工作站改号不影响
+        new_biz = str(payload.get("biz_no") or "").strip() or None
         with self.transaction() as connection:
             # 新模块 slug 自动登记进 modules(中文名优先取已知映射,否则先同 slug,
             # 后续可在模块管理里改),保证 sync_cases.py 再同步时筛选项与中文名映射不回退
@@ -2944,7 +2955,7 @@ class DashboardStore:
                     (fields["module"], MODULE_CN_SEED.get(fields["module"], fields["module"])),
                 )
             row = connection.execute(
-                "SELECT case_id, link_strength, human_confirmed FROM case_defs WHERE case_id=?",
+                "SELECT case_id, link_strength, human_confirmed, biz_no FROM case_defs WHERE case_id=?",
                 (fields["case_id"],),
             ).fetchone()
             if row is None:
@@ -2952,24 +2963,27 @@ class DashboardStore:
                     """INSERT INTO case_defs (
                         case_id, case_type, title, module, priority, source,
                         source_bug, file_path, content, linked_case_id,
-                        link_strength, human_confirmed, created_at, updated_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                        link_strength, human_confirmed, biz_no, created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (fields["case_id"], fields["case_type"], fields["title"],
                      fields["module"], fields["priority"], fields["source"],
                      fields["source_bug"], fields["file_path"], fields["content"],
                      fields["linked_case_id"], new_link or "strong",
-                     new_human if new_human is not None else 0, now, now),
+                     new_human if new_human is not None else 0,
+                     new_biz or "", now, now),
                 )
             else:
                 connection.execute(
                     """UPDATE case_defs SET case_type=?, title=?, module=?,
                        priority=?, source=?, source_bug=?, file_path=?, content=?,
-                       linked_case_id=?, link_strength=?, human_confirmed=?, updated_at=? WHERE case_id=?""",
+                       linked_case_id=?, link_strength=?, human_confirmed=?, biz_no=?,
+                       updated_at=? WHERE case_id=?""",
                     (fields["case_type"], fields["title"], fields["module"],
                      fields["priority"], fields["source"], fields["source_bug"],
                      fields["file_path"], fields["content"], fields["linked_case_id"],
                      new_link or row["link_strength"] or "strong",
                      new_human if new_human is not None else (row["human_confirmed"] or 0),
+                     new_biz or row["biz_no"] or "",
                      now, fields["case_id"]),
                 )
         return self.get_case_def(fields["case_id"])
@@ -3091,16 +3105,17 @@ class DashboardStore:
         if keyword:
             pattern = f"%{keyword}%"
             clauses.append(
-                "(case_id LIKE ? OR title LIKE ? OR module LIKE ? OR content LIKE ?)"
+                "(case_id LIKE ? OR biz_no LIKE ? OR title LIKE ? OR module LIKE ?"
+                 " OR content LIKE ?)"
             )
-            params.extend([pattern, pattern, pattern, pattern])
+            params.extend([pattern, pattern, pattern, pattern, pattern])
         where = f" WHERE {' AND '.join(clauses)}" if clauses else ""
         limit = min(max(int(limit), 1), 1000)
         with self.connect() as connection:
             rows = connection.execute(
                 f"""SELECT case_id, case_type, title, module, priority, source,
                     source_bug, file_path, linked_case_id, link_strength,
-                    human_confirmed, updated_at
+                    human_confirmed, biz_no, updated_at
                     FROM case_defs{where} ORDER BY case_type, module, case_id
                     LIMIT ?""",
                 (*params, limit),

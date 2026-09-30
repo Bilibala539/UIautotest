@@ -227,7 +227,8 @@ DISPATCH_PROMPT = ("读取执行 {inbox} 中的任务 {task_id},遵守其中的�
 # 缺 phase 字段的报告平台无法受理)。文件名带序号防 progress 多条互相覆盖。
 OUTBOX_PROTOCOL = (
     "outbox 报告协议(把 JSON 报告写到 $HOME/leader/outbox/<序号>-<任务号>.json,"
-    "progress 可多条序号递增,finish 写完即终;phase 必填,缺了平台无法受理):\n"
+    "每个文件必须是单个 JSON 对象,严禁写成数组或一次塞多条记录;"
+    "progress 可写多个文件序号递增,finish 写完即终;phase 必填,缺了平台无法受理):\n"
     '进度: {"task_id": "<任务号>", "phase": "progress", "detail": "一句话进展",'
     ' "tokens_in": 0, "tokens_out": 0}\n'
     '合并: {"task_id": "<任务号>", "phase": "merge", "event": "merge_conflict|merge_retry",'
@@ -462,40 +463,44 @@ def _apply_report(report: dict, queue_item: dict) -> bool:
 def process_outbox(active: dict[str, dict]) -> int:
     """扫本机与远端 outbox,回写报告。
 
-    已受理的报告清走;非法 JSON/任务不在队列/未知 phase/被平台拒绝(4xx)的挪
-    outbox/bad/ 留查不销毁;5xx/网络错误原地保留待重试。bad/ 不在扫描范围
-    (只扫根层 *.json),不会反复处理。
+    已受理的报告清走;非法 JSON/任务不在队列/未知 phase/结构错乱/被平台拒绝
+    (4xx)的挪 outbox/bad/ 留查不销毁;5xx/网络错误原地保留待重试。bad/ 不在
+    扫描范围(只扫根层 *.json),不会反复处理。
+    leader 可能并写一个文件含多条 phase 记录(JSON 数组,E2E-2 实测):逐条
+    展开按序受理;数组里任何一条非法则整份挪 bad/。
     """
     handled = 0
     for source, name, raw in _iter_outbox():
-        quarantine = False
-        report = None
         try:
             report = json.loads(raw)
         except ValueError:
             log(f"outbox 非法 JSON {source}:{name},挪 bad/ 留查")
-            quarantine = True
-        if report is not None:
-            task_id = str(report.get("task_id") or "")
-            if task_id not in active:
-                log(f"报告任务不在队列 {source}:{name} task={task_id},挪 bad/ 留查")
+            _quarantine_outbox(source, name)
+            continue
+        records = report if isinstance(report, list) else [report]
+        quarantine = False
+        try:
+            for record in records:
+                task_id = str(record.get("task_id") or "")
+                if task_id not in active:
+                    raise ValueError(f"报告任务不在队列 task={task_id}")
+                if not _apply_report(record, active[task_id]):
+                    quarantine = True
+                else:
+                    handled += 1
+        except urllib.error.HTTPError as error:
+            if 400 <= error.code < 500:
+                log(f"报告被平台拒绝({error.code}) {source}:{name},挪 bad/ 留查")
                 quarantine = True
             else:
-                try:
-                    if _apply_report(report, active[task_id]):
-                        handled += 1
-                    else:
-                        quarantine = True
-                except urllib.error.HTTPError as error:
-                    if 400 <= error.code < 500:
-                        log(f"报告被平台拒绝({error.code}) task={task_id},挪 bad/ 留查")
-                        quarantine = True
-                    else:
-                        log(f"平台 {error.code} task={task_id},下轮重试")
-                        continue
-                except Exception as error:  # noqa: BLE001 — 单条报告失败不影响其他
-                    log(f"报告处理失败 {source}:{name}: {error},下轮重试")
-                    continue
+                log(f"平台 {error.code} {source}:{name},下轮重试")
+                continue
+        except urllib.error.URLError as error:
+            log(f"平台不可达 {source}:{name}: {error},下轮重试")
+            continue
+        except Exception as error:  # noqa: BLE001 — 结构错乱重试无益,挪 bad/
+            log(f"报告结构异常 {source}:{name}: {error},挪 bad/ 留查")
+            quarantine = True
         if quarantine:
             _quarantine_outbox(source, name)
         else:

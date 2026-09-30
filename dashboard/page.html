@@ -127,6 +127,10 @@
     /* 批量编辑弹窗(2026-09-24):常驻勾选列/批量操作条撤除,改「批量编辑」按钮弹窗内勾选+填字段一次提交 */
     #cd-batch-modal { display:none; } #cd-batch-modal:not([hidden]) { display:flex; }
     #cd-batch-modal input[type=checkbox] { padding:0; width:auto; }
+    /* 批量编辑大弹窗(2026-09-30):720px 装不下用例明细 → 面板放宽 min(1200px,92vw)/高 85vh 居中,仅勾选表格区内部滚动 */
+    #cd-batch-modal .cd-b-panel { width:min(1200px,92vw); height:85vh; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; }
+    #cd-batch-modal .cd-b-panel > :not(.cd-b-wrap) { flex-shrink:0; }
+    #cd-batch-modal .cd-b-wrap { flex:1; min-height:0; max-height:none; }
     .cd-b-wrap { border:1px solid var(--line); border-radius:10px; overflow:auto; max-height:300px; }
     .cd-b-wrap table { width:100%; }
     .cd-b-wrap td, .cd-b-wrap th { white-space:nowrap; }
@@ -154,6 +158,7 @@
     .cd-search { display:flex; gap:8px; align-items:center; flex:1; min-width:250px; max-width:440px; }
     .cd-search input { flex:1; }
     .cd-table td { vertical-align:top; }
+    .cd-table td.cd-td-actions { vertical-align:middle; }  /* 操作按钮行内垂直居中(2026-09-30):其余列仍顶对齐 */
     .cd-case-title { font-weight:600; cursor:pointer; white-space:normal; max-width:380px; line-height:1.45; }
     .cd-case-title:hover { color:var(--brand); }
     .cd-case-id { color:var(--muted); font-size:12px; cursor:pointer; white-space:nowrap; margin-top:3px; }
@@ -538,7 +543,7 @@
             <button class="cd-pill" data-type="auto">自动化用例</button>
           </div>
           <select id="cd-module"><option value="">全部模块</option></select>
-          <select id="cd-human" title="人工确认状态(仅文字用例有此属性)"><option value="">全部确认态</option><option value="1">已确认</option><option value="0">未确认</option></select>
+          <select id="cd-human" title="是否人工确认(仅文字用例有此属性)"><option value="">是否人工确认</option><option value="1">已确认</option><option value="0">未确认</option></select>
           <select id="cd-src" title="用例来源"><option value="">全部来源</option><option value="api">API(人审工作站)</option><option value="repo">仓库 YAML</option></select>
           <div class="cd-search">
             <input id="cd-q" placeholder="搜索编号 / 标题 / 内容…">
@@ -552,7 +557,6 @@
         </div>
         <button class="ghost" id="cd-mods-btn">模块管理</button>
         <button class="ghost" id="cd-imp-btn" title="按模板批量导入用例,支持 CSV / Excel / Markdown">批量导入</button>
-        <button class="ghost" id="cd-pull-btn" title="从外部用例 API 拉取文字用例并入库(按用例 ID upsert;接口未配置时会明确提示)">从 API 拉取</button>
         <button class="ghost" id="cd-batch-btn" title="勾选多条用例,批量改优先级 / 模块或加入套件">批量编辑</button>
         <button class="primary" id="cd-new">＋ 新建用例</button>
       </div>
@@ -566,7 +570,7 @@
         </label>
         <span class="meta">表头可拖拽排序、右缘拖动调宽，"列设置"控制显隐</span>
       </div>
-      <p class="hint">未搜索时展示全部用例。点用例编号或关联 chip 查看详情（右侧抽屉）；文字用例与自动化用例可互转；bug 单来源自动取自用例 tags。仓库用例批量入库：python scripts/sync_cases.py。</p>
+      <p class="hint">未搜索时展示全部用例。点整行任意处查看详情（右侧抽屉；行内按钮与关联 chip 不受影响）；文字用例与自动化用例可互转；bug 单来源自动取自用例 tags。仓库用例批量入库：python scripts/sync_cases.py。</p>
     </section>
     <section class="page" id="page-captcha">
       <section class="card captcha-card">
@@ -814,7 +818,7 @@
     </div>
   </div>
   <div id="cd-batch-modal" hidden style="position:fixed;inset:0;background:rgba(15,23,42,.45);align-items:center;justify-content:center;z-index:50">
-    <div style="background:var(--card,#fff);border-radius:12px;padding:20px 22px;width:min(720px,94vw);max-height:88vh;overflow:auto">
+    <div class="cd-b-panel" style="background:var(--card,#fff);border-radius:12px;padding:20px 22px">
       <h3 style="margin:0 0 4px">批量编辑用例</h3>
       <p class="meta" style="margin:0 0 10px">先勾选用例(已选跨筛选保留),再填要改的字段;加入套件仅对自动化用例生效。</p>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
@@ -1900,7 +1904,7 @@
       { key: 'id',      label: '用例',          width: 330, visible: true },
       { key: 'type',    label: '类型',          width: 80,  visible: true },
       { key: 'module',  label: '模块 / 优先级', width: 160, visible: true },
-      { key: 'human',   label: '人工确认',      width: 96,  visible: true },
+      { key: 'human',   label: '是否人工确认',  width: 116, visible: true },
       { key: 'links',   label: '关联用例',      width: 190, visible: true },
       { key: 'bug',     label: '来源 bug',      width: 190, visible: true },
       { key: 'updated', label: '更新时间',      width: 145, visible: true },
@@ -1924,6 +1928,8 @@
           visible: !!s.visible,
         }));
         CD_COLUMNS.forEach(def => { if (!cdCols.some(c => c.key === def.key)) cdCols.push({ ...def }); });
+        const hum = cdCols.find(c => c.key === 'human');
+        if (hum && hum.width === 96) hum.width = 116;  // 旧档默认宽 96 装不下「是否人工确认」6 字列名:未拖过的档位迁到新默认
       } else {
         cdCols = CD_COLUMNS.map(c => ({ ...c }));
       }
@@ -2137,18 +2143,24 @@
         renderColsPop(); return;
       }
       pageItems.forEach(c => { const row = document.createElement('tr');
+        // 整行点击开详情(2026-09-30):行内按钮/链接等交互元素由各自 onclick 处理(stopPropagation),行点击再兜底排除
+        row.className = 'clickable';
+        row.onclick = e => {
+          if (e.target.closest('button, a, input, select, textarea, label, [onclick]')) return;
+          showCaseDefDrawer(c.case_id);
+        };
         const typeBadge = `<span class="badge t-${c.case_type}">${c.case_type === 'text' ? '文字' : '自动化'}</span>`;
         let linkChips = '<span class="cd-none">-</span>';
         if (c.case_type === 'text' && (c.auto_cases||[]).length) {
-          linkChips = c.auto_cases.map(a => `<span class="chip" onclick="showCaseDefDrawer(decodeURIComponent('${encodeURIComponent(a.case_id)}'))">${safe(a.case_id)} ↗</span>`).join('');
+          linkChips = c.auto_cases.map(a => `<span class="chip" onclick="event.stopPropagation();showCaseDefDrawer(decodeURIComponent('${encodeURIComponent(a.case_id)}'))">${safe(a.case_id)} ↗</span>`).join('');
         } else if (c.case_type === 'auto' && c.linked_case_id) {
-          linkChips = `<span class="chip" onclick="showCaseDefDrawer(decodeURIComponent('${encodeURIComponent(c.linked_case_id)}'))">${safe(c.linked_case_id)} ↗</span>`;
+          linkChips = `<span class="chip" onclick="event.stopPropagation();showCaseDefDrawer(decodeURIComponent('${encodeURIComponent(c.linked_case_id)}'))">${safe(c.linked_case_id)} ↗</span>`;
         }
         const bugChip = c.source_bug ? `<span class="chip bug" title="bug 单来源">${hl(c.source_bug, q)}</span>` : '<span class="cd-none">-</span>';
         // 优先级按规范 2.3 归一展示(L2→P2 等),四档配色 chip
         const pri = cdPriNorm(c.priority);
         const lvl = pri ? `<span class="chip ${pri.toLowerCase()}">${safe(pri)}</span>` : '';
-        // 人工确认(2026-09-29):只对文字用例有意义(经人审工作站两道门确认);
+        // 是否人工确认(2026-09-29):只对文字用例有意义(经人审工作站两道门确认);
         // auto 用例留空,配色复用优先级 chip 的既有档位(p2=品牌蓝/p3=中性灰)
         const humanChip = c.case_type !== 'text' ? '<span class="cd-none">-</span>'
           : (Number(c.human_confirmed)
@@ -2160,14 +2172,14 @@
         const srcChip = c.source === 'case-api' ? '<span class="chip p2" title="来自人审工作站 API" style="margin-left:6px">API</span>'
           : String(c.source || '').startsWith('knowledge/') ? '<span class="chip p3" title="来自仓库用例 YAML 同步" style="margin-left:6px">仓库</span>' : '';
         const cells = {
-          id: `<span class="cd-case-title" onclick="showCaseDefDrawer(decodeURIComponent('${encodeURIComponent(c.case_id)}'))">${hl(c.title, q)}</span><div class="cd-case-id">${hl(dispNo, q)}${srcChip}</div>`,
+          id: `<span class="cd-case-title">${hl(c.title, q)}</span><div class="cd-case-id">${hl(dispNo, q)}${srcChip}</div>`,
           type: typeBadge,
           module: `${hl(c.module_cn || c.module || '-', q)}${lvl ? ' ' + lvl : ''}`,
           human: humanChip,
           links: linkChips,
           bug: bugChip,
           updated: `<span class="meta">${safe(formatDate(c.updated_at))}</span>`,
-          actions: `<div class="cd-actions"><button class="icon-btn" onclick="openCaseDefForm(decodeURIComponent('${encodeURIComponent(c.case_id)}'))" title="编辑">${ICON.edit}</button> <button class="icon-btn danger" onclick="deleteCaseDef(decodeURIComponent('${encodeURIComponent(c.case_id)}'))" title="删除">${ICON.trash}</button></div>`,
+          actions: `<div class="cd-actions"><button class="icon-btn" onclick="event.stopPropagation();openCaseDefForm(decodeURIComponent('${encodeURIComponent(c.case_id)}'))" title="编辑">${ICON.edit}</button> <button class="icon-btn danger" onclick="event.stopPropagation();deleteCaseDef(decodeURIComponent('${encodeURIComponent(c.case_id)}'))" title="删除">${ICON.trash}</button></div>`,
         };
         row.innerHTML = vis.map(col => `<td class="cd-td-${col.key}">${cells[col.key] || ''}</td>`).join('');
         tbody.appendChild(row); });
@@ -2807,22 +2819,6 @@
       await cdLoadImportModules();
     }
     $('cd-imp-btn').onclick = cdOpenImport;
-    // 从外部用例 API 拉取文字用例(2026-09-28):确认后调管理端点 POST /api/case-defs/pull-api,
-    // 结果用全站 Toast 提示;未配置接口时端点返回 skipped,按失败色提示"等待配置"
-    $('cd-pull-btn').onclick = async () => {
-      if (!(await confirmAction('确认从外部用例 API 拉取文字用例？将按用例 ID upsert 入库,同 ID 用例会被覆盖更新。'))) return;
-      const btn = $('cd-pull-btn');
-      btn.disabled = true;
-      try {
-        const resp = await fetch('/api/case-defs/pull-api', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
-        const data = await resp.json().catch(() => ({}));
-        if (!resp.ok) { showToast('拉取失败: ' + (data.error || resp.status), true); return; }
-        if (data.skipped) { showToast(data.message || 'API 未配置,已跳过', true); return; }
-        const fails = (data.failed || []).length;
-        showToast(`拉取完成: 共 ${data.total || 0} 条, 新增 ${data.created || 0}, 更新 ${data.updated || 0}${fails ? `, 失败 ${fails}` : ''}`, fails > 0);
-        loadCaseDefs(); // 入库后刷新列表(统计卡/模块下拉同步更新)
-      } finally { btn.disabled = false; }
-    };
     $('cd-imp-tpl-csv').onclick = cdDownloadTemplateCsv;
     $('cd-imp-tpl-xlsx').onclick = cdDownloadTemplateXlsx;
     $('cd-imp-tpl-md').onclick = cdDownloadTemplateMd;

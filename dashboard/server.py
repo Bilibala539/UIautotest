@@ -3042,6 +3042,39 @@ class DashboardStore:
                 )
         return self.get_case_def(fields["case_id"])
 
+    def reanchor_case_def(self, old_id: str, new_id: str) -> str:
+        """工作站改号重锚(2026-09-30):工作站侧把编号从通用流水号改为
+        模块slug-NNN 后,过渡期报文携带 formerId=旧编号;平台把旧行 case_id
+        原地改为新编号,套件成员(suite_cases)与双向关联(linked_case_id)引用
+        同步改写,其余字段(biz_no/human_confirmed/content 等)原样平移——
+        平台展示编号与人工确认态均不丢。返回该行 biz_no。
+        旧行不存在或新编号已被占用(冲突)时抛 KeyError,拉取管线跳过该条。
+        执行历史(runs 等)按快照留旧编号,不回改。"""
+        if old_id == new_id:
+            return self._get_case_def_row(old_id).get("biz_no") or ""
+        with self.transaction() as connection:
+            row = connection.execute(
+                "SELECT biz_no FROM case_defs WHERE case_id=?", (old_id,)
+            ).fetchone()
+            if row is None:
+                raise KeyError(f"重锚源用例不存在: {old_id}")
+            if connection.execute(
+                "SELECT 1 FROM case_defs WHERE case_id=?", (new_id,)
+            ).fetchone():
+                raise KeyError(f"重锚目标编号已存在: {new_id}")
+            connection.execute(
+                "UPDATE case_defs SET case_id=?, updated_at=? WHERE case_id=?",
+                (new_id, utc_now(), old_id),
+            )
+            connection.execute(
+                "UPDATE suite_cases SET case_id=? WHERE case_id=?", (new_id, old_id),
+            )
+            connection.execute(
+                "UPDATE case_defs SET linked_case_id=? WHERE linked_case_id=?",
+                (new_id, old_id),
+            )
+        return row["biz_no"] or ""
+
     def batch_import_case_defs(self, rows: Any) -> dict[str, Any]:
         """批量导入用例(部分成功语义):逐行复用 upsert_case_def 的校验与入库,不另起平行实现。
 

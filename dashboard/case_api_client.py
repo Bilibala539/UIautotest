@@ -155,6 +155,8 @@ _MODULE_SLUG_MAP = {
     "其它": "misc", "其他": "misc",
 }
 _BIZ_NO_PATTERN = re.compile(r"^([a-z][a-z0-9]*)-(\d+)$")
+# 工作站改号过渡字段(2026-09-30):报文里标记"本条旧编号"的候选 key
+_FORMER_ID_KEYS = ("formerId", "former_id", "oldId", "old_id", "previousId")
 
 
 def module_slug(module: Any) -> str:
@@ -388,6 +390,20 @@ def pull_text_cases_into(store: Any) -> dict[str, Any]:
     for index, raw in enumerate(raw_items):
         try:
             case = _normalize_case(raw)
+            # 工作站改号重锚(2026-09-30):报文携带 formerId=旧编号且旧行在库时,
+            # 旧行原地改新编号(套件/关联引用同步改写,biz_no 等字段平移),再走
+            # 正常 upsert;已重锚过(旧行不在库)或新旧同号则直接 upsert,幂等
+            former = next((_as_text(raw[k]) for k in _FORMER_ID_KEYS
+                           if k in raw and _as_text(raw[k])), "")
+            if former and former != case["case_id"] and former in existing_biz:
+                if case["case_id"] in existing_biz:
+                    raise ValueError(f"重锚冲突:目标编号已存在 {case['case_id']}")
+                try:
+                    case["biz_no"] = store.reanchor_case_def(former, case["case_id"])
+                except KeyError as error:
+                    raise ValueError(str(error)) from error
+                existing_biz[case["case_id"]] = case["biz_no"]
+                del existing_biz[former]
             if not existing_biz.get(case["case_id"], ""):
                 slug = module_slug(case["module"])
                 if slug:

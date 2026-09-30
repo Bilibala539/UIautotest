@@ -261,7 +261,12 @@ class SwanPlayerRegressionMixin:
             else:
                 self.user.select_device(self.DEVICE_NAME, via="player")
                 self._close_sheet_if_any()
-            self.aw.text_exists(self.DEVICE_NAME, timeout=10)  # 页顶输出设备名已切
+            # 页顶输出设备名已切：compact 归一化轮询（与 select_device 收尾
+            # 同口径——run6_clean2 实测 OCR 吞空格时裸 text_exists 子串永假，
+            # 属构造性 flaky：今早保留空格 7/7 过、本轮吞空格 5/5 挂）
+            self.aw._wait_compact_text_in_region(
+                self.DEVICE_NAME, self.aw._PLAYER_HEADER_DEVICE_REGION, 10.0,
+                what="切换输出后的播放页页顶设备名")
             self._dismiss_player_if_any()
         elif device_type == "speaker":
             self._ensure_speaker_output()

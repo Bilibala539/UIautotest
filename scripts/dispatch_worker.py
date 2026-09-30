@@ -5,10 +5,13 @@
   2. 待分析任务 → claude -p 无头分析(读 scripts/dispatch_charter.md)→ POST analyze;
      信息不足 → POST question 转疑问待答,提交人答复后任务自动回队列
   3. 代码修改类 → 本仓库建 worktree,分支 u/<提交人>/t<任务号>-<标题slug>
-  4. 按目标机派发小领导:inbox 文件 + tmux send-keys(.176 经 SSH,.167/本机直接 tmux)
+  4. 按目标机派发小领导:inbox 文件 + tmux send-keys(.176 常规经 SSH;.167 配置
+     DISPATCH_SSH_167 后同样走 SSH——生产 worker 以 autotest 跑而小领导 tmux/inbox
+     属 jks,本地直连会打错人;未配则本地直连,.229 本机联测用)
   5. 轮询 outbox(本机 + .176 经 SSH)收报告 → POST progress/merge/finish 回写状态机
   6. 终态 → notify_wecom() 独立函数发测试部群:先做 wecom-cli 命令存在性检测
-     (本机优先,退回经 SSH 平台机),失败只记 task_events(note),绝不阻塞任务状态;
+     (本机优先,退回经 SSH DISPATCH_SSH_WECOM,默认 .176 已装),失败只记
+     task_events(note),绝不阻塞任务状态;
      @发布人依赖 users.wecom_userid,未配置降级不 @;纯文字无 emoji,中间态绝不发
   7. DISPATCH_STUB=1 全流程本地模拟(不调 claude/不 tmux/不 ssh/绝不外发企微),
      供本地验证与 dashboard/tests/test_dispatch_worker_stub.py 状态机联测
@@ -56,7 +59,9 @@ INBOX_DIR = Path(os.environ.get("DISPATCH_INBOX", _default_leader_home / "inbox"
 OUTBOX_DIR = Path(os.environ.get("DISPATCH_OUTBOX", _default_leader_home / "outbox"))
 TMUX_SESSION = os.environ.get("DISPATCH_TMUX_SESSION", "leader")
 MACHINE_SSH = {"176": os.environ.get("DISPATCH_SSH_176", "192.168.12.176")}
-SSH_167 = os.environ.get("DISPATCH_SSH_167", "192.168.12.167")
+# 167 派发通道:配置(如 jks@127.0.0.1)则 167 派发/outbox 回读走 SSH——生产 worker 以
+# autotest 跑而小领导 tmux/inbox 属 jks,本地直连会打到 autotest 自己;留空=本地直连
+SSH_167 = os.environ.get("DISPATCH_SSH_167", "").strip()
 REPO_ROOT = Path(os.environ.get("DISPATCH_REPO", PROJECT_ROOT))
 WORKTREE_PARENT = Path(os.environ.get("DISPATCH_WORKTREES", REPO_ROOT.parent / "uiautotest-worktrees"))
 
@@ -193,6 +198,23 @@ def ensure_worktree(task: dict) -> tuple[str | None, str | None]:
     return branch, str(path)
 
 
+def _ssh_host_for(machine: str) -> str | None:
+    """目标机的派发/outbox SSH 通道;None=本地直连(仅 167 未配 DISPATCH_SSH_167 时)。"""
+    if machine == "176":
+        return MACHINE_SSH["176"]
+    if machine == "167" and SSH_167:
+        return SSH_167
+    return None
+
+
+def _remote_hosts() -> list[tuple[str, str]]:
+    """远端 outbox 清单:与派发通道同构,167 只在配置了 SSH 通道时才远端回读。"""
+    remotes = [("176", MACHINE_SSH["176"])]
+    if SSH_167:
+        remotes.append(("167", SSH_167))
+    return remotes
+
+
 DISPATCH_PROMPT = ("读取执行 {inbox} 中的任务 {task_id},遵守其中的章程边界,"
                    "进度与结果按协议写 {outbox}")
 
@@ -226,14 +248,15 @@ def dispatch_task(task: dict, branch: str | None, worktree: str | None) -> bool:
         log(f"stub dispatch {task_id} → {machine} inbox={inbox_name}")
         return True
     outbox_hint = f"$HOME/leader/outbox/{task_id}.json"
-    if machine in MACHINE_SSH:  # .176:文件与按键都经 SSH 一条会话完成
+    host = _ssh_host_for(machine)
+    if host:  # 远端(176 常规;167 配置 DISPATCH_SSH_167 后同构):文件与按键一条 SSH 会话
         inbox_hint = f"$HOME/leader/inbox/{inbox_name}"
         prompt = DISPATCH_PROMPT.format(inbox=inbox_hint, task_id=task_id, outbox=outbox_hint)
         script = (f"mkdir -p ~/leader/inbox ~/leader/outbox && "
                   f"cat > {inbox_hint} && "
                   f"tmux send-keys -t {shlex.quote(TMUX_SESSION)} {shlex.quote(prompt)} Enter")
-        run = _run(["ssh", MACHINE_SSH[machine], script], body.encode("utf-8"))
-    else:  # 本机/.167:直接写文件 + 本地 tmux
+        run = _run(["ssh", host, script], body.encode("utf-8"))
+    else:  # 本地直连:直接写文件 + 本地 tmux(.229 本机联测用)
         INBOX_DIR.mkdir(parents=True, exist_ok=True)
         inbox_path = INBOX_DIR / inbox_name
         inbox_path.write_text(body, encoding="utf-8")
@@ -247,15 +270,20 @@ def dispatch_task(task: dict, branch: str | None, worktree: str | None) -> bool:
 
 
 def wecom_cli_command() -> list[str] | None:
-    """企微发送命令存在性检测:本机 which 优先,退回经 SSH 平台机(设计 7.2 部署注意)。"""
+    """企微发送命令存在性检测:本机 which 优先,退回经 SSH DISPATCH_SSH_WECOM。
+
+    默认回退 .176(已装 wecom-cli)——生产 worker 就在 .167 跑,SSH 回自己
+    (autotest 没有到自己的钥匙)只会卡死,回退机必须独立配置。
+    """
     if shutil.which("wecom-cli"):
         return ["wecom-cli"]
+    host = os.environ.get("DISPATCH_SSH_WECOM", "").strip() or MACHINE_SSH["176"]
     try:
-        probe = _run(["ssh", SSH_167, "command -v wecom-cli"], timeout=15)
+        probe = _run(["ssh", host, "command -v wecom-cli"], timeout=15)
     except (OSError, subprocess.TimeoutExpired):
         return None
     if probe.returncode == 0 and probe.stdout.strip():
-        return ["ssh", SSH_167, probe.stdout.decode("utf-8", "replace").strip()]
+        return ["ssh", host, probe.stdout.decode("utf-8", "replace").strip()]
     return None
 
 
@@ -313,34 +341,32 @@ def notify_wecom(task: dict, queue_item: dict | None = None) -> None:
 
 
 def _iter_outbox():
-    """产出 (source, 文件名, 文本):本机 outbox + .176 远端 outbox(经 SSH)。"""
+    """产出 (source, 文件名, 文本):本机 outbox + 各远端 outbox(经 SSH,与派发同构)。"""
     if OUTBOX_DIR.is_dir():
         for path in sorted(OUTBOX_DIR.glob("*.json")):
             try:
                 yield "local", path.name, path.read_text(encoding="utf-8")
             except OSError as error:
                 log(f"读 outbox 失败 {path.name}: {error}")
-    host = MACHINE_SSH.get("176")
-    if not host:
-        return
-    try:
-        listed = _run(["ssh", host, "ls -1 $HOME/leader/outbox/*.json 2>/dev/null"], timeout=20)
-        for line in listed.stdout.decode("utf-8", "replace").splitlines():
-            name = Path(line.strip()).name
-            if not name:
-                continue
-            cat = _run(["ssh", host, f"cat $HOME/leader/outbox/{shlex.quote(name)}"], timeout=20)
-            if cat.returncode == 0:
-                yield f"176:{host}", name, cat.stdout.decode("utf-8", "replace")
-    except (OSError, subprocess.TimeoutExpired) as error:
-        log(f".176 outbox 读取失败: {error}")
+    for machine, host in _remote_hosts():
+        try:
+            listed = _run(["ssh", host, "ls -1 $HOME/leader/outbox/*.json 2>/dev/null"], timeout=20)
+            for line in listed.stdout.decode("utf-8", "replace").splitlines():
+                name = Path(line.strip()).name
+                if not name:
+                    continue
+                cat = _run(["ssh", host, f"cat $HOME/leader/outbox/{shlex.quote(name)}"], timeout=20)
+                if cat.returncode == 0:
+                    yield f"{machine}:{host}", name, cat.stdout.decode("utf-8", "replace")
+        except (OSError, subprocess.TimeoutExpired) as error:
+            log(f"{machine} outbox 读取失败: {error}")
 
 
 def _discard_outbox(source: str, name: str) -> None:
     try:
         if source == "local":
             (OUTBOX_DIR / name).unlink(missing_ok=True)
-        elif source.startswith("176:"):
+        else:  # 远端来源形如 "167:jks@127.0.0.1"/"176:192.168.12.176"
             _run(["ssh", source.split(":", 1)[1],
                   f"rm -f $HOME/leader/outbox/{shlex.quote(name)}"], timeout=20)
     except OSError as error:

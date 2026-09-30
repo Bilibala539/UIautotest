@@ -293,7 +293,14 @@ SWAN_PLAYER_LOOP_SHUFFLE = image_path("swan_播放页_循环模式_随机播放.
 SWAN_PLAYER_PROGRESS_BAR = image_path("swan_播放页_进度条.png", platform="flutter")    # 进度条整条（滑条锚；勿含两端时间文字）
 
 # --- 播放页 音量弹窗 ---
-SWAN_PLAYER_VOLUME_ICON = image_path("swan_播放页_音量图标.png", platform="flutter")   # 播放页底部音量入口图标
+SWAN_PLAYER_VOLUME_ICON = image_path("swan_播放页_音量图标.png", platform="flutter")   # 播放页底部音量入口图标（与浅底变体内容全等，链内由 LIGHT 代表）
+# ⚠️ 音量图标 glyph 极性随背景明度自适应（2026-09-29 element 三变体补截，
+# run5 收口批次）：单模板跨背景必失配（同设备钮/加号钮/收起钮案），业务
+# 改 _VOLUME_ICON_TEMPLATES 链式匹配（glyph→浅→深，见 SwanBusiness.
+# _find_volume_icon）。
+SWAN_PLAYER_VOLUME_ICON_GLYPH = image_path("swan_播放页_音量图标_glyph.png", platform="flutter", draft=True)
+SWAN_PLAYER_VOLUME_ICON_LIGHT = image_path("swan_播放页_音量图标_浅底.png", platform="flutter", draft=True)
+SWAN_PLAYER_VOLUME_ICON_DARK = image_path("swan_播放页_音量图标_深底.png", platform="flutter", draft=True)
 SWAN_PLAYER_VOLUME_POPUP = image_path("swan_播放页_音量弹窗.png", platform="flutter")  # 弹窗右上角 X 关闭钮 36x36（存在性判据；非弹窗整体）
 SWAN_PLAYER_VOLUME_SLIDER = image_path("swan_播放页_音量滑条.png", platform="flutter")  # ⚠️ 已废弃为几何锚（2026-09-28 run4d：填充态模板匹配矩形随音量漂移）——业务改 ± 钮锚定，留档不引用
 SWAN_PLAYER_VOLUME_PLUS = image_path("swan_播放页_音量加号按钮.png", platform="flutter")   # 静态控件，滑条真轨道左界锚（见 SwanBusiness._find_volume_slider）
@@ -547,6 +554,9 @@ __all__ = [
     "SWAN_PLAYER_LOOP_SHUFFLE",
     "SWAN_PLAYER_PROGRESS_BAR",
     "SWAN_PLAYER_VOLUME_ICON",
+    "SWAN_PLAYER_VOLUME_ICON_GLYPH",
+    "SWAN_PLAYER_VOLUME_ICON_LIGHT",
+    "SWAN_PLAYER_VOLUME_ICON_DARK",
     "SWAN_PLAYER_VOLUME_POPUP",
     "SWAN_PLAYER_VOLUME_SLIDER",
     "SWAN_PLAYER_VOLUME_SLIDER_MID",

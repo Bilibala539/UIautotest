@@ -59,7 +59,9 @@ from image.image_name_mapping import (
     SWAN_PLAYER_PLUS_BTN_LIGHT,
     SWAN_PLAYER_PREV_BTN,
     SWAN_PLAYER_PROGRESS_BAR,
-    SWAN_PLAYER_VOLUME_ICON,
+    SWAN_PLAYER_VOLUME_ICON_DARK,
+    SWAN_PLAYER_VOLUME_ICON_GLYPH,
+    SWAN_PLAYER_VOLUME_ICON_LIGHT,
     SWAN_PLAYER_VOLUME_MINUS,
     SWAN_PLAYER_VOLUME_PLUS,
     SWAN_PLAYER_VOLUME_POPUP,
@@ -547,6 +549,26 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         极性随背景明度自适应，单模板背景依赖必失配）。
         """
         for template in self._PLUS_TEMPLATES:
+            if self.find_image(template, timeout=timeout) is not None:
+                return template
+        return None
+
+    # 播放页音量图标探测模板链（2026-09-29/30 element 三变体交付，底排
+    # 图标族第 4 员收口）：glyph 极性随背景明度自适应同设备钮/加号钮/收
+    # 起钮案——旧正式图与浅底变体内容全等（浅底灰 glyph），深底白 glyph
+    # 由 DARK 补口（见 _find_volume_icon 与 image_name_mapping.py 注）。
+    _VOLUME_ICON_TEMPLATES = (SWAN_PLAYER_VOLUME_ICON_GLYPH,
+                              SWAN_PLAYER_VOLUME_ICON_LIGHT,
+                              SWAN_PLAYER_VOLUME_ICON_DARK)
+
+    def _find_volume_icon(self, timeout: float = 2.0) -> str | None:
+        """播放页音量图标探测：glyph（浅族通吃）→浅底→深底依次匹配，返回
+        首个命中模板（供 click_image 精确点击命中位置），全未命中 None。
+
+        参照 _find_device_btn/_find_plus_btn 多模板模式（底排图标族第 4
+        员，跨背景失配同因同修）。
+        """
+        for template in self._VOLUME_ICON_TEMPLATES:
             if self.find_image(template, timeout=timeout) is not None:
                 return template
         return None
@@ -1165,7 +1187,12 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
             assert 0 <= value <= 100, "drag/click 的 value 须为 0~100"
         else:
             assert value > 0, "plus/minus 的 value 须为正的连点次数"
-        self.click_image(SWAN_PLAYER_VOLUME_ICON, timeout=10)       # 打开音量弹窗
+        # 音量图标链式探测（底排图标族第 4 员收口，跨背景失配同因同修，
+        # 见 _find_volume_icon 注）；时间预算与旧单发 timeout=10 等同
+        icon_template = self._find_volume_icon(timeout=3)
+        assert icon_template is not None, (
+            "音量图标未找到（glyph/浅/深三模板均未命中，须已在播放页）")
+        self.click_image(icon_template, timeout=5)       # 打开音量弹窗
         self.image_exists(SWAN_PLAYER_VOLUME_POPUP, timeout=10)     # 弹窗在位
         if action == "drag":
             start_ratio, end_ratio = self._volume_ratios(value)
@@ -1190,7 +1217,9 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
             # 模式；run4c run2 实测 press_back 后播放页仅存音量行 "N%" 通道）
             self._assert_volume_percent(value)
         self.press_back()  # 关弹窗回播放页（弹层关闭惯例，见知识库）
-        self.image_exists(SWAN_PLAYER_VOLUME_ICON, timeout=10)      # 已回播放页
+        # 已回播放页：音量图标三模板链探测（同上收口口径）
+        assert self._find_volume_icon(timeout=3) is not None, (
+            "未回播放页（音量图标 glyph/浅/深三模板均未命中）")
 
     def volume_key(self, direction: str = "up", long_press: bool = False) -> None:
         """物理音量键调节音量（A20，回归用例 27-28）。
@@ -1215,7 +1244,9 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
                 assert after < before, f"音量未降低：按键前 {before}% → 按键后 {after}%"
         else:
             logger.warning("volume_key: OCR 未取得音量百分比，退化为前台锚点断言")
-            self.image_exists(SWAN_PLAYER_VOLUME_ICON, timeout=10)
+            # 音量图标三模板链探测（底排图标族收口，同上口径）
+            assert self._find_volume_icon(timeout=3) is not None, (
+                "音量图标未找到（glyph/浅/深三模板均未命中，前台锚点断言失败）")
 
     # ---------- 域3 内部辅助 ----------
 

@@ -235,10 +235,11 @@ OUTBOX_PROTOCOL = (
     ' "detail": "冲突说明"}\n'
     '完成: {"task_id": "<任务号>", "phase": "finish", "ok": true,'
     ' "report_md": "## 结论…(Markdown 报告,结论先行附验证证据)",'
-    ' "merge_status": "merged|pending|conflict|abandoned", "branch_name": "…",'
-    ' "worktree_path": "…", "tokens_in": 0, "tokens_out": 0}\n'
-    '失败: finish 同一条,ok=false 必带 "error_message";放弃合并带'
-    ' "merge_status": "abandoned"。token 为该轮增量,平台侧累计。')
+    ' "tokens_in": 0, "tokens_out": 0}\n'
+    '失败: finish 同一条,ok=false 必带 "error_message"。token 为该轮增量,平台侧累计。\n'
+    '代码修改类任务的 finish 额外带 "merge_status": "merged|pending|conflict|abandoned"'
+    ' 与 "branch_name"/"worktree_path";其他类型任务一律不要写这三个字段'
+    '(非代码任务无分支与合并语义)。')
 
 
 def dispatch_task(task: dict, branch: str | None, worktree: str | None) -> bool:
@@ -449,13 +450,16 @@ def _apply_report(report: dict, queue_item: dict) -> bool:
                                        "detail": readable(report.get("detail"))})
         return True
     if phase == "finish":
+        # 合并三字段仅代码任务有意义;leader 常对非代码任务误抄协议示例值
+        #(E2E 实测非代码任务被塞 merge_status=abandoned),非代码一律清空
+        code_task = (queue_item or {}).get("task_type") == "code_change"
         result = _post("/api/dispatch/update", {
             "action": "finish", "task_id": task_id, "ok": bool(report.get("ok")),
             "report_md": readable(report.get("report_md")),
             "error_message": readable(report.get("error_message")),
-            "branch_name": str(report.get("branch_name") or ""),
-            "worktree_path": str(report.get("worktree_path") or ""),
-            "merge_status": str(report.get("merge_status") or ""), **tokens})
+            "branch_name": str(report.get("branch_name") or "") if code_task else "",
+            "worktree_path": str(report.get("worktree_path") or "") if code_task else "",
+            "merge_status": str(report.get("merge_status") or "") if code_task else "", **tokens})
         notify_wecom(result, queue_item)
         return True
     log(f"未知 phase {phase!r} task={task_id},挪 bad/ 留查")

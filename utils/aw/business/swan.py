@@ -573,6 +573,24 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
                 return template
         return None
 
+    def _snap_chain_miss(self, tag: str) -> str:
+        """多模板链全未命中时的现场存证帧（证据链补齐）。
+
+        链式探测的调用侧断言是业务层裸 assert、不经 AW 方法异常包装，无
+        自动失败截图——run5 run7 volume_key rig 态三模板全失配现场未留证
+        教训（element 对照补图失去依据）。存证失败不阻断断言链（返回占位
+        说明，原断言照常触发）。
+        """
+        ts = time.strftime('%Y%m%d_%H%M%S_%f')
+        path = os.path.join(SCREENSHOT_DIR, f"FAIL_chainmiss_{tag}_{ts}.png")
+        try:
+            os.makedirs(SCREENSHOT_DIR, exist_ok=True)
+            if self.take_screenshot(save_path=path) is None:
+                return "（截图失败）"
+        except Exception as exc:   # 存证属尽力而为，不替代断言本身
+            return f"（存证失败: {exc}）"
+        return path
+
     def _switch_output_in_sheet(self, name: str) -> None:
         """播放页设备切换弹层选行（select_device via="player" 专用尾部）。
         调用方须已在全屏播放页。
@@ -1190,8 +1208,11 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         # 音量图标链式探测（底排图标族第 4 员收口，跨背景失配同因同修，
         # 见 _find_volume_icon 注）；时间预算与旧单发 timeout=10 等同
         icon_template = self._find_volume_icon(timeout=3)
+        if icon_template is None:
+            shot = self._snap_chain_miss("volume_icon_open")
         assert icon_template is not None, (
-            "音量图标未找到（glyph/浅/深三模板均未命中，须已在播放页）")
+            f"音量图标未找到（glyph/浅/深三模板均未命中，须已在播放页；"
+            f"现场帧 {shot}）")
         self.click_image(icon_template, timeout=5)       # 打开音量弹窗
         self.image_exists(SWAN_PLAYER_VOLUME_POPUP, timeout=10)     # 弹窗在位
         if action == "drag":
@@ -1218,8 +1239,11 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
             self._assert_volume_percent(value)
         self.press_back()  # 关弹窗回播放页（弹层关闭惯例，见知识库）
         # 已回播放页：音量图标三模板链探测（同上收口口径）
-        assert self._find_volume_icon(timeout=3) is not None, (
-            "未回播放页（音量图标 glyph/浅/深三模板均未命中）")
+        icon_back = self._find_volume_icon(timeout=3)
+        if icon_back is None:
+            shot = self._snap_chain_miss("volume_icon_back")
+        assert icon_back is not None, (
+            f"未回播放页（音量图标 glyph/浅/深三模板均未命中；现场帧 {shot}）")
 
     def volume_key(self, direction: str = "up", long_press: bool = False) -> None:
         """物理音量键调节音量（A20，回归用例 27-28）。
@@ -1245,8 +1269,12 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         else:
             logger.warning("volume_key: OCR 未取得音量百分比，退化为前台锚点断言")
             # 音量图标三模板链探测（底排图标族收口，同上口径）
-            assert self._find_volume_icon(timeout=3) is not None, (
-                "音量图标未找到（glyph/浅/深三模板均未命中，前台锚点断言失败）")
+            icon_front = self._find_volume_icon(timeout=3)
+            if icon_front is None:
+                shot = self._snap_chain_miss("volume_icon_front")
+            assert icon_front is not None, (
+                f"音量图标未找到（glyph/浅/深三模板均未命中，前台锚点断言"
+                f"失败；rig 态渲染疑出变体覆盖外，现场帧 {shot}）")
 
     # ---------- 域3 内部辅助 ----------
 

@@ -76,6 +76,8 @@ def test_auth_gate_login_and_users():
             assert status == 200
             assert [u["username"] for u in body["items"]] == [
                 "yumiao", "fushenghao", "wuhouju", "menglingzhao"]  # 空表自动播种
+            assert [u["surname"] for u in body["items"]] == [
+                "yu", "fu", "wu", "meng"]  # 姓氏全拼随名单下发(v1.2 §B14)
             # 机器通道豁免:无 cookie 照常(逐请求登录闸不闸机器面)
             status, _ = anon.req("/api/runs", "POST", {
                 "run_id": "run-machine", "platform": "android", "started_at": "2026-09-29T00:00:00+00:00"})
@@ -87,9 +89,9 @@ def test_auth_gate_login_and_users():
             status, body = anon.login("nobody")
             assert status == 404 and body["error"] == "用户名不存在"
             status, body = anon.login("yumiao")
-            assert status == 200 and body["username"] == "yumiao"
+            assert status == 200 and body == {"username": "yumiao", "surname": "yu"}
             assert anon.cookie.startswith("swan_user=yumiao")
-            assert anon.req("/api/auth/me") == (200, {"username": "yumiao"})
+            assert anon.req("/api/auth/me") == (200, {"username": "yumiao", "surname": "yu"})
             assert anon.req("/api/tasks")[0] == 200
 
             # 账号台账:重复 409;新增即时进名单;停用即退出名单且会话失效
@@ -109,8 +111,9 @@ def test_auth_gate_login_and_users():
             assert "xinren" not in presets
             assert Client(base).login("xinren")[0] == 404  # 停用=登录页不存在
 
-            # 退出:清 cookie 后 me 401
-            assert anon.req("/api/auth/logout", "POST", {})[0] == 200
+            # 退出:无请求体 POST(页面原样)也须 200 并清 cookie 后 me 401
+            status, body = anon.req("/api/auth/logout", "POST")
+            assert status == 200 and body == {"ok": True}
             assert anon.req("/api/auth/me")[0] == 401
         finally:
             stop_server(server, thread)
@@ -324,5 +327,95 @@ def test_dispatch_worker_state_machine():
                 "report_md": "## 结论\n12/12 通过"})
             assert status == 200 and body["status"] == "done"
             assert body["merge_status"] is None and "12/12" in body["report_md"]
+        finally:
+            stop_server(server, thread)
+
+
+def test_task_board_endpoint():
+    """竖版看板单请求(v1.2 §A9):五列写死顺序/counts 全量/stats/item 最小字段集/
+    q 过滤/每列 50 条上限;/api/tasks 列表接口保持原样。"""
+    with tempfile.TemporaryDirectory() as temporary_directory:
+        server, thread, base = start_server(temporary_directory)
+        yumiao = Client(base)
+        yumiao.login("yumiao")
+        try:
+            for n in range(1, 56):
+                yumiao.req("/api/tasks", "POST",
+                           {"title": f"批量任务{n:02d}", "description": "cap"})
+            t_done = yumiao.req("/api/tasks", "POST",
+                                {"title": "跑一遍冒烟", "description": "SMKE"})[1]["task_id"]
+            t_fail = yumiao.req("/api/tasks", "POST",
+                                {"title": "查合并冲突", "description": "CF"})[1]["task_id"]
+            worker = Client(base)
+            worker.login("fushenghao")
+            for task_id, task_type in ((t_done, "test_run"), (t_fail, "code_change")):
+                worker.req("/api/dispatch/update", "POST", {
+                    "action": "analyze", "task_id": task_id,
+                    "task_type": task_type, "risk": "low", "target_machine": "167"})
+                worker.req("/api/dispatch/update", "POST", {
+                    "action": "start", "task_id": task_id,
+                    "branch_name": "u/x/t1", "worktree_path": "/tmp/wt"})
+            worker.req("/api/dispatch/update", "POST", {
+                "action": "finish", "task_id": t_done, "ok": True, "report_md": "ok"})
+            worker.req("/api/dispatch/update", "POST", {
+                "action": "finish", "task_id": t_fail, "ok": False,
+                "merge_status": "abandoned", "error_message": "冲突未解决"})
+            # 五列写死顺序;groups 只含五列
+            board = yumiao.req("/api/tasks/board")[1]
+            assert list(board["groups"].keys()) == [
+                "pending_analysis", "questioning", "running", "done", "failed"]
+            assert board["counts"]["pending_analysis"] == 55
+            assert len(board["groups"]["pending_analysis"]) == 50  # 每列上限(§A8)
+            assert board["groups"]["pending_analysis"][0]["title"] == "批量任务55"  # created_at 倒序
+            assert [i["task_id"] for i in board["groups"]["done"]] == [t_done]
+            assert [i["task_id"] for i in board["groups"]["failed"]] == [t_fail]
+            assert board["stats"] == yumiao.req("/api/tasks/stats")[1]  # 统计卡同口径
+            item = board["groups"]["done"][0]
+            assert sorted(item.keys()) == [
+                "created_at", "finished_at", "merge_status", "risk", "status",
+                "submitter", "target_machine", "task_id", "task_type", "title"]
+            assert item["finished_at"] and item["merge_status"] is None
+            failed_item = board["groups"]["failed"][0]  # 冲突放弃终态:failed + abandoned 双标记
+            assert failed_item["finished_at"] and failed_item["merge_status"] == "abandoned"
+            # q 过滤:计数与分组同口径
+            board_q = yumiao.req("/api/tasks/board?q=" + quote("冒烟"))[1]
+            assert board_q["counts"] == {"done": 1}
+            assert [i["task_id"] for i in board_q["groups"]["done"]] == [t_done]
+            # 旧列表接口不受影响(bucket=done 是"已结束"口径=done+failed)
+            assert len(yumiao.req("/api/tasks?status=done")[1]["items"]) == 1
+            assert len(yumiao.req("/api/tasks?bucket=done")[1]["items"]) == 2
+        finally:
+            stop_server(server, thread)
+
+
+def test_users_surname_migration_backfill():
+    """users 表轻量迁移(v1.2 §B14):存量老库(无 surname 列)自动补列并把
+    预设账号空姓氏回填成全拼;新库 DDL 直含 surname。"""
+    import sqlite3
+    with tempfile.TemporaryDirectory() as temporary_directory:
+        db_path = Path(temporary_directory) / "dashboard.sqlite3"
+        legacy = sqlite3.connect(db_path)  # 造老库:users 无 surname 列,4 预设账号齐(空表才播种,须全量自带)
+        legacy.execute(
+            "CREATE TABLE users (username TEXT PRIMARY KEY,"
+            " wecom_userid TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'active',"
+            " created_at TEXT NOT NULL)")
+        for name in ("yumiao", "fushenghao", "wuhouju", "menglingzhao"):
+            legacy.execute("INSERT INTO users VALUES (?, '', 'active', '2026-09-29')", (name,))
+        legacy.commit()
+        legacy.close()
+        server, thread, base = start_server(temporary_directory)
+        anon = Client(base)
+        try:
+            presets = {u["username"]: u["surname"]
+                       for u in anon.req("/api/auth/presets")[1]["items"]}
+            assert presets == {"yumiao": "yu", "fushenghao": "fu",
+                               "wuhouju": "wu", "menglingzhao": "meng"}  # 老库回填
+            # 设置弹窗新增账号:surname 空串下发,由前端回退规则显示(设计定稿)
+            yumiao = Client(base)
+            yumiao.login("yumiao")  # /api/auth/users 在登录闸后
+            yumiao.req("/api/auth/users", "POST", {"username": "xinren"})
+            users = {u["username"]: u["surname"]
+                     for u in yumiao.req("/api/auth/users")[1]["items"]}
+            assert users["xinren"] == "" and users["yumiao"] == "yu"
         finally:
             stop_server(server, thread)

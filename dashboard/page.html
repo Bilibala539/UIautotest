@@ -258,7 +258,7 @@
     .login-users { display:flex; gap:10px; flex-wrap:wrap; }
     .login-user { display:flex; flex-direction:column; align-items:center; gap:6px; border:none; background:transparent; padding:6px 8px; border-radius:10px; cursor:pointer; }
     .login-user:hover { background:var(--hover); outline:1px solid var(--brand); }
-    .login-ava { width:34px; height:34px; border-radius:50%; background:var(--neutral-weak); color:var(--ink); font-weight:600; display:flex; align-items:center; justify-content:center; }
+    .login-ava { width:36px; height:36px; border-radius:50%; background:var(--neutral-weak); color:var(--ink); font-weight:600; display:flex; align-items:center; justify-content:center; line-height:1; }
     .login-name { font-size:12px; color:var(--ink); }
     .login-divider { display:flex; align-items:center; gap:10px; color:var(--muted); font-size:12px; margin:18px 0 12px; }
     .login-divider::before, .login-divider::after { content:""; flex:1; height:1px; background:var(--line); }
@@ -266,13 +266,16 @@
     .login-input-row input { flex:1; }
     /* 左侧窄边栏(§2.3):56px --ink 平台级身份层;补充式导航,顶部页签不动;深底图标不用品牌蓝 */
     body.rail-on { padding-left:56px; }
-    .rail { position:fixed; left:0; top:0; bottom:0; width:56px; background:var(--ink); z-index:30; display:flex; flex-direction:column; align-items:center; padding:12px 0; gap:10px; }
-    .rail-ava { width:34px; height:34px; border-radius:50%; background:var(--neutral-weak); color:var(--ink); font-weight:600; display:flex; align-items:center; justify-content:center; cursor:default; flex-shrink:0; }
+    .rail { position:fixed; left:0; top:0; bottom:0; width:56px; background:var(--ink); z-index:30; display:flex; flex-direction:column; align-items:center; padding:12px 0; gap:8px; }
+    /* 头像 40px 深底态(v1.2 §B13/§B14):移到边栏底部,姓氏全拼白字 */
+    .rail-ava { width:40px; height:40px; border-radius:50%; background:rgba(255,255,255,.14); color:#fff; font-weight:600; display:flex; align-items:center; justify-content:center; cursor:default; flex-shrink:0; line-height:1; }
     .rail-item { position:relative; width:36px; height:36px; flex-shrink:0; border:none; border-radius:9px; background:transparent; color:rgba(255,255,255,.72); display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:14px; font-weight:700; }
-    .rail-item:hover { color:#fff; background:rgba(255,255,255,.1); }
-    .rail-item svg { width:17px; height:17px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
     .rail-item.rail-project { background:var(--brand); color:#fff; }
     .rail-item.rail-project:hover { background:var(--brand); }
+    /* 底部图标按钮 36x36(v1.2 §B12):SVG 20px;内容区 .icon-btn 28x26 是另一套规格,互不覆盖 */
+    .rail-btn { position:relative; width:36px; height:36px; flex-shrink:0; border:none; border-radius:8px; background:transparent; color:rgba(255,255,255,.72); display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0; }
+    .rail-btn:hover { color:#fff; background:rgba(255,255,255,.1); }
+    .rail-btn svg { width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
     .rail-spacer { flex:1; }
     .rail-pop { position:absolute; left:calc(100% + 10px); top:0; background:#fff; border:1px solid var(--line); border-radius:10px; box-shadow:0 8px 24px rgba(23,32,51,.14); padding:10px 14px; z-index:40; min-width:190px; text-align:left; }
     .rail-pop .rp-item { display:flex; gap:8px; align-items:center; font-size:13px; padding:5px 0; color:var(--ink); cursor:default; }
@@ -280,9 +283,6 @@
     .rail-pop[hidden] { display:none; }
     /* 任务状态徽标(§3.1):warn 族收敛两态"等人";完成/失败复用 .passed/.failed 与执行会话同形 */
     .st-analyze, .st-question { color:var(--warn); background:var(--warn-weak); }
-    /* 任务列次行(§4.2):任务号等宽 + 类型/风险 chip 降次行,不单开列 */
-    .tk-sub { display:flex; gap:6px; align-items:center; margin-top:4px; white-space:normal; }
-    .tk-sub .chip { margin:0; }
     /* 详情抽屉区块标题(§6.1):15px/600,同 .h-block 档 */
     .tk-sec { margin:20px 0 8px; font-size:15px; font-weight:600; }
     /* 疑问卡(§6.2):warn-weak 底 10px 圆角,问答对上下排列 */
@@ -307,6 +307,27 @@
     .tk-art-row code { flex:1; min-width:180px; font-family:monospace; font-size:12px; word-break:break-all; background:var(--neutral-weak); border-radius:8px; padding:4px 8px; }
     .tk-merge-merged { color:var(--good); } .tk-merge-conflict { color:var(--warn); } .tk-merge-other { color:var(--muted); }
     #tk-reset.active { border-color:var(--brand); color:var(--brand); }
+    /* 竖版看板(v1.2 §A1-A8):五列 264px、列头色点+计数、卡片三行只读;全部现有 token,零新色值 */
+    .tk-board { display:flex; gap:12px; overflow-x:auto; height:calc(100vh - 300px); min-height:480px; }
+    .tk-col { flex:0 0 264px; background:var(--neutral-weak); border-radius:10px; display:flex; flex-direction:column; min-width:0; }
+    .tk-col-head { display:flex; align-items:center; gap:8px; padding:10px 12px; flex:none; }
+    .tk-col-head i { width:8px; height:8px; border-radius:50%; flex:none; }
+    .tk-col-head .tk-col-name { font-size:13px; font-weight:600; color:var(--ink); }
+    .tk-col-head .tk-col-count { margin-left:auto; font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums; }
+    .tk-col-body { padding:8px; overflow-y:auto; display:flex; flex-direction:column; gap:8px; }
+    .tk-col-empty { font-size:12px; color:var(--muted); text-align:center; padding:16px 0; }
+    .tk-col-more { font-size:12px; color:var(--muted); text-align:center; padding:6px 0 2px; }
+    .tk-card { background:var(--card,#fff); border:1px solid var(--line); border-radius:8px; padding:10px 12px; cursor:pointer; }
+    .tk-card:hover { border-color:var(--brand); }
+    .tk-card-title { font-size:13px; font-weight:600; color:var(--ink); line-height:1.4; word-break:break-all; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+    .tk-card-badges { margin-top:6px; display:flex; flex-wrap:wrap; }
+    .tk-card-meta { margin-top:8px; display:flex; justify-content:space-between; gap:8px; font-size:12px; color:var(--muted); }
+    .tk-mg-conflict { display:inline-block; border-radius:999px; padding:2px 10px; font-size:12px; margin:1px 4px 1px 0; color:var(--warn); background:var(--warn-weak); }
+    .tk-mg-abandoned { display:inline-block; border-radius:999px; padding:2px 10px; font-size:12px; margin:1px 4px 1px 0; color:var(--muted); background:var(--neutral-weak); }
+    /* 设置弹窗定位修复(v1.2 §B15):容器必须 width/height 100%,白卡 margin:auto 才居中;
+       旧内联 z-50/88vh 作废。white 卡规格由 .set-box 承载 */
+    #set-modal { position:fixed; inset:0; width:100%; height:100%; background:rgba(15,23,42,.45); z-index:62; }
+    .set-box { width:min(680px,94vw); margin:12vh auto 0; max-height:76vh; overflow:auto; border-radius:12px; box-shadow:0 8px 24px rgba(23,32,51,.14); background:var(--card,#fff); padding:20px 22px; }
   </style>
 </head>
 <body>
@@ -325,15 +346,15 @@
     </nav>
   </header>
   <aside class="rail" id="rail">
-    <div class="rail-ava" id="rail-ava" title="">-</div>
     <button class="rail-item rail-project" id="rail-project" title="项目">S</button>
     <div class="rail-pop" id="rail-pop" hidden>
       <div class="rp-item"><span class="dot ok"></span>Swan 测试平台</div>
       <div class="rp-note">更多项目规划中</div>
     </div>
     <span class="rail-spacer"></span>
-    <button class="rail-item" id="rail-set" title="设置"><svg viewBox="0 0 24 24"><path d="M20 7h-9"/><path d="M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg></button>
-    <button class="rail-item" id="rail-out" title="退出登录"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg></button>
+    <div class="rail-ava" id="rail-ava" title="">-</div>
+    <button class="rail-btn" id="rail-set" title="设置"><svg viewBox="0 0 24 24"><path d="M20 7h-9"/><path d="M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg></button>
+    <button class="rail-btn" id="rail-out" title="退出登录"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg></button>
   </aside>
   <main>
     <!-- 登录视图(设计 §2.1):body.pre-auth 时仅渲染本页签;无密码,头像卡一步进 + 手输兜底 -->
@@ -350,16 +371,10 @@
         <span class="field-error" id="login-error" hidden>用户名不存在</span>
       </div>
     </section>
-    <!-- AI 任务看板(设计 §4):统计卡四张 + 胶囊筛选/搜索/分页 + 按人用量;全员同口径 -->
+    <!-- AI 任务看板(设计 §4,v1.2 竖版看板化):五列只读看板 + 统计卡四张 + 搜索/重置 + 按人用量;全员同口径 -->
     <section class="page" id="page-tasks">
       <div class="toolbar">
         <div class="cd-filterbar">
-          <div class="cd-pills" id="tk-pills">
-            <button class="cd-pill active" data-bucket="">全部</button>
-            <button class="cd-pill" data-bucket="active">进行中</button>
-            <button class="cd-pill" data-bucket="mine">需我处理</button>
-            <button class="cd-pill" data-bucket="done">已结束</button>
-          </div>
           <div class="cd-search">
             <input id="tk-q" placeholder="搜标题 / 任务号 / 提交人…">
             <button class="ghost" id="tk-reset">重置</button>
@@ -376,15 +391,14 @@
         <div class="card"><div class="stat-label">已完成</div><div class="stat-value" id="tk-stat-done">-</div></div>
         <div class="card"><div class="stat-label">token 消耗合计</div><div class="stat-value" id="tk-stat-tokens">-</div></div>
       </section>
-      <section class="card table-card"><table><thead><tr><th>任务</th><th>状态</th><th>目标机</th><th>提交人</th><th class="num">token</th><th>提交时间</th><th>操作</th></tr></thead><tbody id="tk-rows"><tr><td colspan="7" class="empty">加载中…</td></tr></tbody></table></section>
-      <div class="cd-pager" id="tk-pager" hidden>
-        <span class="meta" id="tk-page-info">-</span>
-        <button class="ghost" id="tk-prev">← 上一页</button>
-        <button class="ghost" id="tk-next">下一页 →</button>
-        <label class="meta">每页
-          <select id="tk-pagesize" class="cd-pagesize"><option>10</option><option selected>30</option><option>80</option></select> 条
-        </label>
-      </div>
+      <!-- 竖版看板(v1.2 §A):五列写死顺序,只读不拖拽,点卡片开详情抽屉;色点顺序 --warn/--warn/--brand/--good/--bad -->
+      <section class="tk-board" id="tk-board">
+        <div class="tk-col" data-status="pending_analysis"><div class="tk-col-head"><i style="background:var(--warn)"></i><span class="tk-col-name">待分析</span><span class="tk-col-count">0</span></div><div class="tk-col-body"><div class="tk-col-empty">暂无任务</div></div></div>
+        <div class="tk-col" data-status="questioning"><div class="tk-col-head"><i style="background:var(--warn)"></i><span class="tk-col-name">疑问待答</span><span class="tk-col-count">0</span></div><div class="tk-col-body"><div class="tk-col-empty">暂无任务</div></div></div>
+        <div class="tk-col" data-status="running"><div class="tk-col-head"><i style="background:var(--brand)"></i><span class="tk-col-name">执行中</span><span class="tk-col-count">0</span></div><div class="tk-col-body"><div class="tk-col-empty">暂无任务</div></div></div>
+        <div class="tk-col" data-status="done"><div class="tk-col-head"><i style="background:var(--good)"></i><span class="tk-col-name">完成</span><span class="tk-col-count">0</span></div><div class="tk-col-body"><div class="tk-col-empty">暂无任务</div></div></div>
+        <div class="tk-col" data-status="failed"><div class="tk-col-head"><i style="background:var(--bad)"></i><span class="tk-col-name">失败</span><span class="tk-col-count">0</span></div><div class="tk-col-body"><div class="tk-col-empty">暂无任务</div></div></div>
+      </section>
       <h2 class="h-section">按人用量</h2>
       <section class="card table-card"><table><thead><tr><th>用户</th><th class="num">提交</th><th class="num">进行中</th><th class="num">完成</th><th class="num">失败</th><th class="num">token 合计</th></tr></thead><tbody id="tk-usage"><tr><td colspan="6" class="empty">加载中…</td></tr></tbody></table></section>
       <p class="hint">任务全员可见;"需我处理"是 AI 在等当前登录人答复疑问的任务。15 秒自动刷新(仅本页签激活期间)。</p>
@@ -675,15 +689,17 @@
       <div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="ghost" id="cd-mods-close">关闭</button></div>
     </div>
   </div>
-  <!-- 设置弹窗(设计 §2.4):账号台账,企微 userid 失焦即保存;结构对齐"功能模块管理"先例 -->
-  <div id="set-modal" hidden style="position:fixed;inset:0;background:rgba(15,23,42,.45);align-items:center;justify-content:center;z-index:50">
-    <div style="background:var(--card,#fff);border-radius:12px;padding:20px 22px;width:min(680px,94vw);max-height:88vh;overflow:auto">
+  <!-- 设置弹窗(设计 §2.4,v1.2 §B15/§B16 修订):定位规格进样式表(#set-modal/.set-box);
+       企微 userid 失焦即保存;停用走 confirmAction 写明后果 -->
+  <div id="set-modal" hidden>
+    <div class="set-box">
       <h3 style="margin:0 0 4px">设置</h3>
       <p class="meta" style="margin:0 0 12px">预设账号:登录页头像卡与手输校验名单。企微 userid 用于任务结束时群消息 @发布人。</p>
       <section class="card table-card" style="box-shadow:none"><table><thead><tr><th>用户名</th><th>企微 userid</th><th>状态</th><th>操作</th></tr></thead><tbody id="set-rows"><tr><td colspan="4" class="empty">加载中…</td></tr></tbody></table></section>
+      <p class="meta" style="margin:10px 0 0">userid 在企业微信管理后台（work.weixin.qq.com）→ 通讯录 → 点开成员 → 「账号」字段查看并复制；配置后任务结束时群消息会 @你。</p>
       <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center">
         <input id="set-new-name" placeholder="用户名" maxlength="40" style="width:150px">
-        <input id="set-new-wecom" placeholder="企微 userid（可选）" maxlength="64" style="width:180px">
+        <input id="set-new-wecom" placeholder="企微账号（管理后台-通讯录-成员详情）" maxlength="64" style="width:220px">
         <button class="primary" id="set-add">添加</button>
         <span class="meta" id="set-msg"></span>
       </div>
@@ -1176,11 +1192,24 @@
       if (reason) showToast(reason, true);
       loadPresets();
     }
-    function enterApp(username) {
+    // ---------- 头像姓氏(v1.2 §B14):surname 优先 → 用户名按 -/_/. 取首段(无分隔符取全名) → 截 4 字符;
+    // 登录卡 36px 与边栏 40px 两态共用渲染函数,2-3 字 12px/4 字 11px ----------
+    function surnameText(u) {
+      const name = String((u && u.username) || '');
+      let s = String((u && u.surname) || '').trim();
+      if (!s) s = name.split(/[-_.]/)[0] || name;
+      return s.slice(0, 4);
+    }
+    function tkRenderAva(el, u) {  // 只管文字与字号;title 由外层边栏格子给完整用户名
+      const s = surnameText(u);
+      el.textContent = s;
+      el.style.fontSize = (s.length >= 4 ? 11 : 12) + 'px';
+    }
+    function enterApp(username, surname) {
       currentUser = username;
       document.body.classList.remove('pre-auth');
       document.body.classList.add('rail-on');
-      $('rail-ava').textContent = username.slice(0, 1).toUpperCase();
+      tkRenderAva($('rail-ava'), { username, surname });
       $('rail-ava').title = username;
       // 默认落 AI 任务看板(§二:页签第一位)
       document.querySelectorAll('nav button').forEach(b => b.classList.toggle('active', b.dataset.page === 'tasks'));
@@ -1190,7 +1219,7 @@
     async function authBootstrap() {
       try {
         const resp = await _origFetch('/api/auth/me');
-        if (resp.ok) { enterApp((await resp.json()).username); return; }
+        if (resp.ok) { const me = await resp.json(); enterApp(me.username, me.surname); return; }
       } catch (e) { /* 网络异常也进登录视图,让用户重试 */ }
       enterLogin();
     }
@@ -1199,9 +1228,12 @@
         const data = await (await _origFetch('/api/auth/presets')).json();
         $('login-users').innerHTML = (data.items || []).map(u => {
           const name = String(u.username || '');
-          return `<button class="login-user" data-u="${safe(name)}" title="${safe(name)}"><span class="login-ava">${safe(name.slice(0, 1).toUpperCase())}</span><span class="login-name">${safe(name)}</span></button>`;
+          return `<button class="login-user" data-u="${safe(name)}" title="${safe(name)}"><span class="login-ava"></span><span class="login-name">${safe(name)}</span></button>`;
         }).join('') || '<p class="meta">暂无账号</p>';
-        $('login-users').querySelectorAll('.login-user').forEach(btn => btn.onclick = () => doLogin(btn.dataset.u));
+        $('login-users').querySelectorAll('.login-user').forEach(btn => {
+          tkRenderAva(btn.querySelector('.login-ava'), data.items.find(x => x.username === btn.dataset.u));
+          btn.onclick = () => doLogin(btn.dataset.u);
+        });
       } catch (e) { $('login-users').innerHTML = '<p class="meta">名单加载失败</p>'; }
     }
     async function doLogin(username) {
@@ -1211,7 +1243,7 @@
       $('login-error').hidden = true;
       try {
         const resp = await _origFetch('/api/auth/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ username }) });
-        if (resp.ok) { enterApp((await resp.json()).username); return; }
+        if (resp.ok) { const me = await resp.json(); enterApp(me.username, me.surname); return; }
         $('login-error').textContent = '用户名不存在';  // 名单外/停用统一 404,不做模糊提示(§2.1)
         $('login-error').hidden = false;
       } catch (e) {
@@ -1223,6 +1255,7 @@
     $('rail-out').onclick = async () => { try { await _origFetch('/api/auth/logout', { method:'POST' }); } catch (e) {} enterLogin(); };
     $('rail-set').onclick = () => { $('set-modal').hidden = false; setLoadUsers(); };
     $('set-close').onclick = () => { $('set-modal').hidden = true; };
+    $('set-modal').onclick = e => { if (e.target === $('set-modal')) $('set-modal').hidden = true; };  // 点遮罩关闭(v1.2 §B15)
     $('rail-project').onclick = () => { $('rail-pop').hidden = !$('rail-pop').hidden; };
     document.addEventListener('click', e => {  // 项目占位浮层:点外面收起(单项目占位,不做 CRUD,§2.3)
       if (!$('rail-pop').hidden && !$('rail-pop').contains(e.target) && !$('rail-project').contains(e.target)) $('rail-pop').hidden = true;
@@ -1266,57 +1299,63 @@
       } else { $('set-msg').textContent = (await resp.json().catch(() => ({}))).error || '添加失败'; }
     };
 
-    // ---------- 任务列表(§4.1-4.3):胶囊筛选/搜索 300ms 防抖/分页/统计卡/用量表/15s 轮询 ----------
-    let tkPage = 1, tkPagesize = 30, tkBucket = '', tkQ = '', tkQTimer = null, tkTimer = null;
-    function tkStart() { tkLoad(); tkStatsLoad(); tkUsageLoad(); if (!tkTimer) tkTimer = setInterval(tkPollTick, TK_POLL_MS); }
+    // ---------- 竖版看板(v1.2 §A):单请求 board 接口/五列渲染/搜索 300ms 防抖/统计卡/用量表/15s 轮询 ----------
+    const TK_BOARD_MAX = 50;  // 每列最多条数,与后端 TASK_BOARD_COLUMN_MAX 对齐(§A8)
+    let tkQ = '', tkQTimer = null, tkTimer = null, tkBoardCache = '';
+    function tkStart() { tkLoad(); tkUsageLoad(); if (!tkTimer) tkTimer = setInterval(tkPollTick, TK_POLL_MS); }
     function tkStop() { clearInterval(tkTimer); tkTimer = null; }
-    function tkPollTick() {  // §7.1:轮询只重拉列表+统计+用量,不碰抽屉(答复输入不被冲掉),抽屉内另有刷新按钮
-      if (document.hidden) return;
-      tkLoad(); tkStatsLoad(); tkUsageLoad();
-    }
-    const tkTokenText = (n) => n ? Number(n).toLocaleString('en-US') : '-';
-    function tkSubLine(t) {  // §4.2:任务号(等宽)· 类型(中性 chip)· 风险(三档 chip),分析后才有的属性降次行
-      const parts = [`<span class="mono">${safe(t.task_id)}</span>`];
-      if (t.task_type) parts.push(`<span class="chip lvl">${TK_TYPE_CN[t.task_type] || safe(t.task_type)}</span>`);
-      if (t.risk) parts.push(`<span class="${TK_RISK_CLASS[t.risk] || 'chip lvl'}">${TK_RISK_CN[t.risk] || safe(t.risk)}</span>`);
-      return `<div class="tk-sub">${parts.join('<span class="meta">·</span>')}</div>`;
+    function tkPollTick() {  // §A10:轮询重拉 board+用量;抽屉打开期间跳过整体重拉(答复输入不被冲掉),抽屉内另有刷新按钮
+      if (document.hidden || tkDrawerId) return;
+      tkLoad(); tkUsageLoad();
     }
     async function tkLoad() {
-      const qs = new URLSearchParams({ page: tkPage, pagesize: tkPagesize });
-      if (tkBucket) qs.set('bucket', tkBucket);
-      if (tkQ) qs.set('q', tkQ);
       try {
-        const data = await (await _origFetch('/api/tasks?' + qs)).json();
-        const items = data.items || [], total = data.total || 0, page = data.page || 1;
-        const pages = Math.max(1, Math.ceil(total / tkPagesize));
-        if (page > pages) { tkPage = pages; return tkLoad(); }
-        $('tk-rows').innerHTML = '';
-        if (!items.length) {
-          $('tk-rows').innerHTML = `<tr><td colspan="7" class="empty">${(tkQ || tkBucket) ? '没有匹配的任务,可调整筛选或重置' : '还没有 AI 任务,点右上角"提交任务"把活派给 AI'}</td></tr>`;
-        }
-        items.forEach(t => {
-          const row = document.createElement('tr'); row.className = 'clickable';
-          row.innerHTML = `<td class="cd-td-id"><div>${safe(t.title)}</div>${tkSubLine(t)}</td>`
-            + `<td>${tkBadge(t.status)}</td><td>${TK_MACHINE_CN[t.target_machine] || '-'}</td>`
-            + `<td>${safe(t.submitter)}</td><td class="num">${tkTokenText(t.tokens_total)}</td>`
-            + `<td title="${safe(formatDate(t.created_at))}">${dlRelTime(t.created_at)}</td><td>-</td>`;
-          row.onclick = () => tkOpenDrawer(t.task_id);
-          $('tk-rows').appendChild(row);
+        const qs = tkQ ? '?q=' + encodeURIComponent(tkQ) : '';
+        const data = await (await _origFetch('/api/tasks/board' + qs)).json();
+        tkStatsRender(data.stats || {});
+        const snapshot = JSON.stringify([data.groups, data.counts]);
+        if (snapshot === tkBoardCache) return;  // 重绘前 JSON 比对,无变化跳过 replaceChildren(§A10)
+        const scrollTops = {};  // 有变化重绘后恢复各列滚动位置(§A10)
+        document.querySelectorAll('.tk-col').forEach(col => {
+          scrollTops[col.dataset.status] = col.querySelector('.tk-col-body').scrollTop;
         });
-        $('tk-page-info').textContent = `第 ${page} / ${pages} 页 · 共 ${total} 条`;
-        $('tk-prev').disabled = page <= 1;
-        $('tk-next').disabled = page >= pages;
-        $('tk-pager').hidden = total === 0;
-      } catch (e) { $('tk-rows').innerHTML = '<tr><td colspan="7" class="empty">加载失败,可点"刷新"重试</td></tr>'; }
+        const groups = data.groups || {}, counts = data.counts || {};
+        document.querySelectorAll('.tk-col').forEach(col => {
+          const status = col.dataset.status;
+          tkRenderCol(col, groups[status] || [], counts[status] || 0);
+          col.querySelector('.tk-col-body').scrollTop = scrollTops[status] || 0;
+        });
+        tkBoardCache = snapshot;
+      } catch (e) { /* 拉不到不打断既有列内容,可点"刷新"重试 */ }
     }
-    async function tkStatsLoad() {  // §4.3:全员同口径=全部数据;数值一律 --ink 不上语义色
-      try {
-        const s = await (await _origFetch('/api/tasks/stats')).json();
-        $('tk-stat-active').textContent = s.active ?? '-';
-        $('tk-stat-mine').textContent = s.mine ?? '-';
-        $('tk-stat-done').textContent = s.done ?? '-';
-        $('tk-stat-tokens').textContent = Number(s.tokens_total || 0).toLocaleString('en-US');
-      } catch (e) { /* 统计卡拉不到不打断列表 */ }
+    function tkRenderCol(col, items, count) {  // 列头计数=当前搜索下全量计数;列尾 50 条上限提示(§A3/§A8)
+      col.querySelector('.tk-col-count').textContent = String(count);
+      const body = col.querySelector('.tk-col-body');
+      if (!items.length) { body.innerHTML = '<div class="tk-col-empty">暂无任务</div>'; return; }
+      body.innerHTML = items.map(tkCardHTML).join('')
+        + (count > items.length ? `<div class="tk-col-more">仅显示最近 ${TK_BOARD_MAX} 条,共 ${count} 条</div>` : '');
+      body.querySelectorAll('.tk-card').forEach(el => { el.onclick = () => tkOpenDrawer(el.dataset.id); });
+    }
+    function tkCardHTML(t) {  // 卡片三行(§A5-§A7):标题两行截断/徽标行/meta 两端对齐;终态时间用 finished_at
+      const timeVal = (t.status === 'done' || t.status === 'failed') ? (t.finished_at || t.created_at) : t.created_at;
+      const merge = t.merge_status === 'conflict' ? '<span class="tk-mg-conflict">冲突处理中</span>'
+        : t.merge_status === 'abandoned' ? '<span class="tk-mg-abandoned">已放弃</span>' : '';
+      const badges = [
+        t.task_type ? `<span class="chip lvl">${TK_TYPE_CN[t.task_type] || safe(t.task_type)}</span>` : '',
+        t.risk ? `<span class="${TK_RISK_CLASS[t.risk] || 'chip lvl'}">${TK_RISK_CN[t.risk] || safe(t.risk)}</span>` : '',
+        merge,
+      ].join('');
+      return `<div class="tk-card" data-id="${safe(t.task_id)}" title="${safe(t.title)}（${safe(t.task_id)}）">`
+        + `<div class="tk-card-title">${safe(t.title)}</div>`
+        + `<div class="tk-card-badges">${badges}</div>`
+        + `<div class="tk-card-meta"><span>${safe(t.submitter)} · ${TK_MACHINE_CN[t.target_machine] || '-'}</span><span title="${safe(formatDate(timeVal))}">${dlRelTime(timeVal)}</span></div>`
+        + `</div>`;
+    }
+    function tkStatsRender(s) {  // §A11:统计卡口径不变=全量(不随搜索);数值一律 --ink 不上语义色
+      $('tk-stat-active').textContent = s.active ?? '-';
+      $('tk-stat-mine').textContent = s.mine ?? '-';
+      $('tk-stat-done').textContent = s.done ?? '-';
+      $('tk-stat-tokens').textContent = Number(s.tokens_total || 0).toLocaleString('en-US');
     }
     async function tkUsageLoad() {  // §4.4:6 个数字一张表,无图表
       try {
@@ -1325,31 +1364,20 @@
           || '<tr><td colspan="6" class="empty">暂无数据</td></tr>';
       } catch (e) { /* 同上 */ }
     }
-    document.querySelectorAll('#tk-pills .cd-pill').forEach(btn => btn.onclick = () => {
-      document.querySelectorAll('#tk-pills .cd-pill').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      tkBucket = btn.dataset.bucket; tkPage = 1;
-      $('tk-reset').classList.toggle('active', !!(tkBucket || tkQ));  // 规范 5.2:有激活筛选时重置描边变 brand
-      tkLoad();
-    });
-    $('tk-q').oninput = () => {
+    $('tk-q').oninput = () => {  // 搜索 300ms 防抖带 q 重拉(§A9)
       clearTimeout(tkQTimer);
       tkQTimer = setTimeout(() => {
-        tkQ = $('tk-q').value.trim(); tkPage = 1;
-        $('tk-reset').classList.toggle('active', !!(tkBucket || tkQ));
+        tkQ = $('tk-q').value.trim();
+        $('tk-reset').classList.toggle('active', !!tkQ);  // 规范 5.2:有激活筛选时重置描边变 brand
         tkLoad();
       }, 300);
     };
     $('tk-reset').onclick = () => {
-      tkQ = ''; tkBucket = ''; tkPage = 1; $('tk-q').value = '';
-      document.querySelectorAll('#tk-pills .cd-pill').forEach(b => b.classList.toggle('active', b.dataset.bucket === ''));
+      tkQ = ''; $('tk-q').value = '';
       $('tk-reset').classList.remove('active');
       tkLoad();
     };
-    $('tk-refresh').onclick = () => { tkLoad(); tkStatsLoad(); tkUsageLoad(); };
-    $('tk-prev').onclick = () => { if (tkPage > 1) { tkPage -= 1; tkLoad(); } };
-    $('tk-next').onclick = () => { tkPage += 1; tkLoad(); };
-    $('tk-pagesize').onchange = () => { tkPagesize = parseInt($('tk-pagesize').value, 10) || 30; tkPage = 1; tkLoad(); };
+    $('tk-refresh').onclick = () => { tkLoad(); tkUsageLoad(); };
 
     // ---------- 提交任务弹窗(§5):字段下方红字校验,失败不清空输入 ----------
     function tkOpenSubmit() {
@@ -1374,7 +1402,7 @@
         if (resp.ok) {
           $('tk-modal').hidden = true;
           showToast('任务已提交,等待 AI 分析');  // 新任务落"待分析"(§5)
-          tkLoad(); tkStatsLoad(); tkUsageLoad();
+          tkLoad(); tkUsageLoad();
         } else {
           const err = (await resp.json().catch(() => ({}))).error || `提交失败(${resp.status})`;
           if (err.includes('标题')) { $('tk-err-title').textContent = err; $('tk-err-title').hidden = false; }
@@ -1507,7 +1535,7 @@
         $('tkd-answer-msg').textContent = '';
         try {
           const resp = await _origFetch(`/api/tasks/${encodeURIComponent(tkDrawerId)}/answer`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ answer }) });
-          if (resp.ok) { showToast('已答复,任务继续执行'); $('tkd-answer').value = ''; tkRenderDrawer(); tkLoad(); tkStatsLoad(); }
+          if (resp.ok) { showToast('已答复,任务继续执行'); $('tkd-answer').value = ''; tkRenderDrawer(); tkLoad(); }
           else $('tkd-answer-msg').textContent = (await resp.json().catch(() => ({}))).error || '答复失败';
         } catch (e) { $('tkd-answer-msg').textContent = '答复失败,请重试'; }
       };
@@ -3216,7 +3244,7 @@
     document.body.classList.add('pre-auth');
     authBootstrap();
     // 全站列表启用列宽拖拽(用例管理表 cd-table 自带实现,不在其列)
-    [['runs','tw-runs',false],['tk-rows','tw-tk',true],['tk-usage','tw-tku',false],['set-rows','tw-set',true],['dl-rows','tw-dl',true],['pl-rows','tw-plcfg',true],['pl-job-rows','tw-pljob',true],['su-rows','tw-su',true],['cd-mods-rows','tw-mods',true]]
+    [['runs','tw-runs',false],['tk-usage','tw-tku',false],['set-rows','tw-set',true],['dl-rows','tw-dl',true],['pl-rows','tw-plcfg',true],['pl-job-rows','tw-pljob',true],['su-rows','tw-su',true],['cd-mods-rows','tw-mods',true]]
       .forEach(([id, key, pin]) => { const t = $(id) && $(id).closest('table'); if (t) makeTableResizable(t, key, pin); });
     window.addEventListener('resize', () => { pinFit.forEach(f => f(-1)); try { cdFitLast(null); } catch (e) {} });  // 窗口宽变化后操作列仍贴右缘
 

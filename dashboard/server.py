@@ -77,6 +77,9 @@ WEBHOOK_APP_REPOS = {"swan-app/swan-audio/hivi-network-flutterapp"}
 # ---- 平台登录与 AI 任务看板(2026-09-29 v1.1,设计见 docs/AI任务与平台登录设计.md)----
 # 预设账号:users 空表时由 initialize() 播种;后续账号走设置弹窗添加,不做删除只停用
 PRESET_USERS = ("yumiao", "fushenghao", "wuhouju", "menglingzhao")
+# 姓氏全拼(登录头像卡/边栏头像显示用,设计 v1.2 §14);预设账号后端直供,
+# 非预设账号由前端回退规则生成(用户名首段),不入库
+PRESET_SURNAMES = {"yumiao": "yu", "fushenghao": "fu", "wuhouju": "wu", "menglingzhao": "meng"}
 AUTH_COOKIE = "swan_user"
 AUTH_COOKIE_MAX_AGE = 7 * 24 * 3600  # 固定 7 天,到期 401 重进(设计 §2.2)
 # 登录闸豁免的公开 auth 端点(presets 供登录页头像卡;me 是探测本身)
@@ -118,6 +121,9 @@ MACHINE_EXEMPT_PREFIX = {
 TASK_STATUSES = ("pending_analysis", "questioning", "running", "done", "failed", "cancelled")
 TASK_ACTIVE_STATUSES = ("pending_analysis", "questioning", "running")
 TASK_TERMINAL_STATUSES = ("done", "failed", "cancelled")
+# 竖版看板五列写死顺序(设计 v1.2 §A2;cancelled 不上板,终态卡片只见 done/failed)
+TASK_BOARD_STATUSES = ("pending_analysis", "questioning", "running", "done", "failed")
+TASK_BOARD_COLUMN_MAX = 50  # 每列最多返回条数(设计 v1.2 §A8)
 TASK_TYPES = ("code_change", "test_run", "troubleshoot", "env_maint", "other")
 TASK_RISKS = ("high", "mid", "low")
 TARGET_MACHINES = ("167", "176")
@@ -1274,6 +1280,7 @@ class DashboardStore:
                 CREATE TABLE IF NOT EXISTS users (
                     username TEXT PRIMARY KEY,
                     wecom_userid TEXT NOT NULL DEFAULT '',
+                    surname TEXT NOT NULL DEFAULT '',
                     status TEXT NOT NULL DEFAULT 'active',
                     created_at TEXT NOT NULL
                 );
@@ -1328,10 +1335,20 @@ class DashboardStore:
             if connection.execute("SELECT COUNT(*) AS n FROM users").fetchone()["n"] == 0:
                 for username in PRESET_USERS:
                     connection.execute(
-                        "INSERT INTO users (username, wecom_userid, status, created_at)"
-                        " VALUES (?, '', 'active', ?)",
-                        (username, utc_now()),
+                        "INSERT INTO users (username, wecom_userid, surname, status, created_at)"
+                        " VALUES (?, '', ?, 'active', ?)",
+                        (username, PRESET_SURNAMES[username], utc_now()),
                     )
+            # 轻量迁移:老库补 users.surname(v1.2 头像姓氏全拼);存量库 ALTER 补列后
+            # 对预设账号回填空姓氏(新库 DDL 已含,补列仅对存量库生效,幂等)
+            user_columns = {row["name"] for row in connection.execute("PRAGMA table_info(users)")}
+            if "surname" not in user_columns:
+                connection.execute("ALTER TABLE users ADD COLUMN surname TEXT NOT NULL DEFAULT ''")
+            for username, surname in PRESET_SURNAMES.items():
+                connection.execute(
+                    "UPDATE users SET surname=? WHERE username=? AND surname=''",
+                    (surname, username),
+                )
 
     # ---- 平台登录(users 表;cookie 即身份,逐请求校验在册且启用)----
 
@@ -1348,14 +1365,16 @@ class DashboardStore:
         """登录页头像卡名单:仅启用账号(停用即退出名单,设计 §2.4)。"""
         with self.transaction() as connection:
             rows = connection.execute(
-                "SELECT username FROM users WHERE status='active' ORDER BY created_at").fetchall()
-        return [{"username": row["username"]} for row in rows]
+                "SELECT username, surname FROM users WHERE status='active'"
+                " ORDER BY created_at").fetchall()
+        return [{"username": row["username"], "surname": row["surname"] or ""} for row in rows]
 
     @staticmethod
     def _serialize_user(row: sqlite3.Row) -> dict[str, Any]:
         return {
             "username": row["username"],
             "wecom_userid": row["wecom_userid"],
+            "surname": row["surname"] or "",
             "status": row["status"],
             "created_at": row["created_at"],
         }
@@ -1583,6 +1602,41 @@ class DashboardStore:
                 "tokens_total": count(
                     "SELECT COALESCE(SUM(tokens_in + tokens_out), 0) FROM tasks"),
             }
+
+    def task_board(self, q: str = "", viewer: str = "") -> dict[str, Any]:
+        """竖版看板单请求(v1.2 §A9):五列分组+各列计数+统计卡一次拿全;
+        /api/tasks 列表接口保持原样(worker 通道与既有用例都不动)。"""
+        where: list[str] = []
+        params: list[Any] = []
+        if q:
+            where.append("(title LIKE ? OR task_id LIKE ? OR submitter LIKE ?)")
+            like = f"%{q}%"
+            params.extend([like, like, like])
+        clause = f" WHERE {' AND '.join(where)}" if where else ""
+        with self.transaction() as connection:
+            rows = connection.execute(
+                f"SELECT * FROM tasks{clause} ORDER BY created_at DESC, task_id DESC",
+                params,
+            ).fetchall()
+            count_rows = connection.execute(
+                f"SELECT status, COUNT(*) AS n FROM tasks{clause} GROUP BY status",
+                params,
+            ).fetchall()
+        # counts=当前搜索下的全量计数(列头计数与列尾"共 N 条"都用它,§A3/§A8)
+        counts = {row["status"]: int(row["n"]) for row in count_rows}
+        groups: dict[str, list[dict[str, Any]]] = {s: [] for s in TASK_BOARD_STATUSES}
+        for row in rows:  # 已按 created_at 倒序,组内天然有序(§A8)
+            column = groups.get(row["status"])
+            if column is None or len(column) >= TASK_BOARD_COLUMN_MAX:
+                continue
+            column.append({
+                "task_id": row["task_id"], "title": row["title"], "status": row["status"],
+                "task_type": row["task_type"], "risk": row["risk"],
+                "target_machine": row["target_machine"], "submitter": row["submitter"],
+                "merge_status": row["merge_status"], "created_at": row["created_at"],
+                "finished_at": row["finished_at"],
+            })
+        return {"groups": groups, "counts": counts, "stats": self.task_stats(viewer)}
 
     def get_task(self, task_id: str) -> dict[str, Any]:
         with self.transaction() as connection:
@@ -3776,12 +3830,25 @@ class DashboardHandler(BaseHTTPRequestHandler):
             if user is None:
                 self.send_error_json("未登录", HTTPStatus.UNAUTHORIZED)
             else:
-                self.send_json({"username": user})
+                # 姓氏全拼随身份一并下发,边栏头像渲染用(v1.2 §14)
+                try:
+                    surname = self.store.get_user(user)["surname"]
+                except KeyError:
+                    surname = ""
+                self.send_json({"username": user, "surname": surname})
             return
         if parsed.path == "/api/auth/users":
             self.send_json({"items": self.store.list_users()})
             return
-        # ---- AI 任务看板(列表/统计/用量/详情;/api/tasks/usage 须先于 /api/tasks/ 前缀)----
+        # ---- AI 任务看板(看板/列表/统计/用量/详情;/api/tasks/usage 须先于 /api/tasks/ 前缀)----
+        if parsed.path == "/api/tasks/board":
+            # 竖版看板单请求(v1.2 §A9);须先于 /api/tasks/ 前缀路由
+            query = parse_qs(parsed.query)
+            self.send_json(self.store.task_board(
+                q=(query.get("q") or [""])[0].strip(),
+                viewer=self._session_user() or "",
+            ))
+            return
         if parsed.path == "/api/tasks":
             query = parse_qs(parsed.query)
             viewer = self._session_user() or ""
@@ -4185,6 +4252,12 @@ class DashboardHandler(BaseHTTPRequestHandler):
                     return
                 self.send_json({"ok": True, "apk_id": apk_id, "bytes": received, "stored": str(dest)})
                 return
+            # 退出登录:页面发的是无请求体 POST,须先于 read_json 分流(否则空 body 400,
+            # 退出从未真正清过 cookie——v1.2 自查发现的历史 bug)
+            if parsed.path == "/api/auth/logout":
+                cookie = f"{AUTH_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0"
+                self.send_json({"ok": True}, set_cookie=cookie)
+                return
             payload = self.read_json()
             # ---- 平台登录(auth;公开端点 presets/me 在 GET,login/logout 公开可匿名)----
             if parsed.path == "/api/auth/login":
@@ -4195,11 +4268,12 @@ class DashboardHandler(BaseHTTPRequestHandler):
                     return
                 cookie = (f"{AUTH_COOKIE}={quote(username)}; Path=/; HttpOnly;"
                           f" SameSite=Lax; Max-Age={AUTH_COOKIE_MAX_AGE}")
-                self.send_json({"username": username}, set_cookie=cookie)
-                return
-            if parsed.path == "/api/auth/logout":
-                cookie = f"{AUTH_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0"
-                self.send_json({"ok": True}, set_cookie=cookie)
+                # 姓氏全拼登录即下发(进应用后边栏头像免二次查询,v1.2 §14)
+                try:
+                    surname = self.store.get_user(username)["surname"]
+                except KeyError:
+                    surname = ""
+                self.send_json({"username": username, "surname": surname}, set_cookie=cookie)
                 return
             # ---- 设置弹窗账号台账(登录后全员可用,无角色)----
             if parsed.path == "/api/auth/users":

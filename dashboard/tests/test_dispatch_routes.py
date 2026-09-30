@@ -32,16 +32,19 @@ def _load_worker():
 
 
 class _FakeCompleted:
-    def __init__(self, returncode: int = 0, stdout: bytes = b"", stderr: bytes = b""):
+    def __init__(self, returncode: int = 0, stdout: bytes = b"", stderr: bytes = b"", args=None):
         self.returncode = returncode
         self.stdout = stdout
         self.stderr = stderr
+        self.args = args or []  # worker 未受理兜底会读 run.args 重组 CompletedProcess
 
 
 def _fake_run(calls: list):
     def run(args, input_bytes=None, timeout=30):
         calls.append((args, input_bytes))
-        return _FakeCompleted()
+        if "capture-pane" in args:  # 本地受理轮询:首轮即见 claude TUI 受理标志(esc to interrupt)
+            return _FakeCompleted(args=args, stdout=b"esc to interrupt")
+        return _FakeCompleted(args=args)
     return run
 
 
@@ -85,10 +88,11 @@ def test_route_167_local_when_unset(monkeypatch):
         assert not [machine for machine, _ in worker._remote_hosts() if machine == "167"]
         assert worker.dispatch_task(_task("167"), None, None) is True
 
-        # 本地直连三步:C-m 提交 → capture-pane 回执 → 未受理补发 C-m;全程不碰 ssh
+        # 本地直连:文本单独 send-keys → 受理轮询(每轮 C-m+capture-pane,首轮即受理);全程不碰 ssh
         assert [call[0][0] for call in calls] == ["tmux"] * 3
-        assert calls[0][0][-1] == "C-m" and calls[1][0][1] == "capture-pane"
-        assert calls[2][0] == ["tmux", "send-keys", "-t", worker.TMUX_SESSION, "C-m"]
+        assert calls[0][0][1] == "send-keys" and calls[0][0][-1].startswith("读取执行")
+        assert calls[1][0] == ["tmux", "send-keys", "-t", worker.TMUX_SESSION, "C-m"]
+        assert calls[2][0][1] == "capture-pane"
         inbox_file, = worker.INBOX_DIR.glob("*.json")
         payload = json.loads(inbox_file.read_text(encoding="utf-8"))
         assert payload["task_id"] == "TASK-20260930-001"

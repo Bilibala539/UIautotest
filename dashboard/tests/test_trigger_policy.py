@@ -19,16 +19,30 @@ from pathlib import Path
 from dashboard.server import create_server
 
 
-def request(base_url: str, path: str, method: str = "GET", payload: dict | None = None):
+def request(base_url: str, path: str, method: str = "GET", payload: dict | None = None,
+            cookie: str = ""):
     body = None if payload is None else json.dumps(payload).encode("utf-8")
+    headers = {"Content-Type": "application/json"}
+    if cookie:
+        headers["Cookie"] = cookie
     request_object = urllib.request.Request(
         f"{base_url}{path}",
         data=body,
         method=method,
-        headers={"Content-Type": "application/json"},
+        headers=headers,
     )
     with urllib.request.urlopen(request_object, timeout=5) as response:
         return response.status, response.read()
+
+
+def _login(base_url: str) -> str:
+    """平台登录(v1.1 全站 401 闸后,浏览器面 GET 须带 swan_user cookie)。"""
+    request_object = urllib.request.Request(
+        f"{base_url}/api/auth/login", data=json.dumps({"username": "yumiao"}).encode("utf-8"),
+        method="POST", headers={"Content-Type": "application/json"})
+    with urllib.request.urlopen(request_object, timeout=5) as response:
+        assert response.status == 200
+        return response.headers["Set-Cookie"].split(";")[0]
 
 
 def _register_apk(base_url: str, apk_id: str, server_type: str) -> None:
@@ -47,8 +61,8 @@ def _register_apk(base_url: str, apk_id: str, server_type: str) -> None:
     assert status == 201, body
 
 
-def _jobs_with_apk(base_url: str, apk_id: str) -> list[dict]:
-    _, body = request(base_url, "/api/pipeline/jobs?limit=200")
+def _jobs_with_apk(base_url: str, apk_id: str, cookie: str) -> list[dict]:
+    _, body = request(base_url, "/api/pipeline/jobs?limit=200", cookie=cookie)
     items = json.loads(body)
     if isinstance(items, dict):
         items = items.get("jobs") or items.get("items") or []
@@ -69,6 +83,7 @@ def test_trigger_rejects_formal_apk_and_keeps_test_apk():
         thread.start()
         base_url = f"http://127.0.0.1:{server.server_address[1]}"
         try:
+            cookie = _login(base_url)  # 任务清单 GET 在登录闸后;trigger/apks POST 走机器通道不受闸
             _register_apk(base_url, "swan-dev-deb9be6-formal", "formal")
             _register_apk(base_url, "swan-dev-deb9be6-test", "test")
 
@@ -80,7 +95,7 @@ def test_trigger_rejects_formal_apk_and_keeps_test_apk():
             })
             assert status == 409, (status, body)
             assert "formal" in body.decode("utf-8")
-            assert _jobs_with_apk(base_url, "swan-dev-deb9be6-formal") == []
+            assert _jobs_with_apk(base_url, "swan-dev-deb9be6-formal", cookie) == []
 
             # 手动触发带 formal 包 → 同样 409 拦截
             status, body = _trigger(base_url, {
@@ -89,7 +104,7 @@ def test_trigger_rejects_formal_apk_and_keeps_test_apk():
                 "apk_id": "swan-dev-deb9be6-formal",
             })
             assert status == 409, (status, body)
-            assert _jobs_with_apk(base_url, "swan-dev-deb9be6-formal") == []
+            assert _jobs_with_apk(base_url, "swan-dev-deb9be6-formal", cookie) == []
 
             # 测试服包 → 正常建任务(无 Jenkins 凭据时留 pending 本地兜底)
             status, body = _trigger(base_url, {
@@ -98,7 +113,7 @@ def test_trigger_rejects_formal_apk_and_keeps_test_apk():
                 "apk_id": "swan-dev-deb9be6-test",
             })
             assert status == 201, (status, body)
-            jobs = _jobs_with_apk(base_url, "swan-dev-deb9be6-test")
+            jobs = _jobs_with_apk(base_url, "swan-dev-deb9be6-test", cookie)
             assert len(jobs) == 1
             assert jobs[0]["status"] == "pending"
 

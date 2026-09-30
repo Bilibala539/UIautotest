@@ -437,20 +437,22 @@ def _apply_report(report: dict, queue_item: dict) -> bool:
     task_id = report["task_id"]
     phase = report.get("phase")
     tokens = {"tokens_in": _int(report.get("tokens_in")), "tokens_out": _int(report.get("tokens_out"))}
+    # 小领导常把换行写成字面 \n(E2E-2 实测),入库前归一成真实换行,页面才可读
+    readable = lambda text: str(text or "").replace("\\r\\n", "\n").replace("\\n", "\n")
     if phase == "progress":
         _post("/api/dispatch/update", {"action": "progress", "task_id": task_id,
-                                       "detail": str(report.get("detail") or "小领导进展"), **tokens})
+                                       "detail": readable(report.get("detail")), **tokens})
         return True
     if phase == "merge":
         _post("/api/dispatch/update", {"action": "merge", "task_id": task_id,
                                        "event": report.get("event"),
-                                       "detail": str(report.get("detail") or "")})
+                                       "detail": readable(report.get("detail"))})
         return True
     if phase == "finish":
         result = _post("/api/dispatch/update", {
             "action": "finish", "task_id": task_id, "ok": bool(report.get("ok")),
-            "report_md": str(report.get("report_md") or ""),
-            "error_message": str(report.get("error_message") or ""),
+            "report_md": readable(report.get("report_md")),
+            "error_message": readable(report.get("error_message")),
             "branch_name": str(report.get("branch_name") or ""),
             "worktree_path": str(report.get("worktree_path") or ""),
             "merge_status": str(report.get("merge_status") or ""), **tokens})

@@ -5,8 +5,9 @@
   2. 待分析任务 → claude -p 无头分析(读 scripts/dispatch_charter.md)→ POST analyze;
      信息不足 → POST question 转疑问待答,提交人答复后任务自动回队列
   3. 代码修改类 → 本仓库建 worktree,分支 u/<提交人>/t<任务号>-<标题slug>
-  4. 按目标机派发小领导:inbox 文件(自包含 outbox 协议)+ tmux send-keys 一律 C-m
-     并 capture-pane 验证受理(未受理补发一次;claude TUI 不认 Enter,2026-09-30 教训)。
+  4. 按目标机派发小领导:inbox 文件(自包含 outbox 协议)+ tmux send-keys;
+     文本与 C-m 分开发送(同突发 C-m 被 TUI 当粘贴吞掉,E2E-2 教训),受理轮询
+     最长 60s、每 5s 补发一次 C-m(单次 2s 重试不够;claude TUI 不认 Enter)。
      .176 常规经 SSH;.167 配置 DISPATCH_SSH_167 后同样走 SSH——生产 worker 以
      autotest 跑而小领导 tmux/inbox 属 jks,本地直连会打错人;未配则本地直连,.229 本机联测用
   5. 轮询 outbox(本机 + 远端经 SSH,与派发同构)收报告 → POST progress/merge/finish
@@ -274,25 +275,34 @@ def dispatch_task(task: dict, branch: str | None, worktree: str | None) -> bool:
         inbox_hint = f"$HOME/leader/inbox/{inbox_name}"
         prompt = DISPATCH_PROMPT.format(inbox=inbox_hint, task_id=task_id, outbox=outbox_hint)
         quoted_session = shlex.quote(TMUX_SESSION)
+        # 文本先单独 send-keys,停 1s 再进入受理轮询:C-m 与文本同突发会被 TUI
+        # 当成粘贴内容吞掉(只换行不提交);轮询 12×5s,期间每轮补发 C-m——
+        # 已提交后再发 C-m 是空输入回车,无副作用。受理=footer 出现 esc to interrupt
         script = (
             f"mkdir -p ~/leader/inbox ~/leader/outbox && "
             f"cat > {inbox_hint} && "
-            f"tmux send-keys -t {quoted_session} {shlex.quote(prompt)} C-m && sleep 2; "
-            f"if tmux capture-pane -t {quoted_session} -p | grep -qi '{SUBMIT_MARK}'; then "
-            f"echo submitted; else tmux send-keys -t {quoted_session} C-m; echo resent; fi")
+            f"tmux send-keys -t {quoted_session} {shlex.quote(prompt)} && sleep 1 && "
+            f"for i in $(seq 1 12); do "
+            f"tmux send-keys -t {quoted_session} C-m; sleep 5; "
+            f"if tmux capture-pane -t {quoted_session} -p | grep -qi '{SUBMIT_MARK}'; "
+            f"then echo submitted; exit 0; fi; done; echo resent")
         run = _run(["ssh", host, script], body.encode("utf-8"))
     else:  # 本地直连:直接写文件 + 本地 tmux(.229 本机联测用)
         INBOX_DIR.mkdir(parents=True, exist_ok=True)
         inbox_path = INBOX_DIR / inbox_name
         inbox_path.write_text(body, encoding="utf-8")
         prompt = DISPATCH_PROMPT.format(inbox=inbox_path, task_id=task_id, outbox=outbox_hint)
-        run = _run(["tmux", "send-keys", "-t", TMUX_SESSION, prompt, "C-m"])
+        run = _run(["tmux", "send-keys", "-t", TMUX_SESSION, prompt])
         if run.returncode == 0:
-            time.sleep(2)
-            pane = _run(["tmux", "capture-pane", "-t", TMUX_SESSION, "-p"]).stdout
-            if SUBMIT_MARK not in pane.decode("utf-8", "replace").lower():
+            time.sleep(1)
+            for _ in range(12):
                 _run(["tmux", "send-keys", "-t", TMUX_SESSION, "C-m"])
-                log(f"leader 未受理,补发 C-m {task_id}")
+                time.sleep(5)
+                pane = _run(["tmux", "capture-pane", "-t", TMUX_SESSION, "-p"]).stdout
+                if SUBMIT_MARK in pane.decode("utf-8", "replace").lower():
+                    break
+            else:
+                run = subprocess.CompletedProcess(run.args, 1, b"resent", b"")
     if run.returncode != 0:
         raise RuntimeError(f"派发失败 {machine}: "
                            f"{(run.stderr or run.stdout).decode('utf-8', 'replace')[:200]}")

@@ -1270,11 +1270,29 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
             logger.warning("volume_key: OCR 未取得音量百分比，退化为前台锚点断言")
             # 音量图标三模板链探测（底排图标族收口，同上口径）
             icon_front = self._find_volume_icon(timeout=3)
+            if icon_front is None and self._close_volume_popup_if_open():
+                # 音量键可能触发 App 音量弹层（同图标点击弹层），弹层开着
+                # 则底排图标与音量行同被遮挡——run7 三模板全失配的主嫌疑
+                # （与 OCR 读空同态互证）；关闭后重探
+                icon_front = self._find_volume_icon(timeout=3)
             if icon_front is None:
                 shot = self._snap_chain_miss("volume_icon_front")
             assert icon_front is not None, (
                 f"音量图标未找到（glyph/浅/深三模板均未命中，前台锚点断言"
-                f"失败；rig 态渲染疑出变体覆盖外，现场帧 {shot}）")
+                f"失败；现场帧 {shot}）")
+
+    def _close_volume_popup_if_open(self) -> bool:
+        """音量弹层（X 钮锚 [图]）在位则 back 关闭，返回是否关闭过。
+
+        volume_key 退化路径专用（物理音量键疑触发 App 音量弹层遮挡底排）；
+        测试层 teardown 的同款探测为 _close_volume_popup_if_any，两处共用
+        SWAN_PLAYER_VOLUME_POPUP 锚。
+        """
+        if self.find_image(SWAN_PLAYER_VOLUME_POPUP, timeout=2) is not None:
+            logger.info("volume_key: 音量弹层在位（键触发展开），back 关闭后重探")
+            self.press_back()
+            return True
+        return False
 
     # ---------- 域3 内部辅助 ----------
 

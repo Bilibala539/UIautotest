@@ -400,6 +400,7 @@
             <button class="cd-pill" data-type="auto">自动化用例</button>
           </div>
           <select id="cd-module"><option value="">全部模块</option></select>
+          <select id="cd-human" title="人工确认状态(仅文字用例有此属性)"><option value="">全部确认态</option><option value="1">已确认</option><option value="0">未确认</option></select>
           <div class="cd-search">
             <input id="cd-q" placeholder="搜索编号 / 标题 / 内容…">
             <button class="ghost" id="cd-search">搜索</button>
@@ -412,6 +413,7 @@
         </div>
         <button class="ghost" id="cd-mods-btn">模块管理</button>
         <button class="ghost" id="cd-imp-btn" title="按模板批量导入用例,支持 CSV / Excel / Markdown">批量导入</button>
+        <button class="ghost" id="cd-pull-btn" title="从外部用例 API 拉取文字用例并入库(按用例 ID upsert;接口未配置时会明确提示)">从 API 拉取</button>
         <button class="ghost" id="cd-batch-btn" title="勾选多条用例,批量改优先级 / 模块或加入套件">批量编辑</button>
         <button class="primary" id="cd-new">＋ 新建用例</button>
       </div>
@@ -1279,6 +1281,7 @@
       { key: 'id',      label: '用例',          width: 330, visible: true },
       { key: 'type',    label: '类型',          width: 80,  visible: true },
       { key: 'module',  label: '模块 / 优先级', width: 160, visible: true },
+      { key: 'human',   label: '人工确认',      width: 96,  visible: true },
       { key: 'links',   label: '关联用例',      width: 190, visible: true },
       { key: 'bug',     label: '来源 bug',      width: 190, visible: true },
       { key: 'updated', label: '更新时间',      width: 145, visible: true },
@@ -1472,9 +1475,11 @@
       // 过滤
       const q = $('cd-q').value.trim().toLowerCase();
       const module = sel.value;
+      const humanSel = $('cd-human').value; // ''=全部 '1'=已确认 '0'=未确认(仅文字用例有此属性,auto 不参与)
       let shown = cdAllItems;
       if (cdTypeFilter) shown = shown.filter(c => c.case_type === cdTypeFilter);
       if (module) shown = shown.filter(c => c.module === module);
+      if (humanSel !== '') shown = shown.filter(c => c.case_type === 'text' && (c.human_confirmed ? 1 : 0) === Number(humanSel));
       if (q) shown = shown.filter(c => `${c.case_id} ${c.title} ${c.module||''} ${c.source_bug||''}`.toLowerCase().includes(q));
       // 分页
       const totalPages = Math.max(1, Math.ceil(shown.length / cdPageSize));
@@ -1506,7 +1511,7 @@
       // 行
       const tbody = $('cd-rows'); tbody.innerHTML = '';
       if (!pageItems.length) {
-        tbody.innerHTML = `<tr><td colspan="${vis.length}" class="empty">${q || cdTypeFilter || module ? '没有匹配的用例——试试重置筛选' : '还没有用例——点右上"＋ 新建用例"，或运行 scripts/sync_cases.py 同步仓库用例'}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="${vis.length}" class="empty">${q || cdTypeFilter || module || humanSel !== '' ? '没有匹配的用例——试试重置筛选' : '还没有用例——点右上"＋ 新建用例"，或运行 scripts/sync_cases.py 同步仓库用例'}</td></tr>`;
         renderColsPop(); return;
       }
       pageItems.forEach(c => { const row = document.createElement('tr');
@@ -1521,10 +1526,17 @@
         // 优先级按规范 2.3 归一展示(L2→P2 等),四档配色 chip
         const pri = cdPriNorm(c.priority);
         const lvl = pri ? `<span class="chip ${pri.toLowerCase()}">${safe(pri)}</span>` : '';
+        // 人工确认(2026-09-29):只对文字用例有意义(经人审工作站两道门确认);
+        // auto 用例留空,配色复用优先级 chip 的既有档位(p2=品牌蓝/p3=中性灰)
+        const humanChip = c.case_type !== 'text' ? '<span class="cd-none">-</span>'
+          : (Number(c.human_confirmed)
+            ? '<span class="chip p2" title="经人审工作站两道门确认">已确认</span>'
+            : '<span class="chip p3" title="尚未通过人审工作站确认">未确认</span>');
         const cells = {
           id: `<span class="cd-case-id" onclick="showCaseDefDrawer(decodeURIComponent('${encodeURIComponent(c.case_id)}'))">${hl(c.case_id, q)}</span><div class="cd-case-title">${hl(c.title, q)}</div>`,
           type: typeBadge,
           module: `${hl(c.module_cn || c.module || '-', q)}${lvl ? ' ' + lvl : ''}`,
+          human: humanChip,
           links: linkChips,
           bug: bugChip,
           updated: `<span class="meta">${safe(formatDate(c.updated_at))}</span>`,
@@ -1809,11 +1821,12 @@
     $('cd-q').oninput = () => { cdPage = 1; renderCaseDefs(); };
     $('cd-q').onkeydown = e => { if (e.key==='Enter') { cdPage = 1; renderCaseDefs(); } };
     $('cd-reset').onclick = () => {
-      $('cd-q').value=''; $('cd-module').value=''; cdTypeFilter=''; cdPage = 1;
+      $('cd-q').value=''; $('cd-module').value=''; $('cd-human').value=''; cdTypeFilter=''; cdPage = 1;
       document.querySelectorAll('#cd-pills .cd-pill').forEach(x => x.classList.toggle('active', !x.dataset.type));
       renderCaseDefs();
     };
     $('cd-module').onchange = () => { cdPage = 1; renderCaseDefs(); };
+    $('cd-human').onchange = () => { cdPage = 1; renderCaseDefs(); };
     $('cd-prev').onclick = () => { cdPage--; renderCaseDefs(); };
     $('cd-next').onclick = () => { cdPage++; renderCaseDefs(); };
     $('cd-pagesize').onchange = e => { cdPageSize = Number(e.target.value) || 35; cdPage = 1; renderCaseDefs(); };
@@ -2165,6 +2178,22 @@
       await cdLoadImportModules();
     }
     $('cd-imp-btn').onclick = cdOpenImport;
+    // 从外部用例 API 拉取文字用例(2026-09-28):确认后调管理端点 POST /api/case-defs/pull-api,
+    // 结果用全站 Toast 提示;未配置接口时端点返回 skipped,按失败色提示"等待配置"
+    $('cd-pull-btn').onclick = async () => {
+      if (!(await confirmAction('确认从外部用例 API 拉取文字用例？将按用例 ID upsert 入库,同 ID 用例会被覆盖更新。'))) return;
+      const btn = $('cd-pull-btn');
+      btn.disabled = true;
+      try {
+        const resp = await fetch('/api/case-defs/pull-api', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok) { showToast('拉取失败: ' + (data.error || resp.status), true); return; }
+        if (data.skipped) { showToast(data.message || 'API 未配置,已跳过', true); return; }
+        const fails = (data.failed || []).length;
+        showToast(`拉取完成: 共 ${data.total || 0} 条, 新增 ${data.created || 0}, 更新 ${data.updated || 0}${fails ? `, 失败 ${fails}` : ''}`, fails > 0);
+        loadCaseDefs(); // 入库后刷新列表(统计卡/模块下拉同步更新)
+      } finally { btn.disabled = false; }
+    };
     $('cd-imp-tpl-csv').onclick = cdDownloadTemplateCsv;
     $('cd-imp-tpl-xlsx').onclick = cdDownloadTemplateXlsx;
     $('cd-imp-tpl-md').onclick = cdDownloadTemplateMd;

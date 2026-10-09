@@ -687,9 +687,6 @@ async function refresh() {
       return;
     }
     lastSnapshot = snapshot;
-    const phones = [];
-    for (const item of data.items) { if (item.phone && !phones.includes(item.phone)) phones.push(item.phone); }
-    phoneOpts.replaceChildren(...phones.slice(0, 8).map((p) => new Option(p, p)));  // 取码框历史号码候选
     let newest = 0;
     for (const item of data.items) { const date = toDate(item.createdAt); if (date && date.getTime() > newest) newest = date.getTime(); }
     const hasNew = lastNewest > 0 && newest > lastNewest;  // 仅真来了新码才闪示,首载/状态翻转不闪

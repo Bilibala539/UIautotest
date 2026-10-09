@@ -219,8 +219,6 @@
     @media (max-width:800px) { .cd-drawer { width:100vw; } }
     .hint { color:var(--muted); font-size:12px; margin-top:6px; }
     .captcha-card { padding:0; overflow:hidden; position:relative; }
-    .gw-corner { position:absolute; top:10px; right:12px; z-index:2; display:flex; gap:6px; align-items:center; font-size:12px; color:var(--muted); background:rgba(255,255,255,.92); border:1px solid var(--line); border-radius:999px; padding:2px 6px 2px 10px; }
-    .gw-corner .ghost { padding:2px 8px; font-size:11px; }
     #page-captcha iframe { width:100%; height:clamp(480px,calc(100vh - 160px),820px); border:0; display:block; background:#fff; }
     .gw-offline { padding:44px; text-align:center; color:var(--muted); font-size:13px; }
     .dot { width:10px; height:10px; border-radius:50%; background:var(--muted); } .dot.ok { background:var(--good); } .dot.bad { background:var(--bad); }
@@ -437,7 +435,6 @@
     </section>
     <section class="page" id="page-captcha">
       <section class="card captcha-card">
-        <div class="gw-corner"><span class="dot" id="gw-dot"></span><span id="gw-text">检测中…</span><button class="ghost" id="gw-reload">重新加载</button></div>
         <iframe id="gw-frame" src="about:blank" title="otp-gateway"></iframe>
         <div class="gw-offline" id="gw-offline" hidden></div>
       </section>
@@ -2603,8 +2600,6 @@
         const h = await (await fetch('/api/gateway/health')).json();
         const u = new URL(h.gateway); u.hostname = location.hostname;  // iframe 由浏览器加载,127.0.0.1 会指向用户自己电脑;网关与平台同机,换成平台机地址
         gatewayUrl = u.origin;
-        $('gw-dot').className = 'dot ' + (h.ok ? 'ok' : 'bad');
-        $('gw-text').textContent = h.ok ? '验证码网关正常' : '验证码网关异常';
         const frame = $('gw-frame'), offline = $('gw-offline');
         if (h.ok) {
           frame.hidden = false; offline.hidden = true;
@@ -2614,12 +2609,10 @@
           offline.textContent = '验证码网关不可达：' + String(h.detail || '').slice(0, 80);
         }
       } catch (e) {
-        $('gw-dot').className = 'dot bad'; $('gw-text').textContent = '验证码网关检测失败';
         $('gw-frame').hidden = true; const offline = $('gw-offline'); offline.hidden = false;
         offline.textContent = '验证码网关不可达：' + String(e).slice(0, 80);
       }
     }
-    $('gw-reload').onclick = () => { if (gatewayUrl) $('gw-frame').src = gatewayUrl + '/'; };
 
     $('refresh').onclick = loadRuns; $('platform').onchange = loadRuns; $('filter-apk').onchange = loadRuns; $('close-detail').onclick = closeRunDrawer;
     $('build-submit').onclick = buildApk; // 主动打包(登记弹窗已移除:自动登记为主,手动兜底走 scripts/register_apk.py)

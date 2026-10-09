@@ -525,22 +525,41 @@ class OtpGateway(ThreadingHTTPServer):
     tbody tr:last-child td { border-bottom:0; }
     tbody tr:hover { background:var(--hover); }
     code.otp { font-family:ui-monospace,Consolas,monospace; font-size:16px; font-weight:700; color:var(--ink); letter-spacing:2px; background:var(--neutral-weak); padding:3px 10px; border-radius:8px; }
+    .rid { font-family:ui-monospace,Consolas,monospace; font-size:12px; color:var(--muted); }
     .badge { display:inline-block; border-radius:999px; padding:3px 9px; font-size:12px; font-weight:600; }
     .badge.available { color:var(--good); background:var(--good-weak); }
     .badge.consumed { color:var(--muted); background:var(--neutral-weak); }
     .badge.expired { color:var(--warn); background:var(--warn-weak); }
     tr.consumed td, tr.expired td { color:var(--muted); }
     tr.expired code.otp { color:var(--muted); background:transparent; border:1px dashed var(--line); letter-spacing:2px; }
+    tr.fresh td { animation: otp-fresh 2.5s ease-out; }
+    @keyframes otp-fresh { from { background:var(--good-weak); } to { background:transparent; } }
     td.t-time { white-space:nowrap; font-variant-numeric:tabular-nums; }
+    .fetch-box { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+    .fetch-box input { width:190px; padding:6px 10px; border:1px solid var(--line); border-radius:8px; font:inherit; color:var(--ink); background:#fff; }
+    .fetch-box input:focus { outline:2px solid #b6ccf7; border-color:#7d9bf0; }
+    .fetch-box button { padding:6px 16px; border:0; border-radius:8px; background:#2b4acb; color:#fff; font:inherit; font-weight:600; cursor:pointer; }
+    .fetch-box button:disabled { opacity:.55; cursor:default; }
+    .fetch-msg { font-size:12px; color:var(--good); }
+    .fetch-msg.bad { color:#c23a2b; }
+    td.t-phone { cursor:pointer; }
     .empty { text-align:center; color:var(--muted); padding:36px; font-size:13px; }
   </style>
 </head>
 <body>
 <main>
-  <div class="otp-head"><span class="meta">每 2 秒自动刷新 · 显示最近取码记录（含已消费/已过期）</span></div>
+  <div class="otp-head">
+    <div class="fetch-box">
+      <input id="fetch-phone" list="phone-opts" placeholder="输入手机号，点「取码」" inputmode="numeric" maxlength="32" autocomplete="off" spellcheck="false">
+      <datalist id="phone-opts"></datalist>
+      <button id="fetch-btn" type="button">取码</button>
+      <span id="fetch-msg" class="fetch-msg" hidden></span>
+    </div>
+    <span class="meta">每 5 秒自动刷新 · 显示最近取码记录（含已消费/已过期，新码绿色闪示）</span>
+  </div>
   <table>
-    <thead><tr><th>手机号</th><th>验证码</th><th>生成时间</th><th>过期时间</th><th>状态</th></tr></thead>
-    <tbody id="items"><tr><td class="empty" colspan="5">加载中…</td></tr></tbody>
+    <thead><tr><th>手机号</th><th>验证码</th><th>生成时间</th><th>过期时间</th><th>请求 ID</th><th>状态</th></tr></thead>
+    <tbody id="items"><tr><td class="empty" colspan="6">加载中…</td></tr></tbody>
   </table>
 </main>
 <script>
@@ -556,8 +575,12 @@ function formatTime(value) {
   return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate()) + ' ' + pad(date.getHours()) + ':' + pad(date.getMinutes()) + ':' + pad(date.getSeconds());
 }
 function relativeLabel(date) {
-  const diff = Math.max(0, (Date.now() - date.getTime()) / 1000);
-  return diff < 60 ? '刚刚' : Math.floor(diff / 60) + ' 分钟前';
+  // 分级时长(2026-09-24):<60s 刚刚;<1h N 分钟前;<1天 N 小时 M 分钟前;>=1天 N 天 N 小时 M 分钟前
+  const diff = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
+  if (diff < 60) return '刚刚';
+  const minutes = Math.floor(diff / 60) % 60, hours = Math.floor(diff / 3600) % 24, days = Math.floor(diff / 86400);
+  if (days >= 1) return days + ' 天 ' + hours + ' 小时 ' + minutes + ' 分钟前';
+  return diff >= 3600 ? hours + ' 小时 ' + minutes + ' 分钟前' : Math.floor(diff / 60) + ' 分钟前';
 }
 function relativeCell(value) {
   const date = toDate(value);
@@ -573,6 +596,7 @@ function expireCell(value) {
   const td = element('td', 't-time', text); td.title = formatTime(value); return td;
 }
 let lastSnapshot = '';
+let lastNewest = 0;  // 已见最新生成时刻:新码行的闪示基准
 async function refresh() {
   try {
     const response = await fetch('/api/test/otp/recent?limit=100', { cache: 'no-store' });
@@ -586,30 +610,85 @@ async function refresh() {
       return;
     }
     lastSnapshot = snapshot;
+    const phones = [];
+    for (const item of data.items) { if (item.phone && !phones.includes(item.phone)) phones.push(item.phone); }
+    phoneOpts.replaceChildren(...phones.slice(0, 8).map((p) => new Option(p, p)));  // 取码框历史号码候选
+    let newest = 0;
+    for (const item of data.items) { const date = toDate(item.createdAt); if (date && date.getTime() > newest) newest = date.getTime(); }
+    const hasNew = lastNewest > 0 && newest > lastNewest;  // 仅真来了新码才闪示,首载/状态翻转不闪
     items.replaceChildren();
     if (!data.items.length) {
       const row = document.createElement('tr');
-      const empty = element('td', 'empty', '暂无验证码记录，用例触发取码后约 2 秒自动出现');
-      empty.colSpan = 5; row.appendChild(empty); items.appendChild(row); return;
+      const empty = element('td', 'empty', '暂无验证码记录，用例触发取码或在上方输入手机号点「取码」后自动出现');
+      empty.colSpan = 6; row.appendChild(empty); items.appendChild(row); return;
     }
     for (const item of data.items) {
       const row = document.createElement('tr');
       row.className = item.status || '';
+      const createdDate = toDate(item.createdAt);  // 新到的码闪示绿色,2.5s 后褪去
+      if (hasNew && createdDate && createdDate.getTime() > lastNewest) row.classList.add('fresh');
       const codeCell = document.createElement('td');
       codeCell.appendChild(element('code', 'otp', item.code));
       const statusCell = document.createElement('td');
       statusCell.appendChild(element('span', 'badge ' + (item.status || ''), BADGE_TEXT[item.status] || item.status || ''));
-      row.append(cell(item.phone), codeCell, relativeCell(item.createdAt), expireCell(item.expireAt), statusCell);
+      const ridCell = document.createElement('td');
+      ridCell.appendChild(element('span', 'rid', item.requestId));
+      const phoneCell = cell(item.phone);
+      phoneCell.classList.add('t-phone');
+      phoneCell.title = '点击填入取码框';
+      phoneCell.addEventListener('click', () => { fetchPhone.value = item.phone; fetchPhone.focus(); });
+      row.append(phoneCell, codeCell, relativeCell(item.createdAt), expireCell(item.expireAt), ridCell, statusCell);
       items.appendChild(row);
     }
+    if (newest > lastNewest) lastNewest = newest;  // 本轮闪示窗口结束,更新水位
   } catch (error) {
     items.replaceChildren();
     const row = document.createElement('tr');
-    const empty = element('td', 'empty', '加载失败：' + error.message + '（每 2 秒自动重试）');
-    empty.colSpan = 5; row.appendChild(empty); items.appendChild(row);
+    const empty = element('td', 'empty', '加载失败：' + error.message + '（每 5 秒自动重试）');
+    empty.colSpan = 6; row.appendChild(empty); items.appendChild(row);
   }
 }
-refresh(); setInterval(refresh, 2000);
+// ---------- 手动取码(2026-10-09):输入手机号点「取码」,网关实时去源接口拉码并入库,表格 5 秒内自动上屏 ----------
+const fetchPhone = document.getElementById('fetch-phone');
+const fetchBtn = document.getElementById('fetch-btn');
+const fetchMsg = document.getElementById('fetch-msg');
+const phoneOpts = document.getElementById('phone-opts');
+let fetching = false;
+function note(text, bad) {
+  fetchMsg.textContent = text;
+  fetchMsg.classList.toggle('bad', !!bad);
+  fetchMsg.hidden = false;
+}
+async function fetchCode() {
+  if (fetching) return;
+  const phone = fetchPhone.value.trim();
+  if (!/^\\d{5,15}$/.test(phone)) { note('请输入 5-15 位数字手机号', true); return; }
+  fetching = true; fetchBtn.disabled = true;
+  note('取码中…');
+  try {
+    const response = await fetch('/api/test/otp/latest?phone=' + encodeURIComponent(phone), { cache: 'no-store' });
+    const data = await response.json().catch(() => ({}));
+    if (response.ok) {
+      note('已取到 ' + data.code + '（生成于 ' + formatTime(data.createdAt) + '）');
+      refresh();
+    } else if (response.status === 502) {
+      const detail = String(data.error || '');
+      // 源接口对"无有效码"回 success:false 且文案有误导(20003 验证码错误),这里翻译成人话
+      note(detail.includes('rejected')
+        ? '取码失败：该号码当前没有有效验证码（未发送、已过期或已被使用）'
+        : '取码失败：' + (detail || '源接口请求失败'), true);
+    } else {
+      note('取码失败：HTTP ' + response.status + (data.error ? ' · ' + data.error : ''), true);
+    }
+  } catch (error) {
+    note('取码失败：' + error.message, true);
+  } finally {
+    fetching = false; fetchBtn.disabled = false;
+  }
+}
+fetchBtn.addEventListener('click', fetchCode);
+fetchPhone.addEventListener('keydown', (event) => { if (event.key === 'Enter') fetchCode(); });
+refresh(); setInterval(refresh, 5000);
 </script>
 </body>
 </html>"""

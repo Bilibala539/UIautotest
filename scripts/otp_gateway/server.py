@@ -618,14 +618,10 @@ class OtpGateway(ThreadingHTTPServer):
     @keyframes otp-fresh { from { background:var(--good-weak); } to { background:transparent; } }
     td.t-time { white-space:nowrap; font-variant-numeric:tabular-nums; }
     .fetch-box { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-    .fetch-box input { width:190px; padding:6px 10px; border:1px solid var(--line); border-radius:8px; font:inherit; color:var(--ink); background:#fff; }
-    .fetch-box input:focus { outline:2px solid #b6ccf7; border-color:#7d9bf0; }
     .fetch-box button { padding:6px 16px; border:0; border-radius:8px; background:#2b4acb; color:#fff; font:inherit; font-weight:600; cursor:pointer; }
     .fetch-box button:disabled { opacity:.55; cursor:default; }
-    .fetch-box button.alt { background:var(--neutral-weak); color:var(--ink); }
     .fetch-msg { font-size:12px; color:var(--good); }
     .fetch-msg.bad { color:#c23a2b; }
-    td.t-phone { cursor:pointer; }
     .empty { text-align:center; color:var(--muted); padding:36px; font-size:13px; }
   </style>
 </head>
@@ -633,10 +629,7 @@ class OtpGateway(ThreadingHTTPServer):
 <main>
   <div class="otp-head">
     <div class="fetch-box">
-      <input id="fetch-phone" list="phone-opts" placeholder="输入手机号，点「取码」" inputmode="numeric" maxlength="32" autocomplete="off" spellcheck="false">
-      <datalist id="phone-opts"></datalist>
-      <button id="fetch-btn" type="button">取码</button>
-      <button id="fetch-all-btn" type="button" class="alt">全部刷新</button>
+      <button id="fetch-all-btn" type="button">全部刷新</button>
       <span id="fetch-msg" class="fetch-msg" hidden></span>
     </div>
     <span class="meta">每 5 秒自动刷新 · 显示最近取码记录（含已消费/已过期，新码绿色闪示）</span>
@@ -718,9 +711,6 @@ async function refresh() {
       const ridCell = document.createElement('td');
       ridCell.appendChild(element('span', 'rid', item.requestId));
       const phoneCell = cell(item.phone);
-      phoneCell.classList.add('t-phone');
-      phoneCell.title = '点击填入取码框';
-      phoneCell.addEventListener('click', () => { fetchPhone.value = item.phone; fetchPhone.focus(); });
       row.append(phoneCell, codeCell, relativeCell(item.createdAt), expireCell(item.expireAt), ridCell, statusCell);
       items.appendChild(row);
     }
@@ -732,47 +722,13 @@ async function refresh() {
     empty.colSpan = 6; row.appendChild(empty); items.appendChild(row);
   }
 }
-// ---------- 手动取码(2026-10-09):输入手机号点「取码」,网关实时去源接口拉码并入库,表格 5 秒内自动上屏 ----------
-const fetchPhone = document.getElementById('fetch-phone');
-const fetchBtn = document.getElementById('fetch-btn');
+// ---------- 全部刷新(2026-10-09):点按钮由服务端对白名单逐号实时取码入库,返回逐号摘要 ----------
 const fetchMsg = document.getElementById('fetch-msg');
-const phoneOpts = document.getElementById('phone-opts');
-let fetching = false;
 function note(text, bad) {
   fetchMsg.textContent = text;
   fetchMsg.classList.toggle('bad', !!bad);
   fetchMsg.hidden = false;
 }
-async function fetchCode() {
-  if (fetching) return;
-  const phone = fetchPhone.value.trim();
-  if (!/^\\d{5,15}$/.test(phone)) { note('请输入 5-15 位数字手机号', true); return; }
-  fetching = true; fetchBtn.disabled = true;
-  note('取码中…');
-  try {
-    const response = await fetch('/api/test/otp/latest?phone=' + encodeURIComponent(phone), { cache: 'no-store' });
-    const data = await response.json().catch(() => ({}));
-    if (response.ok) {
-      note('已取到 ' + data.code + '（生成于 ' + formatTime(data.createdAt) + '）');
-      refresh();
-    } else if (response.status === 502) {
-      const detail = String(data.error || '');
-      // 源接口对"无有效码"回 success:false 且文案有误导(20003 验证码错误),这里翻译成人话
-      note(detail.includes('rejected')
-        ? '取码失败：该号码当前没有有效验证码（未发送、已过期或已被使用）'
-        : '取码失败：' + (detail || '源接口请求失败'), true);
-    } else {
-      note('取码失败：HTTP ' + response.status + (data.error ? ' · ' + data.error : ''), true);
-    }
-  } catch (error) {
-    note('取码失败：' + error.message, true);
-  } finally {
-    fetching = false; fetchBtn.disabled = false;
-  }
-}
-fetchBtn.addEventListener('click', fetchCode);
-fetchPhone.addEventListener('keydown', (event) => { if (event.key === 'Enter') fetchCode(); });
-// ---------- 全部刷新:服务端对白名单逐号实时取码入库,返回逐号摘要 ----------
 const fetchAllBtn = document.getElementById('fetch-all-btn');
 let fetchingAll = false;
 const RESULT_TEXT = { inserted: '新码', refreshed: '续期', unchanged: '未变' };

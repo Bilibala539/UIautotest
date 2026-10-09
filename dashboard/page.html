@@ -68,6 +68,8 @@
     @media (max-width:800px) { .dl-cards { grid-template-columns:1fr; } }
     /* 下包页二维码弹窗(规范 4.4 420px 档;hidden+CSS 显隐写法同其他弹窗) */
     #dl-modal { display:none; } #dl-modal:not([hidden]) { display:flex; }
+    /* AI 任务提交弹窗(tk):沿用其他弹窗的 hidden+CSS 显隐写法;缺此规则时 hidden 移除后 div 变 block,面板顶到视口左上角 */
+    #tk-modal { display:none; } #tk-modal:not([hidden]) { display:flex; }
     /* 全站统一确认弹窗(规范 4.5,z-62 盖过抽屉 61);.h-block 收编区块标题内联样式 */
     #cfm-modal { position:fixed; inset:0; background:rgba(15,23,42,.45); z-index:62; }
     .cfm-box { background:var(--card); border-radius:12px; box-shadow:0 8px 24px rgba(23,32,51,.14); width:min(420px,92vw); margin:12vh auto; padding:22px 24px; }

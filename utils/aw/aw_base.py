@@ -568,20 +568,12 @@ class AWBase:
 
     # ==================== 图像模板匹配 ====================
 
-    def find_image(self, template_name: str, threshold: float = 0.8,
-                   timeout: int = 10,
-                   region=None) -> Optional[Tuple[int, int]]:
-        """
-        模板匹配找图，返回图片中心的窗口内坐标
+    def _find_image_rect_impl(self, template_name: str, threshold: float,
+                              timeout: int,
+                              region) -> Optional[Tuple[int, int, int, int]]:
+        """模板匹配实现：返回命中矩形 (x, y, w, h)（窗口内坐标）。
 
-        Args:
-            template_name: 模板图片文件名或绝对路径
-            threshold: 匹配阈值 0~1
-            timeout: 超时时间（秒）
-            region: 搜索区域 (x, y, w, h)，有 region 时只截取该区域截图
-
-        Returns:
-            图片中心坐标 (窗口内)，未找到返回 None
+        find_image / find_image_rect 共用此实现，保证两者行为一致。
         """
         template_path = template_name if os.path.isabs(template_name) \
             else os.path.join(self.TEMPLATE_DIR, template_name)
@@ -622,16 +614,57 @@ class AWBase:
             _, max_val, _, max_loc = cv2.minMaxLoc(result)
 
             if max_val >= effective_threshold:
-                center_x = max_loc[0] + template_w // 2 + dx
-                center_y = max_loc[1] + template_h // 2 + dy
-                logger.info(f"🖼️ 找到图片 '{template_name}' @ ({center_x}, {center_y}), score={max_val:.2f}")
-                return (center_x, center_y)
+                hit_x = max_loc[0] + dx
+                hit_y = max_loc[1] + dy
+                logger.info(f"🖼️ 找到图片 '{template_name}' @ "
+                            f"矩形({hit_x}, {hit_y}, {template_w}, {template_h}), score={max_val:.2f}")
+                return (hit_x, hit_y, template_w, template_h)
 
             self.sleep(0.5)
 
         # 超时时仅记录日志，不保存截图文件（用例失败时由 conftest 统一截图）
         logger.warning(f"⚠️ 未找到图片 '{template_name}'")
         return None
+
+    def find_image_rect(self, template_name: str, threshold: float = 0.8,
+                        timeout: int = 10,
+                        region=None) -> Optional[Tuple[int, int, int, int]]:
+        """
+        模板匹配找图，返回命中矩形 (x, y, w, h)（窗口内坐标）
+
+        滑条/进度条按比例定位需要整条控件的范围，而 find_image 只有中心点；
+        供 drag_on_template 等元素锚定手势使用。
+
+        Args:
+            template_name: 模板图片文件名或绝对路径
+            threshold: 匹配阈值 0~1
+            timeout: 超时时间（秒）
+            region: 搜索区域 (x, y, w, h)，有 region 时只截取该区域截图
+
+        Returns:
+            矩形 (x, y, w, h)，未找到返回 None
+        """
+        return self._find_image_rect_impl(template_name, threshold, timeout, region)
+
+    def find_image(self, template_name: str, threshold: float = 0.8,
+                   timeout: int = 10,
+                   region=None) -> Optional[Tuple[int, int]]:
+        """
+        模板匹配找图，返回图片中心的窗口内坐标
+
+        Args:
+            template_name: 模板图片文件名或绝对路径
+            threshold: 匹配阈值 0~1
+            timeout: 超时时间（秒）
+            region: 搜索区域 (x, y, w, h)，有 region 时只截取该区域截图
+
+        Returns:
+            图片中心坐标 (窗口内)，未找到返回 None
+        """
+        rect = self._find_image_rect_impl(template_name, threshold, timeout, region)
+        if rect is None:
+            return None
+        return (rect[0] + rect[2] // 2, rect[1] + rect[3] // 2)
 
     @_screenshot_on_failure
     def image_exists(self, template_name: str, threshold: float = 0.8,

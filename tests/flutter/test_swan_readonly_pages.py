@@ -13,6 +13,7 @@
 """
 from __future__ import annotations
 
+import logging
 import os
 
 import pytest
@@ -26,8 +27,14 @@ from image.image_name_mapping import (
     SWAN_PLATFORM_NETEASE_ROW,
     SWAN_PLAYER_DISMISS_BTN,
     SWAN_PLAYER_PLAY_PAUSE_BTN,
+    SWAN_TAB_DEVICE,
+    SWAN_TAB_HOME,
+    SWAN_TAB_ME,
+    SWAN_TAB_PLATFORM,
 )
 from utils.aw.business.swan import SwanBusiness
+
+logger = logging.getLogger(__name__)
 
 _platform = os.environ.get("PLATFORM", "web").strip().lower()
 _has_phone = bool(os.environ.get("SWAN_PHONE", "").strip())
@@ -49,12 +56,58 @@ class TestSwanReadonlyPages(BaseTest):
     # ---------- 断言辅助 ----------
 
     def _ensure_logged_in_on_home(self) -> None:
-        """幂等登录并断言在首页（4 tab + 底部播放条图片）。"""
+        """幂等登录并断言在首页（4 tab key + 底部导航 4 图任一）。
+
+        底部播放条模板截于「输出=扬声器/- -」无会话态，rig 持久播放会话
+        （输出=设备名+曲目名）下内容永久偏离模板，不作到位门槛，仅非致命
+        探测记日志（口径同 swan_regression_common verify-run3）。
+        """
         self.user.login_by_sms(self.phone)
         assert self.aw.wait_accessibility(
             SwanBusiness.KEY_TAB_ME, timeout=15
         ), "未进入首页（tab_me 未出现）"
-        self.aw.image_exists(SWAN_BOTTOM_PLAYER_BAR, timeout=10)
+        self._assert_home_shell_image()
+        self._probe_bottom_player_bar()
+
+    # ---------- 锚点探测辅助（口径同 swan_regression_common） ----------
+
+    # 首页壳图片级锚：全局底部导航 4 图标（未选中态，已转正、verify 跨机实测
+    # 1.0；4 个一级页至多 1 个 Tab 选中，任一可见即在首页壳）
+    _BOTTOM_NAV_TEMPLATES = (
+        SWAN_TAB_HOME, SWAN_TAB_PLATFORM, SWAN_TAB_DEVICE, SWAN_TAB_ME,
+    )
+
+    def _probe_image(self, template: str, timeout: int = 1):
+        """模板文件在盘才 find_image；缺失记日志按未命中处理。
+
+        AWBase.find_image 对缺失模板文件是 assert 崩溃而非返回 None，
+        探测类「可选命中」调用先 os.path.exists 防护（常量为绝对路径）。
+        """
+        if not os.path.exists(template):
+            logger.warning("模板图未入库，按未命中跳过: %s", template)
+            return None
+        return self.aw.find_image(template, timeout=timeout)
+
+    def _probe_bottom_player_bar(self, timeout: int = 2) -> None:
+        """底部播放条非致命探测：模板命中记 info，未命中记 warning 不挂。
+
+        模板截于「输出=扬声器/- -」无会话态；rig 存在持久播放会话
+        （输出=HiVi M300MKII+曲目名，relaunch 不清）时播放条内容永久偏离
+        模板，不作断言门槛（verify-run3 口径）。
+        """
+        if self._probe_image(SWAN_BOTTOM_PLAYER_BAR, timeout=timeout) is not None:
+            logger.info("底部播放条可见（模板命中）")
+        else:
+            logger.warning(
+                "底部播放条模板未命中（多为持久播放会话致动态内容偏离模板"
+                "截图态），不作断言门槛")
+
+    def _assert_home_shell_image(self, timeout: int = 3) -> None:
+        """首页壳图片级确认：底部导航 4 图任一可见（已转正、跨机稳健 1.0）。"""
+        for template in self._BOTTOM_NAV_TEMPLATES:
+            if self._probe_image(template, timeout=timeout) is not None:
+                return
+        assert False, "首页壳图片确认失败：底部导航 4 图（首页/平台/设备/我的）均未命中"
 
     def _assert_any_text(self, texts, timeout: int = 10) -> str:
         """OCR 断言任一文案出现，返回命中的文案（用于同一区域的文案变体）。"""
@@ -66,14 +119,20 @@ class TestSwanReadonlyPages(BaseTest):
     # ---------- 用例 ----------
 
     def test_home_page_elements(self):
-        """首页元素：4 个全局 tab key + 底部播放条图片。"""
+        """首页元素：4 个全局 tab key + 底部播放条（非致命探测）。
+
+        底部播放条模板截于「输出=扬声器/- -」无会话态，rig 持久播放会话
+        （输出=设备名+曲目名）下内容永久偏离模板，存在性降级为非致命探测：
+        命中记 info，未命中记 warning 不挂用例（口径同
+        swan_regression_common verify-run3）。
+        """
         self._ensure_logged_in_on_home()
         for key in (SwanBusiness.KEY_TAB_RECOMMEND,
                     SwanBusiness.KEY_TAB_PLATFORM,
                     SwanBusiness.KEY_TAB_DEVICE,
                     SwanBusiness.KEY_TAB_ME):
             assert self.aw.accessibility_exists(key), f"首页缺少 tab key: {key}"
-        self.aw.image_exists(SWAN_BOTTOM_PLAYER_BAR, timeout=10)
+        self._probe_bottom_player_bar()
 
     def test_platform_page_readonly(self):
         """平台页只读断言：根节点 + 网易云行 key + 行图片；⛔ 不点授权/充值。"""
@@ -137,7 +196,8 @@ class TestSwanReadonlyPages(BaseTest):
         assert self.aw.wait_accessibility(
             SwanBusiness.KEY_TAB_ME, timeout=15
         ), "收起播放页后未回到首页"
-        self.aw.image_exists(SWAN_BOTTOM_PLAYER_BAR, timeout=10)
+        self._assert_home_shell_image()
+        self._probe_bottom_player_bar()
 
     def test_favorites_group_detail(self):
         """收藏分组详情：我的页 → SWAN收藏 → 我的家庭 → OCR 断言 → 返回回首页。"""

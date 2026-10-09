@@ -1560,7 +1560,7 @@
       const tbody = $('runs'); tbody.innerHTML = '';
       if (!runs.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty">暂无执行记录</td></tr>'; return; }
       runs.forEach(r => { const row = document.createElement('tr'); row.className = 'clickable';
-        row.innerHTML = `<td>${safe(r.platform || '-')}</td><td>${safe(r.apk_id||'-')}</td><td>${safe(r.device||'-')}</td><td>${badge(r.status)}</td><td class="num"${r.total_cases ? ` style="color:${rateColor(r.pass_rate)}"` : ''}>${r.total_cases ? r.pass_rate.toFixed(1)+'%' : '-'}</td><td>${r.total_cases}</td><td>${formatDuration(r.duration_seconds)}</td><td>${safe(formatDate(r.started_at))}</td>`;
+        row.innerHTML = `<td>${safe(r.platform || '-')}</td><td>${safe(r.apk_id||'-')}</td><td>${safe(r.device||'-')}</td><td>${badge(r.status)}</td><td class="num"${r.total_cases ? ` style="color:${rateColor(r.pass_rate)}"` : ''}>${r.total_cases ? r.pass_rate.toFixed(1)+'%' : '-'}</td><td>${r.total_cases}</td><td>${formatDuration(r.duration_seconds)}</td><td>${safe(formatDate(r.started_at))}</td><td><button class="icon-btn" onclick="event.stopPropagation();showRun(decodeURIComponent('${encodeURIComponent(r.run_id)}'))" title="查看详情">${ICON.list}</button></td>`;
         row.onclick = () => showRun(r.run_id); tbody.appendChild(row); });
     }
     function rateColor(p) { return p >= 90 ? 'var(--good)' : p < 60 ? 'var(--bad)' : 'var(--ink)'; } // 6.1 通过率三档:数字文字色不动底
@@ -3259,7 +3259,7 @@
     document.body.classList.add('pre-auth');
     authBootstrap();
     // 全站列表启用列宽拖拽(用例管理表 cd-table 自带实现,不在其列)
-    [['runs','tw-runs',false],['tk-usage','tw-tku',false],['set-rows','tw-set',true],['dl-rows','tw-dl',true],['pl-rows','tw-plcfg',true],['pl-job-rows','tw-pljob',true],['su-rows','tw-su',true],['cd-mods-rows','tw-mods',true]]
+    [['runs','tw-runs',true],['tk-usage','tw-tku',false],['set-rows','tw-set',true],['dl-rows','tw-dl',true],['pl-rows','tw-plcfg',true],['pl-job-rows','tw-pljob',true],['su-rows','tw-su',true],['cd-mods-rows','tw-mods',true]]
       .forEach(([id, key, pin]) => { const t = $(id) && $(id).closest('table'); if (t) makeTableResizable(t, key, pin); });
     window.addEventListener('resize', () => { pinFit.forEach(f => f(-1)); try { cdFitLast(null); } catch (e) {} });  // 窗口宽变化后操作列仍贴右缘
 

@@ -156,6 +156,9 @@ SWAN_HOME_TAB_AI = image_path("swan_首页_AITab按钮.png", platform="flutter")
 SWAN_HOME_TAB_VISION = image_path("swan_首页_可视音箱Tab按钮.png", platform="flutter")
 
 # --- 首页各顶 Tab 内容区元素 ---
+# ⚠️ SWAN_HOME_MUSIC_SEARCH_BAR 文件名沿用历史（原音乐 Tab 搜索条）；
+# verify R2 起其 PNG 已同名重截为推荐 Tab 完整布局的搜索条（新构建音乐
+# Tab 改歌单流，搜索条回归推荐 Tab），常量名不改、语义见 swan.py search()
 SWAN_HOME_MUSIC_SEARCH_BAR = image_path("swan_首页音乐Tab_搜索条.png", platform="flutter")
 SWAN_HOME_RADIO_SEARCH_BAR = image_path("swan_首页电台Tab_搜索条.png", platform="flutter")
 SWAN_HOME_AI_ADD_ROLE = image_path("swan_首页AITab_添加角色入口.png", platform="flutter")
@@ -266,6 +269,99 @@ SWAN_AI_PLATFORM_TITLE = image_path("swan_AI平台管理页_顶栏平台标题.p
 SWAN_AI_HISTORY_TITLE = image_path("swan_AI历史页_标题行.png", platform="flutter")
 
 
+# =====================================================================
+# Swan (Flutter) 回归第一批·域3 播放器元素图片（A12-A20）
+# 2026-09-23 aw-codegen 按 docs/Swan回归用例AW实现方案.md §3 登记，
+# PNG 由 aw-element 按 docs/agents/swan/aw-element.md 流程截取。
+# 2026-09-24 aw-verify 真机实测（HONOR AKFDCP4718425500，720x1612，与采集
+# 基线同机）：14 张存在断言全部 score=1.00@0.8（explorer_output/
+# verify_regression1/），promote_image 转正，draft=True 改正式路径。
+# ⚠️ SWAN_PLAYER_VOLUME_POPUP（含标题"Speaker<音量>"与滑条填充两处动态区）
+#    与 SWAN_PLAYER_VOLUME_SLIDER（含动态填充）：音量=31%（截取态）时
+#    score=1.00，音量±5 时 0.86/0.93，大幅偏离会失配——重裁建议见 verify 报告。
+# 仍留草稿（PNG 未截，需播放任务）：SWAN_PLAYER_PAUSE_BTN（⏸ 态）、
+#    SWAN_PLAYER_LOOP_SINGLE / SWAN_PLAYER_LOOP_SHUFFLE（循环三态之其余两态）。
+# =====================================================================
+
+# --- 播放页 播放控制（五键中的四键；▶ 态已有 SWAN_PLAYER_PLAY_PAUSE_BTN） ---
+SWAN_PLAYER_PAUSE_BTN = image_path("swan_播放页_暂停按钮.png", platform="flutter")       # 播放中的 ⏸ 态圆钮
+SWAN_PLAYER_PREV_BTN = image_path("swan_播放页_上一首按钮.png", platform="flutter")
+SWAN_PLAYER_NEXT_BTN = image_path("swan_播放页_下一首按钮.png", platform="flutter")
+SWAN_PLAYER_LOOP_LIST = image_path("swan_播放页_循环模式_列表循环.png", platform="flutter")     # 循环钮三态之一
+SWAN_PLAYER_LOOP_SINGLE = image_path("swan_播放页_循环模式_单曲循环.png", platform="flutter", draft=True)
+SWAN_PLAYER_LOOP_SHUFFLE = image_path("swan_播放页_循环模式_随机播放.png", platform="flutter", draft=True)
+SWAN_PLAYER_PROGRESS_BAR = image_path("swan_播放页_进度条.png", platform="flutter")    # 进度条整条（滑条锚；勿含两端时间文字）
+
+# --- 播放页 音量弹窗 ---
+SWAN_PLAYER_VOLUME_ICON = image_path("swan_播放页_音量图标.png", platform="flutter")   # 播放页底部音量入口图标
+SWAN_PLAYER_VOLUME_POPUP = image_path("swan_播放页_音量弹窗.png", platform="flutter")  # 弹窗整体或标题区（存在性判据）
+SWAN_PLAYER_VOLUME_SLIDER = image_path("swan_播放页_音量滑条.png", platform="flutter")  # 弹窗内滑条整条（拖动锚）
+SWAN_PLAYER_VOLUME_PLUS = image_path("swan_播放页_音量加号按钮.png", platform="flutter")
+SWAN_PLAYER_VOLUME_MINUS = image_path("swan_播放页_音量减号按钮.png", platform="flutter")
+
+# --- 设备页 / 切换设备弹层 选中态 ---
+# ⚠️ SWAN_DEVICE_CARD_SELECTED 已废弃（2026-09-28，业务代码停止引用）：
+# test/profile 5.3.1 新构建点 WiFi 设备卡不再就地出现「选中标识」，而是
+# 进全屏播放页（探索结论 knowledge/swan/draft/swan_设备详情页.md）；新口径
+# 「当前输出」= 深色整卡容器 wifi_device_selected_<UUID>（动态 UUID 无法
+# 截成模板），切换断言改走播放页页头/贴底播放条 OCR 设备名（见
+# SwanBusiness.select_device）。登记保留仅作历史记录。
+SWAN_DEVICE_CARD_SELECTED = image_path("swan_设备页_设备卡片选中态.png", platform="flutter")  # [废弃] 旧选中态口径，勿在新代码使用
+SWAN_DEVICE_SHEET_CHECKED = image_path("swan_切换设备弹层_勾选态.png", platform="flutter")    # 行首勾选圆点选中态（知识库未见此态，需真机人工选一次以截取）
+
+# --- 设备页 底栏切换设备入口 ---
+# 底栏播放条最右 cast 图标（无键无文案，仅图模板可达），点击直达切换设备
+# 弹层（不经过播放页）——explorer 已探明的输出切换最短路径
+# （knowledge/swan/draft/swan_设备详情页.md 用例11 短路径结论）。
+SWAN_BOTTOM_BAR_CAST_BTN = image_path("swan_底栏_切换设备钮.png", platform="flutter", draft=True)
+
+
+# =====================================================================
+# Swan (Flutter) 回归第一批·域4/7/8 元素图片（A21-A23 / A29-A31 / A33-A34）
+# 2026-09-23 aw-codegen 按 docs/Swan回归用例AW实现方案.md §2.3 登记，
+# PNG 由 aw-element 按 docs/agents/swan/aw-element.md 流程截取。
+# 2026-09-24 aw-verify 真机实测（HONOR AKFDCP4718425500，720x1612）：底部
+# 导航 4 图标存在+click 全通过、勾选态/收藏按钮 score=1.00@0.8
+# （explorer_output/verify_regression1/），5 张 promote_image 转正，
+# draft=True 改正式路径。搜索域 A33/A34 的 Tab 切换与结果断言用 OCR
+# （Tab 行 region 限定），不需要新图。
+# 仍留草稿（PNG 未截，需播放任务/授权平台）：
+#    SWAN_PD_FAV_OFF / SWAN_PD_FAV_ON（歌单收藏两态）、
+#    SWAN_PD_ROW_FAV_BTN（歌曲行收藏图标）。
+# =====================================================================
+
+# --- 底部导航 4 图标（A21；未选中态，与顶 Tab 5 张同口径；图标选中态不匹配未选中态模板） ---
+SWAN_TAB_HOME = image_path("swan_底部导航_首页.png", platform="flutter")
+SWAN_TAB_PLATFORM = image_path("swan_底部导航_平台.png", platform="flutter")
+SWAN_TAB_DEVICE = image_path("swan_底部导航_设备.png", platform="flutter")
+SWAN_TAB_ME = image_path("swan_底部导航_我的.png", platform="flutter")
+
+# --- 歌单详情页 收藏图标两态（A29；只截图标本体，勿含歌单名/歌曲数文本） ---
+SWAN_PD_FAV_OFF = image_path("swan_歌单详情页_收藏图标_未收藏.png", platform="flutter")
+SWAN_PD_FAV_ON = image_path("swan_歌单详情页_收藏图标_已收藏.png", platform="flutter")
+
+# --- 歌曲收藏入口（A30） ---
+SWAN_PLAYER_FAV_BTN = image_path("swan_播放页_收藏按钮.png", platform="flutter")       # 全屏播放页收藏入口（source="player"）
+SWAN_PD_ROW_FAV_BTN = image_path("swan_歌单详情页_歌曲行收藏图标.png", platform="flutter")  # 歌单详情页歌曲行收藏图标（source="playlist_page"）
+
+
+# =====================================================================
+# Swan (Flutter) 回归第三轮修复·首页顶 Tab 选中态锚点（verify R2）
+# 2026-09-24 aw-codegen 按 aw-verify 第二轮报告登记，PNG 由 aw-element
+# 并行截取（A 组 5 张新名）。go_top_tab 到位断言统一换锚为「目标 Tab
+# 选中态」图：切换后断言该 Tab 处于选中态，不再依赖各 Tab 内容布局
+# （新构建音乐 Tab 改歌单流后原「音乐搜索条」内容锚点已失效），选中态
+# 高亮样式跨机也更稳健。verify 转正后本段 draft=True 改正式路径。
+# =====================================================================
+
+# --- 首页顶 Tab 选中态（go_top_tab 到位锚点；截选中态高亮样式，勿含邻 Tab 与内容区） ---
+SWAN_HOME_TAB_RECOMMEND_SEL = image_path("swan_首页_推荐Tab选中态.png", platform="flutter")
+SWAN_HOME_TAB_MUSIC_SEL = image_path("swan_首页_音乐Tab选中态.png", platform="flutter")
+SWAN_HOME_TAB_RADIO_SEL = image_path("swan_首页_电台Tab选中态.png", platform="flutter")
+SWAN_HOME_TAB_AI_SEL = image_path("swan_首页_AITab选中态.png", platform="flutter")
+SWAN_HOME_TAB_VISION_SEL = image_path("swan_首页_可视音箱Tab选中态.png", platform="flutter")
+
+
 __all__ = [
     "ANDROID_DRAFT_IMAGE_DIR",
     "ANDROID_IMAGE_DIR",
@@ -298,6 +394,11 @@ __all__ = [
     "SWAN_HOME_TAB_RADIO",
     "SWAN_HOME_TAB_AI",
     "SWAN_HOME_TAB_VISION",
+    "SWAN_HOME_TAB_RECOMMEND_SEL",
+    "SWAN_HOME_TAB_MUSIC_SEL",
+    "SWAN_HOME_TAB_RADIO_SEL",
+    "SWAN_HOME_TAB_AI_SEL",
+    "SWAN_HOME_TAB_VISION_SEL",
     "SWAN_HOME_MUSIC_SEARCH_BAR",
     "SWAN_HOME_RADIO_SEARCH_BAR",
     "SWAN_HOME_AI_ADD_ROLE",
@@ -337,6 +438,29 @@ __all__ = [
     "SWAN_AI_PLATFORM_ROW_BTN",
     "SWAN_AI_PLATFORM_TITLE",
     "SWAN_AI_HISTORY_TITLE",
+    "SWAN_PLAYER_PAUSE_BTN",
+    "SWAN_PLAYER_PREV_BTN",
+    "SWAN_PLAYER_NEXT_BTN",
+    "SWAN_PLAYER_LOOP_LIST",
+    "SWAN_PLAYER_LOOP_SINGLE",
+    "SWAN_PLAYER_LOOP_SHUFFLE",
+    "SWAN_PLAYER_PROGRESS_BAR",
+    "SWAN_PLAYER_VOLUME_ICON",
+    "SWAN_PLAYER_VOLUME_POPUP",
+    "SWAN_PLAYER_VOLUME_SLIDER",
+    "SWAN_PLAYER_VOLUME_PLUS",
+    "SWAN_PLAYER_VOLUME_MINUS",
+    "SWAN_DEVICE_CARD_SELECTED",
+    "SWAN_DEVICE_SHEET_CHECKED",
+    "SWAN_BOTTOM_BAR_CAST_BTN",
+    "SWAN_TAB_HOME",
+    "SWAN_TAB_PLATFORM",
+    "SWAN_TAB_DEVICE",
+    "SWAN_TAB_ME",
+    "SWAN_PD_FAV_OFF",
+    "SWAN_PD_FAV_ON",
+    "SWAN_PLAYER_FAV_BTN",
+    "SWAN_PD_ROW_FAV_BTN",
     "WEB_DRAFT_IMAGE_DIR",
     "WEB_IMAGE_DIR",
     "demote_image",

@@ -221,9 +221,12 @@ class AndroidAdbDriver(BasePlatformDriver):
         self._run("shell", "input", "keyevent", "KEYCODE_DEL")
         return True
 
-    def press_key(self, key: str) -> bool:
+    def press_key(self, key: str, long_press: bool = False) -> bool:
         keycode = _KEYCODES.get(key.lower(), key)
-        self._run("shell", "input", "keyevent", keycode)
+        if long_press:
+            self._run("shell", "input", "keyevent", "--longpress", keycode)
+        else:
+            self._run("shell", "input", "keyevent", keycode)
         return True
 
     def start_app(self, package: str, activity: str | None = None) -> bool:

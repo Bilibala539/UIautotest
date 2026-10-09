@@ -7,6 +7,7 @@ import os
 import re
 import sqlite3
 import threading
+import time
 import uuid
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
@@ -190,11 +191,17 @@ class OtpStore:
                 "expiresAt": isoformat(expires),
             }
 
-    def put_fetched_code(self, phone: str, code: str) -> None:
+    def put_fetched_code(self, phone: str, code: str) -> str:
+        """源接口取回码入库。同码去重:未过期跳过,已过期只续期不插新行(防自动轮询刷重复行)。
+
+        Returns:
+            "inserted"(新码入库) / "refreshed"(同码续期) / "unchanged"(同码仍有效)。
+        """
+        now = utc_now()
         with self.lock, self._connection() as connection:
             row = connection.execute(
                 """
-                SELECT code, expires_epoch
+                SELECT id, code, expires_epoch
                 FROM otp_codes
                 WHERE phone = ?
                 ORDER BY id DESC
@@ -202,8 +209,19 @@ class OtpStore:
                 """,
                 (phone,),
             ).fetchone()
-        if row is not None and row["code"] == code and row["expires_epoch"] > utc_now().timestamp():
-            return
+            if row is not None and row["code"] == code:
+                if row["expires_epoch"] > now.timestamp():
+                    return "unchanged"
+                expires = now + timedelta(seconds=self.ttl_seconds)
+                connection.execute(
+                    """
+                    UPDATE otp_codes
+                    SET expires_at = ?, expires_epoch = ?
+                    WHERE id = ?
+                    """,
+                    (isoformat(expires), expires.timestamp(), row["id"]),
+                )
+                return "refreshed"
         self.put(
             request_id=uuid.uuid4().hex,
             account="",
@@ -211,6 +229,7 @@ class OtpStore:
             code=code,
             message="Fetched from captcha source",
         )
+        return "inserted"
 
     def latest(
         self,
@@ -417,6 +436,9 @@ class OtpRequestHandler(BaseHTTPRequestHandler):
         if path == "/api/test/otp/consume":
             self._consume_otp()
             return
+        if path == "/api/test/otp/refresh":
+            self._refresh_all()
+            return
         self._error(HTTPStatus.NOT_FOUND, "not found")
 
     def _receive_otp(self) -> None:
@@ -479,6 +501,32 @@ class OtpRequestHandler(BaseHTTPRequestHandler):
             return
         self._json_response(HTTPStatus.OK, {"consumed": True, "id": record_id})
 
+    def _refresh_all(self) -> None:
+        """手动触发:对自动轮询白名单逐号实时取码入库,返回逐号结果摘要。"""
+        if not self._read_access_allowed():
+            self._error(HTTPStatus.UNAUTHORIZED, "invalid read token")
+            return
+        phones = sorted(self.gateway.allowed_phones) if self.gateway.allowed_phones else []
+        if not phones:
+            self._error(HTTPStatus.BAD_REQUEST, "auto-poll whitelist is empty; set OTP_ALLOWED_PHONES first")
+            return
+        results = []
+        for phone in phones:
+            try:
+                code = self.gateway.captcha_source.fetch(phone)
+            except CaptchaSourceError as error:
+                message = str(error)
+                # 源接口对"无有效码"回 success:false(rejected),属常态;其余才是真异常
+                results.append({
+                    "phone": phone,
+                    "status": "no_valid_code" if "rejected" in message else "error",
+                    "error": message,
+                })
+                continue
+            outcome = self.gateway.store.put_fetched_code(phone, code)
+            results.append({"phone": phone, "status": outcome, "code": code})
+        self._json_response(HTTPStatus.OK, {"refreshed": len(phones), "results": results})
+
 
 class OtpGateway(ThreadingHTTPServer):
     allow_reuse_address = True
@@ -493,6 +541,7 @@ class OtpGateway(ThreadingHTTPServer):
         read_auth_required: bool = False,
         ingest_auth_required: bool = False,
         captcha_source: CaptchaSource | None = None,
+        autopoll_seconds: int = 30,
     ) -> None:
         super().__init__(address, OtpRequestHandler)
         self.store = store
@@ -502,7 +551,39 @@ class OtpGateway(ThreadingHTTPServer):
         self.read_auth_required = read_auth_required
         self.ingest_auth_required = ingest_auth_required
         self.captcha_source = captcha_source or CaptchaSource("")
+        self.autopoll_seconds = autopoll_seconds
         self.web_page = self._build_web_page()
+        if self.allowed_phones and self.autopoll_seconds > 0:
+            threading.Thread(target=self._autopoll_loop, name="otp-autopoll", daemon=True).start()
+
+    def _autopoll_loop(self) -> None:
+        """后台定时拉取白名单手机号的最新验证码(方案3服务端版):负载与打开页签数无关。
+
+        日志纪律:无有效码(源接口 rejected)是空闲常态不打日志;码变化/真异常才打,且不打印码本身。
+        """
+        print(
+            f"OTP autopoll enabled: {len(self.allowed_phones)} phone(s) every {self.autopoll_seconds}s",
+            flush=True,
+        )
+        time.sleep(3)  # 起步稍等,避开服务启动瞬间的其他初始化
+        while True:
+            started = time.monotonic()
+            for phone in sorted(self.allowed_phones):
+                try:
+                    code = self.captcha_source.fetch(phone)
+                except CaptchaSourceError as error:
+                    message = str(error)
+                    if "rejected" not in message:
+                        print(f"OTP autopoll {phone}: {message}", flush=True)
+                    continue
+                try:
+                    outcome = self.store.put_fetched_code(phone, code)
+                except sqlite3.Error as error:
+                    print(f"OTP autopoll {phone}: store failed: {error}", flush=True)
+                    continue
+                if outcome != "unchanged":
+                    print(f"OTP autopoll {phone}: {outcome}", flush=True)
+            time.sleep(max(1.0, self.autopoll_seconds - (time.monotonic() - started)))
 
     @staticmethod
     def _build_web_page() -> str:
@@ -540,6 +621,7 @@ class OtpGateway(ThreadingHTTPServer):
     .fetch-box input:focus { outline:2px solid #b6ccf7; border-color:#7d9bf0; }
     .fetch-box button { padding:6px 16px; border:0; border-radius:8px; background:#2b4acb; color:#fff; font:inherit; font-weight:600; cursor:pointer; }
     .fetch-box button:disabled { opacity:.55; cursor:default; }
+    .fetch-box button.alt { background:var(--neutral-weak); color:var(--ink); }
     .fetch-msg { font-size:12px; color:var(--good); }
     .fetch-msg.bad { color:#c23a2b; }
     td.t-phone { cursor:pointer; }
@@ -553,6 +635,7 @@ class OtpGateway(ThreadingHTTPServer):
       <input id="fetch-phone" list="phone-opts" placeholder="输入手机号，点「取码」" inputmode="numeric" maxlength="32" autocomplete="off" spellcheck="false">
       <datalist id="phone-opts"></datalist>
       <button id="fetch-btn" type="button">取码</button>
+      <button id="fetch-all-btn" type="button" class="alt">全部刷新</button>
       <span id="fetch-msg" class="fetch-msg" hidden></span>
     </div>
     <span class="meta">每 5 秒自动刷新 · 显示最近取码记录（含已消费/已过期，新码绿色闪示）</span>
@@ -688,6 +771,34 @@ async function fetchCode() {
 }
 fetchBtn.addEventListener('click', fetchCode);
 fetchPhone.addEventListener('keydown', (event) => { if (event.key === 'Enter') fetchCode(); });
+// ---------- 全部刷新:服务端对白名单逐号实时取码入库,返回逐号摘要 ----------
+const fetchAllBtn = document.getElementById('fetch-all-btn');
+let fetchingAll = false;
+const RESULT_TEXT = { inserted: '新码', refreshed: '续期', unchanged: '未变' };
+async function fetchAll() {
+  if (fetchingAll) return;
+  fetchingAll = true; fetchAllBtn.disabled = true;
+  note('全部刷新中…');
+  try {
+    const response = await fetch('/api/test/otp/refresh', { method: 'POST', cache: 'no-store' });
+    const data = await response.json().catch(() => ({}));
+    if (response.ok) {
+      const parts = (data.results || []).map((result) =>
+        result.status === 'no_valid_code' ? result.phone + ' 无有效码'
+          : result.status === 'error' ? result.phone + ' 失败'
+            : result.phone + ' ' + (RESULT_TEXT[result.status] || result.status));
+      note('已刷新 ' + data.refreshed + ' 个号码：' + parts.join(' · '));
+      refresh();
+    } else {
+      note('全部刷新失败：HTTP ' + response.status + (data.error ? ' · ' + data.error : ''), true);
+    }
+  } catch (error) {
+    note('全部刷新失败：' + error.message, true);
+  } finally {
+    fetchingAll = false; fetchAllBtn.disabled = false;
+  }
+}
+fetchAllBtn.addEventListener('click', fetchAll);
 refresh(); setInterval(refresh, 5000);
 </script>
 </body>
@@ -706,6 +817,7 @@ def create_server(
     ingest_auth_required: bool = False,
     captcha_source_url: str = "",
     captcha_source_timeout_seconds: float = 5,
+    autopoll_seconds: int = 30,
 ) -> OtpGateway:
     if ingest_auth_required and not ingest_token:
         raise ValueError("OTP_INGEST_TOKEN is required when ingest auth is enabled")
@@ -724,6 +836,7 @@ def create_server(
         read_auth_required,
         ingest_auth_required,
         CaptchaSource(captcha_source_url, captcha_source_timeout_seconds),
+        autopoll_seconds,
     )
 
 
@@ -741,6 +854,12 @@ def main() -> None:
         "--captcha-source-timeout",
         type=float,
         default=float(os.getenv("CAPTCHA_SOURCE_TIMEOUT_SECONDS", "5")),
+    )
+    parser.add_argument(
+        "--autopoll-seconds",
+        type=int,
+        default=int(os.getenv("OTP_AUTOPOLL_SECONDS", "30")),
+        help="白名单手机号自动轮询间隔秒数,0=关闭(默认 30)",
     )
     parser.add_argument(
         "--ingest-auth-required",
@@ -766,6 +885,7 @@ def main() -> None:
         ingest_auth_required=args.ingest_auth_required,
         captcha_source_url=args.captcha_source_url,
         captcha_source_timeout_seconds=args.captcha_source_timeout,
+        autopoll_seconds=args.autopoll_seconds,
     )
     print(f"OTP gateway listening on http://{args.host}:{args.port}")
     try:

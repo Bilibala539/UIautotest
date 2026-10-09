@@ -1,11 +1,14 @@
-"""外部用例 API 适配层测试(2026-09-28):规范化映射 + 拉取管线 + 管理端点 stub 行为。"""
+"""外部用例 API 适配层测试(2026-09-28):规范化映射 + 拉取管线 + 管理端点 stub 行为。
+2026-10-10 起兼载 case_scope 用例范围字段测试(借本文件的临时服务基建)。"""
 from __future__ import annotations
 
 import gc
 import json
 import os
+import sqlite3
 import tempfile
 import threading
+import urllib.error
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -403,3 +406,123 @@ def test_pull_reanchors_former_id(monkeypatch, _case_api_env):
             server.shutdown()
             server.server_close()
             gc.collect()  # Windows 删库文件需 sqlite 句柄已关
+
+
+# ---------- case_scope 用例范围(2026-10-10):校验/保留语义/REG- 迁移/auto 内容置空 ----------
+
+def test_case_scope_validation_and_retention(_case_api_env):
+    """case_scope 校验与保留语义:非法值报 400;payload 不携带 UPDATE 保留人工归类、
+    显式携带(含''=未分类)才生效;REG- 前缀新入库未携带默认 regression;
+    auto 用例 content 强制置空防脏数据;batch-update 白名单含 case_scope。"""
+    with tempfile.TemporaryDirectory() as temporary_directory:
+        server = create_server("127.0.0.1", 0, Path(temporary_directory) / "dashboard.sqlite3")
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        base_url = f"http://127.0.0.1:{server.server_address[1]}"
+        try:
+            # REG- 前缀新入库未携带 => 默认 regression;普通编号显式带 full
+            status, _, body = request(base_url, "/api/case-defs", "POST", {
+                "case_id": "REG-L2-POS-001", "case_type": "text", "title": "回归冒烟"})
+            assert status == 201 and json.loads(body)["case_scope"] == "regression"
+            status, _, body = request(base_url, "/api/case-defs", "POST", {
+                "case_id": "LOGIN-001", "case_type": "text", "title": "普通用例",
+                "case_scope": "full"})
+            assert json.loads(body)["case_scope"] == "full"
+            # 页面编辑/sync 重跑(payload 不携带)=> UPDATE 保留人工归类
+            status, _, body = request(base_url, "/api/case-defs/LOGIN-001", "PUT", {
+                "case_id": "LOGIN-001", "case_type": "text", "title": "页面改标题"})
+            assert json.loads(body)["case_scope"] == "full"
+            # 显式清空('')=> 未分类
+            status, _, body = request(base_url, "/api/case-defs/LOGIN-001", "PUT", {
+                "case_id": "LOGIN-001", "case_type": "text", "title": "改回未分类",
+                "case_scope": ""})
+            assert json.loads(body)["case_scope"] == ""
+            # 非法值 => 400
+            with pytest.raises(urllib.error.HTTPError) as error_info:
+                request(base_url, "/api/case-defs", "POST", {
+                    "case_id": "X-1", "case_type": "text", "title": "坏范围",
+                    "case_scope": "bogus"})
+            assert error_info.value.code == 400
+            # auto 用例 content 强制置空(防脏数据);file_path/关联不受影响
+            status, _, body = request(base_url, "/api/case-defs", "POST", {
+                "case_id": "AUTO-1", "case_type": "auto", "title": "脚本用例",
+                "content": "print('脏数据')", "linked_case_id": "REG-L2-POS-001"})
+            created = json.loads(body)
+            assert status == 201 and created["content"] == ""
+            status, _, body = request(base_url, "/api/case-defs/AUTO-1")
+            assert json.loads(body)["content"] == ""
+            # batch-update 白名单含 case_scope;非法值报 400
+            status, _, body = request(base_url, "/api/case-defs/batch-update", "POST", {
+                "case_ids": ["REG-L2-POS-001"], "patch": {"case_scope": "full"}})
+            assert json.loads(body)["updated"] == 1
+            status, _, body = request(base_url, "/api/case-defs")
+            items = {c["case_id"]: c for c in json.loads(body)["items"]}
+            assert items["REG-L2-POS-001"]["case_scope"] == "full"
+            with pytest.raises(urllib.error.HTTPError) as error_info:
+                request(base_url, "/api/case-defs/batch-update", "POST", {
+                    "case_ids": ["REG-L2-POS-001"], "patch": {"case_scope": "bogus"}})
+            assert error_info.value.code == 400
+        finally:
+            server.shutdown()
+            server.server_close()
+            gc.collect()
+
+
+def test_case_scope_migration_backfills_reg_prefix():
+    """存量库启动迁移(照 human_confirmed/biz_no 补列写法):补 case_scope 列并把
+    REG- 前缀存量行一次性归类 regression,非 REG- 行留未分类;幂等可重复启动。"""
+    with tempfile.TemporaryDirectory() as temporary_directory:
+        db_path = Path(temporary_directory) / "dashboard.sqlite3"
+        # 手工造一个 case_scope 上线前的存量库(仅 case_defs 表,其余表由 create_server 自建)
+        connection = sqlite3.connect(db_path)
+        connection.executescript(
+            """
+            CREATE TABLE case_defs (
+                case_id TEXT PRIMARY KEY, case_type TEXT NOT NULL DEFAULT 'auto',
+                title TEXT NOT NULL DEFAULT '', module TEXT NOT NULL DEFAULT '',
+                priority TEXT NOT NULL DEFAULT '', source TEXT NOT NULL DEFAULT '',
+                source_bug TEXT NOT NULL DEFAULT '', file_path TEXT NOT NULL DEFAULT '',
+                content TEXT NOT NULL DEFAULT '', linked_case_id TEXT NOT NULL DEFAULT '',
+                link_strength TEXT NOT NULL DEFAULT 'strong',
+                human_confirmed INTEGER NOT NULL DEFAULT 0,
+                biz_no TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+            );
+            """
+        )
+        connection.executemany(
+            "INSERT INTO case_defs (case_id, case_type, title, created_at, updated_at)"
+            " VALUES (?, 'text', ?, '2026-01-01', '2026-01-01')",
+            [("REG-L2-POS-001", "存量回归一"), ("REG-L2-NEG-002", "存量回归二"),
+             ("LOGIN-L1-POS-001", "普通用例")],
+        )
+        connection.commit()
+        connection.close()
+        server = create_server("127.0.0.1", 0, db_path)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        base_url = f"http://127.0.0.1:{server.server_address[1]}"
+        try:
+            status, _, body = request(base_url, "/api/case-defs")
+            items = {c["case_id"]: c for c in json.loads(body)["items"]}
+            assert items["REG-L2-POS-001"]["case_scope"] == "regression"
+            assert items["REG-L2-NEG-002"]["case_scope"] == "regression"
+            assert items["LOGIN-L1-POS-001"]["case_scope"] == ""
+        finally:
+            server.shutdown()
+            server.server_close()
+            gc.collect()
+        # 幂等:同库重启服务,迁移不重复执行、结果稳定
+        server = create_server("127.0.0.1", 0, db_path)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        base_url = f"http://127.0.0.1:{server.server_address[1]}"
+        try:
+            status, _, body = request(base_url, "/api/case-defs")
+            items = {c["case_id"]: c for c in json.loads(body)["items"]}
+            assert items["REG-L2-POS-001"]["case_scope"] == "regression"
+            assert items["LOGIN-L1-POS-001"]["case_scope"] == ""
+        finally:
+            server.shutdown()
+            server.server_close()
+            gc.collect()

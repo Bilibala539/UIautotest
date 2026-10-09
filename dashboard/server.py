@@ -1150,6 +1150,7 @@ class DashboardStore:
                     link_strength TEXT NOT NULL DEFAULT 'strong',
                     human_confirmed INTEGER NOT NULL DEFAULT 0,
                     biz_no TEXT NOT NULL DEFAULT '',
+                    case_scope TEXT NOT NULL DEFAULT '',
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL
                 );
@@ -1173,6 +1174,16 @@ class DashboardStore:
             if "biz_no" not in existing_cols:
                 connection.execute(
                     "ALTER TABLE case_defs ADD COLUMN biz_no TEXT NOT NULL DEFAULT ''"
+                )
+            # case_scope 为后加列(2026-10-09):用例范围分类,''=未分类/full=全量用例/
+            # regression=回归用例。存量 REG- 前缀用例经用户确认全是回归用例,补列时
+            # 一次性归类(仅补列分支内执行一次,幂等;新建库走上方 DDL 无存量行无需回填)
+            if "case_scope" not in existing_cols:
+                connection.execute(
+                    "ALTER TABLE case_defs ADD COLUMN case_scope TEXT NOT NULL DEFAULT ''"
+                )
+                connection.execute(
+                    "UPDATE case_defs SET case_scope='regression' WHERE case_id LIKE 'REG-%'"
                 )
             # 流水线定时配置(调度器每 30s 轮询,到点 POST {id}/run 建 schedule 任务)
             connection.executescript(
@@ -2933,19 +2944,28 @@ class DashboardStore:
             "file_path": str(payload.get("file_path") or "").strip(),
             "content": str(payload.get("content") or ""),
             "linked_case_id": str(payload.get("linked_case_id") or "").strip(),
+            # 用例范围(2026-10-09):''=未分类 / full=全量用例 / regression=回归用例
+            "case_scope": str(payload.get("case_scope") or "").strip().lower(),
         }
         if not fields["title"]:
             raise ValueError("title 必填")
+        if fields["case_scope"] not in {"", "full", "regression"}:
+            raise ValueError("case_scope 只能是 full(全量用例) / regression(回归用例) / 空(未分类)")
+        # auto 用例不用 content(2026-10-09):脚本内容在代码工程维护(file_path 锁定
+        # 来源仓库),忽略 payload 里的 content 置空,防脏数据;文字用例不受影响
+        if fields["case_type"] == "auto":
+            fields["content"] = ""
         if fields["case_type"] == "auto" and fields["linked_case_id"] \
                 and fields["linked_case_id"] == case_id:
             raise ValueError("linked_case_id 不能指向自己")
         return fields
 
     def batch_update_case_defs(self, case_ids: Any, patch: dict[str, Any]) -> dict[str, Any]:
-        """批量编辑用例管理属性(2026-09-24,规范 4.2/8.5/8.6):仅 priority/module。
+        """批量编辑用例管理属性(2026-09-24,规范 4.2/8.5/8.6):仅 priority/module/case_scope。
 
         只动管理属性,不碰标题/内容等仓库源头字段;module 非空时自动登记进
-        modules(与 upsert_case_def 同口径);返回实际更新行数,不存在的 id 自然跳过。
+        modules(与 upsert_case_def 同口径);case_scope 空=未分类(显式传''即批量
+        归为未分类);返回实际更新行数,不存在的 id 自然跳过。
         """
         if isinstance(case_ids, str) or not isinstance(case_ids, list):
             raise ValueError("case_ids 必须是非空数组")
@@ -2960,8 +2980,13 @@ class DashboardStore:
             updates["priority"] = _normalize_priority(patch.get("priority"))
         if "module" in patch:
             updates["module"] = str(patch.get("module") or "").strip()
+        if "case_scope" in patch:
+            scope = str(patch.get("case_scope") or "").strip().lower()
+            if scope not in {"", "full", "regression"}:
+                raise ValueError("case_scope 只能是 full(全量用例) / regression(回归用例) / 空(未分类)")
+            updates["case_scope"] = scope
         if not updates:
-            raise ValueError("patch 至少包含 priority 或 module 之一")
+            raise ValueError("patch 至少包含 priority / module / case_scope 之一")
         with self.transaction() as connection:
             if updates.get("module"):
                 connection.execute(
@@ -3000,6 +3025,14 @@ class DashboardStore:
         # 与 human_confirmed 同构:payload 不携带时 INSERT 落 ''、UPDATE 保留原值——
         # 页面编辑/sync_cases 重跑不会冲掉;编号一经分配终身不变,工作站改号不影响
         new_biz = str(payload.get("biz_no") or "").strip() or None
+        # case_scope(2026-10-09):用例范围分类(''=未分类/full=全量/regression=回归)。
+        # 与 human_confirmed 同构:payload 不携带时 INSERT 落默认、UPDATE 保留原值——
+        # 防止 sync_cases 重跑/旧调用方(不传该字段)冲掉人工归类;REG- 前缀用例
+        # 新入库未携带时默认 regression(该前缀经用户确认全是回归用例)
+        if payload.get("case_scope") is None:
+            new_scope: str | None = None  # 未携带:INSERT 落默认,UPDATE 保留原值
+        else:
+            new_scope = fields["case_scope"]  # 显式携带(含清空为未分类)以校验后值为准
         with self.transaction() as connection:
             # 新模块 slug 自动登记进 modules(中文名优先取已知映射,否则先同 slug,
             # 后续可在模块管理里改),保证 sync_cases.py 再同步时筛选项与中文名映射不回退
@@ -3009,35 +3042,40 @@ class DashboardStore:
                     (fields["module"], MODULE_CN_SEED.get(fields["module"], fields["module"])),
                 )
             row = connection.execute(
-                "SELECT case_id, link_strength, human_confirmed, biz_no FROM case_defs WHERE case_id=?",
+                "SELECT case_id, link_strength, human_confirmed, biz_no, case_scope FROM case_defs WHERE case_id=?",
                 (fields["case_id"],),
             ).fetchone()
             if row is None:
+                # INSERT 的 scope 默认值:未携带时 REG- 前缀归 regression,其余未分类
+                insert_scope = new_scope if new_scope is not None else (
+                    "regression" if fields["case_id"].startswith("REG-") else "")
                 connection.execute(
                     """INSERT INTO case_defs (
                         case_id, case_type, title, module, priority, source,
                         source_bug, file_path, content, linked_case_id,
-                        link_strength, human_confirmed, biz_no, created_at, updated_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                        link_strength, human_confirmed, biz_no, case_scope,
+                        created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (fields["case_id"], fields["case_type"], fields["title"],
                      fields["module"], fields["priority"], fields["source"],
                      fields["source_bug"], fields["file_path"], fields["content"],
                      fields["linked_case_id"], new_link or "strong",
                      new_human if new_human is not None else 0,
-                     new_biz or "", now, now),
+                     new_biz or "", insert_scope, now, now),
                 )
             else:
                 connection.execute(
                     """UPDATE case_defs SET case_type=?, title=?, module=?,
                        priority=?, source=?, source_bug=?, file_path=?, content=?,
                        linked_case_id=?, link_strength=?, human_confirmed=?, biz_no=?,
-                       updated_at=? WHERE case_id=?""",
+                       case_scope=?, updated_at=? WHERE case_id=?""",
                     (fields["case_type"], fields["title"], fields["module"],
                      fields["priority"], fields["source"], fields["source_bug"],
                      fields["file_path"], fields["content"], fields["linked_case_id"],
                      new_link or row["link_strength"] or "strong",
                      new_human if new_human is not None else (row["human_confirmed"] or 0),
                      new_biz or row["biz_no"] or "",
+                     new_scope if new_scope is not None else (row["case_scope"] or ""),
                      now, fields["case_id"]),
                 )
         return self.get_case_def(fields["case_id"])
@@ -3202,7 +3240,7 @@ class DashboardStore:
             rows = connection.execute(
                 f"""SELECT case_id, case_type, title, module, priority, source,
                     source_bug, file_path, linked_case_id, link_strength,
-                    human_confirmed, biz_no, updated_at
+                    human_confirmed, biz_no, case_scope, updated_at
                     FROM case_defs{where} ORDER BY case_type, module, case_id
                     LIMIT ?""",
                 (*params, limit),
@@ -4512,7 +4550,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 self.send_json(self.store.batch_import_case_defs(payload.get("rows")))
                 return
             if parsed.path == "/api/case-defs/batch-update":
-                # 批量编辑(2026-09-24,规范 4.2/8.6):仅管理属性 priority/module
+                # 批量编辑(2026-09-24,规范 4.2/8.6):管理属性 priority/module/case_scope
                 self.send_json(self.store.batch_update_case_defs(
                     payload.get("case_ids"), payload.get("patch") or {}))
                 return

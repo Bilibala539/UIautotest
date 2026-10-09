@@ -107,9 +107,6 @@
     #cd-title-box input { flex:1; border:1px solid var(--line); border-radius:8px; padding:8px; }
     /* 标题区三按钮(编辑/完成/取消)统一尺寸:同高、同 padding、同字号 */
     .cd-tbtn { padding:3px 10px; font-size:12px; flex-shrink:0; }
-    /* 自动化用例只读态(规范 8.5/8.6):灰底、去输入框感 */
-    .cd-readonly-box { background:var(--neutral-weak); border:1px solid var(--line); border-radius:8px; padding:8px 10px; color:var(--muted); font-size:12px; white-space:pre-wrap; word-break:break-all; font-family:monospace; max-height:420px; overflow:auto; margin:0; }
-    .cd-readonly-note { background:var(--neutral-weak); color:var(--muted); }
     /* 仓库脚本区块(规范 8.3):等宽路径 + 复制路径 + PyCharm 跳转 */
     .cd-mini-btn { padding:5px 12px; font-size:12px; flex-shrink:0; }
     a.cd-mini-btn { display:inline-block; background:#fff; color:inherit; border:1px solid var(--line); border-radius:8px; text-decoration:none; cursor:pointer; }
@@ -548,6 +545,7 @@
           </div>
           <select id="cd-module"><option value="">全部模块</option></select>
           <select id="cd-human" title="是否人工确认(仅文字用例有此属性)"><option value="">是否人工确认</option><option value="1">已确认</option><option value="0">未确认</option></select>
+          <select id="cd-scope" title="用例范围分类"><option value="">用例范围</option><option value="full">全量用例</option><option value="regression">回归用例</option><option value="none">未分类</option></select>
           <select id="cd-src" title="用例来源"><option value="">全部来源</option><option value="api">API(人审工作站)</option><option value="repo">仓库 YAML</option></select>
           <div class="cd-search">
             <input id="cd-q" placeholder="搜索编号 / 标题 / 内容…">
@@ -669,13 +667,12 @@
           </div>
         </div>
         <div><label for="cd-f-module">功能模块</label><select id="cd-f-module" style="width:100%"><option value="">（无模块）</option></select></div>
+        <div><label for="cd-f-scope">用例范围</label><select id="cd-f-scope" style="width:100%"><option value="">未分类</option><option value="full">全量用例</option><option value="regression">回归用例</option></select></div>
         <div><label for="cd-f-link">关联用例(自动化→文字)</label><input id="cd-f-link" placeholder="LOGIN-L2-POS-002"></div>
         <div><label for="cd-f-bug">来源 bug 单</label><input id="cd-f-bug" placeholder="SWAN-BUG-20260910-001"></div>
         <div><label for="cd-f-src">来源描述</label><input id="cd-f-src" placeholder="来源文件 / 任务卡"></div>
-        <div style="grid-column:1/-1" id="cd-content-wrap">
+        <div style="grid-column:1/-1" id="cd-content-wrap" hidden>
           <label for="cd-f-content">用例内容(步骤/预期,YAML 或自由文本)</label>
-          <pre id="cd-f-content-ro" class="cd-readonly-box" hidden></pre>
-          <p class="meta cd-readonly-note" id="cd-content-hint" hidden style="margin:6px 0 0;padding:6px 10px;border-radius:8px">内容在代码工程维护,请在 PyCharm 修改后同步;此处只读。</p>
           <textarea id="cd-f-content" rows="10" style="width:100%;border:1px solid var(--line);border-radius:8px;padding:8px;font-family:monospace"></textarea>
         </div>
         <div class="form-actions"><button class="primary" id="cd-save">保存</button><span class="meta" id="cd-msg"></span></div>
@@ -845,6 +842,8 @@
           <input id="cd-b-newmod" placeholder="如 login,留空不改" style="width:100%"></div>
         <div><label for="cd-b-suite" style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px">加入套件(仅自动化)</label>
           <select id="cd-b-suite"><option value="">不改</option></select></div>
+        <div><label for="cd-b-scope" style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px">用例范围</label>
+          <select id="cd-b-scope"><option value="">不改</option><option value="none">未分类</option><option value="full">全量用例</option><option value="regression">回归用例</option></select></div>
       </div>
       <div style="display:flex;gap:10px;align-items:center;margin-top:16px">
         <button class="primary" id="cd-b-submit" disabled title="需勾选用例且至少填一项要改的字段">应用修改</button>
@@ -1909,6 +1908,7 @@
       { key: 'type',    label: '类型',          width: 80,  visible: true },
       { key: 'module',  label: '模块 / 优先级', width: 160, visible: true },
       { key: 'human',   label: '是否人工确认',  width: 116, visible: true },
+      { key: 'scope',   label: '用例范围',      width: 90,  visible: true },
       { key: 'links',   label: '关联用例',      width: 190, visible: true },
       { key: 'bug',     label: '来源 bug',      width: 190, visible: true },
       { key: 'updated', label: '更新时间',      width: 145, visible: true },
@@ -1982,9 +1982,9 @@
       return ['P0', 'P1', 'P2', 'P3'].includes(p) ? p : 'P3';
     }
 
-    function cdBSyncFooter() {  // 已选计数 + 提交按钮可用态:有勾选且三项至少填一项才可提交
+    function cdBSyncFooter() {  // 已选计数 + 提交按钮可用态:有勾选且四项至少填一项才可提交
       $('cd-b-count').textContent = `已选 ${cdBSel.size} 条`;
-      const hasField = $('cd-b-pri').value || $('cd-b-newmod').value.trim() || $('cd-b-suite').value;
+      const hasField = $('cd-b-pri').value || $('cd-b-newmod').value.trim() || $('cd-b-suite').value || $('cd-b-scope').value;
       $('cd-b-submit').disabled = !cdBSel.size || !hasField;
     }
     function cdBFiltered() {  // 弹窗内过滤:模块下拉 + 编号/标题关键字(数据源=页面全量用例缓存)
@@ -2013,7 +2013,7 @@
       if (!cdAllItems.length) await loadCaseDefs();  // 刚进页就开弹窗时兜底拉一次全量
       cdBSel.clear();
       $('cd-b-mod').value = ''; $('cd-b-q').value = '';
-      $('cd-b-pri').value = ''; $('cd-b-newmod').value = ''; $('cd-b-suite').value = '';
+      $('cd-b-pri').value = ''; $('cd-b-newmod').value = ''; $('cd-b-suite').value = ''; $('cd-b-scope').value = '';
       $('cd-b-msg').textContent = '';
       // 模块过滤下拉:复用用例数据里的模块清单(值=slug,展示=中文名)
       const modMap = new Map();
@@ -2038,16 +2038,18 @@
       const pri = $('cd-b-pri').value;
       const newMod = $('cd-b-newmod').value.trim();
       const suiteId = $('cd-b-suite').value;
+      const scope = $('cd-b-scope').value;  // ''=不改 'none'=未分类 'full'/'regression' 直传
       if (pri) patch.priority = pri;
       if (newMod) patch.module = newMod;
+      if (scope) patch.case_scope = scope === 'none' ? '' : scope;
       $('cd-b-submit').disabled = true;  // 提交中防连点
       try {
-        // ① 批量改字段(优先级/模块;模块填了新标识后端自动登记)
+        // ① 批量改字段(优先级/模块/用例范围;模块填了新标识后端自动登记)
         if (Object.keys(patch).length) {
           const res = await fetch('/api/case-defs/batch-update', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ case_ids: ids, patch }) });
           const data = await res.json().catch(() => ({}));
           if (!res.ok) { showToast((data && data.error) || '批量修改失败', true); return; }
-          showToast(`已更新 ${data.updated ?? ids.length} 条用例${pri ? ` · 优先级 ${pri}` : ''}${newMod ? ` · 模块 ${newMod}` : ''}`);
+          showToast(`已更新 ${data.updated ?? ids.length} 条用例${pri ? ` · 优先级 ${pri}` : ''}${newMod ? ` · 模块 ${newMod}` : ''}${scope === 'full' ? ' · 全量用例' : scope === 'regression' ? ' · 回归用例' : scope === 'none' ? ' · 未分类' : ''}`);
         }
         // ② 加入套件:套件仅收自动化用例,客户端先过滤;文字用例计数提示
         if (suiteId) {
@@ -2080,7 +2082,7 @@
       if (cb.checked) cdBSel.add(cb.dataset.cid); else cdBSel.delete(cb.dataset.cid);
       cdBSyncFooter();
     });
-    ['cd-b-pri', 'cd-b-newmod', 'cd-b-suite'].forEach(id => {
+    ['cd-b-pri', 'cd-b-newmod', 'cd-b-suite', 'cd-b-scope'].forEach(id => {
       $(id).addEventListener('input', cdBSyncFooter);
       $(id).addEventListener('change', cdBSyncFooter);
     });
@@ -2105,11 +2107,14 @@
       const q = $('cd-q').value.trim().toLowerCase();
       const module = sel.value;
       const humanSel = $('cd-human').value; // ''=全部 '1'=已确认 '0'=未确认(仅文字用例有此属性,auto 不参与)
+      const scopeSel = $('cd-scope').value; // ''=全部 'full'=全量 'regression'=回归 'none'=未分类
       const srcSel = $('cd-src').value; // ''=全部 'api'=工作站API 'repo'=仓库YAML同步
       let shown = cdAllItems;
       if (cdTypeFilter) shown = shown.filter(c => c.case_type === cdTypeFilter);
       if (module) shown = shown.filter(c => c.module === module);
       if (humanSel !== '') shown = shown.filter(c => c.case_type === 'text' && (c.human_confirmed ? 1 : 0) === Number(humanSel));
+      if (scopeSel === 'none') shown = shown.filter(c => !c.case_scope);
+      else if (scopeSel) shown = shown.filter(c => c.case_scope === scopeSel);
       if (srcSel === 'api') shown = shown.filter(c => c.source === 'case-api');
       else if (srcSel === 'repo') shown = shown.filter(c => String(c.source || '').startsWith('knowledge/'));
       if (q) shown = shown.filter(c => `${c.case_id} ${c.biz_no||''} ${c.title} ${c.module||''} ${c.source_bug||''}`.toLowerCase().includes(q));
@@ -2143,7 +2148,7 @@
       // 行
       const tbody = $('cd-rows'); tbody.innerHTML = '';
       if (!pageItems.length) {
-        tbody.innerHTML = `<tr><td colspan="${vis.length}" class="empty">${q || cdTypeFilter || module || humanSel !== '' ? '没有匹配的用例——试试重置筛选' : '还没有用例——点右上"＋ 新建用例"，或运行 scripts/sync_cases.py 同步仓库用例'}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="${vis.length}" class="empty">${q || cdTypeFilter || module || humanSel !== '' || scopeSel ? '没有匹配的用例——试试重置筛选' : '还没有用例——点右上"＋ 新建用例"，或运行 scripts/sync_cases.py 同步仓库用例'}</td></tr>`;
         renderColsPop(); return;
       }
       pageItems.forEach(c => { const row = document.createElement('tr');
@@ -2170,6 +2175,11 @@
           : (Number(c.human_confirmed)
             ? '<span class="chip p2" title="经人审工作站两道门确认">已确认</span>'
             : '<span class="chip p3" title="尚未通过人审工作站确认">未确认</span>');
+        // 用例范围(2026-10-09):full=全量/regression=回归,未分类留空;
+        // 配色复用优先级 chip 既有档位(p2=品牌蓝/p1=警示橙),不加新色
+        const scopeChip = c.case_scope === 'full' ? '<span class="chip p2" title="全量用例">全量</span>'
+          : c.case_scope === 'regression' ? '<span class="chip p1" title="回归用例">回归</span>'
+          : '<span class="cd-none">-</span>';
         // 展示编号(2026-09-30):优先平台有义编号 biz_no(wifi-001 式),无则回退原始编号;
         // 来源徽章:API=人审工作站,仓库=sync_cases YAML 同步
         const dispNo = c.biz_no || c.case_id;
@@ -2180,6 +2190,7 @@
           type: typeBadge,
           module: `${hl(c.module_cn || c.module || '-', q)}${lvl ? ' ' + lvl : ''}`,
           human: humanChip,
+          scope: scopeChip,
           links: linkChips,
           bug: bugChip,
           updated: `<span class="meta">${safe(formatDate(c.updated_at))}</span>`,
@@ -2275,7 +2286,10 @@
       if (c.source_bug) chips.push(`<span class="chip bug">bug ${safe(c.source_bug)}</span>`);
       if (c.file_path) chips.push(`<span class="chip lvl" title="仓库文件">${safe(c.file_path)}</span>`);
       $('cdd-chips').innerHTML = chips.join('');
-      $('cdd-content').textContent = c.content || '(无内容)';
+      // auto 用例不用内容(2026-10-09):脚本在代码工程维护,详情侧栏整块隐藏内容区;文字用例照旧
+      const cddContent = $('cdd-content');
+      if (c.case_type === 'auto') { cddContent.hidden = true; cddContent.textContent = ''; }
+      else { cddContent.hidden = false; cddContent.textContent = c.content || '(无内容)'; }
       // 仓库脚本区块(规范 8.3):auto 用例展示等宽路径 + 复制路径 + PyCharm 跳转;无 file_path 整块不渲染
       const repoBox = $('cdd-repo');
       if (c.file_path) {
@@ -2310,6 +2324,12 @@
       ta.remove(); return ok;
     }
     let cdAutoEdit = false; // 规范 8.5:auto 用例编辑收窄,仅管理属性可改
+    // content 输入区显隐(2026-10-09):auto 用例不用内容(脚本在代码工程维护),整块隐藏;
+    // 编辑态以入库类型为准,新建态跟随类型下拉即时切换;文字用例不受影响
+    function cdSyncContentByType() {
+      const t = cdAutoEdit ? 'auto' : $('cd-f-type').value;
+      $('cd-content-wrap').hidden = t === 'auto';
+    }
     async function openCaseDefForm(caseId) {
       cdEditing = caseId || null;
       $('cd-msg').textContent = '';
@@ -2323,23 +2343,17 @@
       // 优先级/模块/关联文字用例/来源描述(规范 8.5/8.6);文字用例与新建不受限
       cdAutoEdit = !!caseId && c.case_type === 'auto';
       $('cd-form-hint').textContent = cdAutoEdit
-        ? '自动化用例内容在代码工程维护,此处仅编辑管理属性(优先级/模块/关联用例/来源描述)'
+        ? '自动化用例内容在代码工程维护,此处仅编辑管理属性(优先级/模块/关联用例/来源描述/用例范围)'
         : '带 * 必填；自动化用例建议填"关联用例"指向对应文字用例';
       $('cd-f-type').disabled = cdAutoEdit;
       $('cd-f-bug').disabled = cdAutoEdit;
       $('cd-f-link').disabled = false; $('cd-f-src').disabled = false;
-      if (cdAutoEdit) {
-        $('cd-f-content').hidden = true;
-        const ro = $('cd-f-content-ro'); ro.hidden = false; ro.textContent = c.content || '(无内容)';
-        $('cd-content-hint').hidden = false;
-      } else {
-        $('cd-f-content').hidden = false;
-        $('cd-f-content-ro').hidden = true;
-        $('cd-content-hint').hidden = true;
-      }
+      $('cd-f-type').value = c.case_type || 'text';  // 类型回填(编辑态此前漏设,内容区显隐也依赖它)
       $('cd-f-link').value = c.linked_case_id || '';
       $('cd-f-bug').value = c.source_bug || ''; $('cd-f-src').value = c.source || '';
       $('cd-f-content').value = c.content || '';
+      $('cd-f-scope').value = c.case_scope || '';
+      cdSyncContentByType();
       // 标题默认只读展示,点"编辑"才切输入框(展示态/编辑态分离);auto 标题为仓库源头,不给编辑入口
       $('cd-title-text').textContent = c.title || '(无标题)';
       $('cd-f-title').value = c.title || '';
@@ -2397,6 +2411,7 @@
           file_path: cdCaseSnap.file_path || '',
           content: cdCaseSnap.content || '',
           linked_case_id: cdCaseSnap.linked_case_id || '',
+          case_scope: cdCaseSnap.case_scope || '',
         };
         const resp = await fetch('/api/case-defs/' + encodeURIComponent(cdEditing),
           { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
@@ -2443,12 +2458,14 @@
           source_bug: cdCaseSnap.source_bug || '',
           file_path: cdCaseSnap.file_path || '',
           content: cdCaseSnap.content || '',
+          case_scope: $('cd-f-scope').value,
         };
       } else {
         payload = { case_id: caseId, case_type: $('cd-f-type').value, title: $('cd-f-title').value.trim(),
           module: $('cd-f-module').value.trim(), priority: $('cd-f-pri').value.trim(),
           linked_case_id: $('cd-f-link').value.trim(), source_bug: $('cd-f-bug').value.trim(),
-          source: $('cd-f-src').value.trim(), content: $('cd-f-content').value };
+          source: $('cd-f-src').value.trim(), content: $('cd-f-content').value,
+          case_scope: $('cd-f-scope').value };
       }
       const resp = await fetch('/api/case-defs/' + encodeURIComponent(cdEditing || caseId), { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
       const data = await resp.json().catch(() => ({}));
@@ -2465,12 +2482,13 @@
     $('cd-q').oninput = () => { cdPage = 1; renderCaseDefs(); };
     $('cd-q').onkeydown = e => { if (e.key==='Enter') { cdPage = 1; renderCaseDefs(); } };
     $('cd-reset').onclick = () => {
-      $('cd-q').value=''; $('cd-module').value=''; $('cd-human').value=''; $('cd-src').value=''; cdTypeFilter=''; cdPage = 1;
+      $('cd-q').value=''; $('cd-module').value=''; $('cd-human').value=''; $('cd-scope').value=''; $('cd-src').value=''; cdTypeFilter=''; cdPage = 1;
       document.querySelectorAll('#cd-pills .cd-pill').forEach(x => x.classList.toggle('active', !x.dataset.type));
       renderCaseDefs();
     };
     $('cd-module').onchange = () => { cdPage = 1; renderCaseDefs(); };
     $('cd-human').onchange = () => { cdPage = 1; renderCaseDefs(); };
+    $('cd-scope').onchange = () => { cdPage = 1; renderCaseDefs(); };
     $('cd-src').onchange = () => { cdPage = 1; renderCaseDefs(); };
     $('cd-prev').onclick = () => { cdPage--; renderCaseDefs(); };
     $('cd-next').onclick = () => { cdPage++; renderCaseDefs(); };
@@ -2482,6 +2500,7 @@
     });
     $('cd-new').onclick = () => openCaseDefForm(null);
     $('cd-save').onclick = saveCaseDef;
+    $('cd-f-type').onchange = cdSyncContentByType;  // 新建切类型:内容区跟着显隐(auto 无内容)
     $('cd-cancel').onclick = () => { $('cd-modal').hidden = true; };
     $('cdd-close').onclick = closeCaseDefDrawer;
 

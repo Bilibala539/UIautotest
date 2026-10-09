@@ -1,0 +1,30 @@
+{
+ "probe_long_false_claim": 0.3233,
+ "probe_short_false_claim": 0.233,
+ "variants": [
+  {
+   "variant": "V0 baseline(run1)",
+   "true_mean": 0.9904,
+   "sham_mean": 0.9921,
+   "best_acc": 0.5,
+   "best_thr": 0.02,
+   "n": 41
+  },
+  {
+   "variant": "V1 claim-in-instr",
+   "true_mean": 0.9885,
+   "sham_mean": 0.9923,
+   "best_acc": 0.5244,
+   "best_thr": 0.98,
+   "n": 41
+  },
+  {
+   "variant": "V2 claim+state-title",
+   "true_mean": 0.9964,
+   "sham_mean": 0.996,
+   "best_acc": 0.5,
+   "best_thr": 0.02,
+   "n": 41
+  }
+ ]
+}

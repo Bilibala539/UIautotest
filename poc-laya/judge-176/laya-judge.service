@@ -1,0 +1,16 @@
+[Unit]
+Description=Laya judge service (typed decisions on GPU)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=jks
+WorkingDirectory=/home/jks/laya-judge
+Environment=HF_ENDPOINT=https://hf-mirror.com
+Environment=HF_HUB_DISABLE_XET=1
+ExecStart=/home/jks/laya-judge/venv/bin/python /home/jks/laya-judge/judge_server.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

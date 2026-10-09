@@ -578,8 +578,7 @@
     </section>
     <section class="page" id="page-captcha">
       <section class="card captcha-card">
-        <div class="gw-corner"><span class="dot" id="gw-dot"></span><span id="gw-text">检测中…</span><button class="ghost" id="gw-reload">重新加载</button></div>
-        <iframe id="gw-frame" src="about:blank" title="otp-gateway"></iframe>
+                <iframe id="gw-frame" src="about:blank" title="otp-gateway"></iframe>
         <div class="gw-offline" id="gw-offline" hidden></div>
       </section>
       <p class="hint">取码接口由用例自动调用，本页供人工查看最近验证码。</p>
@@ -1713,6 +1712,7 @@
     const dlServerName = (v) => v === 'formal' ? '正式服' : '测试服'; // 2.4:formal→正式服,其余一律测试服,无第三态
     const dlChip = (v) => `<span class="chip ${v === 'formal' ? 'st-formal' : 'st-test'}">${dlServerName(v)}</span>`;
     const dlTime = (a) => a.build_time || a.registered_at || ''; // 2.3:build_time 空回退 registered_at,接口返回原始值,回退在展示层
+    const dlFullTime = (v) => { if (!v) return '-'; const d = new Date(v), p = (n) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`; };
     const dlUrl = (a) => a.download_url || (window.location.origin + '/api/apks/' + encodeURIComponent(a.apk_id) + '/download'); // 7:响应缺 download_url 时 origin 自拼兜底
     function dlRelTime(v) { // 相对时间(规范 5.4):主文案相对,title 给完整时间
       if (!v) return '-';
@@ -1805,7 +1805,7 @@
         const t = dlTime(a);
         const disabled = a.file_exists ? '' : 'disabled title="文件已清理"'; // 3.3:文件已清理禁用置灰,防扫出 404
         const jkBtn = a.jenkins_log_url ? `<button class="icon-btn" data-act="jk" title="Jenkins 日志">${ICON.log}</button> ` : ''; // 无构建号的旧数据不渲染
-        row.innerHTML = `<td>${dlChip(a.server_type || 'test')}</td><td>${safe(a.app_version || '-')}</td><td>${safe(a.branch || '-')}</td><td title="${safe(formatDate(t))}">${dlRelTime(t)}</td><td><span class="note-clip" title="${safe(a.notes || '')}">${safe(dlNotesText(a.notes))}</span></td><td><button class="icon-btn" ${disabled} data-act="dl" title="下载">${ICON.download}</button> <button class="icon-btn" ${disabled} data-act="qr" title="二维码">${ICON.qr}</button> ${jkBtn}<button class="icon-btn danger" data-act="del" title="删除">${ICON.trash}</button></td>`;
+        row.innerHTML = `<td>${dlChip(a.server_type || 'test')}</td><td>${safe(a.app_version || '-')}</td><td>${safe(a.branch || '-')}</td><td>${safe(dlFullTime(t))}</td><td><span class="note-clip" title="${safe(a.notes || '')}">${safe(dlNotesText(a.notes))}</span></td><td><button class="icon-btn" ${disabled} data-act="dl" title="下载">${ICON.download}</button> <button class="icon-btn" ${disabled} data-act="qr" title="二维码">${ICON.qr}</button> ${jkBtn}<button class="icon-btn danger" data-act="del" title="删除">${ICON.trash}</button></td>`;
         row.querySelectorAll('button[data-act]').forEach(b => {
           const act = b.dataset.act;
           if (act === 'dl') b.onclick = () => dlDownload(a);
@@ -3239,8 +3239,6 @@
         const h = await (await fetch('/api/gateway/health')).json();
         const u = new URL(h.gateway); u.hostname = location.hostname;  // iframe 由浏览器加载,127.0.0.1 会指向用户自己电脑;网关与平台同机,换成平台机地址
         gatewayUrl = u.origin;
-        $('gw-dot').className = 'dot ' + (h.ok ? 'ok' : 'bad');
-        $('gw-text').textContent = h.ok ? '验证码网关正常' : '验证码网关异常';
         const frame = $('gw-frame'), offline = $('gw-offline');
         if (h.ok) {
           frame.hidden = false; offline.hidden = true;
@@ -3250,12 +3248,10 @@
           offline.textContent = '验证码网关不可达：' + String(h.detail || '').slice(0, 80);
         }
       } catch (e) {
-        $('gw-dot').className = 'dot bad'; $('gw-text').textContent = '验证码网关检测失败';
         $('gw-frame').hidden = true; const offline = $('gw-offline'); offline.hidden = false;
         offline.textContent = '验证码网关不可达：' + String(e).slice(0, 80);
       }
     }
-    $('gw-reload').onclick = () => { if (gatewayUrl) $('gw-frame').src = gatewayUrl + '/'; };
 
     $('refresh').onclick = loadRuns; $('platform').onchange = loadRuns; $('filter-apk').onchange = loadRuns; $('close-detail').onclick = closeRunDrawer;
     $('build-submit').onclick = buildApk; // 主动打包(登记弹窗已移除:自动登记为主,手动兜底走 scripts/register_apk.py)

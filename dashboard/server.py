@@ -104,6 +104,9 @@ MACHINE_EXEMPT_EXACT = {
     ("POST", "/api/suites"),               # nightly_trigger.py 套件维护
     ("GET", "/api/tasks/queue"),           # dispatch_worker.py 领活(新机器通道)
     ("POST", "/api/dispatch/update"),      # dispatch_worker.py 回写(分析/疑问/合并/终态)
+    ("GET", "/api/devices"),                   # patrol_checks.py 巡检设备心跳
+    ("GET", "/api/apks"),                      # patrol_checks.py 巡检包登记vs归档一致性
+    ("GET", "/api/pipeline/jobs"),             # patrol_checks.py 巡检 pending 年龄
 }
 MACHINE_EXEMPT_PREFIX = {
     ("POST", "/api/runs/"),                # pytest 插件 cases/complete 上报
@@ -116,6 +119,7 @@ MACHINE_EXEMPT_PREFIX = {
     ("GET", "/api/suites/"),               # trigger_smoke.py case-paths;nightly 套件读取
     ("POST", "/api/suites/"),              # nightly_trigger.py 套件成员维护
     ("GET", "/api/apks/"),                 # pipeline_agent.py 按 apk_id 下载安装包
+    ("POST", "/api/apks/"),                # build_swan_apk.py 构建产物归档上传(登记成功后推 APK 字节)
 }
 # AI 任务状态机(设计 §3.1/§3.2;merge_status 是任务属性,不是状态)
 TASK_STATUSES = ("pending_analysis", "questioning", "running", "done", "failed", "cancelled")

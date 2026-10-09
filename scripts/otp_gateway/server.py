@@ -7,7 +7,6 @@ import os
 import re
 import sqlite3
 import threading
-import time
 import uuid
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
@@ -192,7 +191,7 @@ class OtpStore:
             }
 
     def put_fetched_code(self, phone: str, code: str) -> str:
-        """源接口取回码入库。同码去重:未过期跳过,已过期只续期不插新行(防自动轮询刷重复行)。
+        """源接口取回码入库。同码去重:未过期跳过,已过期只续期不插新行(防重复刷新刷出垃圾行)。
 
         Returns:
             "inserted"(新码入库) / "refreshed"(同码续期) / "unchanged"(同码仍有效)。
@@ -502,7 +501,7 @@ class OtpRequestHandler(BaseHTTPRequestHandler):
         self._json_response(HTTPStatus.OK, {"consumed": True, "id": record_id})
 
     def _refresh_all(self) -> None:
-        """手动触发:对自动轮询白名单逐号实时取码入库,返回逐号结果摘要。"""
+        """手动触发:对白名单逐号实时取码入库,返回逐号结果摘要。"""
         if not self._read_access_allowed():
             self._error(HTTPStatus.UNAUTHORIZED, "invalid read token")
             return
@@ -541,7 +540,6 @@ class OtpGateway(ThreadingHTTPServer):
         read_auth_required: bool = False,
         ingest_auth_required: bool = False,
         captcha_source: CaptchaSource | None = None,
-        autopoll_seconds: int = 30,
     ) -> None:
         super().__init__(address, OtpRequestHandler)
         self.store = store
@@ -551,39 +549,7 @@ class OtpGateway(ThreadingHTTPServer):
         self.read_auth_required = read_auth_required
         self.ingest_auth_required = ingest_auth_required
         self.captcha_source = captcha_source or CaptchaSource("")
-        self.autopoll_seconds = autopoll_seconds
         self.web_page = self._build_web_page()
-        if self.allowed_phones and self.autopoll_seconds > 0:
-            threading.Thread(target=self._autopoll_loop, name="otp-autopoll", daemon=True).start()
-
-    def _autopoll_loop(self) -> None:
-        """后台定时拉取白名单手机号的最新验证码(方案3服务端版):负载与打开页签数无关。
-
-        日志纪律:无有效码(源接口 rejected)是空闲常态不打日志;码变化/真异常才打,且不打印码本身。
-        """
-        print(
-            f"OTP autopoll enabled: {len(self.allowed_phones)} phone(s) every {self.autopoll_seconds}s",
-            flush=True,
-        )
-        time.sleep(3)  # 起步稍等,避开服务启动瞬间的其他初始化
-        while True:
-            started = time.monotonic()
-            for phone in sorted(self.allowed_phones):
-                try:
-                    code = self.captcha_source.fetch(phone)
-                except CaptchaSourceError as error:
-                    message = str(error)
-                    if "rejected" not in message:
-                        print(f"OTP autopoll {phone}: {message}", flush=True)
-                    continue
-                try:
-                    outcome = self.store.put_fetched_code(phone, code)
-                except sqlite3.Error as error:
-                    print(f"OTP autopoll {phone}: store failed: {error}", flush=True)
-                    continue
-                if outcome != "unchanged":
-                    print(f"OTP autopoll {phone}: {outcome}", flush=True)
-            time.sleep(max(1.0, self.autopoll_seconds - (time.monotonic() - started)))
 
     @staticmethod
     def _build_web_page() -> str:
@@ -817,7 +783,6 @@ def create_server(
     ingest_auth_required: bool = False,
     captcha_source_url: str = "",
     captcha_source_timeout_seconds: float = 5,
-    autopoll_seconds: int = 30,
 ) -> OtpGateway:
     if ingest_auth_required and not ingest_token:
         raise ValueError("OTP_INGEST_TOKEN is required when ingest auth is enabled")
@@ -836,7 +801,6 @@ def create_server(
         read_auth_required,
         ingest_auth_required,
         CaptchaSource(captcha_source_url, captcha_source_timeout_seconds),
-        autopoll_seconds,
     )
 
 
@@ -854,12 +818,6 @@ def main() -> None:
         "--captcha-source-timeout",
         type=float,
         default=float(os.getenv("CAPTCHA_SOURCE_TIMEOUT_SECONDS", "5")),
-    )
-    parser.add_argument(
-        "--autopoll-seconds",
-        type=int,
-        default=int(os.getenv("OTP_AUTOPOLL_SECONDS", "30")),
-        help="白名单手机号自动轮询间隔秒数,0=关闭(默认 30)",
     )
     parser.add_argument(
         "--ingest-auth-required",
@@ -885,7 +843,6 @@ def main() -> None:
         ingest_auth_required=args.ingest_auth_required,
         captcha_source_url=args.captcha_source_url,
         captcha_source_timeout_seconds=args.captcha_source_timeout,
-        autopoll_seconds=args.autopoll_seconds,
     )
     print(f"OTP gateway listening on http://{args.host}:{args.port}")
     try:

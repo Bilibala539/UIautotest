@@ -35,6 +35,10 @@ curl 'http://<开发测试服地址>/api/user/captcha/mockCode?tel=13777777777'
 
 `POST /api/test/otp/refresh`：服务端同步对白名单逐号实时取码入库，返回逐号结果（`inserted`/`refreshed`/`unchanged`/`no_valid_code`/`error`）。网页「全部刷新」按钮即调此接口。
 
+## 记录保留期
+
+记录只保留 `OTP_RETENTION_DAYS` 天（默认 5，`0`=不清理）：服务启动时清理一次，之后每小时最多清理一次。清理日志形如 `OTP retention: purged N record(s) older than 5d`。
+
 ## 读取验证码
 
 按手机号查询时，平台会主动请求开发接口获取该手机号验证码，再返回最新一条未过期且未消费的验证码。内网默认免鉴权：

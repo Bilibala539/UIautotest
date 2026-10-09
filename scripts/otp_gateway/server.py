@@ -7,6 +7,7 @@ import os
 import re
 import sqlite3
 import threading
+import time
 import uuid
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
@@ -110,9 +111,16 @@ class CaptchaSource:
 
 
 class OtpStore:
-    def __init__(self, database_path: str | Path, ttl_seconds: int = 300) -> None:
+    def __init__(
+        self,
+        database_path: str | Path,
+        ttl_seconds: int = 300,
+        retention_days: int = 5,
+    ) -> None:
         self.database_path = str(database_path)
         self.ttl_seconds = ttl_seconds
+        self.retention_days = retention_days
+        self._last_purge = time.monotonic()
         self.lock = threading.RLock()
         Path(self.database_path).parent.mkdir(parents=True, exist_ok=True)
         with self._connection() as connection:
@@ -135,6 +143,7 @@ class OtpStore:
                     ON otp_codes(account, request_id, phone, expires_epoch, consumed_at);
                 """
             )
+        self._purge_if_due(force=True)
 
     def _connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self.database_path, timeout=10)
@@ -149,6 +158,31 @@ class OtpStore:
             connection.commit()
         finally:
             connection.close()
+
+    def purge_older_than(self, days: int) -> int:
+        """删除创建时间超过 days 天的记录(历史记录对页面/用例已无用,防无限增长)。"""
+        cutoff = (utc_now() - timedelta(days=days)).isoformat()
+        with self.lock, self._connection() as connection:
+            cursor = connection.execute("DELETE FROM otp_codes WHERE created_at < ?", (cutoff,))
+            return cursor.rowcount
+
+    def _purge_if_due(self, force: bool = False) -> None:
+        """惰性清理:启动时清一次,之后读路径上每小时最多清一次。"""
+        if self.retention_days <= 0:
+            return
+        now = time.monotonic()
+        if not force and now - self._last_purge < 3600:
+            return
+        self._last_purge = now
+        try:
+            removed = self.purge_older_than(self.retention_days)
+            if removed:
+                print(
+                    f"OTP retention: purged {removed} record(s) older than {self.retention_days}d",
+                    flush=True,
+                )
+        except sqlite3.Error as error:
+            print(f"OTP retention purge failed: {error}", flush=True)
 
     def put(
         self,
@@ -275,6 +309,7 @@ class OtpStore:
 
     def recent(self, limit: int = 50) -> list[dict[str, Any]]:
         limit = max(1, min(limit, 200))
+        self._purge_if_due()
         with self.lock, self._connection() as connection:
             rows = connection.execute(
                 """
@@ -778,6 +813,7 @@ def create_server(
     ingest_token: str,
     read_token: str,
     ttl_seconds: int = 300,
+    retention_days: int = 5,
     allowed_phones: set[str] | None = None,
     read_auth_required: bool = False,
     ingest_auth_required: bool = False,
@@ -794,7 +830,7 @@ def create_server(
         raise ValueError("ttl_seconds must be positive")
     return OtpGateway(
         (host, port),
-        OtpStore(database_path, ttl_seconds=ttl_seconds),
+        OtpStore(database_path, ttl_seconds=ttl_seconds, retention_days=retention_days),
         ingest_token,
         read_token,
         allowed_phones,
@@ -810,6 +846,12 @@ def main() -> None:
     parser.add_argument("--port", type=int, default=int(os.getenv("OTP_PORT", "8080")))
     parser.add_argument("--db", default=os.getenv("OTP_DB", "output/otp_gateway/otp.sqlite3"))
     parser.add_argument("--ttl", type=int, default=int(os.getenv("OTP_TTL_SECONDS", "300")))
+    parser.add_argument(
+        "--retention-days",
+        type=int,
+        default=int(os.getenv("OTP_RETENTION_DAYS", "5")),
+        help="记录保留天数,超期启动时及每小时清理,0=不清理(默认 5)",
+    )
     parser.add_argument("--ingest-token", default=os.getenv("OTP_INGEST_TOKEN", ""))
     parser.add_argument("--read-token", default=os.getenv("OTP_READ_TOKEN", ""))
     parser.add_argument("--allowed-phones", default=os.getenv("OTP_ALLOWED_PHONES", ""))
@@ -837,6 +879,7 @@ def main() -> None:
         args.ingest_token,
         args.read_token,
         ttl_seconds=args.ttl,
+        retention_days=args.retention_days,
         allowed_phones={phone.strip() for phone in args.allowed_phones.split(",") if phone.strip()}
         or None,
         read_auth_required=args.read_auth_required,

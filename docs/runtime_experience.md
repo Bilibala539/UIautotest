@@ -61,6 +61,8 @@
 | DIY形象付费功能 | 0.2 惠币/张起;「开始生成/充值」⛔ 只断言不点 | explorer 2026-09-10 Wave5 |
 | 授权门禁第三变体 | AI 平台管理页行右侧按钮弹「添加新平台」门禁(文案:请先添加该 AI 平台…),纱罩判据不变,press_back 关 | explorer 2026-09-10 Wave5 |
 | 所有角色页多选态判据 | 点「多选」后原位变「取消」+底栏「全选/删除」出现;`on_text("全选")` 出现/消失即可作多选态进出判据,无需截图 | verify 2026-09-10 Wave5 |
+| HONOR 系统 WiFi 命令被阉割 | `cmd wifi connect-network` 报 `Uid 2000 does not have access`（help 里也无此项,HnWifiService 定制）；`add-suggestion` 仅注册不强制连且不会离开有网 WiFi。连 WiFi 一律走 `aw.connect_wifi(ssid, password)`（JDY-AN00 / Android 14 实测） | orchestrator 2026-09-24 |
+| connect_wifi 边界 | 系统 WLAN 页定位走 dump_nodes（SSID=`android:id/title`、密码框/连接/取消=`com.android.settings:id/password`/`btn_wifi_connect`/`btn_wifi_cancel`），搜索前先回顶（页面保留上次滚动位）；幂等（已连目标网直接 True）；密码仅 ASCII（adb input text）；断言用 `driver.wifi_current_ssid()`（cmd wifi status）；无互联网确认弹窗白名单 `WIFI_NO_INTERNET_RULES` 文案待真机热点实测补齐；**真实连接链路（输密+点连接）冒烟未覆盖**，待配网用例验证 | orchestrator 2026-09-24 |
 
 ## 框架 / 环境
 
@@ -73,3 +75,10 @@
 | 验证码页返回 | press_back 会退出 App（不是回登录页）；重启后回登录页 | element 2026-09-08 |
 | paddle 抢占 root logger | import paddleocr 后再 logging.basicConfig 是 no-op，独立验证脚本 INFO 全被吞（exit 0 但无日志）；import 后须显式 root.addHandler(StreamHandler(sys.stdout)) + setLevel(INFO)，并把 ppocr/paddle logger 压到 WARNING | verify 2026-09-10 Wave4 |
 | 本机 adb 路径 | 本机 adb 在 `D:\scrcpy-win64-v4.1\adb.exe`（`C:\platform-tools\adb.exe` 不存在，那是远端 166 的路径）；脚本直连 adb 时勿混用两机路径 | verify 2026-09-10 Wave5 |
+
+| 场景 | 正确做法 |
+|------|----------|
+| uiautomator dump 失败时 cat 陈旧 /sdcard/uiat_aw_hierarchy.xml | accessibility_exists/find_nodes 会返回上次成功 dump 的幻影结果（2026-09-28 element 三连误判实证）；语义断言前先确认 dump 时间戳或 `adb shell rm` 该文件；根治需改 android_driver.dump_nodes（框架层待决策） |
+| 播放任务会过期 | 进度 00:00/00:00 但按钮 glyph 形态不变（暂停态残留）——播放页相关断言勿以"进度非零"为前提；rig 电台会话跨 relaunch 持久（服务端记忆），"无会话态"一经播放不可逆达 |
+| 底排图标四件套全部背景依赖 | 设备钮/加号钮/收起钮/音量图标配色随背景明度自适应（浅底黑glyph/深底白glyph），单模板跨背景必失配——一律走多模板链（参照 _find_dismiss_btn/_DEVICE_BTN_TEMPLATES/_PLUS_TEMPLATES），新图标采图紧贴 glyph+浅深双变体 |
+| 真机单租户纪律 | dev-runner 与 element 并发操作同一设备=双方产出作废（2026-09-28 实证）；设备派发一律经 main 串行排队 |

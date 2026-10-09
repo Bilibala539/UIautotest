@@ -11,7 +11,11 @@
 决策），可按分类用 SWAN_SEARCH_KEYWORD_<tab> 覆盖。
 数据口径（知识库 Wave4 实测）：未授权账号结果恒为空态「没有找到相关结果」，
 SWAN_SEARCH_PLATFORMS 未配置时按空态断言（SWAN_SEARCH_EMPTY [图]）；
-已授权账号配置该变量后改按结果区平台名断言。
+已授权账号配置该变量后改按结果区平台名断言。run4 真机补充（qq/netease
+授权 + piano）：电台 Tab 结果区空态、播客 Tab 有结果——电台内容源不按
+关键词返回结果，授权口径下电台 Tab 降级为「空态或有结果均可」（见
+SwanBusiness.assert_search_results allow_empty 注），域内「有搜索能力」
+由其余 5 个 Tab 的「有结果」断言承担。
 清理（G3/G4）：teardown 退出搜索 push 页回首页。
 """
 from __future__ import annotations
@@ -41,7 +45,10 @@ class TestSearch(SwanContentRegressionMixin, BaseTest):
     @pytest.mark.parametrize("entry", SEARCH_ENTRIES)
     @pytest.mark.parametrize("tab", SEARCH_TABS)
     def test_search_results_by_tab(self, tab, entry):
-        """用例69-72：按分类搜索并断言结果区（空态或平台名）。"""
+        """用例69-72：按分类搜索并断言结果区（空态或平台名）。
+
+        run4 实测口径（见模块 docstring）：授权平台下电台 Tab 空态/有结果
+        均可接受（allow_empty），其余 Tab 维持「有结果」硬断言。"""
         keyword = (os.environ.get(f"SWAN_SEARCH_KEYWORD_{tab}", "").strip()
                    or "piano")
         platforms = [p.strip() for p in
@@ -49,4 +56,6 @@ class TestSearch(SwanContentRegressionMixin, BaseTest):
                      if p.strip()]
         self._ensure_logged_in_on_home()
         self.user.search(keyword, entry=entry)
-        self.user.assert_search_results(tab, platforms)
+        self.user.assert_search_results(
+            tab, platforms,
+            allow_empty=(tab == "电台" and bool(platforms)))

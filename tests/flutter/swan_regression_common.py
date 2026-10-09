@@ -24,8 +24,8 @@ from image.image_name_mapping import (
     SWAN_HOME_TAB_RECOMMEND,
     SWAN_LOGIN_PRIVACY_POLICY_LINK,
     SWAN_LOGIN_SUBMIT_BTN,
-    SWAN_PLAYER_DISMISS_BTN,
     SWAN_PLAYER_PAUSE_BTN,
+    SWAN_PLAYER_VOLUME_POPUP,
     SWAN_TAB_DEVICE,
     SWAN_TAB_HOME,
     SWAN_TAB_ME,
@@ -74,26 +74,45 @@ class SwanPlayerRegressionMixin:
         self.phone = self.user.phone
 
     def teardown(self):
-        """G3/G4：关残留弹层 → 尽力暂停（rig 卫生）→ 收播放页 → 回首页。"""
+        """G3/G4：关残留弹层 → 尽力暂停（rig 卫生）→ 收播放页 → 输出恢复 →
+        退出 push 页 → 回首页。
+
+        verify-big52 根因4（explorer_output/verify_run4/run1_play_control.log）：
+        播放前置 _preset_playing 经我喜欢页（push 页）发起播放，收播放页后停在
+        我喜欢页——该页无底部导航无 tab_recommend，直接 go_home 的
+        click_accessibility(KEY_TAB_RECOMMEND) 必炸（run1 实测 6 条 teardown
+        ERROR 同因）。照搬 common2 范式：先 back_to_tab_shell [图] 逐级退出
+        （已在 tab 壳时零操作），go_home 保留作兜底（tab 壳内它正常工作）。
+        输出恢复（run5 对账新增，main 批准双保险）见 _restore_speaker_output_
+        if_needed：wifi_device 用例切输出后跨用例不回切，残留污染后续
+        speaker 用例（run4c run2 / run5 run1 两轮实测）。
+        """
         self._close_sheet_if_any()
+        # 音量弹层显式探测关闭（verify-run4b：文件2 后半 wifi 用例「播放条
+        # 点击后播放页打不开」疑似残留音量弹层诱因，见 _close_volume_popup_if_any）
+        self._close_volume_popup_if_any()
         self._pause_if_playing()
         self._dismiss_player_if_any()
+        self._restore_speaker_output_if_needed()
+        self.user.back_to_tab_shell()
         self.user.go_home()
 
     # ---------- 锚点探测（模板缺失防护 + 首页壳判据） ----------
 
-    def _probe_image(self, template: str, timeout: int = 1):
+    def _probe_image(self, template: str, timeout: int = 1,
+                     threshold: float = 0.8):
         """模板文件在盘才 find_image；缺失记日志按未命中处理。
 
         AWBase.find_image 对缺失模板文件是 assert 崩溃而非返回 None（框架层
         行为，已单独上报），清理/锚点探测这类「可选命中」调用先 os.path.exists
         防护（常量为绝对路径），避免模板未入库（如 SWAN_PLAYER_PAUSE_BTN，
         需授权平台+播放任务才能截）时炸掉 teardown。
+        threshold 供失配模板的低阈值探测使用（见 _close_volume_popup_if_any）。
         """
         if not os.path.exists(template):
             logger.warning("模板图未入库，按未命中跳过: %s", template)
             return None
-        return self.aw.find_image(template, timeout=timeout)
+        return self.aw.find_image(template, timeout=timeout, threshold=threshold)
 
     def _login_page_on_screen(self, timeout: int = 1) -> bool:
         """登录页锚：「下一步」按钮 / 隐私政策链接图任一可见。"""
@@ -166,7 +185,7 @@ class SwanPlayerRegressionMixin:
         self.aw.image_exists(SWAN_DEVICE_ADD_BTN, timeout=15)  # 右上角「添加设备」
 
     def _open_player_page(self) -> None:
-        """首页 → 点底部播放条进全屏播放页 → 断言顶栏渲染 [图]。
+        """首页 → 点底部播放条进全屏播放页 → 断言顶栏渲染到位。
 
         主路径：底部播放条 [图] click_image——模板截于「输出=扬声器/无曲目」
         态，无播放会话时可用。
@@ -176,11 +195,13 @@ class SwanPlayerRegressionMixin:
         HiVi M300MKII+「多远都要在一起」），含动态内容区的模板永久失配。
         此时改在底部条带 region（_BOTTOM_BAR_REGION）内 OCR 定位点击——
         播放条必显示输出设备名或「- -」文字，OCR 定位对动态内容免疫；
-        到位仍以播放页收起钮 [图] 硬断言收口。
+        到位断言走 _wait_player_page_open（收起钮浅底/深底/旧单三模板，
+        run5 脏跑实证单模板对电台播放页浅底失配——Radio Dum-Dum 亮黄
+        背景下 9 条 wifi 用例全灭同因）。
         """
         self._ensure_logged_in_on_home()
         self._click_bottom_player_bar()
-        self.aw.image_exists(SWAN_PLAYER_DISMISS_BTN, timeout=15)
+        self.aw._wait_player_page_open(timeout=15)
 
     def _click_bottom_player_bar(self) -> None:
         """点底部播放条：模板命中走 click_image，失配走条带 OCR 兜底。"""
@@ -212,24 +233,44 @@ class SwanPlayerRegressionMixin:
                         mode: str = "all") -> None:
         """播放前置（用例 13-28 共用）：确定输出设备 → 我喜欢页发起播放。
 
-        device_type="speaker"：使用默认输出（手机扬声器），不做切换——
-        无任务态设备弹层中当前设备行无勾选圆点（知识库实测），无法用勾选态
-        图断言"切回本机"，故约定该参数用例须在输出=手机扬声器的起始态执行
-        （同文件内 speaker 参数先于 wifi_device 收集执行）。
+        device_type="speaker"：先校验当前输出为本机扬声器（_ensure_speaker_
+        output，run4c 防污染——wifi_device 用例切换输出跨用例不回切，残留
+        会让后续 speaker 用例起始态连红），再走默认输出，不做切换。
 
         device_type="wifi_device"：先在播放页弹层把输出切到 DEVICE_NAME
-        （rig 音箱），并核对播放页顶部输出设备名已切换。
+        （rig 音箱），并核对播放页顶部输出设备名已切换。⚠️ 输出已是目标时
+        短路跳过弹层切换（run5 终账实测：rig 行已选中态重入弹层选行导航
+        分叉，失败帧落设备页非播放页；进批时输出=rig 的场景有文件2 遗留
+        与恢复脚本只暂停不切回两种来源）。
 
         source/mode 透传 start_play（A13）；发起前确保首页停在推荐顶 Tab。
         """
         self._ensure_logged_in_on_home()
         if device_type == "wifi_device":
             self._open_player_page()
-            self.user.select_device(self.DEVICE_NAME, via="player")
-            self._close_sheet_if_any()
-            self.aw.text_exists(self.DEVICE_NAME, timeout=10)  # 页顶输出设备名已切
+            # run5 终账新签名：输出已=目标时重入弹层选行导航分叉（rig 行
+            # 已选中态的点击行为未定义，失败帧 App 落设备页非播放页；进本
+            # 批时输出已是 rig——文件2 遗留+恢复脚本只暂停不切回）——先探
+            # 测页顶设备名已是目标则短路跳过弹层切换（方案①，实现最简）
+            if self.aw._wait_compact_text_in_region(
+                    self.DEVICE_NAME, self.aw._PLAYER_HEADER_DEVICE_REGION,
+                    3.0, what="wifi 前置短路径探测", must=False):
+                logger.info(
+                    "wifi 前置：页顶输出设备名已是 %r，跳过弹层切换",
+                    self.DEVICE_NAME)
+            else:
+                self.user.select_device(self.DEVICE_NAME, via="player")
+                self._close_sheet_if_any()
+            # 页顶输出设备名已切：compact 归一化轮询（与 select_device 收尾
+            # 同口径——run6_clean2 实测 OCR 吞空格时裸 text_exists 子串永假，
+            # 属构造性 flaky：今早保留空格 7/7 过、本轮吞空格 5/5 挂）
+            self.aw._wait_compact_text_in_region(
+                self.DEVICE_NAME, self.aw._PLAYER_HEADER_DEVICE_REGION, 10.0,
+                what="切换输出后的播放页页顶设备名")
             self._dismiss_player_if_any()
-        elif device_type != "speaker":
+        elif device_type == "speaker":
+            self._ensure_speaker_output()
+        else:
             raise ValueError(
                 f"device_type 仅支持 speaker / wifi_device，收到 {device_type!r}")
         self._stay_on_recommend_tab()
@@ -237,11 +278,96 @@ class SwanPlayerRegressionMixin:
         self.aw.image_exists(SWAN_FAVORITE_PLAY_ALL, timeout=15)  # 已到我喜欢页
         self.user.start_play(source=source, mode=mode)
 
+    def _restore_speaker_output_if_needed(self) -> None:
+        """teardown 输出恢复（run5 对账新增，main 批准双保险）：输出非本机
+        时经设备页切回「扬声器」。
+
+        与 _preset_playing("speaker") 的 _ensure_speaker_output 前置校验
+        互补：前置版在下场 speaker 用例开场兜底（硬断言），本版在每条用例
+        收尾就把输出切回，根除「wifi 用例 → 后续 speaker 用例」的污染级联
+        （run4c run2 / run5 run1 两轮实测同因）。状态判定与前置版同源：
+        贴底播放条（_BOTTOM_BAR_REGION）OCR 读输出设备名——空/「- -」/含
+        「扬声器」视为本机输出；其它（rig 会话残留）恢复。
+
+        与前置版的差异：teardown 版**非断言**——恢复失败（select_device
+        对 rig 电台活跃场景疑似不生效，run5 run1 实测 5 次恢复均无效，
+        定责挂起待干净态复跑）只记 warning 不阻断收尾链，下场用例的前置
+        恢复仍是第二道保险。此处 try/except 仅限清理动作，不掩盖任何
+        用例断言（规则 6 口径）。
+        """
+        items = self.aw.ocr_scan_page(region=self._BOTTOM_BAR_REGION)
+        bar_text = "".join(item["text"] for item in items).strip()
+        compact = bar_text.replace(" ", "")
+        if not compact or "扬声器" in compact or set(compact) <= {"-", "."}:
+            return
+        logger.warning(
+            "teardown 输出恢复：播放条输出设备 %r 非本机扬声器，经设备页切回",
+            bar_text)
+        try:
+            self._open_device_page()
+            self.user.select_device("扬声器", via="card")
+            logger.info("teardown 输出恢复：已切回本机扬声器（select_device "
+                        "本机分支含贴底条「扬声器」断言）")
+        except AssertionError as exc:
+            logger.warning(
+                "teardown 输出恢复失败（不阻断收尾；下场 speaker 前置恢复"
+                "仍会兜底）: %s", exc)
+
+    def _ensure_speaker_output(self) -> None:
+        """speaker 参数播放前置的输出防污染校验（run4c run2 实测新增）。
+
+        wifi_device 参数用例把输出切到 rig 音箱后跨用例不自动回切
+        （select_device 注记：切换真实下发且不回切），run2 中同批后续
+        speaker 参数用例（test_volume_key[speaker-*] 等）起始态被污染连红
+        8 条。本方法在播放发起前校验：首页贴底播放条（_BOTTOM_BAR_REGION）
+        OCR 读输出设备名——播放条必显示输出设备名或「- -」（无会话）：
+        - 含「扬声器」：本机输出，直接通过；
+        - 为空或「- -」：无播放会话，默认本机输出，通过；
+        - 其它设备名（rig 会话残留）：经设备页 select_device("扬声器")
+          切回本机——新口径本机分支=点本机卡 → 系统电池优化弹窗点「忽略」
+          → 设备页贴底播放条断言「扬声器」；切换失败（弹窗异常等）由
+          select_device 内部断言显式报错，不静默吞掉。
+        """
+        items = self.aw.ocr_scan_page(region=self._BOTTOM_BAR_REGION)
+        bar_text = "".join(item["text"] for item in items).strip()
+        compact = bar_text.replace(" ", "")
+        if not compact or "扬声器" in compact or set(compact) <= {"-", "."}:
+            return
+        logger.warning(
+            "speaker 前置：播放条输出设备 %r 非本机扬声器（前序 wifi 用例"
+            "污染），经设备页 select_device 切回本机", bar_text)
+        self._open_device_page()
+        self.user.select_device("扬声器", via="card")
+        # 切换收尾已由 select_device 本机分支断言（设备页贴底播放条
+        # 「扬声器」）；后续 _stay_on_recommend_tab 经底部导航回首页。
+
     # ---------- 残留清理（G3/G4） ----------
 
     def _close_sheet_if_any(self) -> None:
         """设备弹层若还开着（标题行 [图] 可见）则返回键关闭。"""
         if self._probe_image(SWAN_DEVICE_SHEET_TITLE, timeout=1) is not None:
+            self.aw.press_back()
+
+    def _close_volume_popup_if_any(self) -> None:
+        """音量弹层若还开着（弹窗关闭钮锚 [图] 可见）则返回键关闭。
+
+        verify-run4b：文件2 后半 wifi 用例「播放条点击后播放页打不开」疑似
+        残留音量弹层诱因——前序用例 set_volume 收尾 press_back 偶发未关净
+        （或物理音量键路径弹出的系统音量条），残留遮罩使下一次
+        _open_player_page 点播放条落空。teardown 在关设备弹层后显式探测
+        关闭（探测时播放页多半仍在前台，press_back 关弹层后即回播放页，
+        与后续 _pause_if_playing/_dismiss_player_if_any 顺序衔接）。
+
+        verify-run4c 复盘（run2/run3 实测）：旧整幅模板失配期临时降阈值
+        0.5 探测存在假阳性——歌单详情页 0.55 / 播放页 0.58 / 首页 0.63-0.65
+        误命中 → teardown 误 press_back（**首页按返回直接退 App**）→
+        back_to_tab_shell 盲 back 连环放大，run3 5 条 teardown ERROR 同因。
+        aw-element 已按 5.3.2 重截为弹窗右上角静态关闭钮锚（2026-09-28
+        转正，开窗态实测 score=1.00，非弹窗页最高 0.65 区辨干净），恢复
+        默认阈值 0.8。
+        """
+        if self._probe_image(SWAN_PLAYER_VOLUME_POPUP, timeout=1) is not None:
+            logger.info("teardown: 音量弹层在位（关闭钮锚 [图]），press_back 关闭")
             self.aw.press_back()
 
     def _pause_if_playing(self) -> None:
@@ -256,6 +382,14 @@ class SwanPlayerRegressionMixin:
             self.aw.click_image(SWAN_PLAYER_PAUSE_BTN, timeout=2)
 
     def _dismiss_player_if_any(self) -> None:
-        """全屏播放页若开着（收起钮 [图] 可见）则点收起回列表页。"""
-        if self._probe_image(SWAN_PLAYER_DISMISS_BTN, timeout=1) is not None:
-            self.aw.click_image(SWAN_PLAYER_DISMISS_BTN, timeout=5)
+        """全屏播放页若开着（收起钮 [图] 可见）则点收起回列表页。
+
+        2026-09-28 起委托 SwanBusiness._dismiss_full_player 共用实现
+        （run4c 复盘拍板）：收起钮浅底/深底双模板探测 + 顶栏 region 限定
+        ——旧单模板对歌单详情页返回箭头 score 0.997 同形互扰为 teardown
+        误点返回箭头根因，双模板极性实测 -0.9 根除；探测链含旧单模板与
+        返回箭头态兜底（2026-09-29 追加，image_name_mapping.py 登记注记）。
+        timeout=1 维持 teardown 快探测口径（播放页未开时四模板逐个失配，
+        最坏约 4s）。
+        """
+        self.aw._dismiss_full_player(timeout=1)

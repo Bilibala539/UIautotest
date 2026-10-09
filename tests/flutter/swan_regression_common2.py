@@ -22,7 +22,20 @@ rig 环境变量（本批新增，均可在不配置时走默认/skip）：
                            第三方平台须授权态，见方案 §5⑤）
 - SWAN_COLLECT_PLATFORMS   用例44-55 目标歌单平台代码列表（默认 swan）
 - SWAN_COLLECT_PLAYLIST    用例44-55 目标歌单名（默认 我的音乐；收藏结果
-                           无自动化回滚，见 SwanBusiness.collect_song 注记）
+                           由 remove_song_from_playlist 垃圾桶预清理回滚，
+                           run6 可重复性设计，见 SwanBusiness
+                           .remove_song_from_playlist 注记）
+- SWAN_COLLECT_PLAYER_SONG 用例44-55 source="player" 分支的收藏曲（默认
+                           回落 SWAN_TEST_SONG；run5 改版——原「播放全部
+                           首曲」疑已在目标歌单触发重复收藏拦截，改为点
+                           名播放指定曲；run6 起预清理自动移除往轮残留，
+                           任意歌可重复收藏，见 test_collect_song 注）
+- SWAN_COLLECT_SOURCE_PLAYLIST
+                           用例44-55 source="playlist_page" 的收藏源歌单
+                           （默认 我的家庭）。run6 起预清理运行时强制
+                           「顶行曲不在目标歌单内」（收藏前先经垃圾桶移除），
+                           不再依赖 rig 数据态，仅须该歌单含 ≥1 首歌；
+                           rig 数据变化（清空/改名）时用本变量覆盖
 - SWAN_HISTORY_PLAYLIST / SWAN_HISTORY_ARTIST / SWAN_HISTORY_ALBUM /
   SWAN_HISTORY_RADIO / SWAN_HISTORY_PODCAST
                            用例56-68 各分类断言条目名（未配置该类 skip）；
@@ -30,8 +43,11 @@ rig 环境变量（本批新增，均可在不配置时走默认/skip）：
                            SWAN_HISTORY_FRESH_PLAY=1 时现场播放造历史数据
 - SWAN_SEARCH_KEYWORD_<tab> 用例69-72 各分类搜索关键词（默认 piano，
                            英文；adb 中文输入不可达）
-- SWAN_SEARCH_PLATFORMS    已授权账号下期望出现在结果区的平台名列表，
-                           逗号分隔（默认空 -> 断言空态，未授权账号稳定态）
+- SWAN_SEARCH_PLATFORMS    已授权平台代码列表，逗号分隔（如 "qq,netease"；
+                           配置后 assert_search_results 对所列平台断言
+                           「有结果」，账号 B 已授权口径；默认空 -> 断言
+                           空态，干净未授权账号稳定态。两种口径见
+                           SwanBusiness.assert_search_results docstring）
 """
 from __future__ import annotations
 
@@ -50,15 +66,25 @@ class SwanContentRegressionMixin(SwanPlayerRegressionMixin):
                          os.environ.get("SWAN_COLLECT_PLATFORMS", "swan").split(",")
                          if p.strip()]
     COLLECT_PLAYLIST = os.environ.get("SWAN_COLLECT_PLAYLIST", "我的音乐")
+    # source="player" 分支收藏曲：显式配置优先，回落 SWAN_TEST_SONG（rig
+    # 我喜欢页已验证可达的歌名，见 start_play mode="song" 注）——二者皆空
+    # 时 collect_song[player] 走播放全部首曲（无预清理遗留分支，见
+    # test_collect_song 注）
+    COLLECT_PLAYER_SONG = (os.environ.get("SWAN_COLLECT_PLAYER_SONG", "").strip()
+                           or os.environ.get("SWAN_TEST_SONG", "").strip())
 
     def teardown(self):
-        """G3/G4：关弹层 -> 尽力暂停 -> 收播放页 -> 退出 push 页 -> 回首页。
+        """G3/G4：关弹层（设备弹层+音量弹层）-> 尽力暂停 -> 收播放页 ->
+        退出 push 页 -> 回首页。
 
         本批用例常停在 push 页（无底部 4 tab，直接 go_home 的 key 点击会
         失败），须先 back_to_tab_shell [图] 逐级退出，再走存量 go_home
         （key 导航迁移待拍板例外）。
+        音量弹层探测关闭继承播放器域 teardown 的 run4b 结论
+        （_close_volume_popup_if_any）。
         """
         self._close_sheet_if_any()
+        self._close_volume_popup_if_any()
         self._pause_if_playing()
         self._dismiss_player_if_any()
         self.user.back_to_tab_shell()

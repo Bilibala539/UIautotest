@@ -293,11 +293,18 @@ SWAN_PLAYER_LOOP_SHUFFLE = image_path("swan_播放页_循环模式_随机播放.
 SWAN_PLAYER_PROGRESS_BAR = image_path("swan_播放页_进度条.png", platform="flutter")    # 进度条整条（滑条锚；勿含两端时间文字）
 
 # --- 播放页 音量弹窗 ---
-SWAN_PLAYER_VOLUME_ICON = image_path("swan_播放页_音量图标.png", platform="flutter")   # 播放页底部音量入口图标
-SWAN_PLAYER_VOLUME_POPUP = image_path("swan_播放页_音量弹窗.png", platform="flutter")  # 弹窗整体或标题区（存在性判据）
-SWAN_PLAYER_VOLUME_SLIDER = image_path("swan_播放页_音量滑条.png", platform="flutter")  # 弹窗内滑条整条（拖动锚）
-SWAN_PLAYER_VOLUME_PLUS = image_path("swan_播放页_音量加号按钮.png", platform="flutter")
-SWAN_PLAYER_VOLUME_MINUS = image_path("swan_播放页_音量减号按钮.png", platform="flutter")
+SWAN_PLAYER_VOLUME_ICON = image_path("swan_播放页_音量图标.png", platform="flutter")   # 播放页底部音量入口图标（与浅底变体内容全等，链内由 LIGHT 代表）
+# ⚠️ 音量图标 glyph 极性随背景明度自适应（2026-09-29 element 三变体补截，
+# run5 收口批次）：单模板跨背景必失配（同设备钮/加号钮/收起钮案），业务
+# 改 _VOLUME_ICON_TEMPLATES 链式匹配（glyph→浅→深，见 SwanBusiness.
+# _find_volume_icon）。
+SWAN_PLAYER_VOLUME_ICON_GLYPH = image_path("swan_播放页_音量图标_glyph.png", platform="flutter", draft=True)
+SWAN_PLAYER_VOLUME_ICON_LIGHT = image_path("swan_播放页_音量图标_浅底.png", platform="flutter", draft=True)
+SWAN_PLAYER_VOLUME_ICON_DARK = image_path("swan_播放页_音量图标_深底.png", platform="flutter", draft=True)
+SWAN_PLAYER_VOLUME_POPUP = image_path("swan_播放页_音量弹窗.png", platform="flutter")  # 弹窗右上角 X 关闭钮 36x36（存在性判据；非弹窗整体）
+SWAN_PLAYER_VOLUME_SLIDER = image_path("swan_播放页_音量滑条.png", platform="flutter")  # ⚠️ 已废弃为几何锚（2026-09-28 run4d：填充态模板匹配矩形随音量漂移）——业务改 ± 钮锚定，留档不引用
+SWAN_PLAYER_VOLUME_PLUS = image_path("swan_播放页_音量加号按钮.png", platform="flutter")   # 静态控件，滑条真轨道左界锚（见 SwanBusiness._find_volume_slider）
+SWAN_PLAYER_VOLUME_MINUS = image_path("swan_播放页_音量减号按钮.png", platform="flutter")  # 静态控件，滑条真轨道右界锚
 
 # --- 设备页 / 切换设备弹层 选中态 ---
 # ⚠️ SWAN_DEVICE_CARD_SELECTED 已废弃（2026-09-28，业务代码停止引用）：
@@ -340,9 +347,105 @@ SWAN_TAB_ME = image_path("swan_底部导航_我的.png", platform="flutter")
 SWAN_PD_FAV_OFF = image_path("swan_歌单详情页_收藏图标_未收藏.png", platform="flutter")
 SWAN_PD_FAV_ON = image_path("swan_歌单详情页_收藏图标_已收藏.png", platform="flutter")
 
-# --- 歌曲收藏入口（A30） ---
-SWAN_PLAYER_FAV_BTN = image_path("swan_播放页_收藏按钮.png", platform="flutter")       # 全屏播放页收藏入口（source="player"）
-SWAN_PD_ROW_FAV_BTN = image_path("swan_歌单详情页_歌曲行收藏图标.png", platform="flutter")  # 歌单详情页歌曲行收藏图标（source="playlist_page"）
+# --- 歌曲收藏入口（A30；⚠️ 2026-09-28 起 collect_song 停止引用下列三张，
+# 5.3.2 实测口径见 knowledge/swan/draft/swan_收藏流程_532实测.md）---
+# SWAN_PLAYER_FAV_BTN / SWAN_PLAYER_FAV_ON：5.3.2 播放页红心=「我喜欢」
+#    toggle（红/灰两态翻转，无弹层无跳转），不再承担「收藏到指定歌单」
+#    入口职能；保留登记供红心 toggle 独立辅助方法（收藏域）未来取用。
+SWAN_PLAYER_FAV_BTN = image_path("swan_播放页_收藏按钮.png", platform="flutter")       # [5.3.2 语义变更] 播放页红心未收藏态（=我喜欢 toggle）
+# 播放页红心已收藏态；verify-big52 根因6：红心对灰心模板实测 score≈0.47
+# 必失配，两态须分别探测；element 截图中，暂登记 draft 路径
+SWAN_PLAYER_FAV_ON = image_path("swan_播放页_收藏按钮_已收藏.png", platform="flutter", draft=True)
+# 5.3.1 行内图标裁剪（40x40，内容=方框加号）；5.3.2 行内同位图标已改为
+# [+]（同设计方框加号），旧裁剪对 5.3.2 行内 [+] 实测 score≈0.34 失配，
+# collect_song 已停止引用（行内 [+] 模板已交付登记为
+# SWAN_SONG_ROW_PLUS_BTN，见下方「收起钮双模板」段）
+SWAN_PD_ROW_FAV_BTN = image_path("swan_歌单详情页_歌曲行收藏图标.png", platform="flutter")  # [5.3.2 失配] 旧行内图标，已由行内 [+] 模板替换
+
+# --- 歌曲收藏 5.3.2 链路（A30；2026-09-28 aw-element 按 5.3.2 实测 §7
+# 附带清单截取，暂登记 draft 路径，verify 转正后改正式路径）---
+# 播放页底部三钮行中间的 [+]（无 key 无 desc 仅图可达，收藏链路入口）。
+# ⚠️ 旧单模板 SWAN_PLAYER_PLUS_BTN（88x63）下缘含「VIP歌曲只支持试听」
+#    提示文字像素且背景依赖：自家浅底实测 0.793 已不达 0.8 阈值（run5
+#    文件3 collect[player] 死亡帧）——2026-09-29 aw-element 补截四模板
+#    （image_ai draft），业务改 _PLUS_TEMPLATES 链式匹配（glyph→浅→深→
+#    彩→旧单末位兜底，见 SwanBusiness._find_plus_btn）；[+] 配色随背景
+#    明度自适应（浅底灰 glyph/深底白 glyph），跨族最高 0.402 必须链式。
+SWAN_PLAYER_PLUS_BTN = image_path("swan_播放页_加号收藏钮.png", platform="flutter")  # [退役末位兜底] 88x63 含 VIP 横幅残留
+SWAN_PLAYER_PLUS_BTN_GLYPH = image_path("swan_播放页_加号收藏钮_glyph.png", platform="flutter", draft=True)  # 38x38 紧贴 glyph，浅族通吃含无任务白底
+SWAN_PLAYER_PLUS_BTN_LIGHT = image_path("swan_播放页_加号收藏钮_浅底.png", platform="flutter", draft=True)   # 50x50
+SWAN_PLAYER_PLUS_BTN_DARK = image_path("swan_播放页_加号收藏钮_深底.png", platform="flutter", draft=True)    # 50x50 深/彩族 0.997+
+SWAN_PLAYER_PLUS_BTN_COLOR = image_path("swan_播放页_加号收藏钮_彩底.png", platform="flutter", draft=True)   # 50x50
+# 「选择平台收藏」底部弹层（存在性判据；弹层无取消钮、back 键关闭，
+# 平台行清单随歌曲来源变化，行定位走 OCR 不走图）
+SWAN_COLLECT_PLATFORM_SHEET = image_path("swan_收藏平台弹层.png", platform="flutter")
+# 「已选N首歌」页顶栏（=KB 旧「选择歌单页」，标题含动态 N——[+] 单首
+# 相加恒为 1；若裁剪含 N 数字，跨 N 场景需复核裁剪）
+SWAN_COLLECT_SELECTED_TOPBAR = image_path("swan_已选歌曲顶栏.png", platform="flutter")
+
+
+# =====================================================================
+# Swan (Flutter) 收起钮双模板 / 音量滑条双模板 / 歌曲行内 [+]
+# 2026-09-28 aw-element 按 run4c/run4d 复盘清单交付，暂登记 draft 路径，
+# verify 转正后改正式路径。
+# =====================================================================
+
+# --- 播放页收起钮 浅底/深底双模板（run4c teardown 误点根因修复）---
+# run4c 实测旧单模板 SWAN_PLAYER_DISMISS_BTN（浅青背景态）跨背景失配
+# （播放中深色封面背景 score≈0.379），且与歌单详情页返回箭头同形互扰
+# （对返回箭头 score 0.997 → teardown 在歌单详情页误点返回）。双模板按
+# 背景极性分截（浅底/深底），实测极性 -0.9 根除互扰；探测另加顶栏
+# region（y<200）双保险（见 SwanBusiness._find_dismiss_btn）。
+# SWAN_PLAYER_DISMISS_BTN 保留登记作第三兜底（_find_dismiss_btn 探测链
+# 仍在引用，勿删登记）。
+SWAN_PLAYER_DISMISS_LIGHT = image_path("swan_播放页_收起按钮_浅底.png", platform="flutter", draft=True)
+SWAN_PLAYER_DISMISS_DARK = image_path("swan_播放页_收起按钮_深底.png", platform="flutter", draft=True)
+
+# --- 音量滑条 中填充态互补模板 ---
+# ⚠️ 已废弃（2026-09-28 run4d run2 实测）：中填充图匹配矩形随音量态水平
+# 漂移（同一轨道 x0=227/248/269/293），作几何锚比例换算必错（拖 40 实得
+# 70）；纯轨道图对 69% 填充态 score 0.712 同样不可靠。set_volume 滑条定位
+# 已改 ± 钮静态锚定推真轨道（见 SwanBusiness._find_volume_slider），两图
+# 留档不引用。
+SWAN_PLAYER_VOLUME_SLIDER_MID = image_path("swan_播放页_音量滑条_中填充.png", platform="flutter", draft=True)
+
+# --- 歌单详情页/我喜欢页 歌曲行内 [+]（collect_song source="playlist_page"）---
+# 5.3.2 行内 [+] 实测 bounds (616,796)-(688,868)@720 宽；element 实测
+# 对同排垃圾桶区 score 0.268 无误触（垃圾桶与 [+] 中心相距 88px）、对
+# 播放页 [+] score 0.372 无互扰。_tap_song_row_plus 改模板优先图定位
+# （目标行 cy±40px 条带 region），_SONG_ROW_PLUS_TAP_X 保留作模板未命中
+# 时的 OCR 行锚兜底。
+SWAN_SONG_ROW_PLUS_BTN = image_path("swan_歌单详情页_歌曲行加号.png", platform="flutter", draft=True)
+
+
+# =====================================================================
+# Swan (Flutter) 设备钮变体 / 收起钮返回态 / 设备页本机分区锚点
+# 2026-09-29 aw-element 按 A3（设备切换实弹）/B6（本机卡定位复测）
+# 复盘清单交付，暂登记 draft 路径，verify 转正后改正式路径。
+# =====================================================================
+
+# --- 播放页设备切换钮 背景极性变体（A3 实弹：glyph 极性随背景亮度自适应）---
+# 正式图 SWAN_PLAYER_DEVICE_BTN（浅底黑 glyph）只覆盖浅背景；rig 深色/
+# 彩色封面背景失配（_switch_output_in_sheet 开弹层入口 rig 态失败根因）。
+# GLYPH=白 glyph 裁剪（暗/彩底通吃，element 实测绿/黄底均 0.96+），
+# GREEN=绿底整钮（兜底）。探测顺序 = 正式图 → GLYPH → GREEN，
+# 见 SwanBusiness._find_device_btn。
+SWAN_PLAYER_DEVICE_BTN_GLYPH = image_path("swan_播放页_设备切换钮_glyph.png", platform="flutter", draft=True)
+SWAN_PLAYER_DEVICE_BTN_GREEN = image_path("swan_播放页_设备切换钮_绿底.png", platform="flutter", draft=True)
+
+# --- 播放页收起钮 返回箭头态（白 chevron 深底；A3 开+收全流程实弹验证）---
+# ⚠️ 与歌单详情页返回箭头同形，只准经 _find_dismiss_btn 模板组使用
+# （组内统一 _PLAYER_TOPBAR_REGION region 限定，勿裸 find_image/click_image）。
+SWAN_PLAYER_DISMISS_RETURN = image_path("swan_播放页_收起按钮_返回箭头态.png", platform="flutter", draft=True)
+
+# --- 设备页 本机分区锚点（B6 新双栏布局）---
+# 左栏「本机」分类 tab 选中/未选中两态 + 右栏「扬声器」节头标签（element
+# 实测 cy≈357、bbox (185,339)-(280,369)；节头点击无效，卡体=节头 cy+140，
+# 见 SwanBusiness._tap_local_speaker_card）。业务暂走实时 OCR（动态适配），
+# 三图登记备用（OCR 失真时的图定位备选）。
+SWAN_DEVICE_TAB_LOCAL_SEL = image_path("swan_设备页_本机tab_选中态.png", platform="flutter", draft=True)
+SWAN_DEVICE_TAB_LOCAL_UNSEL = image_path("swan_设备页_本机tab_未选中态.png", platform="flutter", draft=True)
+SWAN_DEVICE_SPEAKER_HEADER = image_path("swan_设备页_扬声器节头.png", platform="flutter", draft=True)
 
 
 # =====================================================================
@@ -387,6 +490,9 @@ __all__ = [
     "SWAN_ME_SOUND_QUALITY_ROW",
     "SWAN_PLATFORM_NETEASE_ROW",
     "SWAN_PLAYER_DISMISS_BTN",
+    "SWAN_PLAYER_DISMISS_DARK",
+    "SWAN_PLAYER_DISMISS_LIGHT",
+    "SWAN_PLAYER_DISMISS_RETURN",
     "SWAN_PLAYER_PLAY_PAUSE_BTN",
     "SWAN_SOUND_QUALITY_DONE_BUTTON",
     "SWAN_HOME_TAB_RECOMMEND",
@@ -419,6 +525,8 @@ __all__ = [
     "SWAN_HISTORY_TABBAR",
     "SWAN_DEVICE_SHEET_TITLE",
     "SWAN_PLAYER_DEVICE_BTN",
+    "SWAN_PLAYER_DEVICE_BTN_GLYPH",
+    "SWAN_PLAYER_DEVICE_BTN_GREEN",
     "SWAN_AI_CHAT_VOICE_BTN",
     "SWAN_AI_CHAT_INPUT",
     "SWAN_SEARCH_BACK",
@@ -446,12 +554,19 @@ __all__ = [
     "SWAN_PLAYER_LOOP_SHUFFLE",
     "SWAN_PLAYER_PROGRESS_BAR",
     "SWAN_PLAYER_VOLUME_ICON",
+    "SWAN_PLAYER_VOLUME_ICON_GLYPH",
+    "SWAN_PLAYER_VOLUME_ICON_LIGHT",
+    "SWAN_PLAYER_VOLUME_ICON_DARK",
     "SWAN_PLAYER_VOLUME_POPUP",
     "SWAN_PLAYER_VOLUME_SLIDER",
+    "SWAN_PLAYER_VOLUME_SLIDER_MID",
     "SWAN_PLAYER_VOLUME_PLUS",
     "SWAN_PLAYER_VOLUME_MINUS",
     "SWAN_DEVICE_CARD_SELECTED",
     "SWAN_DEVICE_SHEET_CHECKED",
+    "SWAN_DEVICE_SPEAKER_HEADER",
+    "SWAN_DEVICE_TAB_LOCAL_SEL",
+    "SWAN_DEVICE_TAB_LOCAL_UNSEL",
     "SWAN_BOTTOM_BAR_CAST_BTN",
     "SWAN_TAB_HOME",
     "SWAN_TAB_PLATFORM",
@@ -460,7 +575,16 @@ __all__ = [
     "SWAN_PD_FAV_OFF",
     "SWAN_PD_FAV_ON",
     "SWAN_PLAYER_FAV_BTN",
+    "SWAN_PLAYER_FAV_ON",
     "SWAN_PD_ROW_FAV_BTN",
+    "SWAN_SONG_ROW_PLUS_BTN",
+    "SWAN_PLAYER_PLUS_BTN",
+    "SWAN_PLAYER_PLUS_BTN_GLYPH",
+    "SWAN_PLAYER_PLUS_BTN_LIGHT",
+    "SWAN_PLAYER_PLUS_BTN_DARK",
+    "SWAN_PLAYER_PLUS_BTN_COLOR",
+    "SWAN_COLLECT_PLATFORM_SHEET",
+    "SWAN_COLLECT_SELECTED_TOPBAR",
     "WEB_DRAFT_IMAGE_DIR",
     "WEB_IMAGE_DIR",
     "demote_image",

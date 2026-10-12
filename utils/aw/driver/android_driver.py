@@ -238,6 +238,18 @@ class AndroidAdbDriver(BasePlatformDriver):
             self._run("shell", "monkey", "-p", package, "1")
         return True
 
+    def start_action(self, action: str) -> bool:
+        """通过 intent action 打开系统页面（如 android.settings.WIFI_SETTINGS）。"""
+        self._run("shell", "am", "start", "-a", action)
+        return True
+
+    def wifi_current_ssid(self) -> Optional[str]:
+        """返回当前连接 WiFi 的 SSID，未连接返回 None（cmd wifi status 解析）。"""
+        result = self._run("shell", "cmd", "wifi", "status")
+        output = result.stdout.decode("utf-8", errors="replace")
+        match = re.search(r'connected to "([^"]+)"', output)
+        return match.group(1) if match else None
+
     def stop_app(self, package: str) -> bool:
         """Stop an Android application without affecting the device session."""
         self._run("shell", "am", "force-stop", package)

@@ -2,6 +2,8 @@
 
 > 这份文件是所有 AI 助手（我本人 + `.claude/agents/` 下所有子 agent）每次开工前的第一份必读。
 > 变更请慎重，因为它影响整个团队的行为。
+>
+> 铁律：所有输出一律中文（包括系统提示）。
 
 ## 项目一句话
 
@@ -26,8 +28,8 @@
 | `utils/aw/business/` | 业务 AW 按项目分：`tiditree.py` / `swan.py` / `android.py` + `common.py`（跨项目 Mixin） |
 | `utils/user.py` | `User` 基类 + `TTUser` / `SwanUser` / `AndroidUser`（`__getattr__` 代理业务方法） |
 | `tests/` | pytest 用例 |
-| `image/web/`、`image/android/` | **正式**元素图片（跑通后才进） |
-| `image_ai/web/`、`image_ai/android/` | **暂存**元素图片（新截的） |
+| `image/web/`、`image/android/`、`image/flutter/` | **正式**元素图片（跑通后才进；flutter=Swan 端 62 张已转正） |
+| `image_ai/web/`、`image_ai/android/`、`image_ai/flutter/` | **暂存**元素图片（新截的） |
 | `image/image_name_mapping.py` | 平台图片路径与转正工具 |
 | `knowledge/web/` | TidiTree Web 知识库（app_map.json + pages/*.md + digest/） |
 | `knowledge/swan/` | Swan（Flutter）独立知识库（与 Web/Android 页面、索引和向量库隔离） |
@@ -44,9 +46,7 @@
 | `docs/待办与缺口清单.md` | **当前权威 plan**：已拍板决定 + 文档/环境缺口，开工前必读 |
 | `docs/runtime_experience.md` | 运行时经验知识库（子 Agent 执行经验沉淀，供语义检索注入） |
 | `run_parallel.py` | 并行测试运行器入口 |
-| `.claude/rules/` | 项目硬性规则（ai_workflow / aw_architecture / rules） |
-| `openspec/changes/` | 开放提案 |
-| `openspec/specs/` | 已归档的能力规范 |
+| `.claude/rules/` | 流程与架构规则（ai_workflow / aw_architecture）；编码规范已并入本文件 |
 
 ## 硬性规则（任何 agent 都必须遵守）
 
@@ -54,9 +54,11 @@
 
 **严禁**绕过 AWBase 直接操作浏览器。如果 AWBase 没封装某个操作，先在 AWBase 或平台驱动中加方法，再调用。
 
-### 2. 禁止 tap 坐标
+### 2. 定位策略：图像模板 > OCR 文本，不用 key，禁止 tap 坐标
 
-元素定位一律用 `click_image` 或 `click_text`。坐标会因分辨率、窗口位置变化而失效。
+元素定位一律用 `click_image`（首选）或 `click_text`（次选）；坐标会因分辨率、窗口位置变化而失效。
+**accessibility key 只用于探索辅助**（explorer 导航指引、认识元素、截图取元素参考），`click_accessibility`/`wait_accessibility`/`accessibility_exists` 仅限 explorer 探索与调试。
+自动化用例运行时的点击/长按/断言一律图片定位，禁止 key。
 
 ### 3. 浏览器截图坐标
 
@@ -79,13 +81,13 @@
 
 `image_exists` / `click_image` 失败时：**先查图片质量，再查代码逻辑**。不要在图片有问题的情况下反复改代码。
 
-### 8. 测试合并
+### 8. 一用例一文件一 test 方法（铁律）
 
-同功能不同参数合并成一个 py 文件用 `@pytest.mark.parametrize`；不要一条文字用例对应一个 py 文件。
+每个用例 .py 文件**有且仅有一个 `test_` 方法**；不同测试场景各自独立成文件。同一场景的数据变体可在该方法上用 `@pytest.mark.parametrize` 扩展执行项。适用本工程全部平台（web/android/flutter）。例外仅限 `tests/flutter/test_case_driver.py`（平台 YAML 用例执行载体）。用例间共用的前置/清理编排沉到业务层（`utils/aw/business/`，如 `swan_regression.py`）。
 
 ### 9. 框架层改动须用户决策
 
-以下属于框架层：`utils/devices.py`、`utils/aw/driver/`、`conftest.py`、`run_parallel.py`
+以下属于框架层：`utils/aw/driver/`、`conftest.py`、`run_parallel.py`
 
 修用例/写用例过程中发现框架层有问题时：
 - **不要自己改** — 报告给用户，说明问题现象和初步判断
@@ -103,7 +105,7 @@
 1. `docs/agent团队名册.md` —— 团队角色、硬性纪律、交接记录(最新进度看这里)
 2. `docs/测试套件管理计划.md` —— 总体里程碑 M1-M6 与当前所处阶段
 
-硬性纪律速记:凭据只在 .166 .env.local;模块 agent 不部署不提交 git(主会话统一做);.166 不 kill 全部 pythonw。
+硬性纪律速记:凭据只在 .167 /opt/uiautotest/.env.local;模块 agent 不部署不提交 git(主会话统一做);运行面(.167/.176)绝不 kill 全部进程,只杀指定 PID。
 
 ## 团队分工
 
@@ -115,20 +117,10 @@
 | 截 UI 元素并注册常量 | `aw-element` | Agent()（子 Agent，每次干净上下文） |
 | 编写业务层 / 用户方法 / pytest 用例 | `aw-codegen` | Agent()（子 Agent，每次干净上下文） |
 | 跑 pytest / 诊断失败 / 图片转正 | `aw-verify` | Agent()（子 Agent，每次干净上下文） |
-| openspec 提案 / spec / tasks 维护 | `spec-keeper` | SendMessage（长驻，仅走 openspec 流程时使用） |
 
-**调用方式说明**：`aw-codegen / aw-verify / aw-element` 通过 `Agent(subagent_type=...)` 每次新建实例执行，上下文干净、互不干扰。`aw-explorer / spec-keeper` 通过 `SendMessage` 与长驻实例通信，支持多轮对话。orchestrator spawn 子 Agent 前须通过 G1-G5 派发门禁（见 `aw-orchestrator.md`），并通过 MCP 查询精确注入批次空间认知。
+**调用方式说明**：`aw-codegen / aw-verify / aw-element` 通过 `Agent(subagent_type=...)` 每次新建实例执行，上下文干净、互不干扰。`aw-explorer` 通过 `SendMessage` 与长驻实例通信，支持多轮对话。（spec-keeper 已于 2026-10-12 随 openspec 流程移除而删除）orchestrator spawn 子 Agent 前须通过 G1-G5 派发门禁（见 `aw-orchestrator.md`），并通过 MCP 查询精确注入批次空间认知。
 
 要一键拉起整个团队：`/bootstrap-team`。
-
-## openspec 流程
-
-涉及新能力或大改动：
-1. 走 `openspec-propose`（或 `spec-keeper` agent）生成 change
-2. 实现时用 `openspec-apply-change` 推进
-3. 完成后 `openspec-archive-change` 归档
-
-当前开放 change：`openspec/changes/agent-team/`（把 4 个 skill 封装成 Python Agent 类的状态机工程化落地）。
 
 ## 并行测试执行
 
@@ -149,8 +141,6 @@ python run_parallel.py -n 2 -t 5          # 2 实例跑 5 个文件（验证用�
 ```
 
 **串行模式不受影响**：不设 `INSTANCE_ID` 时 `_device_index` 默认 0，`_user_key_map` 为空，行为不变。
-
-详细原理、换机器检查清单、故障排查见 `docs/并行测试执行指南.md`。
 
 ## 知识库系统（双层架构）
 
@@ -198,15 +188,14 @@ python scripts/knowledge/auto_update.py --force    # 强制全量更新
 
 - ❌ 绕过 AWBase 直接操作浏览器
 - ❌ `tap(x, y)` 坐标点击
+- ❌ accessibility key 做运行时定位/断言（定位用图像模板 > OCR 文本，不用 key）
 - ❌ 截图与浏览器 viewport 尺寸不一致
 - ❌ 截入动态元素（角标/时间/头像/在线状态）
 - ❌ 新元素直接进 `image/<platform>/`（必须先进入对应的 `image_ai/<platform>/`）
-- ❌ 不读 AW 复用指南就开始写代码
 - ❌ `try/except` 吞掉测试失败
 - ❌ 只断言"没异常"
-- ❌ 一条用例一个 py 文件（应合并）
-- ❌ 不走 openspec 流程直接做大改动
-- ❌ 修用例时自行改框架层（`devices.py`/`conftest.py`/`run_parallel.py`/`driver/*`）— 须用户决策
+- ❌ 一个 py 文件里多个 test 方法（一用例一文件一 test 方法，规则 8 铁律）
+- ❌ 修用例时自行改框架层（`conftest.py`/`run_parallel.py`/`driver/*`）— 须用户决策
 - ❌ `click_image` 失败后加 `tap(x,y)` 坐标回退（必须修图片）
 
 ## 运行时经验（踩坑积累，所有 agent 必知）
@@ -215,6 +204,21 @@ python scripts/knowledge/auto_update.py --force    # 强制全量更新
 |------|----------|
 | 浏览器文本定位 | 优先使用 `click_text`（OCR），需要稳定定位时再补充 Web 元素选择器 |
 | Python 多行命令 | 走 PowerShell 执行；避免 CodeMaker Hub 路径校验报错 |
+| OCR `click_text` 偏上 | 筛选器标签/弹窗选项/底部栏按钮加 `dy=8~12`；列表条目无需加 |
+| 图片匹配失败排查 | 灰度标准差>5、均值 5-250、无角标/阴影 → 图没问题再查代码 |
+
+## 编码补充规则（原 .claude/rules/rules.mdc 并入，编码规范以本文件为唯一载体）
+
+### 异常处理
+- 默认让异常抛出；用 `if` / `assert` 做状态检查，不用异常控制流
+- 仅允许 try-catch 的场景：ADB 外部命令、teardown 清理、资源释放
+- 禁止：catch-all 吞异常、静默 `except: pass`、用 try-catch 掩盖测试失败
+
+### 日志
+- `logger = logging.getLogger(__name__)`；格式 `logger.info(f"✅ {operation} 成功")` / `logger.error(f"❌ {operation} 失败")`
+
+### 过时 API（已不存在，不要参考）
+~~ImageRecognition~~、~~OCRRecognition~~、~~MuMuActions~~、~~aw_find_by_image~~、~~aw_find_by_ocr~~、~~LOGIN_LOCATORS~~
 
 <!-- codemap:start -->
 ## Codemap MCP

@@ -3,7 +3,7 @@
 > Swan 项目（Flutter）元素截图与注册蓝图。其他项目见 `docs/agents/<project>/`。
 
 职责：把 explorer 建议的 UI 元素截成图片、登记常量，供 `click_image`/`image_exists` 使用。
-Swan 的定位策略是 **accessibility key > OCR 文本 > 图像模板**——只有 key 和文案都不稳定的元素才需要截图。
+定位策略是 **图像模板 > OCR 文本**——每个需要点击或断言的元素都截图登记；不使用 accessibility key 定位/断言。
 
 ## 流程
 

@@ -1,5 +1,5 @@
 ---
-description: 一键把 UIAutotest 6 人长期团队拉起来（orchestrator + explorer + element + codegen + verify + spec-keeper）
+description: 一键把 UIAutotest 5 人长期团队拉起来（orchestrator + explorer + element + codegen + verify）
 ---
 
 ## 任务
@@ -15,11 +15,11 @@ description: 一键把 UIAutotest 6 人长期团队拉起来（orchestrator + ex
 调用 `TeamCreate`：
 - `team_name`: `uiautotest-team`
 - `agent_type`: `aw-orchestrator`
-- `description`: `UIAutotest 长期团队：App 探索、元素截图、AW/用例生成、验证、openspec 维护`
+- `description`: `UIAutotest 长期团队：App 探索、元素截图、AW/用例生成、验证`
 
-### 3. 派 5 个下游 teammate
+### 3. 派 4 个下游 teammate
 
-团队实例建好后，通过 `Agent` 工具按下表依次派出 5 个 teammate。每个 teammate 启动时给它：
+团队实例建好后，通过 `Agent` 工具按下表依次派出 4 个 teammate。每个 teammate 启动时给它：
 - `team_name`: `uiautotest-team`
 - `name`: 对应 agent 名
 - `subagent_type`: 对应 agent 名（即 `.claude/agents/<name>.md` 的 name）
@@ -37,13 +37,13 @@ description: 一键把 UIAutotest 6 人长期团队拉起来（orchestrator + ex
 | element | aw-element | UI 元素截图、注册常量 |
 | codegen | aw-codegen | 业务 AW、PPUser 便捷方法、pytest 用例 |
 | verify | aw-verify | 跑测试、诊断失败、图片转正 |
-| spec-keeper | spec-keeper | openspec 提案/spec/tasks 维护 |
 
-说明：orchestrator 就是当前的主会话（team lead），不用再派。
+说明：orchestrator 就是当前的主会话（team lead），不用再派。（spec-keeper 已于
+2026-10-12 随 openspec 流程移除而删除）
 
 ### 4. 发令牌
 
-5 个 teammate 全部回报就绪后，作为 orchestrator 发送一条群发消息（每个 teammate 各发一次），内容：
+4 个 teammate 全部回报就绪后，作为 orchestrator 发送一条群发消息（每个 teammate 各发一次），内容：
 
 > 团队就位。后续我会用标准任务格式派活。收到任务后：
 > 1. 按自己蓝图的"上下文加载"规则加载相关知识（CLAUDE.md 必读，其余按需）

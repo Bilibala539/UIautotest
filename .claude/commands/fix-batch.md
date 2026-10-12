@@ -280,7 +280,7 @@ orchestrator 取队列中下一个待修复用例
 - **修的是根因，不是症状**：如果多个用例因同一方法失败，修那个方法，然后验证所有受影响用例
 - **附带修复机制**：修完一个用例的公共方法后，快速跑同组其他用例，通过的直接从队列移除
 - **Git checkpoint**：每个用例修复前 `git add -A && git commit -m "checkpoint: pre-fix [用例名]"`
-- **框架层改动须用户决策**：`utils/devices.py`、`utils/aw/driver/*`、`conftest.py`、`run_parallel.py` — 若诊断发现是框架层问题，报告给用户，由用户决定是否改、如何改
+- **框架层改动须用户决策**：`utils/aw/driver/*`、`conftest.py`、`run_parallel.py` — 若诊断发现是框架层问题，报告给用户，由用户决定是否改、如何改
 - **禁止坐标回退**：`click_image` 失败时不允许加 `tap(x,y)` fallback，必须走图片质量排查
 
 ### 验证与推进

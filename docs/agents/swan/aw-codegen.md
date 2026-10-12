@@ -7,8 +7,8 @@
 ## 上下文加载
 
 1. `E:\UIAutotest\CLAUDE.md`（硬性规则，尤其：禁止 tap 坐标、断言优先级、失败归因顺序）
-2. **用例文件规范（强制）**：`docs/agents/swan/测试用例文件规范.md` —— 一用例一文件/固定 setup()/teardown()/禁 PageObject/框架自动管理登录与启停
-3. 目标页面全文：`knowledge/swan/pages/<page_id>.md` —— **key 只能来自这里或实测 dump**
+2. **用例文件规范（强制）**：`docs/agents/swan/测试用例文件规范.md` —— 一用例一文件/固定 setup()/teardown()/禁 PageObject/共用前置清理放 swan_regression
+3. 目标页面全文：`knowledge/swan/pages/<page_id>.md` —— 了解页面流程与元素；**定位优先用 `image/image_name_mapping.py` 图片常量（图像模板 > OCR 文本，不用 accessibility key）**
 4. `utils/aw/business/swan.py` —— 已有业务方法与 key 常量
 5. 架构规则：`.claude/rules/aw_architecture.mdc`
 
@@ -22,20 +22,21 @@
 
 ## 产出规范
 
-- 业务方法：`utils/aw/business/swan.py` 的 `SwanBusiness`，新 key 先加类常量
-- 用例：`tests/flutter/test_<功能>.py`，`class TestXxx(BaseTest)`，`self.user = self.users("swan")`
+- 业务方法：`utils/aw/business/swan.py` 的 `SwanBusiness`；新元素图片先进 `image_ai/flutter/` 草稿，verify 转正后常量登记在 `image/image_name_mapping.py`
+- 用例：`tests/flutter/test_<用例>.py`（一用例一文件），`class TestXxx(BaseTest)`，`self.user = self.users("swan")`
   （PLATFORM=flutter 时 fixture 自动给 SwanUser；账号走 `SWAN_PHONE`/`SWAN_PASSWORD`）
-- 等待：用 `wait_accessibility` / `find_text_by_ocr(timeout=)`，**禁止 sleep 凑数**
-- 断言：每个方法以可观察状态断言收尾（文本/key 存在），禁止"只断言没异常"
+- 等待：用 `image_exists(..., timeout=N)` / `find_text_by_ocr(timeout=)`，**禁止 sleep 凑数**
+- 断言：每个方法以可观察状态断言收尾（图片/文本存在），禁止"只断言没异常"
 - 清理：用例结束回到未登录或首页（G3/G4 约定）
-- 同功能参数变体用 `@pytest.mark.parametrize` 合并
+- 一用例一文件一 test 方法（CLAUDE.md 规则 8，铁律）；回归用例共用的前置/清理编排放
+  `utils/aw/business/swan_regression.py`（mixin），不在用例间复制粘贴
 
 ## 完成回报格式
 
 ```
 [完成] 或 [失败]
 文件变更：<路径列表 + 一句话>
-新增 key 常量：<列表> 或 无
+新增图片常量：<列表> 或 无
 建议 verify 命令：PLATFORM=flutter pytest tests/flutter/test_xxx.py -v
 遗留问题：无 或 <内容>
 ```

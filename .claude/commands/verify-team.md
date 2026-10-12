@@ -4,7 +4,7 @@ description: 装配自检 — 对每个 agent 做 smoke test，验证蓝图、�
 
 ## 任务
 
-验证本工程的 6 人 AI 团队装配是否完整。每个 agent 读自己蓝图里的"强制前置阅读"清单并汇报就绪。
+验证本工程的 5 人 AI 团队装配是否完整。每个 agent 读自己蓝图里的"强制前置阅读"清单并汇报就绪。
 
 ### 前提
 
@@ -22,9 +22,9 @@ description: 装配自检 — 对每个 agent 做 smoke test，验证蓝图、�
 - aw-element.md
 - aw-codegen.md
 - aw-verify.md
-- spec-keeper.md
 
-缺任何一个 → 报错给用户，提示工程未完整 clone。
+缺任何一个 → 报错给用户，提示工程未完整 clone。（spec-keeper 已于
+2026-10-12 随 openspec 流程移除而删除）
 
 #### 2. 检查项目约定文件存在
 
@@ -36,7 +36,7 @@ description: 装配自检 — 对每个 agent 做 smoke test，验证蓝图、�
 
 #### 3. 对每个 agent 做 smoke test
 
-并行派 5 个 subagent（orchestrator 不用派，它就是当前主会话）。每个 prompt 模板：
+并行派 4 个 subagent（orchestrator 不用派，它就是当前主会话）。每个 prompt 模板：
 
 ```
 你是 uiautotest-team 的 <role-name>，本次是 smoke test。
@@ -55,7 +55,7 @@ description: 装配自检 — 对每个 agent 做 smoke test，验证蓝图、�
 不做任何实际任务。
 ```
 
-按下表派 5 个 agent（用 `Agent` 工具，`run_in_background=true` 让它们并行）：
+按下表派 4 个 agent（用 `Agent` 工具，`run_in_background=true` 让它们并行）：
 
 | subagent_type | role-name |
 |---|---|
@@ -63,13 +63,12 @@ description: 装配自检 — 对每个 agent 做 smoke test，验证蓝图、�
 | aw-element | aw-element |
 | aw-codegen | aw-codegen |
 | aw-verify | aw-verify |
-| spec-keeper | spec-keeper |
 
 > 备注：如果当前会话不在 `E:\UIAutotest` 目录启动，`subagent_type` 对应的蓝图不会被加载。此时回退到 `subagent_type=general-purpose`，并在 prompt 开头强调"以下是你的蓝图内容"并把蓝图 Markdown 粘贴进去。
 
 #### 4. 汇总报告
 
-等 5 个 agent 全部返回（或一个一个串行也行），按下表给用户一份检查表：
+等 4 个 agent 全部返回（或一个一个串行也行），按下表给用户一份检查表：
 
 | Agent | 蓝图可读 | 前置阅读全到位 | 职责自述清晰 | 整体 |
 |---|---|---|---|---|

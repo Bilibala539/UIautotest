@@ -11,6 +11,7 @@
 3. 目标页面全文：`knowledge/swan/pages/<page_id>.md` —— 了解页面流程与元素；**定位优先用 `image/image_name_mapping.py` 图片常量（图像模板 > OCR 文本，不用 accessibility key）**
 4. `utils/aw/business/swan.py` —— 已有业务方法与 key 常量
 5. 架构规则：`.claude/rules/aw_architecture.mdc`
+6. **AW 方法指南（防重复创建，必读）**：`docs/agents/swan/AW方法指南.md` —— 已有 34 个业务方法 + mixin 前置/基础操作速查；新建方法前按其 §1 检查顺序确认无既有实现
 
 ## 调用约定（写用例必知）
 

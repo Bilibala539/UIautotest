@@ -43,6 +43,7 @@
 | `.chroma_db/` 等 | 向量数据库持久化存储（web/swan/android 各自独立目录） |
 | `scripts/knowledge/` | 知识库维护脚本（backlinks/embedding/promote/auto_update） |
 | `docs/UI元素截取与裁剪规范.md` | 元素截图规范 |
+| `docs/agents/swan/AW方法指南.md` | Swan 已有 AW 方法查询入口（写新用例/AW 前必查，防重复创建） |
 | `docs/待办与缺口清单.md` | **当前权威 plan**：已拍板决定 + 文档/环境缺口，开工前必读 |
 | `docs/runtime_experience.md` | 运行时经验知识库（子 Agent 执行经验沉淀，供语义检索注入） |
 | `run_parallel.py` | 并行测试运行器入口 |

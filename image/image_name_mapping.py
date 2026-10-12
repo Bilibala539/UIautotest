@@ -137,6 +137,9 @@ SWAN_PLAYER_DISMISS_BTN = image_path("swan_播放页_收起按钮.png", platform
 SWAN_DEVICE_ADD_BTN = image_path("swan_添加设备按钮.png", platform="flutter")
 
 # --- 平台页 (swan_平台页) ---
+# 2026-10-12 verify 转正：旧模板(9/24 未授权白底态)对已授权账号(189 恒为黄底/−号态)失效，
+# 已从失败证据帧重截已授权态整行，平台页只读断言用例真机验证通过后 promote 覆盖。
+# ⚠️ 行内副标题"雷泽大人 VIP"为 189 演示账号网易云授权昵称，对该账号持久稳定。
 SWAN_PLATFORM_NETEASE_ROW = image_path("swan_平台_网易云音乐行.png", platform="flutter")
 
 
@@ -465,6 +468,36 @@ SWAN_HOME_TAB_AI_SEL = image_path("swan_首页_AITab选中态.png", platform="fl
 SWAN_HOME_TAB_VISION_SEL = image_path("swan_首页_可视音箱Tab选中态.png", platform="flutter")
 
 
+
+# =====================================================================
+# W1-A 登录域 key 迁移用图（待 verify 转正）
+# 截图日期：2026-10-12 | 设备：HONOR AKFDCP4718425500（720x1612）
+# 用途：存量 accessibility key（login_* / me_user_profile_entry /
+# person_info_logout_button）迁移为图像模板；verify 通过后
+# promote_image 转正，draft=True 改正式路径。
+# [2026-10-12 verify 验收] 8 图全部暂挂：均未被 W1-A 首批 7 用例
+# （底部Tab轮巡/首页/平台页/设备页只读、播放页开关、收藏分组详情、搜索）
+# 代码路径引用（静态零引用），且登录/密码域用例因 189 登录态保护禁跑；
+# 全部维持 draft，待登录域/密码域用例批次真机命中后转正。
+# =====================================================================
+
+# --- 登录页（验证码形态，登出后落地页） ---
+SWAN_LOGIN_PHONE_FIELD = image_path("swan_登录_手机号输入框.png", platform="flutter", draft=True)  # 页面=登录页 | 元素=手机号输入框未聚焦空态（整行白盒含边框，+86 段入模点击中心落号段）| 2026-10-12 | HONOR AKFDCP4718425500 720x1612 | 570x94
+SWAN_LOGIN_AGREEMENT_UNCHECKED = image_path("swan_登录_协议勾选框_未选.png", platform="flutter", draft=True)  # 页面=登录页 | 元素=协议勾选框未选态（灰环本体不含文字，与已选态成对）| 2026-10-12 | HONOR AKFDCP4718425500 720x1612 | 30x30
+SWAN_LOGIN_AGREEMENT_CHECKED = image_path("swan_登录_协议勾选框_已选.png", platform="flutter", draft=True)  # 页面=登录页 | 元素=协议勾选框已选态（黑底白勾，与未选态成对同位 30x30）| 2026-10-12 | HONOR AKFDCP4718425500 720x1612 | 30x30
+SWAN_LOGIN_SUBMIT_ENABLED = image_path("swan_登录_下一步按钮_可用态.png", platform="flutter", draft=True)  # 页面=登录页 | 元素=「下一步」可用态黑底白字（已输号+已勾协议；与既有 SWAN_LOGIN_SUBMIT_BTN 置灰态成对，⛔ 勿点击提交）| 2026-10-12 | HONOR AKFDCP4718425500 720x1612 | 570x94
+SWAN_LOGIN_PASSWORD_ENTRY = image_path("swan_登录_密码登入入口.png", platform="flutter", draft=True)  # 页面=登录页 | 元素=右上角「密码登入」切换入口（切密码登入页）| 2026-10-12 | HONOR AKFDCP4718425500 720x1612 | 132x34
+
+# --- 密码登入页（与验证码页同根 login_page，右上角互切） ---
+SWAN_PASSWORD_FIELD = image_path("swan_密码页_密码输入框.png", platform="flutter", draft=True)  # 页面=密码登入页 | 元素=密码输入框未聚焦空态（整行白盒含边框，右侧闭眼图标入模）| 2026-10-12 | HONOR AKFDCP4718425500 720x1612 | 582x94
+
+# --- 我的页（logout 路径第一步，⚠️ 只截图/断言） ---
+SWAN_ME_ACCOUNT_ENTRY = image_path("swan_我的_账号信息入口.png", platform="flutter", draft=True)  # 页面=我的页 | 元素=顶部账号信息入口行头像本体（结构性元素，不含昵称/手机号等个人数据；⚠️ 元素超浅色 std≈7，匹配阈值验收留意）| 2026-10-12 | HONOR AKFDCP4718425500 720x1612 | 122x122
+
+# --- 个人信息页（⚠️ 上方「注销账号」为危险操作，其相邻区域严禁入模点击） ---
+SWAN_PERSON_LOGOUT_BTN = image_path("swan_个人信息_退出登入按钮.png", platform="flutter", draft=True)  # 页面=个人信息页 | 元素=「退出登入」按钮文本（白底黑字；logout 清理路径终点）| 2026-10-12 | HONOR AKFDCP4718425500 720x1612 | 134x37
+
+
 __all__ = [
     "ANDROID_DRAFT_IMAGE_DIR",
     "ANDROID_IMAGE_DIR",
@@ -585,6 +618,14 @@ __all__ = [
     "SWAN_PLAYER_PLUS_BTN_COLOR",
     "SWAN_COLLECT_PLATFORM_SHEET",
     "SWAN_COLLECT_SELECTED_TOPBAR",
+    "SWAN_LOGIN_PHONE_FIELD",
+    "SWAN_LOGIN_AGREEMENT_UNCHECKED",
+    "SWAN_LOGIN_AGREEMENT_CHECKED",
+    "SWAN_LOGIN_SUBMIT_ENABLED",
+    "SWAN_LOGIN_PASSWORD_ENTRY",
+    "SWAN_PASSWORD_FIELD",
+    "SWAN_ME_ACCOUNT_ENTRY",
+    "SWAN_PERSON_LOGOUT_BTN",
     "WEB_DRAFT_IMAGE_DIR",
     "WEB_IMAGE_DIR",
     "demote_image",

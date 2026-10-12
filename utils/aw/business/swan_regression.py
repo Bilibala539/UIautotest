@@ -11,8 +11,11 @@
 - SwanLoginRegressionMixin     登录域存量用例（登录/登出、密码登录、只读页，
   断言走 key 的存量实现，口径见类 docstring）
 
-新代码定位一律图像模板 > OCR 文本（方案 §0）；唯一例外是 tab_device 的
-存量 key 导航（迁移待拍板，见 docs/待办与缺口清单.md「定位策略定稿」节）。
+新代码定位一律图像模板 > OCR 文本（方案 §0）；2026-10-12 起导航域存量
+key 已迁移 [图]（go_home / go_bottom_tab / _open_device_page，W1-A 第一批，
+设备 Tab 点击改 SWAN_TAB_DEVICE [图]），剩余 key 仅登录域
+（SwanLoginRegressionMixin 断言辅助 + login 系方法，迁移待第二批，
+见 docs/待办与缺口清单.md「定位策略定稿」节）。
 
 rig 环境变量（均可在不配置时走默认/skip）：
 - SWAN_DEVICE_NAME  rig WiFi 音箱设备名（默认 Libretto_0E00，知识库实测绑定设备）
@@ -220,9 +223,19 @@ class SwanPlayerRegressionMixin:
             self.aw.image_exists(SWAN_HOME_TAB_MUSIC, timeout=10)
 
     def _open_device_page(self) -> None:
-        """首页 → 设备页。tab 点击为存量 key 导航（迁移待拍板），到位断言用已转正图片。"""
+        """首页 → 设备页。存量 key 迁移 2026-10-12：tab 点击改 [图]
+        （SWAN_TAB_DEVICE 未选中态已转正图，verify 跨机实测 1.0）。
+
+        幂等：已在设备页（右上角「添加设备」锚 [图] 可见）时短路不点——
+        设备 Tab 已选中态其未选中态图不可见，直接 click_image 会超时（同
+        go_bottom_tab 选中态口径；teardown 输出恢复路径可能停在设备页）。
+        到位断言：右上角「添加设备」[图]（保留原口径）。
+        """
         self._ensure_logged_in_on_home()
-        self.aw.click_accessibility(SwanBusiness.KEY_TAB_DEVICE)
+        if self._probe_image(SWAN_DEVICE_ADD_BTN, timeout=1) is not None:
+            logger.info("_open_device_page: 已在设备页（添加设备锚 [图] 可见），短路返回")
+            return
+        self.aw.click_image(SWAN_TAB_DEVICE, timeout=10)
         self.aw.image_exists(SWAN_DEVICE_ADD_BTN, timeout=15)  # 右上角「添加设备」
 
     def _open_player_page(self) -> None:
@@ -457,9 +470,9 @@ class SwanContentRegressionMixin(SwanPlayerRegressionMixin):
         """G3/G4：关弹层（设备弹层+音量弹层）-> 尽力暂停 -> 收播放页 ->
         退出 push 页 -> 回首页。
 
-        本批用例常停在 push 页（无底部 4 tab，直接 go_home 的 key 点击会
-        失败），须先 back_to_tab_shell [图] 逐级退出，再走存量 go_home
-        （key 导航迁移待拍板例外）。
+        本批用例常停在 push 页（无底部 4 tab），须先 back_to_tab_shell [图]
+        逐级退出，再走 go_home（2026-10-12 已迁移 [图] 并内置 push 页防护；
+        back_to_tab_shell 前置保留为显式收尾口径，壳内零操作）。
         音量弹层探测关闭继承播放器域 teardown 的 run4b 结论
         （_close_volume_popup_if_any）。
         """

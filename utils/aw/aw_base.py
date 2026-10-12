@@ -144,6 +144,7 @@ class AWBase:
             driver: 平台驱动实例
         """
         self.driver = driver
+        self._method_reporter = None  # Optional[AWMethodReporter]，由 _aw_method_report 装饰器注入
         self.TEMPLATE_DIR = str(get_image_dir(driver.platform_name))
         os.makedirs(self.TEMPLATE_DIR, exist_ok=True)
         os.makedirs(self.SCREENSHOT_DIR, exist_ok=True)
@@ -293,6 +294,10 @@ class AWBase:
         self.driver.tap(screen_coords[0], screen_coords[1])
         logger.info(f"👆 点击坐标 ({target_x}, {target_y})")
         step_evidence.record(self, "tap", point=(target_x, target_y))
+        rep = getattr(self, "_method_reporter", None)
+        if rep is not None and rep.active():
+            rep.record_action("点击", label=rep.last_template or "tap",
+                              point=(target_x, target_y), rect=rep.last_rect)
         self.sleep(0.3)
         return True
 
@@ -318,6 +323,10 @@ class AWBase:
         self.driver.long_press(screen_coords[0], screen_coords[1], duration)
         logger.info(f"👆 长按坐标 ({target_x}, {target_y}), 时长={duration}s")
         step_evidence.record(self, "long_press", point=(target_x, target_y))
+        rep = getattr(self, "_method_reporter", None)
+        if rep is not None and rep.active():
+            rep.record_action("长按", label=rep.last_template or "long_press",
+                              point=(target_x, target_y), rect=rep.last_rect)
         self.sleep(0.5)
         return True
 
@@ -378,6 +387,9 @@ class AWBase:
         """
         result = self.driver.input_text(text)
         step_evidence.record(self, "input", detail=f"input: {text}")
+        rep = getattr(self, "_method_reporter", None)
+        if rep is not None and rep.active():
+            rep.record_action("输入", label=text)
         self.sleep(0.3)
         return result
 
@@ -539,6 +551,11 @@ class AWBase:
                     if match:
                         center_x, center_y = item['cx'], item['cy']
                         logger.info(f"🔍 找到文字 '{text}' @ ({center_x}, {center_y})")
+                        rep = getattr(self, "_method_reporter", None)
+                        if rep is not None and rep.active():
+                            bx1, by1, bx2, by2 = item['bbox']
+                            rep.record_verify(text, rect=(bx1, by1, bx2 - bx1, by2 - by1),
+                                              img=img, tag="OCR")
                         return center_x, center_y
 
             self.sleep(0.5)
@@ -555,14 +572,20 @@ class AWBase:
         pos = self.find_text_by_ocr(text, timeout=timeout, region=region)
         if pos is not None:
             return pos
-        else:
-            assert False
+        rep = getattr(self, "_method_reporter", None)
+        if rep is not None and rep.active():
+            rep.record_fail("verify", text, f"断言失败: 未找到文字 '{text}'")
+        assert False
 
     @_screenshot_on_failure
     def text_not_exists(self, text: str, timeout: int = 3,
                         region=None) -> bool:
         """断言文字不存在（存在则 assert 失败）"""
         pos = self.find_text_by_ocr(text, timeout=timeout, region=region)
+        if pos is not None:
+            rep = getattr(self, "_method_reporter", None)
+            if rep is not None and rep.active():
+                rep.record_fail("verify", text, f"断言失败: 文字 '{text}' 仍然存在")
         assert pos is None, f"断言失败: 文字 '{text}' 仍然存在"
         return True
 
@@ -618,6 +641,11 @@ class AWBase:
                 hit_y = max_loc[1] + dy
                 logger.info(f"🖼️ 找到图片 '{template_name}' @ "
                             f"矩形({hit_x}, {hit_y}, {template_w}, {template_h}), score={max_val:.2f}")
+                rep = getattr(self, "_method_reporter", None)
+                if rep is not None and rep.active():
+                    rep.cache_hit(full_img if region else search_img,
+                                  (hit_x, hit_y, template_w, template_h),
+                                  template_name)
                 return (hit_x, hit_y, template_w, template_h)
 
             self.sleep(0.5)
@@ -673,6 +701,13 @@ class AWBase:
         """断言图片必须存在（找不到则 assert 失败）"""
         pos = self.find_image(template_name, threshold=threshold, timeout=timeout,
                               region=region)
+        rep = getattr(self, "_method_reporter", None)
+        if rep is not None and rep.active():
+            if pos is None:
+                rep.record_fail("verify", template_name,
+                                f"断言失败: 未找到图片 '{template_name}'")
+            else:
+                rep.record_verify(template_name, rect=rep.rect_for(template_name))
         assert pos is not None, f"断言失败: 未找到图片 '{template_name}'"
         return True
 
@@ -715,6 +750,10 @@ class AWBase:
                                    end_coords[0], end_coords[1], duration)
         logger.info(f"👆 滑动 ({start_x},{start_y}) → ({end_x},{end_y})")
         step_evidence.record(self, "swipe", start=(start_x, start_y), end=(end_x, end_y))
+        rep = getattr(self, "_method_reporter", None)
+        if rep is not None and rep.active():
+            rep.record_action("滑动", label="swipe",
+                              swipe=((start_x, start_y), (end_x, end_y)))
         self.sleep(0.3)
         return result
 

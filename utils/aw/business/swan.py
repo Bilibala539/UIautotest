@@ -77,6 +77,7 @@ from image.image_name_mapping import (
 from utils.aw.aw_base import SCREENSHOT_DIR
 from utils.aw.base.flutter_base import FlutterBaseAW
 from utils.aw.business.common import CommonBusinessMixin
+from utils.aw.evidence import _aw_method_report
 
 logger = logging.getLogger(__name__)
 
@@ -99,6 +100,11 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
     KEY_ERROR_TEXT = "login_error_text"                  # ✅ 2026-09-08 密码登录失败提示（content-desc"密码错误，请重新输入！"）
 
     # 首页 accessibility key（✅ 2026-09-08 真机验证）
+    # ⚠️ 存量 key 迁移 2026-10-12（W1-A 第一批）：导航类运行时调用已全部
+    # 迁移 [图]（go_home / go_bottom_tab / swan_regression._open_device_page）。
+    # KEY_TAB_ME 仍被登录域使用（login / relaunch_app / logout_if_needed，
+    # 登录域迁移待第二批）；KEY_TAB_RECOMMEND / KEY_TAB_PLATFORM /
+    # KEY_TAB_DEVICE 运行时已无调用方，常量保留待第二批统一清理，勿删。
     KEY_TAB_RECOMMEND = "tab_recommend"                  # 首页
     KEY_TAB_PLATFORM = "tab_platform"                    # 平台
     KEY_TAB_DEVICE = "tab_device"                        # 设备
@@ -130,11 +136,59 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
     KEY_PLAYER_PLAY_PAUSE_BUTTON = "player_play_pause_button"  # 播放/暂停（⛔ 只断言不点）
     KEY_PLAYER_VOLUME_BUTTON = "player_volume_button"      # 音量（⛔ 只断言不点）
 
-    def go_home(self, timeout: float = 15.0) -> None:
-        """回到首页（tab_recommend），用例收尾统一入口（G3/G4）。"""
-        self.click_accessibility(self.KEY_TAB_RECOMMEND)
-        assert self.wait_accessibility(self.KEY_TAB_ME, timeout=timeout), "未回到首页"
+    # 底部导航 4 图（未选中态，均已转正、verify 跨机实测 1.0）：go_home 的
+    # tab 壳幂等探测用——4 个一级页至多 1 个 Tab 选中，任一可见即在 tab 壳
+    # （口径同 swan_regression.SwanPlayerRegressionMixin._BOTTOM_NAV_TEMPLATES）
+    _SHELL_NAV_TEMPLATES = (SWAN_TAB_HOME, SWAN_TAB_PLATFORM,
+                            SWAN_TAB_DEVICE, SWAN_TAB_ME)
 
+    @_aw_method_report
+    def go_home(self, timeout: float = 15.0) -> None:
+        """回到首页容器（G3/G4 用例收尾统一入口）。存量 key 迁移 2026-10-12。
+
+        原实现 click_accessibility(KEY_TAB_RECOMMEND) + wait_accessibility
+        (KEY_TAB_ME)，本批按定位铁律迁移 [图]，签名与语义不变（落点仍为
+        首页容器，不改变顶 Tab 选择）。
+        前置/路由（幂等）：底部导航 4 图任一可见即在 tab 壳——此时
+        「首页」图标 [图] 可见 = 当前在其它一级页（首页 Tab 选中时该未选中
+        态图恰恰不可见，其余 3 图可见），点它回首页；不可见 = 已停在首页，
+        跳过点击。4 图全不可见 = 在 push 页，先 back_to_tab_shell（[图]
+        逐级退出）再走同流程。
+        流程：tab 壳探测 -> 按需点「首页」图标 -> 到位轮询断言。
+        定位/收尾断言：到位 = 任一顶 Tab 未选中态图 [图]（region 限定顶
+        Tab 行，_home_anchor_visible，不依赖当前激活顶 Tab）或 OCR「推荐」
+        兜底（参照 swan_regression._wait_home_shell 三级锚口径，方法内自行
+        实现；底部导航图不作到位证据——它只证明 tab 壳，不证明首页）。
+        ⚠️ 坑注记：首页 Tab 选中态图未截（映射库仅 4 张未选中态图），
+        「已在首页」不能用 SWAN_TAB_HOME 可见性判定（选中时恰恰不可见，
+        同 go_bottom_tab 选中态口径），到位断言走各页特有锚（顶 Tab 行图 +
+        OCR）。
+        """
+        if not any(self.find_image(t, timeout=2) is not None
+                   for t in self._SHELL_NAV_TEMPLATES):
+            logger.info("go_home: 底部导航 4 图均不可见（push 页），先 back_to_tab_shell")
+            self.back_to_tab_shell()
+        if self.find_image(SWAN_TAB_HOME, timeout=2) is not None:
+            # 首页图标未选中态可见 = 不在首页（首页选中时该图不匹配），点它回首页
+            self.click_image(SWAN_TAB_HOME, timeout=10)
+        else:
+            logger.info("go_home: 已在首页（首页 Tab 选中态，未选中态图不可见），跳过点击")
+        deadline = time.monotonic() + timeout
+        while True:
+            if self._home_anchor_visible(timeout=2):
+                return
+            if self.find_text_by_ocr("推荐", timeout=1) is not None:
+                return
+            if time.monotonic() >= deadline:
+                break
+            self.sleep(0.5)
+        shot = self._snap_chain_miss("gohome")
+        assert False, (
+            f"go_home 到位断言失败：{timeout}s 内顶 Tab 未选中态图 [图] 与 "
+            f"OCR「推荐」均未命中（未在首页容器？请核对底部导航/顶 Tab 图质量，"
+            f"证据帧 {shot}）")
+
+    @_aw_method_report
     def list_accessibility_keys_by_prefix(self, prefix: str) -> list[str]:
         """列出当前页面 resource_id 以 prefix 开头的语义 key（去重、有序）。
 
@@ -148,6 +202,7 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
                 found.append(node_id)
         return found
 
+    @_aw_method_report
     def login(
         self,
         phone: str | None = None,
@@ -196,6 +251,7 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
             self.login_by_sms(phone, wait_code=wait_code)
         self.go_home()
 
+    @_aw_method_report
     def login_with_password(self, phone: str, password: str) -> None:
         """密码登录（2026-09-08 真机实测流程），最终停在首页。
 
@@ -231,6 +287,7 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         self.click_accessibility(self.KEY_SUBMIT)
         assert self.wait_accessibility(self.KEY_TAB_ME, timeout=20), "登录后未进入首页"
 
+    @_aw_method_report
     def login_by_sms(self, phone: str, wait_code: float = 60.0) -> None:
         """验证码登录：输入手机号 → 下一步（自动发送验证码）→ 平台取码 → 填码自动提交。
 
@@ -250,6 +307,7 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         self.input_text(code)
         assert self.wait_accessibility(self.KEY_TAB_ME, timeout=20), "登录后未进入首页"
 
+    @_aw_method_report
     def enter_sms_code_step(self, phone: str, timeout: float = 15.0) -> None:
         """验证码登录第一步：填手机号 → 勾协议 → 点"下一步"，停在验证码输入页。
 
@@ -266,6 +324,7 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
             self.KEY_CODE_FIELD, timeout=timeout
         ), "点击下一步后未进入验证码输入页（login_code_field 未出现）"
 
+    @_aw_method_report
     def fill_sms_code(self, code: str) -> None:
         """向验证码输入框追加输入（adb input text 为追加语义），不主动提交。
 
@@ -275,6 +334,7 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         self.click_accessibility(self.KEY_CODE_FIELD)
         self.input_text(code)
 
+    @_aw_method_report
     def relaunch_app(self, package: str, timeout: float = 30.0) -> None:
         """杀进程后冷启动，等待冷启动落地页出现（已登录→首页 tab_me，未登录→登录页）。
 
@@ -287,6 +347,7 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
             self.wait_accessibility(self.KEY_LOGIN_PAGE, timeout=5)
         assert landed, "冷启动后既未到首页也未到登录页"
 
+    @_aw_method_report
     def logout_if_needed(self) -> None:
         """若已登录则登出，回到登录页（G3/G4 清理约定）。
 
@@ -447,6 +508,7 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
                 return None
             self.sleep(1.0)
 
+    @_aw_method_report
     def select_device(self, name: str, via: str = "card") -> None:
         """切换输出设备（A12，回归用例 11-12）。2026-09-28 口径重设计。
 
@@ -952,6 +1014,7 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
                     "播放页顶栏未渲染（收起钮浅底/深底/旧单/返回箭头态模板"
                     f"均未命中，顶栏 region 内已轮询 {timeout:.0f}s）")
 
+    @_aw_method_report
     def start_play(self, source: str = "favorite", mode: str = "all",
                    index: int = 0) -> None:
         """发起播放（A13，回归用例 13-14 及各域播放前置）。
@@ -1013,6 +1076,7 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         shots = glob.glob(os.path.join(SCREENSHOT_DIR, prefix + "_*.png"))
         return max(shots, key=os.path.getmtime) if shots else "（无失败截图存档）"
 
+    @_aw_method_report
     def player_control(self, action: str = "play") -> None:
         """播放控制（A14，回归用例 16-22）。
 
@@ -1031,6 +1095,7 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
             # play / next / prev 收尾都断言播放中（切歌不打断播放）
             self.assert_playing()
 
+    @_aw_method_report
     def set_loop_mode(self, mode: str = "list") -> None:
         """切循环模式（A15，回归用例 15/19 及播放控制矩阵）。
 
@@ -1064,6 +1129,7 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         y = max(0, py - pw)
         return (px, y, pw, py - y)
 
+    @_aw_method_report
     def assert_playing(self) -> None:
         """播放态断言（A16，run4b 改版）：⏸ 图标 [图] 硬断言 +（黑胶动检 或
         进度时间递增）任一动证据成立。
@@ -1089,6 +1155,7 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
                if increasing is None else
                "，且进度时间未递增（疑似暂停态）"))
 
+    @_aw_method_report
     def assert_paused(self) -> None:
         """暂停态断言（A16 对偶，run4b 改版）：▶ 图标 [图] 硬断言 + 进度时间静止。
 
@@ -1110,6 +1177,7 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         assert not self.region_changed(*self._vinyl_region()), (
             "暂停态第二证据失败：▶ 在位但进度时间不可读且封面区画面仍在动")
 
+    @_aw_method_report
     def assert_now_playing(self, title: str, artist: str = "") -> None:
         """断言当前播放曲目（A17）：曲目区 OCR 歌名（及歌手）。
 
@@ -1120,6 +1188,7 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         if artist:
             self.text_exists(artist, timeout=10)
 
+    @_aw_method_report
     def seek_to(self, ratio: float, action: str = "drag") -> None:
         """跳转播放进度（A18，回归用例 23-24）。
 
@@ -1177,6 +1246,7 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         return (x0, cy - self._VOLUME_TRACK_HEIGHT // 2,
                 x1 - x0, self._VOLUME_TRACK_HEIGHT)
 
+    @_aw_method_report
     def set_volume(self, value: int, action: str = "drag") -> None:
         """调节音量（A19，回归用例 25-26）。
 
@@ -1245,6 +1315,7 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         assert icon_back is not None, (
             f"未回播放页（音量图标 glyph/浅/深三模板均未命中；现场帧 {shot}）")
 
+    @_aw_method_report
     def volume_key(self, direction: str = "up", long_press: bool = False) -> None:
         """物理音量键调节音量（A20，回归用例 27-28）。
 
@@ -1449,9 +1520,10 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
     #     入口须容忍轮换（未找到时下拉刷新重试）。
     # =================================================================
 
-    # 底部导航 4 图标（A21，未选中态，域4 新截草稿；「推荐」为「首页」的
-    # 任务口径别名——底部标签 dump 文案是「首页」，顶 Tab 才叫「推荐」）。
-    # 图标选中态不匹配未选中态模板，故目标页锚点可见时短路不点（见 go_bottom_tab）。
+    # 底部导航 4 图标（A21，未选中态，已转正、verify 跨机实测 1.0；「推荐」
+    # 为「首页」的任务口径别名——底部标签 dump 文案是「首页」，顶 Tab 才叫
+    # 「推荐」）。图标选中态不匹配未选中态模板，故目标页锚点可见时短路不点
+    # （见 go_bottom_tab）。
     _BOTTOM_TAB_TEMPLATES = {
         "首页": SWAN_TAB_HOME,
         "推荐": SWAN_TAB_HOME,
@@ -1538,11 +1610,13 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
             return self.find_image(SWAN_ME_FAVORITES_ROW, timeout=timeout) is not None
         return False
 
+    @_aw_method_report
     def go_bottom_tab(self, name: str, timeout: float = 15.0) -> None:
         """底部导航切换（A21，回归用例29）。name ∈ 首页(推荐)/平台/设备/我的。
 
-        底部 4 图标 [图]（未选中态草稿模板）定位点击；目标页一级锚点已
-        可见时短路返回（此时目标图标处于选中态，未选中态模板不匹配）。
+        底部 4 图标 [图]（未选中态已转正图，verify 跨机实测 1.0）定位点击；
+        目标页一级锚点已可见时短路返回（此时目标图标处于选中态，未选中态
+        模板不匹配）。
         收尾断言：目标页锚点轮询至 timeout。
         须在全局 tab 壳页调用；push 页先 back_to_tab_shell。
         """
@@ -1561,6 +1635,7 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
             self.sleep(0.5)
         assert False, f"点击底部导航「{name}」后 {timeout}s 内未检测到目标页锚点"
 
+    @_aw_method_report
     def go_top_tab(self, name: str, timeout: float = 15.0) -> None:
         """首页顶 Tab 切换（A22，回归用例30）。name ∈ 推荐/音乐/AI/可视音箱/电台。
 
@@ -1588,6 +1663,7 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
             logger.info("go_top_tab: 顶 Tab「%s」未选中态图不可见，视为已停在该 Tab", name)
         self.image_exists(self._TOP_TAB_ANCHORS[name], timeout=timeout)
 
+    @_aw_method_report
     def open_home_card(self, name: str, timeout: float = 15.0) -> None:
         """首页推荐 Tab 卡片进入（A23，回归用例31）。
 
@@ -1679,6 +1755,7 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         "博客": "播客",
     }
 
+    @_aw_method_report
     def open_playlist_detail(self, platform: str, playlist: str = "") -> None:
         """进入歌单详情页（A29/A30 用例前置）。
 
@@ -1727,6 +1804,7 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         rows = [i for i in items if "首歌" in i["text"]]
         return min(rows, key=lambda i: i["cy"]) if rows else None
 
+    @_aw_method_report
     def favorite_playlist(self, platform: str, state: str = "on",
                           timeout: float = 10.0) -> None:
         """歌单收藏/取消收藏（A29，回归用例41-43）。
@@ -1786,6 +1864,7 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
     # OCR 坐标已含 region 偏移回窗口系，AWBase._ocr_raw 保证）。
     _PLAYLIST_SONGS_REGION = (0, 700, 720, 670)
 
+    @_aw_method_report
     def collect_song(self, target_platform: str, playlist: str,
                      source: str = "player") -> None:
         """收藏歌曲到指定歌单（A30，回归用例44-55，12条合1）。
@@ -1941,6 +2020,7 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
 
     # ---------- 收藏数据态预校验（run5 对账拍板方案 C，非断言） ----------
 
+    @_aw_method_report
     def playlist_top_song(self, timeout: float = 10.0) -> str:
         """歌单详情页最上方歌曲行的歌名（数据态预校验用）。
 
@@ -1966,6 +2046,7 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
             f"歌单详情页最上方歌曲行歌名读取失败（cy={cy} 条带内无有效文本项）")
         return min(cands, key=lambda i: i["cy"])["text"].strip()
 
+    @_aw_method_report
     def playlist_has_song(self, song: str, timeout: float = 8.0) -> bool:
         """当前歌单详情页是否已含指定歌曲（非断言，数据态预校验用）。
 
@@ -2053,6 +2134,7 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
     # 唯一移除入口（⋮ 菜单的「删除歌单」为整单危险操作禁点）。
     # =================================================================
 
+    @_aw_method_report
     def remove_song_from_playlist(self, platform: str, playlist: str,
                                   song: str, scrolls: int = 3,
                                   timeout: float = 15.0) -> bool:
@@ -2167,6 +2249,7 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
             "未从歌单消失，或行消失但详情页锚不在位=可能误导航/误弹层；确认"
             f"弹层未捕获），当前屏 OCR 行首文字: {heads}")
 
+    @_aw_method_report
     def top_song_row_name(self, timeout: float = 10.0) -> str:
         """歌单详情页最上方歌曲行的歌名（OCR 提取；collect playlist_page
         分支预清理定位用）。
@@ -2231,6 +2314,7 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         logger.info("top_song_row_name: 最上方歌曲行歌名 OCR 提取 = %r", name)
         return name
 
+    @_aw_method_report
     def recent_played_visible(self, kind: str, name: str,
                               timeout: float = 6.0) -> bool:
         """最近播放页目标条目可见性探测（非断言，返回 bool）。
@@ -2251,6 +2335,7 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         return self.find_text_by_ocr(
             name, timeout=int(timeout), region=self._HISTORY_CONTENT_REGION) is not None
 
+    @_aw_method_report
     def assert_recent_played(self, kind: str, name: str, timeout: float = 10.0) -> None:
         """最近播放断言（A31，回归用例56-68，13条合1）。
 
@@ -2311,6 +2396,7 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         return any((node.get("resource_id") or "") == "bottom_player"
                    for node in self.dump_semantics())
 
+    @_aw_method_report
     def back_to_tab_shell(self, max_backs: int = 3) -> None:
         """从任意 push 页回到全局 tab 壳（一级页）：收播放页 -> 按需 press_back。
 
@@ -2365,6 +2451,7 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
     # 避免为传关键词改动用例层调用签名）
     _last_search_keyword: str = ""
 
+    @_aw_method_report
     def search(self, keyword: str, entry: str = "home", timeout: float = 15.0) -> None:
         """全域搜索（A33，回归用例69-72前半）。
 
@@ -2452,6 +2539,7 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
                         "（不点弹窗内授权按钮，规避状态变更）", round_no)
             self.press_back()
 
+    @_aw_method_report
     def assert_search_results(self, tab: str, platforms=None,
                               timeout: float = 10.0,
                               allow_empty: bool = False) -> None:

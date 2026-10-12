@@ -9,9 +9,12 @@
     * { box-sizing:border-box; } body { margin:0; color:var(--ink); background:var(--bg); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif; }
     header { background:var(--ink); color:#fff; padding:22px max(24px,calc((100% - 1240px)/2)) 0; }
     header h1 { margin:0 0 4px; font-size:23px; } header p { margin:0 0 14px; opacity:.78; }
-    nav { display:flex; gap:4px; } nav button { border:none; border-radius:10px 10px 0 0; background:transparent; color:rgba(255,255,255,.72); padding:10px 22px; font-size:14px; cursor:pointer; }
+    nav { display:flex; flex-wrap:wrap; gap:4px; } nav button { border:none; border-radius:10px 10px 0 0; background:transparent; color:rgba(255,255,255,.72); padding:10px 22px; font-size:14px; cursor:pointer; }
     nav button:hover { color:#fff; }
     nav button.active { background:var(--bg); color:var(--ink); font-weight:600; }
+    /* 外部入口(2026-09-30):Swan 项目介绍(功能地图工作站),↗ 表示新窗口外跳 */
+    nav a.nav-ext { border-radius:10px 10px 0 0; color:rgba(255,255,255,.72); padding:10px 22px; font-size:14px; text-decoration:none; margin-left:14px; }
+    nav a.nav-ext:hover { color:#fff; background:rgba(255,255,255,.08); }
     main { max-width:1240px; margin:0 auto; padding:22px 20px 48px; }
     section.page { display:none; } section.page.active { display:block; }
     .toolbar { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:16px; flex-wrap:wrap; }
@@ -28,7 +31,6 @@
     table { border-collapse:collapse; width:100%; } th,td { padding:12px 15px; border-bottom:1px solid var(--line); text-align:left; white-space:nowrap; } th { color:var(--muted); background:#fafbfc; font-size:12px; font-weight:600; }
     .num { text-align:right; font-variant-numeric:tabular-nums; }
     tbody tr.clickable { cursor:pointer; } tbody tr.clickable:hover { background:#f8f9ff; }
-    table.pin-last tbody tr.clickable:hover td:last-child { background:#f8f9ff; }  /* 吸右列自带上底,hover 跟行同色(2026-09-28) */
     .badge { border-radius:999px; padding:3px 9px; font-size:12px; font-weight:600; display:inline-block; } .passed { color:var(--good); background:#e6fcf5; } .failed,.error { color:var(--bad); background:#fff5f5; } .running { color:var(--brand); background:#edf2ff; } .skipped { color:var(--warn); background:#fff9db; } .cancelling { color:var(--warn); background:var(--warn-weak); } .cancelled { color:var(--muted); background:var(--neutral-weak); }
     .empty { padding:44px; text-align:center; color:var(--muted); } .meta { color:var(--muted); font-size:13px; }
     .detail-head { display:flex; justify-content:space-between; gap:12px; align-items:start; } #run-drawer h2 { margin:0 0 14px; font-size:18px; }
@@ -66,6 +68,8 @@
     @media (max-width:800px) { .dl-cards { grid-template-columns:1fr; } }
     /* 下包页二维码弹窗(规范 4.4 420px 档;hidden+CSS 显隐写法同其他弹窗) */
     #dl-modal { display:none; } #dl-modal:not([hidden]) { display:flex; }
+    /* AI 任务提交弹窗(tk):沿用其他弹窗的 hidden+CSS 显隐写法;缺此规则时 hidden 移除后 div 变 block,面板顶到视口左上角 */
+    #tk-modal { display:none; } #tk-modal:not([hidden]) { display:flex; }
     /* 全站统一确认弹窗(规范 4.5,z-62 盖过抽屉 61);.h-block 收编区块标题内联样式 */
     #cfm-modal { position:fixed; inset:0; background:rgba(15,23,42,.45); z-index:62; }
     .cfm-box { background:var(--card); border-radius:12px; box-shadow:0 8px 24px rgba(23,32,51,.14); width:min(420px,92vw); margin:12vh auto; padding:22px 24px; }
@@ -105,9 +109,6 @@
     #cd-title-box input { flex:1; border:1px solid var(--line); border-radius:8px; padding:8px; }
     /* 标题区三按钮(编辑/完成/取消)统一尺寸:同高、同 padding、同字号 */
     .cd-tbtn { padding:3px 10px; font-size:12px; flex-shrink:0; }
-    /* 自动化用例只读态(规范 8.5/8.6):灰底、去输入框感 */
-    .cd-readonly-box { background:var(--neutral-weak); border:1px solid var(--line); border-radius:8px; padding:8px 10px; color:var(--muted); font-size:12px; white-space:pre-wrap; word-break:break-all; font-family:monospace; max-height:420px; overflow:auto; margin:0; }
-    .cd-readonly-note { background:var(--neutral-weak); color:var(--muted); }
     /* 仓库脚本区块(规范 8.3):等宽路径 + 复制路径 + PyCharm 跳转 */
     .cd-mini-btn { padding:5px 12px; font-size:12px; flex-shrink:0; }
     a.cd-mini-btn { display:inline-block; background:#fff; color:inherit; border:1px solid var(--line); border-radius:8px; text-decoration:none; cursor:pointer; }
@@ -128,6 +129,10 @@
     /* 批量编辑弹窗(2026-09-24):常驻勾选列/批量操作条撤除,改「批量编辑」按钮弹窗内勾选+填字段一次提交 */
     #cd-batch-modal { display:none; } #cd-batch-modal:not([hidden]) { display:flex; }
     #cd-batch-modal input[type=checkbox] { padding:0; width:auto; }
+    /* 批量编辑大弹窗(2026-09-30):720px 装不下用例明细 → 面板放宽 min(1200px,92vw)/高 85vh 居中,仅勾选表格区内部滚动 */
+    #cd-batch-modal .cd-b-panel { width:min(1200px,92vw); height:85vh; max-height:85vh; display:flex; flex-direction:column; overflow:hidden; }
+    #cd-batch-modal .cd-b-panel > :not(.cd-b-wrap) { flex-shrink:0; }
+    #cd-batch-modal .cd-b-wrap { flex:1; min-height:0; max-height:none; }
     .cd-b-wrap { border:1px solid var(--line); border-radius:10px; overflow:auto; max-height:300px; }
     .cd-b-wrap table { width:100%; }
     .cd-b-wrap td, .cd-b-wrap th { white-space:nowrap; }
@@ -155,9 +160,11 @@
     .cd-search { display:flex; gap:8px; align-items:center; flex:1; min-width:250px; max-width:440px; }
     .cd-search input { flex:1; }
     .cd-table td { vertical-align:top; }
-    .cd-case-id { font-weight:600; cursor:pointer; }
+    .cd-table td.cd-td-actions { vertical-align:middle; }  /* 操作按钮行内垂直居中(2026-09-30):其余列仍顶对齐 */
+    .cd-case-title { font-weight:600; cursor:pointer; white-space:normal; max-width:380px; line-height:1.45; }
+    .cd-case-title:hover { color:var(--brand); }
+    .cd-case-id { color:var(--muted); font-size:12px; cursor:pointer; white-space:nowrap; margin-top:3px; }
     .cd-case-id:hover { color:var(--brand); }
-    .cd-case-title { color:var(--muted); font-size:12px; white-space:normal; max-width:380px; margin-top:3px; line-height:1.45; }
     .chip { display:inline-block; border-radius:999px; padding:2px 10px; font-size:12px; background:#f1f3f8; color:var(--ink); margin:1px 4px 1px 0; cursor:pointer; }
     .chip:hover { background:#e6ebff; }
     .chip.bug { color:var(--bad); background:#fff5f5; } .chip.bug:hover { background:#ffe9e9; }
@@ -216,8 +223,6 @@
     @media (max-width:800px) { .cd-drawer { width:100vw; } }
     .hint { color:var(--muted); font-size:12px; margin-top:6px; }
     .captcha-card { padding:0; overflow:hidden; position:relative; }
-    .gw-corner { position:absolute; top:10px; right:12px; z-index:2; display:flex; gap:6px; align-items:center; font-size:12px; color:var(--muted); background:rgba(255,255,255,.92); border:1px solid var(--line); border-radius:999px; padding:2px 6px 2px 10px; }
-    .gw-corner .ghost { padding:2px 8px; font-size:11px; }
     #page-captcha iframe { width:100%; height:clamp(480px,calc(100vh - 160px),820px); border:0; display:block; background:#fff; }
     .gw-offline { padding:44px; text-align:center; color:var(--muted); font-size:13px; }
     .dot { width:10px; height:10px; border-radius:50%; background:var(--muted); } .dot.ok { background:var(--good); } .dot.bad { background:var(--bad); }
@@ -249,13 +254,168 @@
     .mc-pct { width:42px; flex:none; text-align:right; font-size:12px; }
     .mc-degraded { padding:34px 14px; text-align:center; color:var(--muted); font-size:13px; }
     .mc-degraded .ghost { margin-left:10px; }
+    /* ==================== 平台登录 + AI 任务看板(docs/AI任务与平台登录设计.md v1.1;全部 token 配色,零新色) ==================== */
+    /* 登录视图(§2.1):body.pre-auth 隐藏顶栏/边栏仅渲染登录卡;服务端才是真闸门,前端显隐只是体验层 */
+    body.pre-auth header, body.pre-auth .rail { display:none; }
+    .login-card { width:min(440px,92vw); margin:16vh auto 0; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:26px 28px 30px; box-shadow:0 2px 10px rgba(23,32,51,.03); }
+    .login-title { margin:0; font-size:23px; font-weight:700; }
+    .login-sub { margin:4px 0 22px; color:var(--muted); font-size:12px; }
+    .login-users { display:flex; gap:10px; flex-wrap:wrap; }
+    .login-user { display:flex; flex-direction:column; align-items:center; gap:6px; border:none; background:transparent; padding:6px 8px; border-radius:10px; cursor:pointer; }
+    .login-user:hover { background:var(--hover); outline:1px solid var(--brand); }
+    .login-ava { width:36px; height:36px; border-radius:50%; background:var(--neutral-weak); color:var(--ink); font-weight:600; display:flex; align-items:center; justify-content:center; line-height:1; }
+    .login-name { font-size:12px; color:var(--ink); }
+    .login-divider { display:flex; align-items:center; gap:10px; color:var(--muted); font-size:12px; margin:18px 0 12px; }
+    .login-divider::before, .login-divider::after { content:""; flex:1; height:1px; background:var(--line); }
+    .login-input-row { display:flex; gap:8px; }
+    .login-input-row input { flex:1; }
+    /* 左侧窄边栏(§2.3):56px --ink 平台级身份层;补充式导航,顶部页签不动;深底图标不用品牌蓝 */
+    body.rail-on { padding-left:56px; }
+    .rail { position:fixed; left:0; top:0; bottom:0; width:56px; background:var(--ink); z-index:30; display:flex; flex-direction:column; align-items:center; padding:12px 0; gap:8px; }
+    /* 头像 40px 深底态(v1.2 §B13/§B14):移到边栏底部,姓氏全拼白字 */
+    .rail-ava { width:40px; height:40px; border-radius:50%; background:rgba(255,255,255,.14); color:#fff; font-weight:600; display:flex; align-items:center; justify-content:center; cursor:default; flex-shrink:0; line-height:1; }
+    .rail-item { position:relative; width:36px; height:36px; flex-shrink:0; border:none; border-radius:9px; background:transparent; color:rgba(255,255,255,.72); display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:14px; font-weight:700; }
+    .rail-item.rail-project { background:var(--brand); color:#fff; }
+    .rail-item.rail-project:hover { background:var(--brand); }
+    /* 底部图标按钮 36x36(v1.2 §B12):SVG 20px;内容区 .icon-btn 28x26 是另一套规格,互不覆盖 */
+    .rail-btn { position:relative; width:36px; height:36px; flex-shrink:0; border:none; border-radius:8px; background:transparent; color:rgba(255,255,255,.72); display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0; }
+    .rail-btn:hover { color:#fff; background:rgba(255,255,255,.1); }
+    .rail-btn svg { width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+    .rail-spacer { flex:1; }
+    .rail-pop { position:absolute; left:calc(100% + 10px); top:0; background:#fff; border:1px solid var(--line); border-radius:10px; box-shadow:0 8px 24px rgba(23,32,51,.14); padding:10px 14px; z-index:40; min-width:190px; text-align:left; }
+    .rail-pop .rp-item { display:flex; gap:8px; align-items:center; font-size:13px; padding:5px 0; color:var(--ink); cursor:default; }
+    .rail-pop .rp-note { font-size:12px; color:var(--muted); padding:5px 0; cursor:default; }
+    .rail-pop[hidden] { display:none; }
+    /* 任务状态徽标(§3.1):warn 族收敛两态"等人";完成/失败复用 .passed/.failed 与执行会话同形 */
+    .st-analyze, .st-question { color:var(--warn); background:var(--warn-weak); }
+    /* 详情抽屉区块标题(§6.1):15px/600,同 .h-block 档 */
+    .tk-sec { margin:20px 0 8px; font-size:15px; font-weight:600; }
+    /* 疑问卡(§6.2):warn-weak 底 10px 圆角,问答对上下排列 */
+    .tk-qa { background:var(--warn-weak); border-radius:10px; padding:10px 14px; margin:8px 0; white-space:pre-wrap; word-break:break-word; }
+    .tk-qa-meta { color:var(--muted); font-size:12px; margin-bottom:4px; }
+    /* 执行报告白名单渲染(§6.3):正文 13px/1.6,标题 15px/600 不跳大字号;代码块 420px 内滚 */
+    .md-body { font-size:13px; line-height:1.6; color:var(--ink); word-break:break-word; }
+    .md-body h1, .md-body h2, .md-body h3 { font-size:15px; font-weight:600; margin:14px 0 6px; }
+    .md-body h1:first-child, .md-body h2:first-child, .md-body h3:first-child { margin-top:0; }
+    .md-body p { margin:6px 0; }
+    .md-body ul, .md-body ol { margin:6px 0; padding-left:22px; }
+    .md-body pre { max-height:420px; margin:8px 0; }
+    .md-body code { font-family:monospace; font-size:12px; background:var(--neutral-weak); border-radius:4px; padding:1px 4px; }
+    .md-body pre code { background:transparent; padding:0; }
+    .md-body table { border-collapse:collapse; margin:8px 0; }
+    .md-body th, .md-body td { border:1px solid var(--line); padding:6px 10px; font-size:12px; }
+    .md-body th { background:#fafbfc; }
+    .md-body a { color:var(--brand); }
+    /* 产物行(§6.4):等宽路径 chip 式 + 复制,对齐 #cdd-file-path 先例;合并状态四值复用现有 token */
+    .tk-art-row { display:flex; gap:8px; align-items:center; margin:6px 0; flex-wrap:wrap; }
+    .tk-art-row .tk-art-label { width:64px; flex:none; color:var(--muted); font-size:12px; }
+    .tk-art-row code { flex:1; min-width:180px; font-family:monospace; font-size:12px; word-break:break-all; background:var(--neutral-weak); border-radius:8px; padding:4px 8px; }
+    .tk-merge-merged { color:var(--good); } .tk-merge-conflict { color:var(--warn); } .tk-merge-other { color:var(--muted); }
+    #tk-reset.active { border-color:var(--brand); color:var(--brand); }
+    /* 竖版看板(v1.2 §A1-A8):五列 264px、列头色点+计数、卡片三行只读;全部现有 token,零新色值 */
+    .tk-board { display:flex; gap:12px; overflow-x:auto; height:calc(100vh - 300px); min-height:480px; }
+    .tk-col { flex:0 0 264px; background:var(--neutral-weak); border-radius:10px; display:flex; flex-direction:column; min-width:0; }
+    .tk-col-head { display:flex; align-items:center; gap:8px; padding:10px 12px; flex:none; }
+    .tk-col-head i { width:8px; height:8px; border-radius:50%; flex:none; }
+    .tk-col-head .tk-col-name { font-size:13px; font-weight:600; color:var(--ink); }
+    .tk-col-head .tk-col-count { margin-left:auto; font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums; }
+    .tk-col-body { padding:8px; overflow-y:auto; display:flex; flex-direction:column; gap:8px; }
+    .tk-col-empty { font-size:12px; color:var(--muted); text-align:center; padding:16px 0; }
+    .tk-col-more { font-size:12px; color:var(--muted); text-align:center; padding:6px 0 2px; }
+    .tk-card { background:var(--card,#fff); border:1px solid var(--line); border-radius:8px; padding:10px 12px; cursor:pointer; }
+    .tk-card:hover { border-color:var(--brand); }
+    .tk-card-title { font-size:13px; font-weight:600; color:var(--ink); line-height:1.4; word-break:break-all; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+    .tk-card-badges { margin-top:6px; display:flex; flex-wrap:wrap; }
+    .tk-card-meta { margin-top:8px; display:flex; justify-content:space-between; gap:8px; font-size:12px; color:var(--muted); }
+    .tk-mg-conflict { display:inline-block; border-radius:999px; padding:2px 10px; font-size:12px; margin:1px 4px 1px 0; color:var(--warn); background:var(--warn-weak); }
+    .tk-mg-abandoned { display:inline-block; border-radius:999px; padding:2px 10px; font-size:12px; margin:1px 4px 1px 0; color:var(--muted); background:var(--neutral-weak); }
+    /* 设置弹窗定位修复(v1.2 §B15):容器必须 width/height 100%,白卡 margin:auto 才居中;
+       旧内联 z-50/88vh 作废。white 卡规格由 .set-box 承载 */
+    #set-modal { position:fixed; inset:0; width:100%; height:100%; background:rgba(15,23,42,.45); z-index:62; }
+    .set-box { width:min(680px,94vw); margin:12vh auto 0; max-height:76vh; overflow:auto; border-radius:12px; box-shadow:0 8px 24px rgba(23,32,51,.14); background:var(--card,#fff); padding:20px 22px; }
+    /* ==================== 巡检流程总览(ptl,规范 6.9;设计稿 docs/设计稿/巡检流程监控-设计稿.html v0.6"静默控制台") ====================
+       正常节点减重(无边框无阴影白块,hover 才浮现 brand 边);异常红卡=全页唯一重物(1.5px 红边+语义 tint 双层阴影+17px 名字,
+       阴影/动效曲线按 2026-10-12 规范增补红线区条款);暂不可判(未巡检/无数据)=虚线空心透明底;机器数据 mono 双声道。 */
+    #ptl-root { margin-top:20px; padding-top:20px; border-top:1px solid var(--line); }
+    .ptl-head { display:flex; align-items:baseline; gap:8px; margin-bottom:14px; }
+    .ptl-bread { font-size:13px; font-weight:500; color:var(--muted); }
+    .ptl-bread-sub { font-size:12px; color:var(--muted); font-weight:400; }
+    .ptl-head .ghost { margin-left:auto; padding:5px 12px; font-size:12px; }
+    /* hero:页签内唯一标题级(23px/700),异常条目 3px 红左边条(呼应 toast 竖条先例) */
+    .ptl-hero { margin-bottom:30px; }
+    .ptl-hero-line { font-size:23px; font-weight:700; line-height:1.5; }
+    .ptl-hero-line.ok { color:var(--ink); } .ptl-hero-line.bad { color:var(--bad); }
+    .ptl-hero-item { font-size:14px; margin-top:10px; padding:1px 0 1px 12px; border-left:3px solid var(--bad); line-height:1.5; }
+    .ptl-hero-item b { color:var(--bad); }
+    .ptl-hero-meta { color:var(--muted); font-size:12px; margin-top:14px; line-height:1.9; }
+    /* 双链:链上的点 */
+    .ptl-chainblock { margin-top:26px; }
+    .ptl-chain-title { display:flex; align-items:center; gap:10px; font-size:13px; font-weight:600; margin-bottom:12px; }
+    .ptl-lane-sub { font-family:Consolas,Menlo,monospace; font-size:11px; font-weight:500; color:var(--muted); background:var(--neutral-weak); border-radius:999px; padding:2px 10px; }
+    .ptl-chain { display:flex; align-items:center; flex-wrap:wrap; gap:6px; }
+    .ptl-stage { display:flex; flex-direction:column; align-items:flex-start; gap:5px; background:var(--card); border:1px solid transparent; border-radius:10px; padding:12px 16px; cursor:pointer; transition:border-color .12s cubic-bezier(.32,.72,0,1), background .12s cubic-bezier(.32,.72,0,1), box-shadow .12s cubic-bezier(.32,.72,0,1); }
+    .ptl-stage:hover { border-color:var(--brand); background:var(--hover); }
+    .ptl-stage-head { display:flex; align-items:center; gap:9px; }
+    .ptl-light { width:10px; height:10px; border-radius:999px; flex-shrink:0; }
+    .ptl-s-name { font-size:14px; font-weight:600; color:var(--ink); }
+    .ptl-s-st { font-size:12px; color:var(--muted); font-weight:400; }
+    .ptl-stage.ok .ptl-light { background:var(--good); }
+    .ptl-stage.unknown { border:1px dashed var(--line); background:transparent; transition:none; }
+    .ptl-stage.unknown .ptl-light { background:none; border:2px solid var(--line); }
+    .ptl-stage.unknown .ptl-s-name { color:var(--muted); font-weight:500; }
+    .ptl-stage.unknown:hover { border-color:var(--muted); background:var(--card); }
+    .ptl-stage.bad { border:1.5px solid var(--bad); background:var(--bad-weak); padding:15px 20px; box-shadow:0 1px 2px rgba(201,42,42,.08), 0 6px 16px rgba(201,42,42,.07); }
+    .ptl-stage.bad:hover { border-color:var(--bad); background:var(--bad-weak); }
+    .ptl-stage.bad .ptl-light { background:var(--bad); }
+    .ptl-stage.bad .ptl-s-name { font-size:17px; }
+    .ptl-impact { font-size:13px; color:var(--bad); line-height:1.55; margin-top:1px; }
+    .ptl-arr { flex-shrink:0; position:relative; width:22px; height:12px; }
+    .ptl-arr::before { content:''; position:absolute; left:1px; right:6px; top:50%; height:1.5px; background:var(--muted); opacity:.45; transform:translateY(-50%); }
+    .ptl-arr::after { content:''; position:absolute; right:3px; top:50%; width:6px; height:6px; border-right:1.5px solid var(--muted); border-top:1.5px solid var(--muted); opacity:.45; transform:translateY(-50%) rotate(45deg); }
+    .ptl-linkrow { font-size:12px; color:var(--muted); margin:16px 0 2px 4px; }
+    /* 底座:两链共同地基,低调实底条,坏时变红 */
+    .ptl-base { display:inline-flex; align-items:center; gap:9px; font-size:13px; color:var(--muted); cursor:pointer; margin-top:24px; padding:10px 16px; border-radius:10px; background:var(--neutral-weak); transition:background .12s cubic-bezier(.32,.72,0,1), box-shadow .12s cubic-bezier(.32,.72,0,1); }
+    .ptl-base::before { content:''; width:8px; height:8px; border-radius:999px; background:var(--good); flex-shrink:0; }
+    .ptl-base:hover { background:var(--line); }
+    .ptl-base.bad { color:var(--bad); background:var(--bad-weak); }
+    .ptl-base.bad::before { background:var(--bad); }
+    .ptl-base.bad:hover { background:var(--bad-weak); box-shadow:inset 0 0 0 1px var(--bad); }
+    .ptl-base.bad b { color:var(--bad); }
+    .ptl-stage:focus-visible, .ptl-base:focus-visible, .ptl-dr-close:focus-visible { outline:2px solid var(--brand); outline-offset:2px; }
+    /* 紧凑抽屉(规范 4.3 紧凑档 min(480px,94vw);z 层与 cd-drawer 同级 60/61,两者不同时开) */
+    #ptl-scrim { position:fixed; inset:0; background:rgba(15,23,42,.35); opacity:0; pointer-events:none; transition:opacity .18s cubic-bezier(.32,.72,0,1); z-index:60; }
+    #ptl-scrim.on { opacity:1; pointer-events:auto; }
+    #ptl-drawer { position:fixed; top:0; right:-500px; width:min(480px,94vw); height:100vh; background:var(--card); box-shadow:-8px 0 30px rgba(23,32,51,.14); z-index:61; transition:right .22s cubic-bezier(.32,.72,0,1); display:flex; flex-direction:column; }
+    #ptl-drawer.on { right:0; }
+    .ptl-dr-head { display:flex; justify-content:space-between; align-items:center; padding:16px 20px; border-bottom:1px solid var(--line); flex-shrink:0; }
+    .ptl-dr-head h3 { font-size:17px; font-weight:600; margin:0; }
+    .ptl-dr-close { border:0; background:none; font-size:12px; color:var(--muted); cursor:pointer; padding:5px 10px; border-radius:8px; }
+    .ptl-dr-close:hover { background:var(--neutral-weak); color:var(--ink); }
+    .ptl-dr-body { padding:16px 20px; overflow-y:auto; flex:1; }
+    .ptl-dr-body table { width:100%; border-collapse:collapse; font-size:13px; margin:6px 0; }
+    .ptl-dr-body th { text-align:left; color:var(--muted); font-weight:500; font-size:12px; padding:8px 12px; border-bottom:1px solid var(--line); white-space:nowrap; background:#fafbfc; }
+    .ptl-dr-body td { padding:9px 12px; border-bottom:1px solid var(--line); vertical-align:top; white-space:normal; }  /* 覆盖全局 td nowrap,口径长文案须换行(截图实测溢出修复) */
+    .ptl-dr-body h4 { font-size:14px; margin:18px 0 4px; font-weight:600; }
+    .ptl-dr-body h4:first-of-type { margin-top:6px; }
+    .ptl-dr-sec { font-size:12px; color:var(--muted); margin:14px 0 5px; font-weight:600; }
+    .ptl-tag { font-size:12px; color:var(--muted); font-weight:400; }
+    /* 徽章复用全站 .badge 胶囊,只加巡检语义色类(规范 2.2:绿=正常/红=异常/灰=无数据暂不可判) */
+    .badge.ptl-ok { color:var(--good); background:var(--good-weak); }
+    .badge.ptl-bad { color:var(--bad); background:var(--bad-weak); }
+    .badge.ptl-lvl { color:var(--muted); background:var(--neutral-weak); font-weight:500; }
+    .badge.ptl-nodata { color:var(--muted); background:var(--neutral-weak); }
+    /* 缺失态(规范 4.7:一句灰字+ghost 重试,不加插画大标语) */
+    .ptl-missing { padding:34px 14px; text-align:center; color:var(--muted); font-size:13px; }
+    .ptl-missing-meta { font-size:12px; margin:6px 0 12px; }
+    @media (max-width:760px) { .ptl-arr { width:14px; } .ptl-arr::before { right:2px; } }
   </style>
 </head>
 <body>
   <header>
     <h1>Swan 测试平台</h1>
     <nav>
-      <button data-page="runs" class="active">执行会话</button>
+      <button data-page="tasks" class="active">AI 任务看板</button>
+      <button data-page="runs">执行会话</button>
       <button data-page="apks">包管理</button>
       <button data-page="pipelines">流水线</button>
       <button data-page="suites">测试套件</button>
@@ -263,10 +423,68 @@
       <button data-page="cases">用例历史</button>
       <button data-page="machines">机器监控</button>
       <button data-page="captcha">短信验证码</button>
+      <a class="nav-ext" href="http://192.168.12.167:8090/" target="_blank" rel="noopener" title="Swan 功能地图工作站:项目介绍 / 模块功能点 / 缺陷候选 / 变更记录(新窗口打开)">Swan 项目介绍 ↗</a>
     </nav>
   </header>
+  <aside class="rail" id="rail">
+    <button class="rail-item rail-project" id="rail-project" title="项目">S</button>
+    <div class="rail-pop" id="rail-pop" hidden>
+      <div class="rp-item"><span class="dot ok"></span>Swan 测试平台</div>
+      <div class="rp-note">更多项目规划中</div>
+    </div>
+    <span class="rail-spacer"></span>
+    <div class="rail-ava" id="rail-ava" title="">-</div>
+    <button class="rail-btn" id="rail-set" title="设置"><svg viewBox="0 0 24 24"><path d="M20 7h-9"/><path d="M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg></button>
+    <button class="rail-btn" id="rail-out" title="退出登录"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg></button>
+  </aside>
   <main>
-    <section class="page active" id="page-runs">
+    <!-- 登录视图(设计 §2.1):body.pre-auth 时仅渲染本页签;无密码,头像卡一步进 + 手输兜底 -->
+    <section class="page active" id="page-login">
+      <div class="login-card">
+        <h2 class="login-title">Swan 测试平台</h2>
+        <p class="login-sub">点头像进入，或输入用户名</p>
+        <div class="login-users" id="login-users"><p class="meta">加载中…</p></div>
+        <div class="login-divider">或输入用户名</div>
+        <div class="login-input-row">
+          <input id="login-q" placeholder="用户名" autocomplete="off">
+          <button class="ghost" id="login-enter">进入</button>
+        </div>
+        <span class="field-error" id="login-error" hidden>用户名不存在</span>
+      </div>
+    </section>
+    <!-- AI 任务看板(设计 §4,v1.2 竖版看板化):五列只读看板 + 统计卡四张 + 搜索/重置 + 按人用量;全员同口径 -->
+    <section class="page" id="page-tasks">
+      <div class="toolbar">
+        <div class="cd-filterbar">
+          <div class="cd-search">
+            <input id="tk-q" placeholder="搜标题 / 任务号 / 提交人…">
+            <button class="ghost" id="tk-reset">重置</button>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="ghost" id="tk-refresh">刷新</button>
+          <button class="primary" id="tk-new">＋ 提交任务</button>
+        </div>
+      </div>
+      <section class="stats">
+        <div class="card"><div class="stat-label">进行中</div><div class="stat-value" id="tk-stat-active">-</div></div>
+        <div class="card"><div class="stat-label">待我处理</div><div class="stat-value" id="tk-stat-mine">-</div></div>
+        <div class="card"><div class="stat-label">已完成</div><div class="stat-value" id="tk-stat-done">-</div></div>
+        <div class="card"><div class="stat-label">token 消耗合计</div><div class="stat-value" id="tk-stat-tokens">-</div></div>
+      </section>
+      <!-- 竖版看板(v1.2 §A):五列写死顺序,只读不拖拽,点卡片开详情抽屉;色点顺序 --warn/--warn/--brand/--good/--bad -->
+      <section class="tk-board" id="tk-board">
+        <div class="tk-col" data-status="pending_analysis"><div class="tk-col-head"><i style="background:var(--warn)"></i><span class="tk-col-name">待分析</span><span class="tk-col-count">0</span></div><div class="tk-col-body"><div class="tk-col-empty">暂无任务</div></div></div>
+        <div class="tk-col" data-status="questioning"><div class="tk-col-head"><i style="background:var(--warn)"></i><span class="tk-col-name">疑问待答</span><span class="tk-col-count">0</span></div><div class="tk-col-body"><div class="tk-col-empty">暂无任务</div></div></div>
+        <div class="tk-col" data-status="running"><div class="tk-col-head"><i style="background:var(--brand)"></i><span class="tk-col-name">执行中</span><span class="tk-col-count">0</span></div><div class="tk-col-body"><div class="tk-col-empty">暂无任务</div></div></div>
+        <div class="tk-col" data-status="done"><div class="tk-col-head"><i style="background:var(--good)"></i><span class="tk-col-name">完成</span><span class="tk-col-count">0</span></div><div class="tk-col-body"><div class="tk-col-empty">暂无任务</div></div></div>
+        <div class="tk-col" data-status="failed"><div class="tk-col-head"><i style="background:var(--bad)"></i><span class="tk-col-name">失败</span><span class="tk-col-count">0</span></div><div class="tk-col-body"><div class="tk-col-empty">暂无任务</div></div></div>
+      </section>
+      <h2 class="h-section">按人用量</h2>
+      <section class="card table-card"><table><thead><tr><th>用户</th><th class="num">提交</th><th class="num">进行中</th><th class="num">完成</th><th class="num">失败</th><th class="num">token 合计</th></tr></thead><tbody id="tk-usage"><tr><td colspan="6" class="empty">加载中…</td></tr></tbody></table></section>
+      <p class="hint">任务全员可见;"需我处理"是 AI 在等当前登录人答复疑问的任务。15 秒自动刷新(仅本页签激活期间)。</p>
+    </section>
+    <section class="page" id="page-runs">
       <div class="toolbar">
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
           <label for="platform">平台：</label>
@@ -282,7 +500,7 @@
         <div class="card"><div class="stat-label">最近一次状态</div><div class="stat-value" id="latest-status">-</div></div>
         <div class="card"><div class="stat-label">最近一次耗时</div><div class="stat-value" id="latest-duration">-</div></div>
       </section>
-      <section class="card table-card"><table><thead><tr><th>平台</th><th>包体</th><th>设备</th><th>状态</th><th class="num">通过率</th><th>用例数</th><th>耗时</th><th>开始时间</th><th>操作</th></tr></thead><tbody id="runs"><tr><td colspan="9" class="empty">加载中…</td></tr></tbody></table></section>
+      <section class="card table-card"><table><thead><tr><th>平台</th><th>包体</th><th>设备</th><th>状态</th><th class="num">通过率</th><th>用例数</th><th>耗时</th><th>开始时间</th></tr></thead><tbody id="runs"><tr><td colspan="8" class="empty">加载中…</td></tr></tbody></table></section>
       <div id="run-drawer" hidden>
         <div class="cd-drawer-mask" onclick="closeRunDrawer()"></div>
         <aside class="cd-drawer">
@@ -401,6 +619,9 @@
             <button class="cd-pill" data-type="auto">自动化用例</button>
           </div>
           <select id="cd-module"><option value="">全部模块</option></select>
+          <select id="cd-human" title="是否人工确认(仅文字用例有此属性)"><option value="">是否人工确认</option><option value="1">已确认</option><option value="0">未确认</option></select>
+          <select id="cd-scope" title="用例范围分类"><option value="">用例范围</option><option value="full">全量用例</option><option value="regression">回归用例</option><option value="none">未分类</option></select>
+          <select id="cd-src" title="用例来源"><option value="">全部来源</option><option value="api">API(人审工作站)</option><option value="repo">仓库 YAML</option></select>
           <div class="cd-search">
             <input id="cd-q" placeholder="搜索编号 / 标题 / 内容…">
             <button class="ghost" id="cd-search">搜索</button>
@@ -426,15 +647,14 @@
         </label>
         <span class="meta">表头可拖拽排序、右缘拖动调宽，"列设置"控制显隐</span>
       </div>
-      <p class="hint">未搜索时展示全部用例。点用例编号或关联 chip 查看详情（右侧抽屉）；文字用例与自动化用例可互转；bug 单来源自动取自用例 tags。仓库用例批量入库：python scripts/sync_cases.py。</p>
+      <p class="hint">未搜索时展示全部用例。点整行任意处查看详情（右侧抽屉；行内按钮与关联 chip 不受影响）；文字用例与自动化用例可互转；bug 单来源自动取自用例 tags。仓库用例批量入库：python scripts/sync_cases.py。</p>
     </section>
     <section class="page" id="page-captcha">
       <section class="card captcha-card">
-        <div class="gw-corner"><span class="dot" id="gw-dot"></span><span id="gw-text">检测中…</span><button class="ghost" id="gw-reload">重新加载</button></div>
         <iframe id="gw-frame" src="about:blank" title="otp-gateway"></iframe>
         <div class="gw-offline" id="gw-offline" hidden></div>
       </section>
-      <p class="hint">取码接口由用例自动调用，本页供人工查看最近验证码。</p>
+      <p class="hint">取码由用例自动调用，也可在表格上方输入手机号点「取码」手动拉取；表格显示最近取码记录，5 秒自动刷新。</p>
     </section>
     <section class="page" id="page-machines">
       <div class="toolbar">
@@ -442,6 +662,20 @@
         <button class="ghost" id="mc-refresh">刷新</button>
       </div>
       <div id="mc-cards"><div class="empty">加载中…</div></div>
+      <!-- 巡检流程总览子区块(规范 6.9 第二子区块,设计稿 v0.6):快照级数据,进页签拉一次+手动刷新,不进资源卡 1s 轮询 -->
+      <div id="ptl-root">
+        <div class="ptl-head">
+          <span class="ptl-bread">巡检流程总览</span>
+          <span class="ptl-bread-sub">快照 /opt/patrol/last_status.json · 每日 2 轮(.167 08:41/19:43 · .176 08:47/19:47)</span>
+          <button class="ghost" id="ptl-refresh">刷新</button>
+        </div>
+        <div id="ptl-body"><div class="empty">加载中…</div></div>
+      </div>
+      <div id="ptl-scrim"></div>
+      <aside id="ptl-drawer" aria-label="巡检环节明细">
+        <div class="ptl-dr-head"><h3 id="ptl-dr-title">详情</h3><button class="ptl-dr-close" id="ptl-dr-close">关闭</button></div>
+        <div class="ptl-dr-body" id="ptl-dr-body"></div>
+      </aside>
     </section>
   </main>
   <div id="bug-modal" hidden style="position:fixed;inset:0;background:rgba(15,23,42,.45);align-items:center;justify-content:center;z-index:63">
@@ -521,13 +755,12 @@
           </div>
         </div>
         <div><label for="cd-f-module">功能模块</label><select id="cd-f-module" style="width:100%"><option value="">（无模块）</option></select></div>
+        <div><label for="cd-f-scope">用例范围</label><select id="cd-f-scope" style="width:100%"><option value="">未分类</option><option value="full">全量用例</option><option value="regression">回归用例</option></select></div>
         <div><label for="cd-f-link">关联用例(自动化→文字)</label><input id="cd-f-link" placeholder="LOGIN-L2-POS-002"></div>
         <div><label for="cd-f-bug">来源 bug 单</label><input id="cd-f-bug" placeholder="SWAN-BUG-20260910-001"></div>
         <div><label for="cd-f-src">来源描述</label><input id="cd-f-src" placeholder="来源文件 / 任务卡"></div>
-        <div style="grid-column:1/-1" id="cd-content-wrap">
+        <div style="grid-column:1/-1" id="cd-content-wrap" hidden>
           <label for="cd-f-content">用例内容(步骤/预期,YAML 或自由文本)</label>
-          <pre id="cd-f-content-ro" class="cd-readonly-box" hidden></pre>
-          <p class="meta cd-readonly-note" id="cd-content-hint" hidden style="margin:6px 0 0;padding:6px 10px;border-radius:8px">内容在代码工程维护,请在 PyCharm 修改后同步;此处只读。</p>
           <textarea id="cd-f-content" rows="10" style="width:100%;border:1px solid var(--line);border-radius:8px;padding:8px;font-family:monospace"></textarea>
         </div>
         <div class="form-actions"><button class="primary" id="cd-save">保存</button><span class="meta" id="cd-msg"></span></div>
@@ -548,6 +781,97 @@
       </div>
       <div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="ghost" id="cd-mods-close">关闭</button></div>
     </div>
+  </div>
+  <!-- 设置弹窗(设计 §2.4,v1.2 §B15/§B16 修订):定位规格进样式表(#set-modal/.set-box);
+       企微 userid 失焦即保存;停用走 confirmAction 写明后果 -->
+  <div id="set-modal" hidden>
+    <div class="set-box">
+      <h3 style="margin:0 0 4px">设置</h3>
+      <p class="meta" style="margin:0 0 12px">预设账号:登录页头像卡与手输校验名单。企微 userid 用于任务结束时群消息 @发布人。</p>
+      <section class="card table-card" style="box-shadow:none"><table><thead><tr><th>用户名</th><th>企微 userid</th><th>状态</th><th>操作</th></tr></thead><tbody id="set-rows"><tr><td colspan="4" class="empty">加载中…</td></tr></tbody></table></section>
+      <p class="meta" style="margin:10px 0 0">userid 在企业微信管理后台（work.weixin.qq.com）→ 通讯录 → 点开成员 → 「账号」字段查看并复制；配置后任务结束时群消息会 @你。</p>
+      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center">
+        <input id="set-new-name" placeholder="用户名" maxlength="40" style="width:150px">
+        <input id="set-new-wecom" placeholder="企微账号（管理后台-通讯录-成员详情）" maxlength="64" style="width:220px">
+        <button class="primary" id="set-add">添加</button>
+        <span class="meta" id="set-msg"></span>
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="ghost" id="set-close">关闭</button></div>
+    </div>
+  </div>
+  <!-- 提交 AI 任务弹窗(设计 §5):标题/描述必填,期望时间可选;校验走字段下方红字,失败不清空输入 -->
+  <div id="tk-modal" hidden style="position:fixed;inset:0;background:rgba(15,23,42,.45);align-items:center;justify-content:center;z-index:50">
+    <div style="background:var(--card,#fff);border-radius:12px;padding:20px 22px;width:min(640px,94vw);max-height:88vh;overflow:auto">
+      <h3 style="margin:0 0 4px">提交 AI 任务</h3>
+      <p class="meta" style="margin:0 0 2px">带 <span class="req-star">*</span> 必填;提交后由 AI 分析并自动执行</p>
+      <p class="meta" style="margin:0 0 10px">提交人:<span id="tk-submitter">-</span>（自动取当前登录人）</p>
+      <label style="display:block;font-size:13px;margin:8px 0 4px">标题 <span class="req-star">*</span></label>
+      <input id="tk-f-title" maxlength="60" style="width:100%;padding:8px" placeholder="一句话说清要做什么（≤60 字）">
+      <span class="field-error" id="tk-err-title" hidden></span>
+      <label style="display:block;font-size:13px;margin:8px 0 4px">详细描述 <span class="req-star">*</span></label>
+      <textarea id="tk-f-desc" rows="8" maxlength="5000" style="width:100%;padding:8px" placeholder="想让 AI 做什么、在哪验证、有什么约束"></textarea>
+      <span class="field-error" id="tk-err-desc" hidden></span>
+      <p class="hint" style="margin:4px 0 0">想让 AI 做什么、在哪验证、有什么约束,写清这些能少一轮追问</p>
+      <label style="display:block;font-size:13px;margin:8px 0 4px">期望完成时间（可选,仅作排期参考）</label>
+      <input type="datetime-local" id="tk-f-time" style="padding:8px">
+      <div style="display:flex;gap:10px;margin-top:14px;align-items:center">
+        <button class="primary" id="tk-submit">提交任务</button>
+        <span class="meta" id="tk-msg"></span>
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="ghost" id="tk-close">关闭</button></div>
+    </div>
+  </div>
+  <!-- 任务详情抽屉(设计 §6):复用 .cd-drawer 三层结构;区块按状态条件渲染(hidden+CSS 写法,勿内联 display) -->
+  <div id="tk-drawer" hidden>
+    <div class="cd-drawer-mask" onclick="closeTkDrawer()"></div>
+    <aside class="cd-drawer">
+      <div class="detail-head">
+        <div>
+          <div class="cd-drawer-id" id="tkd-id"></div>
+          <h2 id="tkd-title"></h2>
+          <div class="cd-drawer-chips" id="tkd-chips"></div>
+          <div class="meta" id="tkd-meta"></div>
+        </div>
+        <div style="display:flex;gap:8px;flex:none;align-items:flex-start">
+          <button class="ghost" id="tkd-refresh">刷新</button>
+          <button class="ghost" id="tkd-close">关闭</button>
+        </div>
+      </div>
+      <div class="tk-sec">任务描述</div>
+      <pre id="tkd-desc" style="max-height:none"></pre>
+      <div id="tkd-analysis-sec" hidden>
+        <div class="tk-sec">分析结论</div>
+        <div id="tkd-analysis"></div>
+      </div>
+      <div id="tkd-qa-sec" hidden>
+        <div class="tk-sec">疑问</div>
+        <div id="tkd-qa"></div>
+        <div id="tkd-answer-box" hidden style="margin-top:10px">
+          <textarea id="tkd-answer" rows="3" style="width:100%;padding:8px" placeholder="答复 AI 的疑问,答复后任务继续"></textarea>
+          <div style="display:flex;gap:10px;margin-top:8px;align-items:center">
+            <button class="primary" id="tkd-answer-submit">提交答复</button>
+            <span class="meta" id="tkd-answer-msg"></span>
+          </div>
+        </div>
+        <p class="meta" id="tkd-waiting" hidden style="margin:8px 0 0"></p>
+      </div>
+      <div class="tk-sec">执行进展</div>
+      <div class="timeline" id="tkd-events"></div>
+      <div id="tkd-report-sec" hidden>
+        <div class="tk-sec">执行报告</div>
+        <div class="md-body" id="tkd-report"></div>
+      </div>
+      <div id="tkd-artifact-sec" hidden>
+        <div class="tk-sec">产物</div>
+        <div id="tkd-artifact"></div>
+      </div>
+      <div id="tkd-error-sec" hidden>
+        <div class="tk-sec">失败信息</div>
+        <p style="color:var(--bad);margin:0;white-space:pre-wrap;word-break:break-word" id="tkd-error"></p>
+      </div>
+      <div class="tk-sec">token 消耗</div>
+      <p class="meta" id="tkd-tokens" style="margin:0;font-variant-numeric:tabular-nums">-</p>
+    </aside>
   </div>
   <div id="cd-imp-modal" hidden style="position:fixed;inset:0;background:rgba(15,23,42,.45);align-items:center;justify-content:center;z-index:50">
     <div style="background:var(--card,#fff);border-radius:12px;padding:20px 22px;width:min(900px,94vw);max-height:88vh;overflow:auto;display:flex;flex-direction:column">
@@ -583,7 +907,7 @@
     </div>
   </div>
   <div id="cd-batch-modal" hidden style="position:fixed;inset:0;background:rgba(15,23,42,.45);align-items:center;justify-content:center;z-index:50">
-    <div style="background:var(--card,#fff);border-radius:12px;padding:20px 22px;width:min(720px,94vw);max-height:88vh;overflow:auto">
+    <div class="cd-b-panel" style="background:var(--card,#fff);border-radius:12px;padding:20px 22px">
       <h3 style="margin:0 0 4px">批量编辑用例</h3>
       <p class="meta" style="margin:0 0 10px">先勾选用例(已选跨筛选保留),再填要改的字段;加入套件仅对自动化用例生效。</p>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
@@ -606,6 +930,8 @@
           <input id="cd-b-newmod" placeholder="如 login,留空不改" style="width:100%"></div>
         <div><label for="cd-b-suite" style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px">加入套件(仅自动化)</label>
           <select id="cd-b-suite"><option value="">不改</option></select></div>
+        <div><label for="cd-b-scope" style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px">用例范围</label>
+          <select id="cd-b-scope"><option value="">不改</option><option value="none">未分类</option><option value="full">全量用例</option><option value="regression">回归用例</option></select></div>
       </div>
       <div style="display:flex;gap:10px;align-items:center;margin-top:16px">
         <button class="primary" id="cd-b-submit" disabled title="需勾选用例且至少填一项要改的字段">应用修改</button>
@@ -894,13 +1220,422 @@
       document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
       document.querySelectorAll('section.page').forEach(p => p.classList.remove('active'));
       btn.classList.add('active'); $('page-' + btn.dataset.page).classList.add('active');
+      if (btn.dataset.page === 'tasks') tkStart(); else tkStop();  // 任务看板 15s 轮询仅本页签激活期间(§7.1)
+      if (btn.dataset.page === 'runs') loadRuns();  // 默认页签是任务看板(§二),执行会话切到时再拉
       if (btn.dataset.page === 'apks') loadApks();
       if (btn.dataset.page === 'pipelines') plLoadConfigs();
       if (btn.dataset.page === 'suites') suLoadSuites();
       if (btn.dataset.page === 'casedefs') loadCaseDefs();
       if (btn.dataset.page === 'captcha') loadGateway();
       if (btn.dataset.page === 'machines') mcStart(); else mcStop();  // 轮询仅本页签激活期间(设计稿 §3.2)
+      if (btn.dataset.page === 'apks' || btn.dataset.page === 'pipelines') reconcileStart(); else reconcileStop();  // 对账自动刷新,同上仅激活期间
+      if (btn.dataset.page === 'machines') { mcStart(); ptlLoad(); } else mcStop();  // 资源卡轮询仅本页签激活期间(设计稿 §3.2);巡检快照进页签拉一次+手动刷新(规范 6.9),无定时器无需停
     });
+
+    // 对账自动刷新(2026-09-28):包管理/流水线页签激活期间每 15s 重拉一次。
+    // 后端读取路径"先对账后查列表"(缺行补录/状态闭环/去重),轮询命中时
+    // 当次响应已是修正后的数据,页面开着即可看到错误被纠正,无需手动刷新;
+    // 浏览器页签隐藏时暂停,切走页签即停(同 machines 模式,设计稿 §3.2)。
+    const RECONCILE_POLL_MS = 15000;
+    let reconcileTimer = null;
+    function reconcileStart() {
+      if (reconcileTimer) return;
+      reconcileTimer = setInterval(() => {
+        if (document.hidden) return;
+        const page = document.querySelector('section.page.active');
+        if (!page) return;
+        if (page.id === 'page-apks') loadApks();
+        if (page.id === 'page-pipelines') plLoadRecentJobs();
+      }, RECONCILE_POLL_MS);
+    }
+    function reconcileStop() { clearInterval(reconcileTimer); reconcileTimer = null; }
+
+    // ==================== 平台登录 + AI 任务看板(docs/AI任务与平台登录设计.md v1.1) ====================
+    const TK_POLL_MS = 15000;  // §7.1:15s 轻轮询,对齐 reconcile 先例(页签隐藏即跳过、切走即停)
+    statusText.pending_analysis = '待分析'; statusText.questioning = '疑问待答'; statusText.done = '完成';
+    const TK_BADGE_CLASS = { pending_analysis:'st-analyze', questioning:'st-question', running:'running', done:'passed', failed:'failed', cancelled:'cancelled' };
+    const tkBadge = (s) => `<span class="badge ${TK_BADGE_CLASS[s]||s}">${statusText[s]||s}</span>`;
+    const TK_TYPE_CN = { code_change:'代码修改', test_run:'测试执行', troubleshoot:'问题排查', env_maint:'环境维护', other:'其他' };
+    const TK_RISK_CN = { high:'高风险', mid:'中风险', low:'低风险' };
+    const TK_RISK_CLASS = { high:'chip p0', mid:'chip p1', low:'chip p3' };  // 风险三档复用优先级配色(规范 2.3)
+    const TK_MACHINE_CN = { '167':'167 平台机', '176':'176 构建机' };
+    const TK_MERGE = { merged:['已合并','tk-merge-merged'], pending:['待合并','tk-merge-other'], conflict:['冲突处理中','tk-merge-conflict'], abandoned:['已放弃','tk-merge-other'] };
+    const TK_EVENT_CLASS = { started:'passed', finished:'passed', merge_conflict:'failed', merge_abandon:'failed' };
+
+    // ---------- 会话外壳(§2.1/2.2):me 探测 → 登录视图或进应用;任意 401 统一转登录 ----------
+    let currentUser = null;
+    const _origFetch = window.fetch.bind(window);
+    // 401 拦截:/api/auth/* 除外(登录探测/退出自身会 401,不能循环);登录视图里不再拦
+    window.fetch = async (input, init) => {
+      const resp = await _origFetch(input, init);
+      if (resp && resp.status === 401 && currentUser) {
+        const url = typeof input === 'string' ? input : (input && input.url) || '';
+        if (!url.includes('/api/auth/')) enterLogin('登录已失效，请重新进入');
+      }
+      return resp;
+    };
+    function enterLogin(reason) {
+      currentUser = null;
+      document.body.classList.remove('rail-on');
+      document.body.classList.add('pre-auth');
+      document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('section.page').forEach(p => p.classList.remove('active'));
+      $('page-login').classList.add('active');
+      tkStop(); mcStop(); reconcileStop();  // 离开应用即停全部轮询
+      $('login-q').value = '';
+      $('login-error').hidden = true;
+      $('login-enter').disabled = false;
+      if (reason) showToast(reason, true);
+      loadPresets();
+    }
+    // ---------- 头像姓氏(v1.2 §B14):surname 优先 → 用户名按 -/_/. 取首段(无分隔符取全名) → 截 4 字符;
+    // 登录卡 36px 与边栏 40px 两态共用渲染函数,2-3 字 12px/4 字 11px ----------
+    function surnameText(u) {
+      const name = String((u && u.username) || '');
+      let s = String((u && u.surname) || '').trim();
+      if (!s) s = name.split(/[-_.]/)[0] || name;
+      return s.slice(0, 4);
+    }
+    function tkRenderAva(el, u) {  // 只管文字与字号;title 由外层边栏格子给完整用户名
+      const s = surnameText(u);
+      el.textContent = s;
+      el.style.fontSize = (s.length >= 4 ? 11 : 12) + 'px';
+    }
+    function enterApp(username, surname) {
+      currentUser = username;
+      document.body.classList.remove('pre-auth');
+      document.body.classList.add('rail-on');
+      tkRenderAva($('rail-ava'), { username, surname });
+      $('rail-ava').title = username;
+      // 默认落 AI 任务看板(§二:页签第一位)
+      document.querySelectorAll('nav button').forEach(b => b.classList.toggle('active', b.dataset.page === 'tasks'));
+      document.querySelectorAll('section.page').forEach(p => p.classList.toggle('active', p.id === 'page-tasks'));
+      tkStart();
+    }
+    async function authBootstrap() {
+      try {
+        const resp = await _origFetch('/api/auth/me');
+        if (resp.ok) { const me = await resp.json(); enterApp(me.username, me.surname); return; }
+      } catch (e) { /* 网络异常也进登录视图,让用户重试 */ }
+      enterLogin();
+    }
+    async function loadPresets() {
+      try {
+        const data = await (await _origFetch('/api/auth/presets')).json();
+        $('login-users').innerHTML = (data.items || []).map(u => {
+          const name = String(u.username || '');
+          return `<button class="login-user" data-u="${safe(name)}" title="${safe(name)}"><span class="login-ava"></span><span class="login-name">${safe(name)}</span></button>`;
+        }).join('') || '<p class="meta">暂无账号</p>';
+        $('login-users').querySelectorAll('.login-user').forEach(btn => {
+          tkRenderAva(btn.querySelector('.login-ava'), data.items.find(x => x.username === btn.dataset.u));
+          btn.onclick = () => doLogin(btn.dataset.u);
+        });
+      } catch (e) { $('login-users').innerHTML = '<p class="meta">名单加载失败</p>'; }
+    }
+    async function doLogin(username) {
+      username = String(username || '').trim();
+      if (!username) { $('login-error').textContent = '请输入用户名'; $('login-error').hidden = false; return; }
+      $('login-enter').disabled = true;
+      $('login-error').hidden = true;
+      try {
+        const resp = await _origFetch('/api/auth/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ username }) });
+        if (resp.ok) { const me = await resp.json(); enterApp(me.username, me.surname); return; }
+        $('login-error').textContent = '用户名不存在';  // 名单外/停用统一 404,不做模糊提示(§2.1)
+        $('login-error').hidden = false;
+      } catch (e) {
+        $('login-error').textContent = '登录失败,请重试'; $('login-error').hidden = false;
+      } finally { $('login-enter').disabled = false; }
+    }
+    $('login-enter').onclick = () => doLogin($('login-q').value);
+    $('login-q').onkeydown = e => { if (e.key === 'Enter') doLogin($('login-q').value); };
+    $('rail-out').onclick = async () => { try { await _origFetch('/api/auth/logout', { method:'POST' }); } catch (e) {} enterLogin(); };
+    $('rail-set').onclick = () => { $('set-modal').hidden = false; setLoadUsers(); };
+    $('set-close').onclick = () => { $('set-modal').hidden = true; };
+    $('set-modal').onclick = e => { if (e.target === $('set-modal')) $('set-modal').hidden = true; };  // 点遮罩关闭(v1.2 §B15)
+    $('rail-project').onclick = () => { $('rail-pop').hidden = !$('rail-pop').hidden; };
+    document.addEventListener('click', e => {  // 项目占位浮层:点外面收起(单项目占位,不做 CRUD,§2.3)
+      if (!$('rail-pop').hidden && !$('rail-pop').contains(e.target) && !$('rail-project').contains(e.target)) $('rail-pop').hidden = true;
+    });
+
+    // ---------- 设置弹窗(§2.4):企微 userid 失焦即保存;停用走 confirmAction 写明后果 ----------
+    async function setLoadUsers() {
+      try {
+        const data = await (await _origFetch('/api/auth/users')).json();
+        $('set-rows').innerHTML = (data.items || []).map(u => `<tr>
+          <td>${safe(u.username)}</td>
+          <td><input data-name="${safe(u.username)}" value="${safe(u.wecom_userid || '')}" style="width:170px" placeholder="未配置"></td>
+          <td>${u.status === 'active' ? '启用' : '停用'}</td>
+          <td><button class="ghost" data-name="${safe(u.username)}" data-active="${u.status === 'active' ? 1 : 0}">${u.status === 'active' ? '停用' : '启用'}</button></td>
+        </tr>`).join('');
+        $('set-rows').querySelectorAll('input[data-name]').forEach(inp => {
+          inp.onblur = async () => {
+            const resp = await _origFetch('/api/auth/users/' + encodeURIComponent(inp.dataset.name), { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ wecom_userid: inp.value.trim() }) });
+            if (resp.ok) showToast('已保存');
+            else showToast((await resp.json().catch(() => ({}))).error || '保存失败', true);
+          };
+        });
+        $('set-rows').querySelectorAll('button[data-name]').forEach(btn => {
+          btn.onclick = async () => {
+            const disable = btn.dataset.active === '1';
+            if (disable && !await confirmAction(`停用后该用户名将退出登录页头像卡，已登录会话一并失效。确定停用 ${btn.dataset.name}？`)) return;
+            const resp = await _origFetch('/api/auth/users/' + encodeURIComponent(btn.dataset.name), { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ status: disable ? 'disabled' : 'active' }) });
+            if (resp.ok) setLoadUsers();
+            else showToast((await resp.json().catch(() => ({}))).error || '操作失败', true);
+          };
+        });
+      } catch (e) { $('set-rows').innerHTML = '<tr><td colspan="4" class="empty">加载失败</td></tr>'; }
+    }
+    $('set-add').onclick = async () => {
+      const username = $('set-new-name').value.trim();
+      if (!username) { $('set-msg').textContent = '用户名必填'; return; }
+      const resp = await _origFetch('/api/auth/users', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ username, wecom_userid: $('set-new-wecom').value.trim() }) });
+      if (resp.ok) {
+        $('set-msg').textContent = ''; $('set-new-name').value = ''; $('set-new-wecom').value = '';
+        showToast('账号已添加,登录页即时可见'); setLoadUsers();
+      } else { $('set-msg').textContent = (await resp.json().catch(() => ({}))).error || '添加失败'; }
+    };
+
+    // ---------- 竖版看板(v1.2 §A):单请求 board 接口/五列渲染/搜索 300ms 防抖/统计卡/用量表/15s 轮询 ----------
+    const TK_BOARD_MAX = 50;  // 每列最多条数,与后端 TASK_BOARD_COLUMN_MAX 对齐(§A8)
+    let tkQ = '', tkQTimer = null, tkTimer = null, tkBoardCache = '';
+    function tkStart() { tkLoad(); tkUsageLoad(); if (!tkTimer) tkTimer = setInterval(tkPollTick, TK_POLL_MS); }
+    function tkStop() { clearInterval(tkTimer); tkTimer = null; }
+    function tkPollTick() {  // §A10:轮询重拉 board+用量;抽屉打开期间跳过整体重拉(答复输入不被冲掉),抽屉内另有刷新按钮
+      if (document.hidden || tkDrawerId) return;
+      tkLoad(); tkUsageLoad();
+    }
+    async function tkLoad() {
+      try {
+        const qs = tkQ ? '?q=' + encodeURIComponent(tkQ) : '';
+        const data = await (await _origFetch('/api/tasks/board' + qs)).json();
+        tkStatsRender(data.stats || {});
+        const snapshot = JSON.stringify([data.groups, data.counts]);
+        if (snapshot === tkBoardCache) return;  // 重绘前 JSON 比对,无变化跳过 replaceChildren(§A10)
+        const scrollTops = {};  // 有变化重绘后恢复各列滚动位置(§A10)
+        document.querySelectorAll('.tk-col').forEach(col => {
+          scrollTops[col.dataset.status] = col.querySelector('.tk-col-body').scrollTop;
+        });
+        const groups = data.groups || {}, counts = data.counts || {};
+        document.querySelectorAll('.tk-col').forEach(col => {
+          const status = col.dataset.status;
+          tkRenderCol(col, groups[status] || [], counts[status] || 0);
+          col.querySelector('.tk-col-body').scrollTop = scrollTops[status] || 0;
+        });
+        tkBoardCache = snapshot;
+      } catch (e) { /* 拉不到不打断既有列内容,可点"刷新"重试 */ }
+    }
+    function tkRenderCol(col, items, count) {  // 列头计数=当前搜索下全量计数;列尾 50 条上限提示(§A3/§A8)
+      col.querySelector('.tk-col-count').textContent = String(count);
+      const body = col.querySelector('.tk-col-body');
+      if (!items.length) { body.innerHTML = '<div class="tk-col-empty">暂无任务</div>'; return; }
+      body.innerHTML = items.map(tkCardHTML).join('')
+        + (count > items.length ? `<div class="tk-col-more">仅显示最近 ${TK_BOARD_MAX} 条,共 ${count} 条</div>` : '');
+      body.querySelectorAll('.tk-card').forEach(el => { el.onclick = () => tkOpenDrawer(el.dataset.id); });
+    }
+    function tkCardHTML(t) {  // 卡片三行(§A5-§A7):标题两行截断/徽标行/meta 两端对齐;终态时间用 finished_at
+      const timeVal = (t.status === 'done' || t.status === 'failed') ? (t.finished_at || t.created_at) : t.created_at;
+      const merge = t.merge_status === 'conflict' ? '<span class="tk-mg-conflict">冲突处理中</span>'
+        : t.merge_status === 'abandoned' ? '<span class="tk-mg-abandoned">已放弃</span>' : '';
+      const badges = [
+        t.task_type ? `<span class="chip lvl">${TK_TYPE_CN[t.task_type] || safe(t.task_type)}</span>` : '',
+        t.risk ? `<span class="${TK_RISK_CLASS[t.risk] || 'chip lvl'}">${TK_RISK_CN[t.risk] || safe(t.risk)}</span>` : '',
+        merge,
+      ].join('');
+      return `<div class="tk-card" data-id="${safe(t.task_id)}" title="${safe(t.title)}（${safe(t.task_id)}）">`
+        + `<div class="tk-card-title">${safe(t.title)}</div>`
+        + `<div class="tk-card-badges">${badges}</div>`
+        + `<div class="tk-card-meta"><span>${safe(t.submitter)} · ${TK_MACHINE_CN[t.target_machine] || '-'}</span><span title="${safe(formatDate(timeVal))}">${dlRelTime(timeVal)}</span></div>`
+        + `</div>`;
+    }
+    function tkStatsRender(s) {  // §A11:统计卡口径不变=全量(不随搜索);数值一律 --ink 不上语义色
+      $('tk-stat-active').textContent = s.active ?? '-';
+      $('tk-stat-mine').textContent = s.mine ?? '-';
+      $('tk-stat-done').textContent = s.done ?? '-';
+      $('tk-stat-tokens').textContent = Number(s.tokens_total || 0).toLocaleString('en-US');
+    }
+    async function tkUsageLoad() {  // §4.4:6 个数字一张表,无图表
+      try {
+        const data = await (await _origFetch('/api/tasks/usage')).json();
+        $('tk-usage').innerHTML = (data.items || []).map(u => `<tr><td>${safe(u.username)}</td><td class="num">${u.submitted}</td><td class="num">${u.running}</td><td class="num">${u.done}</td><td class="num">${u.failed}</td><td class="num">${Number(u.tokens_total || 0).toLocaleString('en-US')}</td></tr>`).join('')
+          || '<tr><td colspan="6" class="empty">暂无数据</td></tr>';
+      } catch (e) { /* 同上 */ }
+    }
+    $('tk-q').oninput = () => {  // 搜索 300ms 防抖带 q 重拉(§A9)
+      clearTimeout(tkQTimer);
+      tkQTimer = setTimeout(() => {
+        tkQ = $('tk-q').value.trim();
+        $('tk-reset').classList.toggle('active', !!tkQ);  // 规范 5.2:有激活筛选时重置描边变 brand
+        tkLoad();
+      }, 300);
+    };
+    $('tk-reset').onclick = () => {
+      tkQ = ''; $('tk-q').value = '';
+      $('tk-reset').classList.remove('active');
+      tkLoad();
+    };
+    $('tk-refresh').onclick = () => { tkLoad(); tkUsageLoad(); };
+
+    // ---------- 提交任务弹窗(§5):字段下方红字校验,失败不清空输入 ----------
+    function tkOpenSubmit() {
+      $('tk-submitter').textContent = currentUser || '-';
+      $('tk-f-title').value = ''; $('tk-f-desc').value = ''; $('tk-f-time').value = '';
+      $('tk-err-title').hidden = true; $('tk-err-desc').hidden = true; $('tk-msg').textContent = '';
+      $('tk-modal').hidden = false;
+      $('tk-f-title').focus();
+    }
+    $('tk-new').onclick = tkOpenSubmit;
+    $('tk-close').onclick = () => { $('tk-modal').hidden = true; };
+    $('tk-submit').onclick = async () => {
+      const title = $('tk-f-title').value.trim(), description = $('tk-f-desc').value.trim();
+      $('tk-err-title').hidden = true; $('tk-err-desc').hidden = true; $('tk-msg').textContent = '';
+      if (!title) { $('tk-err-title').textContent = '标题必填(≤60 字)'; $('tk-err-title').hidden = false; return; }
+      if (!description) { $('tk-err-desc').textContent = '详细描述必填(≤5000 字)'; $('tk-err-desc').hidden = false; return; }
+      const payload = { title, description };
+      if ($('tk-f-time').value) payload.desired_time = $('tk-f-time').value;
+      $('tk-submit').disabled = true;
+      try {
+        const resp = await _origFetch('/api/tasks', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+        if (resp.ok) {
+          $('tk-modal').hidden = true;
+          showToast('任务已提交,等待 AI 分析');  // 新任务落"待分析"(§5)
+          tkLoad(); tkUsageLoad();
+        } else {
+          const err = (await resp.json().catch(() => ({}))).error || `提交失败(${resp.status})`;
+          if (err.includes('标题')) { $('tk-err-title').textContent = err; $('tk-err-title').hidden = false; }
+          else if (err.includes('描述')) { $('tk-err-desc').textContent = err; $('tk-err-desc').hidden = false; }
+          else $('tk-msg').textContent = err;
+        }
+      } catch (e) { $('tk-msg').textContent = '提交失败,请重试'; }
+      finally { $('tk-submit').disabled = false; }
+    };
+
+    // ---------- 执行报告白名单渲染(§6.3):自写渲染器不引库;先整体 escape 再按白名单还原 ----------
+    function mdRender(src) {
+      const blocks = [];  // 围栏代码块先抽出占位,内部不再参与结构解析
+      let text = String(src ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))
+        .replace(/```[^\n]*\n?([\s\S]*?)```/g, (m, code) => { blocks.push(`<pre>${code}</pre>`); return ` B${blocks.length - 1} `; });
+      const inline = s => s
+        .replace(/`([^`\n]+)`/g, '<code>$1</code>')
+        .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
+        .replace(/(https?:\/\/[^\s<>"')\]]*(?:&amp;[^\s<>"')\]]+)*)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');  // 只渲染 http(s) 明文链接(全文已 escape,&amp; 即原文 &,href 里本就该写成 &amp;)
+      const cells = row => row.replace(/^\s*\|/, '').replace(/\|\s*$/, '').split('|').map(c => c.trim());
+      const tableRow = row => /^ {0,3}\|.*\|\s*$/.test(row) ? cells(row) : null;
+      let html = '', para = [], list = null, table = null;
+      const flushPara = () => { if (para.length) { html += `<p>${para.map(inline).join('<br>')}</p>`; para = []; } };
+      const flushList = () => { if (list) { html += `<${list.tag}>${list.items.map(i => `<li>${inline(i)}</li>`).join('')}</${list.tag}>`; list = null; } };
+      const flushTable = () => {
+        if (!table) return;
+        const [head, ...body] = table;
+        html += '<table><thead><tr>' + head.map(c => `<th>${inline(c)}</th>`).join('') + '</tr></thead><tbody>'
+          + body.map(r => '<tr>' + r.map(c => `<td>${inline(c)}</td>`).join('') + '</tr>').join('') + '</tbody></table>';
+        table = null;
+      };
+      const flushAll = () => { flushPara(); flushList(); flushTable(); };
+      for (const raw of text.split('\n')) {
+        const line = raw.trimEnd();
+        const ph = line.trim().match(/^ B(\d+) $/);
+        if (ph) { flushAll(); html += line.trim(); continue; }  // 围栏代码块占位行:整块吐出,不包 <p>
+        const h = line.match(/^(#{1,3})\s+(.*)$/);
+        const ul = line.match(/^\s*[-*]\s+(.*)$/);
+        const ol = line.match(/^\s*\d+[.)]\s+(.*)$/);
+        const sep = /^ {0,3}\|?[\s:|-]+\|?\s*$/.test(line) && line.includes('-');
+        if (h) { flushAll(); html += `<h${h[1].length}>${inline(h[2])}</h${h[1].length}>`; continue; }
+        if (ul || ol) {
+          flushPara(); flushTable();
+          const tag = ul ? 'ul' : 'ol';
+          if (!list || list.tag !== tag) { flushList(); list = { tag, items: [] }; }
+          list.items.push((ul || ol)[1]);
+          continue;
+        }
+        const row = tableRow(line);
+        if (row) {
+          flushPara(); flushList();
+          if (!table) table = [row];
+          else if (table.length === 1 && sep) { /* 表头分隔行,跳过 */ }
+          else table.push(row);
+          continue;
+        }
+        if (!line.trim()) { flushAll(); continue; }
+        flushList(); flushTable();
+        para.push(line);
+      }
+      flushAll();
+      html = html.replace(/ B(\d+) /g, (m, i) => blocks[Number(i)] ?? '');
+      return html;
+    }
+
+    // ---------- 任务详情抽屉(§6):分态渲染;点行开抽屉,Esc/遮罩/关闭三路可关 ----------
+    let tkDrawerId = null;
+    function closeTkDrawer() { $('tk-drawer').hidden = true; tkDrawerId = null; }
+    function tkCopy(text) {
+      navigator.clipboard.writeText(text).then(() => showToast('已复制'), () => showToast('复制失败', true));
+    }
+    async function tkOpenDrawer(taskId) { tkDrawerId = taskId; $('tk-drawer').hidden = false; await tkRenderDrawer(); }
+    $('tkd-refresh').onclick = tkRenderDrawer;
+    $('tkd-close').onclick = closeTkDrawer;
+    async function tkRenderDrawer() {
+      if (!tkDrawerId) return;
+      let t;
+      try { t = await (await _origFetch('/api/tasks/' + encodeURIComponent(tkDrawerId))).json(); }
+      catch (e) { showToast('详情加载失败', true); return; }
+      $('tkd-id').textContent = t.task_id;
+      $('tkd-title').textContent = t.title;
+      $('tkd-chips').innerHTML = tkBadge(t.status)
+        + (t.task_type ? `<span class="chip lvl">${TK_TYPE_CN[t.task_type] || safe(t.task_type)}</span>` : '')
+        + (t.risk ? `<span class="${TK_RISK_CLASS[t.risk] || 'chip lvl'}">${TK_RISK_CN[t.risk] || safe(t.risk)}</span>` : '')
+        + `<span class="meta">· 提交人 ${safe(t.submitter)}</span>`;
+      $('tkd-meta').textContent = `期望完成:${t.desired_time ? formatDate(t.desired_time) : '未填'} · 提交:${formatDate(t.created_at)}`
+        + (t.finished_at ? ` · 结束:${formatDate(t.finished_at)}` : '');
+      $('tkd-desc').textContent = t.description || '-';
+      // 分析结论(§6.1):分析前不渲染该块,列表次行已暗示"还没分析"
+      const analyzed = !!t.task_type || !!t.analysis_note;
+      $('tkd-analysis-sec').hidden = !analyzed;
+      if (analyzed) $('tkd-analysis').innerHTML = `<p class="meta" style="margin:0 0 6px">类型 ${TK_TYPE_CN[t.task_type] || '-'} · 目标机 ${TK_MACHINE_CN[t.target_machine] || '-'} · 风险 ${t.risk ? (TK_RISK_CN[t.risk] || safe(t.risk)) : '-'}</p>`
+        + (t.analysis_note ? `<pre style="max-height:none">${safe(t.analysis_note)}</pre>` : '');
+      // 疑问闭环(§6.2):问答历史终态后保留;答复框仅提交人本人+疑问待答态渲染(§2.5)
+      const questions = t.questions || [];
+      $('tkd-qa-sec').hidden = !questions.length && t.status !== 'questioning';
+      $('tkd-qa').innerHTML = questions.map(q => `<div class="tk-qa"><div class="tk-qa-meta">问 · 大领导 · <span title="${safe(formatDate(q.asked_at))}">${dlRelTime(q.asked_at)}</span></div><div>${safe(q.question)}</div>${q.answer ? `<div class="tk-qa-meta" style="margin-top:8px">答 · ${safe(t.submitter)} · <span title="${safe(formatDate(q.answered_at))}">${dlRelTime(q.answered_at)}</span></div><div>${safe(q.answer)}</div>` : ''}</div>`).join('');
+      const canAnswer = t.status === 'questioning' && currentUser === t.submitter;
+      $('tkd-answer-box').hidden = !canAnswer;
+      $('tkd-waiting').hidden = !(t.status === 'questioning' && !canAnswer);
+      if (!$('tkd-waiting').hidden) $('tkd-waiting').textContent = `等待 ${t.submitter} 答复`;
+      // 时间线(§8.4):detail 即文案,actor + 相对时间(title 绝对时间)
+      $('tkd-events').innerHTML = (t.events || []).map(e => `<div class="tl-item ${TK_EVENT_CLASS[e.event_type] || ''}">${safe(e.detail || e.event_type)} · ${safe(e.actor)} · <span title="${safe(formatDate(e.created_at))}">${dlRelTime(e.created_at)}</span></div>`).join('') || '<p class="meta">暂无事件</p>';
+      // 执行报告(§6.3):终态才渲染;执行中/疑问待答给预期灰字
+      const hasReport = !!t.report_md;
+      $('tkd-report-sec').hidden = !hasReport;
+      if (hasReport) $('tkd-report').innerHTML = mdRender(t.report_md);
+      // 产物(§6.4):分支/worktree 等宽 chip + 复制;合并状态只读,四值颜色复用 token
+      const hasArtifact = !!(t.branch_name || t.worktree_path || t.merge_status);
+      $('tkd-artifact-sec').hidden = !hasArtifact;
+      if (hasArtifact) {
+        const merge = TK_MERGE[t.merge_status];
+        $('tkd-artifact').innerHTML = ''
+          + (t.branch_name ? `<div class="tk-art-row"><span class="tk-art-label">分支</span><code>${safe(t.branch_name)}</code><button class="ghost cd-mini-btn" data-copy="${safe(t.branch_name)}">复制</button></div>` : '')
+          + (t.worktree_path ? `<div class="tk-art-row"><span class="tk-art-label">worktree</span><code>${safe(t.worktree_path)}</code><button class="ghost cd-mini-btn" data-copy="${safe(t.worktree_path)}">复制</button></div>` : '')
+          + (merge ? `<div class="tk-art-row"><span class="tk-art-label">合并状态</span><span class="${merge[1]}">${merge[0]}</span></div>` : '');
+        $('tkd-artifact').querySelectorAll('button[data-copy]').forEach(btn => btn.onclick = () => tkCopy(btn.dataset.copy));
+      }
+      // 失败信息(含"AI 放弃合并"场景)
+      $('tkd-error-sec').hidden = !t.error_message;
+      if (t.error_message) $('tkd-error').textContent = t.error_message;
+      // token 行(§6.4):输入 x · 输出 y · 合计 z
+      $('tkd-tokens').textContent = (t.tokens_in || t.tokens_out)
+        ? `输入 ${(t.tokens_in || 0).toLocaleString('en-US')} · 输出 ${(t.tokens_out || 0).toLocaleString('en-US')} · 合计 ${Number((t.tokens_in || 0) + (t.tokens_out || 0)).toLocaleString('en-US')}`
+        : '-';
+      // 答复提交:成功 toast + 徽标回挂起前阶段(重渲染即体现)
+      $('tkd-answer-submit').onclick = async () => {
+        const answer = $('tkd-answer').value.trim();
+        if (!answer) { $('tkd-answer-msg').textContent = '答复内容必填'; return; }
+        $('tkd-answer-msg').textContent = '';
+        try {
+          const resp = await _origFetch(`/api/tasks/${encodeURIComponent(tkDrawerId)}/answer`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ answer }) });
+          if (resp.ok) { showToast('已答复,任务继续执行'); $('tkd-answer').value = ''; tkRenderDrawer(); tkLoad(); }
+          else $('tkd-answer-msg').textContent = (await resp.json().catch(() => ({}))).error || '答复失败';
+        } catch (e) { $('tkd-answer-msg').textContent = '答复失败,请重试'; }
+      };
+    }
 
     async function loadRuns() {
       const platform = $('platform').value, apk = $('filter-apk').value;
@@ -913,7 +1648,7 @@
       $('latest-status').innerHTML = runs.length ? badge(runs[0].status) : '-';
       $('latest-duration').textContent = runs.length ? formatDuration(runs[0].duration_seconds) : '-';
       const tbody = $('runs'); tbody.innerHTML = '';
-      if (!runs.length) { tbody.innerHTML = '<tr><td colspan="9" class="empty">暂无执行记录</td></tr>'; return; }
+      if (!runs.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty">暂无执行记录</td></tr>'; return; }
       runs.forEach(r => { const row = document.createElement('tr'); row.className = 'clickable';
         row.innerHTML = `<td>${safe(r.platform || '-')}</td><td>${safe(r.apk_id||'-')}</td><td>${safe(r.device||'-')}</td><td>${badge(r.status)}</td><td class="num"${r.total_cases ? ` style="color:${rateColor(r.pass_rate)}"` : ''}>${r.total_cases ? r.pass_rate.toFixed(1)+'%' : '-'}</td><td>${r.total_cases}</td><td>${formatDuration(r.duration_seconds)}</td><td>${safe(formatDate(r.started_at))}</td><td><button class="icon-btn" onclick="event.stopPropagation();showRun(decodeURIComponent('${encodeURIComponent(r.run_id)}'))" title="查看详情">${ICON.list}</button></td>`;
         row.onclick = () => showRun(r.run_id); tbody.appendChild(row); });
@@ -1065,6 +1800,7 @@
     const dlServerName = (v) => v === 'formal' ? '正式服' : '测试服'; // 2.4:formal→正式服,其余一律测试服,无第三态
     const dlChip = (v) => `<span class="chip ${v === 'formal' ? 'st-formal' : 'st-test'}">${dlServerName(v)}</span>`;
     const dlTime = (a) => a.build_time || a.registered_at || ''; // 2.3:build_time 空回退 registered_at,接口返回原始值,回退在展示层
+    const dlFullTime = (v) => { if (!v) return '-'; const d = new Date(v), p = (n) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`; };
     const dlUrl = (a) => a.download_url || (window.location.origin + '/api/apks/' + encodeURIComponent(a.apk_id) + '/download'); // 7:响应缺 download_url 时 origin 自拼兜底
     function dlRelTime(v) { // 相对时间(规范 5.4):主文案相对,title 给完整时间
       if (!v) return '-';
@@ -1157,7 +1893,7 @@
         const t = dlTime(a);
         const disabled = a.file_exists ? '' : 'disabled title="文件已清理"'; // 3.3:文件已清理禁用置灰,防扫出 404
         const jkBtn = a.jenkins_log_url ? `<button class="icon-btn" data-act="jk" title="Jenkins 日志">${ICON.log}</button> ` : ''; // 无构建号的旧数据不渲染
-        row.innerHTML = `<td>${dlChip(a.server_type || 'test')}</td><td>${safe(a.app_version || '-')}</td><td>${safe(a.branch || '-')}</td><td title="${safe(formatDate(t))}">${dlRelTime(t)}</td><td><span class="note-clip" title="${safe(a.notes || '')}">${safe(dlNotesText(a.notes))}</span></td><td><button class="icon-btn" ${disabled} data-act="dl" title="下载">${ICON.download}</button> <button class="icon-btn" ${disabled} data-act="qr" title="二维码">${ICON.qr}</button> ${jkBtn}<button class="icon-btn danger" data-act="del" title="删除">${ICON.trash}</button></td>`;
+        row.innerHTML = `<td>${dlChip(a.server_type || 'test')}</td><td>${safe(a.app_version || '-')}</td><td>${safe(a.branch || '-')}</td><td>${safe(dlFullTime(t))}</td><td><span class="note-clip" title="${safe(a.notes || '')}">${safe(dlNotesText(a.notes))}</span></td><td><button class="icon-btn" ${disabled} data-act="dl" title="下载">${ICON.download}</button> <button class="icon-btn" ${disabled} data-act="qr" title="二维码">${ICON.qr}</button> ${jkBtn}<button class="icon-btn danger" data-act="del" title="删除">${ICON.trash}</button></td>`;
         row.querySelectorAll('button[data-act]').forEach(b => {
           const act = b.dataset.act;
           if (act === 'dl') b.onclick = () => dlDownload(a);
@@ -1178,10 +1914,15 @@
         window.location.href = url;
       } catch (e) { showToast('下载失败：' + e, true); }
     }
-    // 备注列中文标记(2026-09-24):机器来源前缀→人工可读文案;原始值保留在 title 悬浮里
+    // 备注列中文标记(2026-09-24;2026-09-29 起按来源三分类):机器来源前缀→人工可读文案;
+    // 原始值保留在 title 悬浮里。三分类(用户口径):manual:/pipeline:=流水线主动打包,
+    // daily:=定时自动构建(凌晨定时任务),webhook:=合入自动构建(开发合入触发)
     const DL_SOURCE_CN = [
-      [/^webhook(:|$)/, '自动构建'],
+      [/^webhook(:|$)/, '合入自动构建'],
       [/^pipeline:/, '流水线主动打包'],
+      [/^daily:/, '定时自动构建'],
+      [/^manual($|;|:)/, '流水线主动打包'],
+      // 旧档(2026-09-29 前):daily;xxx=定时登记的遗留格式,pipeline: 旧行当时不分定时/手动
       [/^daily($|;)/, '定时构建'],
       [/^archive-verify($|;)/, '归档校验'],
       [/^jenkins-manual($|;)/, 'Jenkins 手动构建'],
@@ -1256,6 +1997,8 @@
       { key: 'id',      label: '用例',          width: 330, visible: true },
       { key: 'type',    label: '类型',          width: 80,  visible: true },
       { key: 'module',  label: '模块 / 优先级', width: 160, visible: true },
+      { key: 'human',   label: '是否人工确认',  width: 116, visible: true },
+      { key: 'scope',   label: '用例范围',      width: 90,  visible: true },
       { key: 'links',   label: '关联用例',      width: 190, visible: true },
       { key: 'bug',     label: '来源 bug',      width: 190, visible: true },
       { key: 'updated', label: '更新时间',      width: 145, visible: true },
@@ -1279,6 +2022,8 @@
           visible: !!s.visible,
         }));
         CD_COLUMNS.forEach(def => { if (!cdCols.some(c => c.key === def.key)) cdCols.push({ ...def }); });
+        const hum = cdCols.find(c => c.key === 'human');
+        if (hum && hum.width === 96) hum.width = 116;  // 旧档默认宽 96 装不下「是否人工确认」6 字列名:未拖过的档位迁到新默认
       } else {
         cdCols = CD_COLUMNS.map(c => ({ ...c }));
       }
@@ -1327,9 +2072,9 @@
       return ['P0', 'P1', 'P2', 'P3'].includes(p) ? p : 'P3';
     }
 
-    function cdBSyncFooter() {  // 已选计数 + 提交按钮可用态:有勾选且三项至少填一项才可提交
+    function cdBSyncFooter() {  // 已选计数 + 提交按钮可用态:有勾选且四项至少填一项才可提交
       $('cd-b-count').textContent = `已选 ${cdBSel.size} 条`;
-      const hasField = $('cd-b-pri').value || $('cd-b-newmod').value.trim() || $('cd-b-suite').value;
+      const hasField = $('cd-b-pri').value || $('cd-b-newmod').value.trim() || $('cd-b-suite').value || $('cd-b-scope').value;
       $('cd-b-submit').disabled = !cdBSel.size || !hasField;
     }
     function cdBFiltered() {  // 弹窗内过滤:模块下拉 + 编号/标题关键字(数据源=页面全量用例缓存)
@@ -1337,7 +2082,7 @@
       const mod = $('cd-b-mod').value;
       let items = cdAllItems;
       if (mod) items = items.filter(c => c.module === mod);
-      if (q) items = items.filter(c => `${c.case_id} ${c.title}`.toLowerCase().includes(q));
+      if (q) items = items.filter(c => `${c.case_id} ${c.biz_no||''} ${c.title}`.toLowerCase().includes(q));
       return items;
     }
     function cdBRenderRows() {  // 勾选列表(紧凑表格):勾选态以 cdBSel 为准,重渲染后保留
@@ -1347,7 +2092,7 @@
       tbody.innerHTML = items.map(c => {
         const pri = cdPriNorm(c.priority);
         return `<tr><td class="cd-b-check"><input type="checkbox" class="cd-b-row-check" data-cid="${safe(c.case_id)}" ${cdBSel.has(c.case_id) ? 'checked' : ''}></td>`
-          + `<td>${safe(c.case_id)}</td>`
+          + `<td>${safe(c.biz_no || c.case_id)}</td>`
           + `<td class="cd-b-title">${safe(c.title)}</td>`
           + `<td><span class="badge t-${c.case_type}">${c.case_type === 'text' ? '文字' : '自动化'}</span></td>`
           + `<td>${pri ? `<span class="chip ${pri.toLowerCase()}">${safe(pri)}</span>` : '<span class="cd-none">-</span>'}</td>`
@@ -1358,7 +2103,7 @@
       if (!cdAllItems.length) await loadCaseDefs();  // 刚进页就开弹窗时兜底拉一次全量
       cdBSel.clear();
       $('cd-b-mod').value = ''; $('cd-b-q').value = '';
-      $('cd-b-pri').value = ''; $('cd-b-newmod').value = ''; $('cd-b-suite').value = '';
+      $('cd-b-pri').value = ''; $('cd-b-newmod').value = ''; $('cd-b-suite').value = ''; $('cd-b-scope').value = '';
       $('cd-b-msg').textContent = '';
       // 模块过滤下拉:复用用例数据里的模块清单(值=slug,展示=中文名)
       const modMap = new Map();
@@ -1383,16 +2128,18 @@
       const pri = $('cd-b-pri').value;
       const newMod = $('cd-b-newmod').value.trim();
       const suiteId = $('cd-b-suite').value;
+      const scope = $('cd-b-scope').value;  // ''=不改 'none'=未分类 'full'/'regression' 直传
       if (pri) patch.priority = pri;
       if (newMod) patch.module = newMod;
+      if (scope) patch.case_scope = scope === 'none' ? '' : scope;
       $('cd-b-submit').disabled = true;  // 提交中防连点
       try {
-        // ① 批量改字段(优先级/模块;模块填了新标识后端自动登记)
+        // ① 批量改字段(优先级/模块/用例范围;模块填了新标识后端自动登记)
         if (Object.keys(patch).length) {
           const res = await fetch('/api/case-defs/batch-update', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ case_ids: ids, patch }) });
           const data = await res.json().catch(() => ({}));
           if (!res.ok) { showToast((data && data.error) || '批量修改失败', true); return; }
-          showToast(`已更新 ${data.updated ?? ids.length} 条用例${pri ? ` · 优先级 ${pri}` : ''}${newMod ? ` · 模块 ${newMod}` : ''}`);
+          showToast(`已更新 ${data.updated ?? ids.length} 条用例${pri ? ` · 优先级 ${pri}` : ''}${newMod ? ` · 模块 ${newMod}` : ''}${scope === 'full' ? ' · 全量用例' : scope === 'regression' ? ' · 回归用例' : scope === 'none' ? ' · 未分类' : ''}`);
         }
         // ② 加入套件:套件仅收自动化用例,客户端先过滤;文字用例计数提示
         if (suiteId) {
@@ -1425,7 +2172,7 @@
       if (cb.checked) cdBSel.add(cb.dataset.cid); else cdBSel.delete(cb.dataset.cid);
       cdBSyncFooter();
     });
-    ['cd-b-pri', 'cd-b-newmod', 'cd-b-suite'].forEach(id => {
+    ['cd-b-pri', 'cd-b-newmod', 'cd-b-suite', 'cd-b-scope'].forEach(id => {
       $(id).addEventListener('input', cdBSyncFooter);
       $(id).addEventListener('change', cdBSyncFooter);
     });
@@ -1449,10 +2196,18 @@
       // 过滤
       const q = $('cd-q').value.trim().toLowerCase();
       const module = sel.value;
+      const humanSel = $('cd-human').value; // ''=全部 '1'=已确认 '0'=未确认(仅文字用例有此属性,auto 不参与)
+      const scopeSel = $('cd-scope').value; // ''=全部 'full'=全量 'regression'=回归 'none'=未分类
+      const srcSel = $('cd-src').value; // ''=全部 'api'=工作站API 'repo'=仓库YAML同步
       let shown = cdAllItems;
       if (cdTypeFilter) shown = shown.filter(c => c.case_type === cdTypeFilter);
       if (module) shown = shown.filter(c => c.module === module);
-      if (q) shown = shown.filter(c => `${c.case_id} ${c.title} ${c.module||''} ${c.source_bug||''}`.toLowerCase().includes(q));
+      if (humanSel !== '') shown = shown.filter(c => c.case_type === 'text' && (c.human_confirmed ? 1 : 0) === Number(humanSel));
+      if (scopeSel === 'none') shown = shown.filter(c => !c.case_scope);
+      else if (scopeSel) shown = shown.filter(c => c.case_scope === scopeSel);
+      if (srcSel === 'api') shown = shown.filter(c => c.source === 'case-api');
+      else if (srcSel === 'repo') shown = shown.filter(c => String(c.source || '').startsWith('knowledge/'));
+      if (q) shown = shown.filter(c => `${c.case_id} ${c.biz_no||''} ${c.title} ${c.module||''} ${c.source_bug||''}`.toLowerCase().includes(q));
       // 分页
       const totalPages = Math.max(1, Math.ceil(shown.length / cdPageSize));
       if (cdPage > totalPages) cdPage = totalPages;
@@ -1483,29 +2238,53 @@
       // 行
       const tbody = $('cd-rows'); tbody.innerHTML = '';
       if (!pageItems.length) {
-        tbody.innerHTML = `<tr><td colspan="${vis.length}" class="empty">${q || cdTypeFilter || module ? '没有匹配的用例——试试重置筛选' : '还没有用例——点右上"＋ 新建用例"，或运行 scripts/sync_cases.py 同步仓库用例'}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="${vis.length}" class="empty">${q || cdTypeFilter || module || humanSel !== '' || scopeSel ? '没有匹配的用例——试试重置筛选' : '还没有用例——点右上"＋ 新建用例"，或运行 scripts/sync_cases.py 同步仓库用例'}</td></tr>`;
         renderColsPop(); return;
       }
       pageItems.forEach(c => { const row = document.createElement('tr');
+        // 整行点击开详情(2026-09-30):行内按钮/链接等交互元素由各自 onclick 处理(stopPropagation),行点击再兜底排除
+        row.className = 'clickable';
+        row.onclick = e => {
+          if (e.target.closest('button, a, input, select, textarea, label, [onclick]')) return;
+          showCaseDefDrawer(c.case_id);
+        };
         const typeBadge = `<span class="badge t-${c.case_type}">${c.case_type === 'text' ? '文字' : '自动化'}</span>`;
         let linkChips = '<span class="cd-none">-</span>';
         if (c.case_type === 'text' && (c.auto_cases||[]).length) {
-          linkChips = c.auto_cases.map(a => `<span class="chip" onclick="showCaseDefDrawer(decodeURIComponent('${encodeURIComponent(a.case_id)}'))">${safe(a.case_id)} ↗</span>`).join('');
+          linkChips = c.auto_cases.map(a => `<span class="chip" onclick="event.stopPropagation();showCaseDefDrawer(decodeURIComponent('${encodeURIComponent(a.case_id)}'))">${safe(a.case_id)} ↗</span>`).join('');
         } else if (c.case_type === 'auto' && c.linked_case_id) {
-          linkChips = `<span class="chip" onclick="showCaseDefDrawer(decodeURIComponent('${encodeURIComponent(c.linked_case_id)}'))">${safe(c.linked_case_id)} ↗</span>`;
+          linkChips = `<span class="chip" onclick="event.stopPropagation();showCaseDefDrawer(decodeURIComponent('${encodeURIComponent(c.linked_case_id)}'))">${safe(c.linked_case_id)} ↗</span>`;
         }
         const bugChip = c.source_bug ? `<span class="chip bug" title="bug 单来源">${hl(c.source_bug, q)}</span>` : '<span class="cd-none">-</span>';
         // 优先级按规范 2.3 归一展示(L2→P2 等),四档配色 chip
         const pri = cdPriNorm(c.priority);
         const lvl = pri ? `<span class="chip ${pri.toLowerCase()}">${safe(pri)}</span>` : '';
+        // 是否人工确认(2026-09-29):只对文字用例有意义(经人审工作站两道门确认);
+        // auto 用例留空,配色复用优先级 chip 的既有档位(p2=品牌蓝/p3=中性灰)
+        const humanChip = c.case_type !== 'text' ? '<span class="cd-none">-</span>'
+          : (Number(c.human_confirmed)
+            ? '<span class="chip p2" title="经人审工作站两道门确认">已确认</span>'
+            : '<span class="chip p3" title="尚未通过人审工作站确认">未确认</span>');
+        // 用例范围(2026-10-09):full=全量/regression=回归,未分类留空;
+        // 配色复用优先级 chip 既有档位(p2=品牌蓝/p1=警示橙),不加新色
+        const scopeChip = c.case_scope === 'full' ? '<span class="chip p2" title="全量用例">全量</span>'
+          : c.case_scope === 'regression' ? '<span class="chip p1" title="回归用例">回归</span>'
+          : '<span class="cd-none">-</span>';
+        // 展示编号(2026-09-30):优先平台有义编号 biz_no(wifi-001 式),无则回退原始编号;
+        // 来源徽章:API=人审工作站,仓库=sync_cases YAML 同步
+        const dispNo = c.biz_no || c.case_id;
+        const srcChip = c.source === 'case-api' ? '<span class="chip p2" title="来自人审工作站 API" style="margin-left:6px">API</span>'
+          : String(c.source || '').startsWith('knowledge/') ? '<span class="chip p3" title="来自仓库用例 YAML 同步" style="margin-left:6px">仓库</span>' : '';
         const cells = {
-          id: `<span class="cd-case-id" onclick="showCaseDefDrawer(decodeURIComponent('${encodeURIComponent(c.case_id)}'))">${hl(c.case_id, q)}</span><div class="cd-case-title">${hl(c.title, q)}</div>`,
+          id: `<span class="cd-case-title">${hl(c.title, q)}</span><div class="cd-case-id">${hl(dispNo, q)}${srcChip}</div>`,
           type: typeBadge,
           module: `${hl(c.module_cn || c.module || '-', q)}${lvl ? ' ' + lvl : ''}`,
+          human: humanChip,
+          scope: scopeChip,
           links: linkChips,
           bug: bugChip,
           updated: `<span class="meta">${safe(formatDate(c.updated_at))}</span>`,
-          actions: `<div class="cd-actions"><button class="icon-btn" onclick="openCaseDefForm(decodeURIComponent('${encodeURIComponent(c.case_id)}'))" title="编辑">${ICON.edit}</button> <button class="icon-btn danger" onclick="deleteCaseDef(decodeURIComponent('${encodeURIComponent(c.case_id)}'))" title="删除">${ICON.trash}</button></div>`,
+          actions: `<div class="cd-actions"><button class="icon-btn" onclick="event.stopPropagation();openCaseDefForm(decodeURIComponent('${encodeURIComponent(c.case_id)}'))" title="编辑">${ICON.edit}</button> <button class="icon-btn danger" onclick="event.stopPropagation();deleteCaseDef(decodeURIComponent('${encodeURIComponent(c.case_id)}'))" title="删除">${ICON.trash}</button></div>`,
         };
         row.innerHTML = vis.map(col => `<td class="cd-td-${col.key}">${cells[col.key] || ''}</td>`).join('');
         tbody.appendChild(row); });
@@ -1582,10 +2361,11 @@
     async function showCaseDefDrawer(caseId) {
       const c = await (await fetch('/api/case-defs/' + encodeURIComponent(caseId))).json();
       if (c.error) { showToast(c.error, true); return; }
-      $('cdd-id').textContent = c.case_id;
+      $('cdd-id').textContent = c.biz_no || c.case_id;
       $('cdd-title').textContent = c.title || caseId;
       const chips = [`<span class="badge t-${c.case_type}">${c.case_type === 'text' ? '文字用例' : '自动化用例'}</span>`];
       if (c.module_cn || c.module) chips.push(`<span class="chip lvl">${safe(c.module_cn || c.module)}</span>`);
+      if (c.biz_no) chips.push(`<span class="chip lvl" title="人审工作站原始编号">工作站 ${safe(c.case_id)}</span>`);
       const pri = cdPriNorm(c.priority);
       if (pri) chips.push(`<span class="chip ${pri.toLowerCase()}">${safe(pri)}</span>`);
       if (c.case_type === 'text') {
@@ -1596,7 +2376,10 @@
       if (c.source_bug) chips.push(`<span class="chip bug">bug ${safe(c.source_bug)}</span>`);
       if (c.file_path) chips.push(`<span class="chip lvl" title="仓库文件">${safe(c.file_path)}</span>`);
       $('cdd-chips').innerHTML = chips.join('');
-      $('cdd-content').textContent = c.content || '(无内容)';
+      // auto 用例不用内容(2026-10-09):脚本在代码工程维护,详情侧栏整块隐藏内容区;文字用例照旧
+      const cddContent = $('cdd-content');
+      if (c.case_type === 'auto') { cddContent.hidden = true; cddContent.textContent = ''; }
+      else { cddContent.hidden = false; cddContent.textContent = c.content || '(无内容)'; }
       // 仓库脚本区块(规范 8.3):auto 用例展示等宽路径 + 复制路径 + PyCharm 跳转;无 file_path 整块不渲染
       const repoBox = $('cdd-repo');
       if (c.file_path) {
@@ -1631,6 +2414,12 @@
       ta.remove(); return ok;
     }
     let cdAutoEdit = false; // 规范 8.5:auto 用例编辑收窄,仅管理属性可改
+    // content 输入区显隐(2026-10-09):auto 用例不用内容(脚本在代码工程维护),整块隐藏;
+    // 编辑态以入库类型为准,新建态跟随类型下拉即时切换;文字用例不受影响
+    function cdSyncContentByType() {
+      const t = cdAutoEdit ? 'auto' : $('cd-f-type').value;
+      $('cd-content-wrap').hidden = t === 'auto';
+    }
     async function openCaseDefForm(caseId) {
       cdEditing = caseId || null;
       $('cd-msg').textContent = '';
@@ -1644,23 +2433,17 @@
       // 优先级/模块/关联文字用例/来源描述(规范 8.5/8.6);文字用例与新建不受限
       cdAutoEdit = !!caseId && c.case_type === 'auto';
       $('cd-form-hint').textContent = cdAutoEdit
-        ? '自动化用例内容在代码工程维护,此处仅编辑管理属性(优先级/模块/关联用例/来源描述)'
+        ? '自动化用例内容在代码工程维护,此处仅编辑管理属性(优先级/模块/关联用例/来源描述/用例范围)'
         : '带 * 必填；自动化用例建议填"关联用例"指向对应文字用例';
       $('cd-f-type').disabled = cdAutoEdit;
       $('cd-f-bug').disabled = cdAutoEdit;
       $('cd-f-link').disabled = false; $('cd-f-src').disabled = false;
-      if (cdAutoEdit) {
-        $('cd-f-content').hidden = true;
-        const ro = $('cd-f-content-ro'); ro.hidden = false; ro.textContent = c.content || '(无内容)';
-        $('cd-content-hint').hidden = false;
-      } else {
-        $('cd-f-content').hidden = false;
-        $('cd-f-content-ro').hidden = true;
-        $('cd-content-hint').hidden = true;
-      }
+      $('cd-f-type').value = c.case_type || 'text';  // 类型回填(编辑态此前漏设,内容区显隐也依赖它)
       $('cd-f-link').value = c.linked_case_id || '';
       $('cd-f-bug').value = c.source_bug || ''; $('cd-f-src').value = c.source || '';
       $('cd-f-content').value = c.content || '';
+      $('cd-f-scope').value = c.case_scope || '';
+      cdSyncContentByType();
       // 标题默认只读展示,点"编辑"才切输入框(展示态/编辑态分离);auto 标题为仓库源头,不给编辑入口
       $('cd-title-text').textContent = c.title || '(无标题)';
       $('cd-f-title').value = c.title || '';
@@ -1718,6 +2501,7 @@
           file_path: cdCaseSnap.file_path || '',
           content: cdCaseSnap.content || '',
           linked_case_id: cdCaseSnap.linked_case_id || '',
+          case_scope: cdCaseSnap.case_scope || '',
         };
         const resp = await fetch('/api/case-defs/' + encodeURIComponent(cdEditing),
           { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
@@ -1764,12 +2548,14 @@
           source_bug: cdCaseSnap.source_bug || '',
           file_path: cdCaseSnap.file_path || '',
           content: cdCaseSnap.content || '',
+          case_scope: $('cd-f-scope').value,
         };
       } else {
         payload = { case_id: caseId, case_type: $('cd-f-type').value, title: $('cd-f-title').value.trim(),
           module: $('cd-f-module').value.trim(), priority: $('cd-f-pri').value.trim(),
           linked_case_id: $('cd-f-link').value.trim(), source_bug: $('cd-f-bug').value.trim(),
-          source: $('cd-f-src').value.trim(), content: $('cd-f-content').value };
+          source: $('cd-f-src').value.trim(), content: $('cd-f-content').value,
+          case_scope: $('cd-f-scope').value };
       }
       const resp = await fetch('/api/case-defs/' + encodeURIComponent(cdEditing || caseId), { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
       const data = await resp.json().catch(() => ({}));
@@ -1786,11 +2572,14 @@
     $('cd-q').oninput = () => { cdPage = 1; renderCaseDefs(); };
     $('cd-q').onkeydown = e => { if (e.key==='Enter') { cdPage = 1; renderCaseDefs(); } };
     $('cd-reset').onclick = () => {
-      $('cd-q').value=''; $('cd-module').value=''; cdTypeFilter=''; cdPage = 1;
+      $('cd-q').value=''; $('cd-module').value=''; $('cd-human').value=''; $('cd-scope').value=''; $('cd-src').value=''; cdTypeFilter=''; cdPage = 1;
       document.querySelectorAll('#cd-pills .cd-pill').forEach(x => x.classList.toggle('active', !x.dataset.type));
       renderCaseDefs();
     };
     $('cd-module').onchange = () => { cdPage = 1; renderCaseDefs(); };
+    $('cd-human').onchange = () => { cdPage = 1; renderCaseDefs(); };
+    $('cd-scope').onchange = () => { cdPage = 1; renderCaseDefs(); };
+    $('cd-src').onchange = () => { cdPage = 1; renderCaseDefs(); };
     $('cd-prev').onclick = () => { cdPage--; renderCaseDefs(); };
     $('cd-next').onclick = () => { cdPage++; renderCaseDefs(); };
     $('cd-pagesize').onchange = e => { cdPageSize = Number(e.target.value) || 35; cdPage = 1; renderCaseDefs(); };
@@ -1801,6 +2590,7 @@
     });
     $('cd-new').onclick = () => openCaseDefForm(null);
     $('cd-save').onclick = saveCaseDef;
+    $('cd-f-type').onchange = cdSyncContentByType;  // 新建切类型:内容区跟着显隐(auto 无内容)
     $('cd-cancel').onclick = () => { $('cd-modal').hidden = true; };
     $('cdd-close').onclick = closeCaseDefDrawer;
 
@@ -2160,7 +2950,9 @@
        ['su-drawer', suCloseDrawer], ['cd-mods-modal', () => { $('cd-mods-modal').hidden = true; }],
        ['cd-imp-modal', () => { $('cd-imp-modal').hidden = true; }],
        ['cd-batch-modal', () => { $('cd-batch-modal').hidden = true; }],
-       ['su-modal', () => { $('su-modal').hidden = true; }]].forEach(([id, close]) => {
+       ['su-modal', () => { $('su-modal').hidden = true; }],
+       ['tk-drawer', closeTkDrawer], ['tk-modal', () => { $('tk-modal').hidden = true; }],
+       ['set-modal', () => { $('set-modal').hidden = true; }]].forEach(([id, close]) => {
         const el = $(id);
         if (el && !el.hidden) { close(); }
       });
@@ -2535,8 +3327,6 @@
         const h = await (await fetch('/api/gateway/health')).json();
         const u = new URL(h.gateway); u.hostname = location.hostname;  // iframe 由浏览器加载,127.0.0.1 会指向用户自己电脑;网关与平台同机,换成平台机地址
         gatewayUrl = u.origin;
-        $('gw-dot').className = 'dot ' + (h.ok ? 'ok' : 'bad');
-        $('gw-text').textContent = h.ok ? '验证码网关正常' : '验证码网关异常';
         const frame = $('gw-frame'), offline = $('gw-offline');
         if (h.ok) {
           frame.hidden = false; offline.hidden = true;
@@ -2546,20 +3336,20 @@
           offline.textContent = '验证码网关不可达：' + String(h.detail || '').slice(0, 80);
         }
       } catch (e) {
-        $('gw-dot').className = 'dot bad'; $('gw-text').textContent = '验证码网关检测失败';
         $('gw-frame').hidden = true; const offline = $('gw-offline'); offline.hidden = false;
         offline.textContent = '验证码网关不可达：' + String(e).slice(0, 80);
       }
     }
-    $('gw-reload').onclick = () => { if (gatewayUrl) $('gw-frame').src = gatewayUrl + '/'; };
 
     $('refresh').onclick = loadRuns; $('platform').onchange = loadRuns; $('filter-apk').onchange = loadRuns; $('close-detail').onclick = closeRunDrawer;
     $('build-submit').onclick = buildApk; // 主动打包(登记弹窗已移除:自动登记为主,手动兜底走 scripts/register_apk.py)
     $('case-search').onclick = searchCases; $('case-q').onkeydown = e => { if (e.key==='Enter') searchCases(); };
     $('case-load').onclick = loadCaseHistory; $('case-id').onkeydown = e => { if (e.key==='Enter') loadCaseHistory(); };
-    loadRuns().catch(e => { $('runs').innerHTML = `<tr><td colspan="9" class="empty">加载失败：${e}</td></tr>`; });
+    // 会话探测先行(§2.1):me 401 挂登录视图且不发起页签数据加载;进应用后默认页签由 enterApp 决定
+    document.body.classList.add('pre-auth');
+    authBootstrap();
     // 全站列表启用列宽拖拽(用例管理表 cd-table 自带实现,不在其列)
-    [['runs','tw-runs',true],['dl-rows','tw-dl',true],['pl-rows','tw-plcfg',true],['pl-job-rows','tw-pljob',true],['su-rows','tw-su',true],['cd-mods-rows','tw-mods',true]]
+    [['runs','tw-runs',true],['tk-usage','tw-tku',false],['set-rows','tw-set',true],['dl-rows','tw-dl',true],['pl-rows','tw-plcfg',true],['pl-job-rows','tw-pljob',true],['su-rows','tw-su',true],['cd-mods-rows','tw-mods',true]]
       .forEach(([id, key, pin]) => { const t = $(id) && $(id).closest('table'); if (t) makeTableResizable(t, key, pin); });
     window.addEventListener('resize', () => { pinFit.forEach(f => f(-1)); try { cdFitLast(null); } catch (e) {} });  // 窗口宽变化后操作列仍贴右缘
 
@@ -2743,6 +3533,289 @@
     }
 
     $('mc-refresh').onclick = () => { mcPoll(); mcPollHistory(); };
+
+    // ==================== 巡检流程总览(ptl,规范 6.9;设计稿 docs/设计稿/巡检流程监控-设计稿.html v0.6) ====================
+    // 数据源 /api/patrol/status(.167 /opt/patrol/last_status.json 原样);好坏判定/快照超期判定都在前端。
+    // 16 项检查口径以 docs/agent模块档案/巡检机制.md 为唯一权威,页面只做状态呈现+后果人话(imp=展示文案,非巡检逻辑)。
+    const PTL_STALE_HOURS = 26;   // 快照超期阈值:两轮最长间隔 11h,缺两轮以上视为缺失(设计稿接入说明 4)
+    const PTL_UNIT_OF = {         // systemd 单元检查 → 快照 services[].unit 名(与巡检 L1 白名单一致)
+      svc_dash: 'uiautotest-dashboard.service',
+      svc_sched: 'uiautotest-scheduler.service',
+      svc_timer: 'nightly-pipeline-trigger.timer',
+      svc_otp: 'swan-otp-gateway.service',
+      svc_dispatch: 'uiautotest-dispatch.service',
+      svc_map: 'swan-map-station.service',
+    };
+    const PTL_CHECKS = {
+      svc_dash:{n:'dashboard 服务',spec:'systemd active；停→L1 自动重启',lvl:'L1',imp:'平台服务停了，页面与接口全部不可用'},
+      api_probe:{n:'API 探活',spec:'health/configs/devices/apks =200；非 200 → L2',lvl:'L2',imp:'平台接口无响应，页面与机器通道可能都不通'},
+      disk167:{n:'磁盘水位(.167)',spec:'80~90% 记 L3 / ≥90% → L2',lvl:'L2',imp:'.167 磁盘将满，报告与证据可能写不下'},
+      pkg_consist:{n:'登记↔归档一致',spec:'登记 60min 宽限后归档缺文件 → L2',lvl:'L2',imp:'包登记成功但文件丢失，这些包下载会失败'},
+      svc_sched:{n:'调度器服务',spec:'systemd active；停→L1 自动重启',lvl:'L1',imp:'调度器停了，流水线不再定时排队'},
+      pending_age:{n:'pending 年龄',spec:'最老 >1h → L2 / >7 天 → L1 自动取消',lvl:'L1',imp:'流水线任务排队卡住，迟迟不开跑'},
+      svc_timer:{n:'nightly 触发器',spec:'systemd timer active；停→L1 自动拉起',lvl:'L1',imp:'每夜自动流水线不会触发'},
+      dev_heart:{n:'设备心跳',spec:'停 >24h → L2 / 停 >7 天未 offline → L1 下线',lvl:'L1',imp:'测试机失联，可领用设备变少'},
+      jk_node:{n:'build-176 节点',spec:'master /computer API 查在线；offline → L2',lvl:'L2',imp:'Jenkins 看不到构建节点，打包无法派发'},
+      jk_streak:{n:'构建连败',spec:'连败 ≥2 → L2 / 单次失败 → L3',lvl:'L2',imp:'构建连败，新包出不来'},
+      remoting:{n:'remoting 进程',spec:'pgrep -f remoting.jar；断连 → L2',lvl:'L2',imp:'构建进程掉线，打包停摆'},
+      disk176:{n:'磁盘水位(.176)',spec:'≥80% 告警 / ≥90% 严重',lvl:'L2',imp:'.176 磁盘将满，产物可能写不下'},
+      artifact_age:{n:'产物新鲜度',spec:'最新产物 >48h → L2（对齐 04:17 打包节奏）',lvl:'L2',imp:'超过 48h 没有新产物，每日打包可能停了'},
+      svc_otp:{n:'otp-gateway 服务',spec:'systemd active；停→L1 自动重启',lvl:'L1',imp:'取码服务停了，登录类用例会失败'},
+      svc_dispatch:{n:'任务派发服务',spec:'systemd active；停→L1 自动重启',lvl:'L1',imp:'新开发任务接不进来，AI 任务派发中断'},
+      svc_map:{n:'map-station 服务',spec:'systemd active；停→L1 自动重启',lvl:'L1',imp:'地图站停了，地图页打不开'},
+    };
+    const PTL_NO_DATA = new Set(['remoting', 'disk176', 'artifact_age']);  // .176 侧三项:v1 无跨机通道,诚实"无数据"不判好坏
+    const PTL_MODULES = {
+      git:      {name:'GitLab 源码',    tag:'git.hivi.com 双仓',        checks:[]},
+      jkmaster: {name:'Jenkins master',tag:'.167:8082',                checks:['jk_node','jk_streak']},
+      agent176: {name:'build-176 agent',tag:'remoting 节点',           checks:['remoting']},
+      build:    {name:'打包构建',      tag:'scripts/build_swan_apk.py',checks:['artifact_age','disk176']},
+      pkg:      {name:'包管理',        tag:'登记→上传→output/apks',    checks:['pkg_consist']},
+      sched:    {name:'流水线调度',    tag:'pipeline_configs→next_run_at',checks:['svc_sched']},
+      dispf:    {name:'建单派发',      tag:'pipeline_jobs→Jenkins',    checks:['pending_age']},
+      dsv:      {name:'任务派发服务',  tag:'Agent 任务派发·非流水线',  checks:['svc_dispatch']},
+      devpool:  {name:'设备池',        tag:'devices 表+conftest 领取', checks:['dev_heart']},
+      execm:    {name:'执行领取',      tag:'pipeline_agent.py·经平台 API',checks:['api_probe']},
+      reportm:  {name:'上报与证据',    tag:'runs/cases→历史→禅道',     checks:['disk167']},
+      core:     {name:'平台核心 dashboard',tag:':8080',                checks:['svc_dash']},
+      otp:      {name:'otp-gateway',   tag:':18080 取码',              checks:['svc_otp']},
+      map:      {name:'map-station',   tag:'swan-map-station 单元',    checks:['svc_map']},
+      timer:    {name:'nightly 定时器',tag:'systemd timer',            checks:['svc_timer']},
+      cases:    {name:'用例域',        tag:'sync_cases 仓库同步',      checks:[], uncovered:'未纳巡检'},
+      laya:     {name:'laya judge',    tag:'.176:8089 GPU 判定',       checks:[], uncovered:'未纳巡检'},
+    };
+    const PTL_CHAINS = [
+      {id:'build', name:'打包链', host:'主战场 .176', stages:[
+        {id:'pull',    name:'拉代码',   mods:['git']},
+        {id:'compile', name:'编译',     mods:['jkmaster','agent176']},
+        {id:'pack',    name:'出包',     mods:['build']},
+        {id:'archive', name:'登记归档', mods:['pkg']},
+      ]},
+      {id:'exec', name:'执行链', host:'主战场 .167', stages:[
+        {id:'sched',  name:'调度触发', mods:['sched']},
+        {id:'disp',   name:'派发',     mods:['dispf']},
+        {id:'dev',    name:'设备',     mods:['devpool']},
+        {id:'run',    name:'执行',     mods:['execm']},
+        {id:'report', name:'上报',     mods:['reportm']},
+      ]},
+    ];
+    const PTL_BASE = ['core', 'otp', 'map', 'timer', 'dsv', 'cases', 'laya'];
+
+    let ptlData = null, ptlLoading = false;
+
+    function ptlFmtTs(iso) {  // 快照 UTC ISO → 本地 YYYY-MM-DD HH:MM(机器数据 mono 双声道)
+      const d = new Date(iso);
+      if (isNaN(d)) return safe(String(iso || ''));
+      const p = n => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+    }
+    function ptlNextRun() {  // 下一轮巡检时点(.167 08:41/19:43 · .176 08:47/19:47,巡检机制.md §6/§3)
+      const now = new Date();
+      const nextOf = times => {
+        for (const hm of times) {
+          const [h, m] = hm.split(':').map(Number);
+          const t = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m);
+          if (t > now) return hm;
+        }
+        return times[0] + '(次日)';
+      };
+      return nextOf(['08:41', '19:43']) + ' / ' + nextOf(['08:47', '19:47']);
+    }
+
+    function ptlSvcState(unit) {  // systemd 单元检查:active 即正常,单元缺失/整节缺失=暂不可判
+      const rows = ptlData.services;
+      if (!Array.isArray(rows)) return 'nodata';
+      const row = rows.find(r => r.unit === unit);
+      return row ? (row.active ? 'ok' : 'bad') : 'nodata';
+    }
+    function ptlCheckState(id) {  // 检查项状态 ok/bad/nodata;阈值取快照 thresholds(巡检脚本 THRESHOLDS 同源)
+      if (PTL_NO_DATA.has(id)) return 'nodata';
+      const th = ptlData.thresholds || {};
+      if (PTL_UNIT_OF[id]) return ptlSvcState(PTL_UNIT_OF[id]);
+      switch (id) {
+        case 'api_probe': {
+          const rows = ptlData.apis;
+          if (!Array.isArray(rows) || !rows.length) return 'nodata';
+          if (rows.some(r => r.ok === false)) return 'bad';
+          return rows.every(r => r.ok === true) ? 'ok' : 'nodata';  // skipped(401 豁免未登记等)不判好坏
+        }
+        case 'disk167': {  // ≥80% 即亮红:巡检对 80~90% 也发企微观察行,页面不比巡检绿
+          const rows = ptlData.disk;
+          if (!Array.isArray(rows) || !rows.length) return 'nodata';
+          const worst = Math.max(0, ...rows.map(r => Number(r.pct) || 0));
+          return worst >= (th.disk_warn_pct || 80) ? 'bad' : 'ok';
+        }
+        case 'pkg_consist': {
+          const apks = ptlData.apks;
+          if (!apks || !Array.isArray(apks.missing_archive)) return 'nodata';
+          return apks.missing_archive.length ? 'bad' : 'ok';
+        }
+        case 'pending_age': {
+          const jobs = ptlData.pipeline_jobs;
+          if (!jobs || typeof jobs.oldest_hours !== 'number') return 'nodata';
+          return jobs.oldest_hours > (th.pending_l2_hours || 1) ? 'bad' : 'ok';
+        }
+        case 'dev_heart': {  // 快照只带 L1 候选(>7 天);24h L2 档在巡检报告内判定,快照无该字段不推算
+          const dev = ptlData.devices;
+          if (!dev || !Array.isArray(dev.l1_candidates)) return 'nodata';
+          return dev.l1_candidates.length ? 'bad' : 'ok';
+        }
+        case 'jk_node': {
+          const node = (ptlData.jenkins || {}).node;
+          if (!node || typeof node.online !== 'boolean') return 'nodata';
+          return node.online ? 'ok' : 'bad';
+        }
+        case 'jk_streak': {
+          const jobs = (ptlData.jenkins || {}).jobs;
+          if (!Array.isArray(jobs) || !jobs.length) return 'nodata';
+          return jobs.some(j => (j.consecutive_failures || 0) >= (th.jenkins_consec_fail || 2)) ? 'bad' : 'ok';
+        }
+      }
+      return 'nodata';
+    }
+    function ptlCheckDetail(c) {  // 坏时的实时数字补充,拼进后果人话(快照有数才拼)
+      if (c === 'jk_streak') {
+        const jobs = (ptlData.jenkins || {}).jobs || [];
+        const worst = jobs.reduce((m, j) => Math.max(m, j.consecutive_failures || 0), 0);
+        return worst ? `连败 ${worst} 次` : '';
+      }
+      if (c === 'disk167') {
+        const rows = ptlData.disk || [];
+        const worst = Math.max(0, ...rows.map(r => Number(r.pct) || 0));
+        return worst ? `最高 ${worst.toFixed(1)}%` : '';
+      }
+      if (c === 'pkg_consist') {
+        const n = ((ptlData.apks || {}).missing_archive || []).length;
+        return n ? `缺档 ${n} 个` : '';
+      }
+      return '';
+    }
+    function ptlImpact(c) {
+      const d = ptlCheckDetail(c);
+      return PTL_CHECKS[c].imp + (d ? `（${d}）` : '');
+    }
+    function ptlStageState(st) {  // 环节状态:nocheck=环节存在但 v1 无检查项;nodata=有检查但数据在 .176
+      const all = st.mods.flatMap(id => PTL_MODULES[id].checks);
+      const cs = all.filter(c => !PTL_NO_DATA.has(c));
+      if (!all.length) return 'nocheck';
+      if (!cs.length) return 'nodata';
+      return cs.some(c => ptlCheckState(c) === 'bad') ? 'bad' : 'ok';
+    }
+    function ptlStageImpact(st) {
+      for (const id of st.mods) {
+        for (const c of PTL_MODULES[id].checks) {
+          if (!PTL_NO_DATA.has(c) && ptlCheckState(c) === 'bad') return ptlImpact(c);
+        }
+      }
+      return '';
+    }
+    function ptlBadBase() {
+      return PTL_BASE.filter(id => PTL_MODULES[id].checks.some(c => !PTL_NO_DATA.has(c) && ptlCheckState(c) === 'bad'));
+    }
+    function ptlBaseImpact(id) {
+      return PTL_MODULES[id].checks.filter(c => !PTL_NO_DATA.has(c) && ptlCheckState(c) === 'bad').map(ptlImpact).join('；');
+    }
+
+    function ptlRender() {  // 首屏三层:hero 一句话 → 双链+底座 → 点击进抽屉(好坏两态,首屏无中间态)
+      const broken = PTL_CHAINS.flatMap(ch => ch.stages).filter(st => ptlStageState(st) === 'bad');
+      const bbase = ptlBadBase();
+      const total = Object.keys(PTL_CHECKS).length, covered = total - PTL_NO_DATA.size;
+      const tsTxt = ptlFmtTs(ptlData.ts), nextTxt = ptlNextRun();
+      let heroHtml;
+      if (!broken.length && !bbase.length) {
+        heroHtml = `<div class="ptl-hero-line ok">一切正常，下一轮巡检 ${nextTxt}</div>`
+          + `<div class="ptl-hero-meta">巡检 <b class="mono">${tsTxt}</b> · 覆盖 ${covered}/${total} 项检查`
+          + `<br>拉代码环节 v1 暂无检查项 · .176 侧 ${PTL_NO_DATA.size} 项（remoting/磁盘/产物）待 v2 跨机通道，暂无数据</div>`;
+      } else {
+        heroHtml = `<div class="ptl-hero-line bad">${broken.length + bbase.length} 项异常</div>`
+          + broken.map(st => `<div class="ptl-hero-item"><b>${st.name}</b>——${ptlStageImpact(st)}</div>`).join('')
+          + bbase.map(id => `<div class="ptl-hero-item"><b>${PTL_MODULES[id].name}</b>——${ptlBaseImpact(id)}</div>`).join('')
+          + `<div class="ptl-hero-meta">巡检 <b class="mono">${tsTxt}</b> 抓到 · 下一轮 <b class="mono">${nextTxt}</b> · 覆盖 ${covered}/${total} 项检查</div>`;
+      }
+      const chainsHtml = PTL_CHAINS.map(ch =>
+        `<div class="ptl-chainblock"><div class="ptl-chain-title">${ch.name}<span class="ptl-lane-sub">${ch.host}</span></div>`
+        + `<div class="ptl-chain">${ch.stages.map((st, i) => {
+            const s = ptlStageState(st);
+            const cls = s === 'bad' ? 'bad' : (s === 'ok' ? 'ok' : 'unknown');
+            const stTxt = s === 'ok' ? '<span class="ptl-s-st">正常</span>'
+              : (s === 'nocheck' ? '<span class="ptl-s-st">未巡检</span>'
+              : (s === 'nodata' ? '<span class="ptl-s-st">无数据</span>' : '<span class="badge ptl-bad">异常</span>'));
+            const impact = s === 'bad' ? `<div class="ptl-impact">${ptlStageImpact(st)}</div>` : '';
+            return `${i ? '<span class="ptl-arr" aria-hidden="true"></span>' : ''}<div class="ptl-stage ${cls}" data-chain="${ch.id}" data-stage="${st.id}" title="点击看${ch.name}·${st.name}明细">`
+              + `<div class="ptl-stage-head"><span class="ptl-light"></span><span class="ptl-s-name">${st.name}</span>${stTxt}</div>${impact}</div>`;
+          }).join('')}</div></div>`
+      ).join('<div class="ptl-linkrow">↓ 出包交付：登记归档后的包供执行链领取安装（同一流水线，上下游交付）</div>');
+      const baseHtml = !bbase.length
+        ? '<div class="ptl-base" id="ptl-base" title="点击查看底座服务明细" tabindex="0">底座服务全部正常（dashboard / 取码 / map-station / nightly 定时器 / Agent 任务派发；用例同步、laya 未纳巡检）· 点击看明细</div>'
+        : `<div class="ptl-base bad" id="ptl-base" title="点击查看底座服务明细" tabindex="0">底座服务异常：${bbase.map(id => `<b>${PTL_MODULES[id].name}</b>——${ptlBaseImpact(id)}`).join('；')} · 点击看明细</div>`;
+      $('ptl-body').innerHTML = `<div class="ptl-hero">${heroHtml}</div>${chainsHtml}${baseHtml}`;
+      document.querySelectorAll('#ptl-body .ptl-stage').forEach(el => el.onclick = () => {
+        const ch = PTL_CHAINS.find(c => c.id === el.dataset.chain);
+        const st = ch.stages.find(s => s.id === el.dataset.stage);
+        ptlOpenDrawer(ch.name + ' · ' + st.name, st.mods);
+      });
+      $('ptl-base').onclick = () => ptlOpenDrawer('底座服务', PTL_BASE);
+    }
+
+    function ptlRenderMissing(reason) {  // 快照缺失/超期(规范 4.7:一句灰字+ghost 重试)
+      $('ptl-body').innerHTML = `<div class="ptl-missing">巡检数据缺失<div class="ptl-missing-meta">${reason}</div><button class="ghost" id="ptl-retry">重试</button></div>`;
+      $('ptl-retry').onclick = ptlLoad;
+    }
+
+    async function ptlLoad() {  // 进页签拉一次+手动刷新(规范 6.9);快照超期判定在前端
+      if (ptlLoading) return;
+      ptlLoading = true;
+      try {
+        const resp = await fetch('/api/patrol/status');
+        if (resp.status === 404) { ptlRenderMissing('巡检状态文件不存在或不可读，每轮巡检时由巡检 agent 写入'); return; }
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        const data = await resp.json();
+        if (!data || !data.ts) { ptlRenderMissing('巡检快照格式异常（缺 ts 字段）'); return; }
+        ptlData = data;
+        const ageMs = Date.now() - new Date(data.ts).getTime();
+        if (isFinite(ageMs) && ageMs > PTL_STALE_HOURS * 3600000) {
+          ptlRenderMissing(`快照已超期未更新：最近一轮 ${ptlFmtTs(data.ts)}，巡检可能停了`);
+          return;
+        }
+        ptlRender();
+      } catch (e) {
+        ptlRenderMissing('巡检数据获取失败，可点重试');
+      } finally {
+        ptlLoading = false;
+      }
+    }
+
+    function ptlOpenDrawer(title, mods) {  // 紧凑抽屉(规范 4.3 min(480px,94vw)):模块 tag+检查项口径表+无数据说明
+      $('ptl-dr-title').textContent = title;
+      const hasNoData = mods.some(id => PTL_MODULES[id].checks.some(c => PTL_NO_DATA.has(c)));
+      const ndHtml = hasNoData ? '<div class="ptl-dr-sec">「无数据」：检查项已在 .176 侧运行，状态文件待 v2 跨机通道，暂不判定好坏。</div>' : '';
+      $('ptl-dr-body').innerHTML = mods.map(id => {
+        const m = PTL_MODULES[id];
+        let inner;
+        if (m.checks.length) {
+          inner = '<table><tr><th>检查项</th><th>口径</th><th>级别</th><th>状态</th></tr>'
+            + m.checks.map(c => {
+              const s = ptlCheckState(c);
+              const cls = s === 'bad' ? 'ptl-bad' : (s === 'nodata' ? 'ptl-nodata' : 'ptl-ok');
+              const txt = s === 'bad' ? '异常' : (s === 'nodata' ? '无数据' : '正常');
+              return `<tr><td>${PTL_CHECKS[c].n}</td><td class="mono">${PTL_CHECKS[c].spec}</td><td><span class="badge ptl-lvl">${PTL_CHECKS[c].lvl}</span></td><td><span class="badge ${cls}">${txt}</span></td></tr>`;
+            }).join('') + '</table>';
+        } else {
+          inner = `<div class="ptl-dr-sec">${m.uncovered === '未纳巡检' ? '未纳巡检：巡检 v1 未覆盖，试跑一周复盘（10-16 前后）时评估是否加项' : (m.uncovered ? m.uncovered + '：巡检不单独设项' : '外部依赖，不做检查')}</div>`;
+        }
+        return `<h4>${m.name} <span class="mono ptl-tag">${m.tag}</span></h4>${inner}`;
+      }).join('') + ndHtml;
+      $('ptl-drawer').classList.add('on');
+      $('ptl-scrim').classList.add('on');
+    }
+    function ptlCloseDrawer() {
+      $('ptl-drawer').classList.remove('on');
+      $('ptl-scrim').classList.remove('on');
+    }
+    $('ptl-refresh').onclick = ptlLoad;
+    $('ptl-dr-close').onclick = ptlCloseDrawer;
+    $('ptl-scrim').onclick = ptlCloseDrawer;
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('ptl-drawer').classList.contains('on')) ptlCloseDrawer(); });  // 规范 4.3:Esc 关闭
   </script>
 </body>
 </html>

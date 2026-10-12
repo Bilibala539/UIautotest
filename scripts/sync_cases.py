@@ -1,5 +1,10 @@
 """用例定义同步(用例管理功能):把仓库里的文字用例 + 自动化脚本用例导入平台 case_defs。
 
+注(2026-09-28):外部用例 API 源启用后,文字用例唯一来源将切换为平台的
+POST /api/case-defs/pull-api(适配层 dashboard/case_api_client.py);届时本脚本
+的文字用例部分(load_text_cases)将退役,自动化用例部分(load_auto_cases)与
+关联规则不变,过渡期本脚本保持原样可用。
+
 关联规则(平台UI设计规范 8.2):
   - 自动化用例(cases/driver/**): 关联优先级为 frontmatter 显式声明 > 推断 > 不挂
     1. frontmatter `linked_case_id`(完整文字用例编号)显式声明映射,strong

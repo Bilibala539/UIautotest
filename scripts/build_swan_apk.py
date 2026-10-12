@@ -51,6 +51,15 @@ CORE_SRC_DIR = SRC_DIR.parent / "hivi_network_flutter_core"
 # (build #10/#11 挂在核心仓全量 clone 的 GitLab 504,用户拍板)
 CHECKOUT_RETRY_WAIT_SECONDS = 300
 
+# ---- 打包失败企微通知(2026-09-28 用户拍板:失败即发测试部群,带原因+责任开发)----
+# 通道:wecom-cli(机器人"吴彦祖",授权配置在 WECOM_CLI_HOME/.config/wecom,凭据自带加密)。
+# 本机 Windows 开发直跑没有该二进制 → 静默跳过;通知是 best-effort,任何失败不影响构建流程。
+WECOM_CLI_PATH = os.environ.get("WECOM_CLI_PATH", "/usr/local/bin/wecom-cli")
+WECOM_CLI_HOME = os.environ.get("WECOM_CLI_HOME", str(BUILD_ROOT / "wecom-home"))
+# 测试部群会话 ID(message aibot sessions list 可查)
+WECOM_CHAT_ID = os.environ.get("WECOM_CHAT_ID", "wr8gXkCwAAZGKjkN_P-0r134RU6QaoAg")
+DART_ERROR_RE = re.compile(r"^(\S+?):(\d+):(\d+): Error: (.+)$", re.MULTILINE)
+
 DEFAULTS = {
     "JAVA_HOME": r"C:\build-env\jdk-17",
     "ANDROID_HOME": r"C:\build-env\android",
@@ -268,6 +277,103 @@ def upload_archive(archive: Path, apk_id: str) -> dict[str, object]:
         return json.loads(response.read().decode("utf-8"))
 
 
+def blame_error_file(file_ref: str, src: Path, core: Path) -> tuple[str, str]:
+    """按报错文件定位责任开发(文件级最后提交,启发式):返回 (作者, 提交说明)。
+
+    flutter 报错路径相对 app 源码目录,../hivi_network_flutter_core/ 前缀归核心仓。
+    """
+    norm = file_ref.replace("\\", "/")
+    marker = "../hivi_network_flutter_core/"
+    if norm.startswith(marker):
+        repo, rel = core, norm[len(marker):]
+    elif not norm.startswith("/"):
+        repo, rel = src, norm
+    else:
+        return "", ""
+    if not (repo / ".git").is_dir():
+        return "", ""
+    try:
+        out = subprocess.run(
+            ["git", "-C", str(repo), "log", "-1",
+             "--format=%an%x00%h%x00%ci%x00%s", "--", rel],
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=15,
+        )
+        if out.returncode == 0 and out.stdout.strip():
+            author, chash, cdate, subject = out.stdout.strip().split("\x00", 3)
+            return author, f"{chash} {subject},{cdate[:10]}"
+    except Exception:
+        pass
+    return "", ""
+
+
+def analyze_build_failure(log_path: Path, src: Path, core: Path) -> dict[str, str]:
+    """从构建日志提取失败原因与责任开发。
+
+    优先级:dart 编译错(带文件可溯源)> gradle What went wrong 段 > git fatal > 日志尾部。
+    """
+    info = {"reason": "", "location": "", "dev": "", "dev_detail": ""}
+    try:
+        text = log_path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return info
+    match = DART_ERROR_RE.search(text)
+    if match:
+        file_ref, line_no, _col, msg = match.groups()
+        info["reason"] = msg.strip()
+        info["location"] = f"{file_ref}:{line_no}"
+        info["dev"], info["dev_detail"] = blame_error_file(file_ref, src, core)
+        return info
+    wrong_at = text.find("What went wrong:")
+    if wrong_at >= 0:
+        lines = [line.strip() for line in text[wrong_at:].splitlines()[1:7] if line.strip()]
+        info["reason"] = " / ".join(lines)[:400]
+        return info
+    for line in reversed(text.splitlines()):
+        stripped = line.strip()
+        if ("fatal:" in stripped or "error:" in stripped) and len(stripped) < 300:
+            info["reason"] = stripped
+            return info
+    tail = [line.strip() for line in text.splitlines() if line.strip()][-6:]
+    info["reason"] = " / ".join(tail)[:400] or "详见日志"
+    return info
+
+
+def notify_wecom_failure(log, info: dict[str, str]) -> None:
+    """打包失败 → 企微测试部群(原因+责任开发);best-effort,异常只记日志不影响构建。"""
+    try:
+        if not (WECOM_CHAT_ID and os.path.isfile(WECOM_CLI_PATH)):
+            log.write("企微通知:未配置(wecom-cli 或群 ID 缺失),跳过\n")
+            return
+        content = (
+            '<font color="warning">**【Swan 打包失败】**</font>\n'
+            f'> 管道: {info["pipeline"] or "本地/手动"} | 分支: {info["branch"]} '
+            f'| 模式: {info["mode"]} | commit: {info["commit"] or "未检出"}\n'
+            f'> 步骤: {info["step"]}\n\n'
+            f'**原因**: {info["reason"][:500]}\n'
+        )
+        if info.get("location"):
+            content += f'**位置**: {info["location"]}\n'
+        if info.get("dev"):
+            content += f'**找谁**: **{info["dev"]}**({info["dev_detail"]})\n'
+        else:
+            content += "**找谁**: 未定位到具体开发,疑似构建环境/依赖问题,请平台侧排查\n"
+        content += f'日志: 176:{info["log"]}'
+        result = subprocess.run(
+            [WECOM_CLI_PATH, "message", "aibot", "send", "--chat-id", WECOM_CHAT_ID,
+             "--msg-type", "markdown", "--markdown",
+             json.dumps({"content": content}, ensure_ascii=False)],
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            timeout=60, env={**os.environ, "HOME": WECOM_CLI_HOME},
+        )
+        log.write(f"企微通知:exit={result.returncode} "
+                  f"{(result.stdout or result.stderr or '').strip()[:200]}\n")
+    except Exception as error:  # 通知永不影响构建结果
+        try:
+            log.write(f"企微通知异常:{error}\n")
+        except Exception:
+            pass
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Swan 自动打包并登记进平台")
     parser.add_argument("--branch", default="dev", help="构建分支(dev/master/harmony,默认 dev)")
@@ -324,6 +430,9 @@ def main() -> int:
         log.write(msg + "\n")
         print(msg)
 
+    step = "预处理"  # 当前阶段名,失败通知用
+    commit = ""  # 已检出的 app 短 commit,检出成功后回填
+
     try:
         if args.skip_build:
             echo("--skip-build:跳过源码与构建,直接登记已有产物")
@@ -333,6 +442,7 @@ def main() -> int:
                 ensure_src(CORE_SRC_DIR, authed_core_url, secrets, log)
             src = SRC_DIR
         else:
+            step = "检出源码"
             echo(f"== 步骤 1/3 检出源码({log_path}) ==")
 
             def do_checkout() -> None:
@@ -352,6 +462,8 @@ def main() -> int:
                 rotate_logs()
                 return 0
 
+            step = f"flutter build apk --{build_mode}"
+            commit = git_out(SRC_DIR, "rev-parse", "--short", "HEAD")
             echo(f"== 步骤 2/3 flutter build apk --{build_mode} ==")
             env = build_env(creds)
             flutter = str(Path(env["FLUTTER_HOME"]) / "bin"
@@ -363,6 +475,10 @@ def main() -> int:
     except (RuntimeError, OSError) as error:
         echo(f"失败:{error}")
         log.write(f"失败:{error}\n")
+        analysis = analyze_build_failure(log_path, SRC_DIR, CORE_SRC_DIR)
+        analysis.update({"pipeline": user_notes, "branch": args.branch, "mode": build_mode,
+                         "step": step, "commit": commit, "log": str(log_path)})
+        notify_wecom_failure(log, analysis)
         log.close()
         rotate_logs()
         return 1
@@ -372,6 +488,10 @@ def main() -> int:
     apk_src = SRC_DIR / "build" / "app" / "outputs" / "flutter-apk" / f"app-{build_mode}.apk"
     if not apk_src.is_file():
         echo(f"产物不存在:{apk_src}")
+        notify_wecom_failure(log, {"pipeline": user_notes, "branch": args.branch,
+                                   "mode": build_mode, "step": "产物检查",
+                                   "commit": commit, "log": str(log_path),
+                                   "reason": f"构建产物不存在:{apk_src}"})
         log.close()
         rotate_logs()
         return 1
@@ -409,7 +529,8 @@ def main() -> int:
     echo(f"== 步骤 3/3 登记平台({PLATFORM_URL}/api/apks server_type={args.server_type})==")
     try:
         result = register_apk(payload)
-        echo(f"登记成功 apk_id={result.get('apk_id')} sha256={file_hash[:12]}… server_type={args.server_type}")
+        # sha 打全量:包管理对账(reconcile_apks_from_jenkins)解析用,截断版无法校验
+        echo(f"登记成功 apk_id={result.get('apk_id')} sha256={file_hash} server_type={args.server_type}")
     except (urllib.error.URLError, OSError, ValueError) as error:
         echo(f"登记失败:{error}(产物仍在 {apk})")
         log.close()

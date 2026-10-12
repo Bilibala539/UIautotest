@@ -85,6 +85,21 @@ def main() -> int:
             "case_filter": case_filter,
             "apk_id": args.apk_id,
         })
+    except urllib.error.HTTPError as error:
+        # HTTPError 是 URLError 子类,必须先于 URLError 捕获。平台主动拒绝
+        # (409=formal 包不跑 UI 自动化的平台策略,2026-09-29)属预期跳过:
+        # 打包 job 照常成功,控制台留一行跳过说明,不染红不告警。
+        detail = ""
+        try:
+            detail = error.read().decode("utf-8", "replace").strip()
+        except OSError:
+            pass
+        print(f"[trigger-smoke] 平台返回 HTTP {error.code}: {detail}", file=sys.stderr)
+        if error.code == 409:
+            print("[trigger-smoke] 跳过冒烟: 平台策略规定 UI 自动化仅用测试服包"
+                  "(formal 包不触发下游冒烟),打包结果不受影响")
+            return 0
+        return 1
     except (urllib.error.URLError, TimeoutError, OSError) as error:
         print(f"[trigger-smoke] 错误: 平台不可达({DASHBOARD_URL}): {error}", file=sys.stderr)
         return 1

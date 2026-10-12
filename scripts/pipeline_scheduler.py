@@ -92,7 +92,9 @@ def tick(state: dict[str, str], now: datetime | None = None) -> int:
         if state.get(config_id) == minute_key:
             continue  # 同一分钟已触发过
         try:
-            result = _post(f"/api/pipeline-configs/{config_id}/run", {})
+            # source=schedule 让平台把 NOTES 记为 daily:<config_id>(定时自动构建),
+            # 与页面"立即执行"的 pipeline:<config_id> 区分开(2026-09-29)
+            result = _post(f"/api/pipeline-configs/{config_id}/run", {"source": "schedule"})
             state[config_id] = minute_key  # 触发成功才记,失败下轮重试
             job_id = (result.get("job") or {}).get("job_id", "?")
             log(f"fired config={config_id} name={config.get('name', '')} job={job_id}")

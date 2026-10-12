@@ -7,6 +7,7 @@ import os
 import re
 import sqlite3
 import threading
+import time
 import uuid
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
@@ -110,9 +111,16 @@ class CaptchaSource:
 
 
 class OtpStore:
-    def __init__(self, database_path: str | Path, ttl_seconds: int = 300) -> None:
+    def __init__(
+        self,
+        database_path: str | Path,
+        ttl_seconds: int = 300,
+        retention_days: int = 5,
+    ) -> None:
         self.database_path = str(database_path)
         self.ttl_seconds = ttl_seconds
+        self.retention_days = retention_days
+        self._last_purge = time.monotonic()
         self.lock = threading.RLock()
         Path(self.database_path).parent.mkdir(parents=True, exist_ok=True)
         with self._connection() as connection:
@@ -135,6 +143,7 @@ class OtpStore:
                     ON otp_codes(account, request_id, phone, expires_epoch, consumed_at);
                 """
             )
+        self._purge_if_due(force=True)
 
     def _connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self.database_path, timeout=10)
@@ -149,6 +158,31 @@ class OtpStore:
             connection.commit()
         finally:
             connection.close()
+
+    def purge_older_than(self, days: int) -> int:
+        """删除创建时间超过 days 天的记录(历史记录对页面/用例已无用,防无限增长)。"""
+        cutoff = (utc_now() - timedelta(days=days)).isoformat()
+        with self.lock, self._connection() as connection:
+            cursor = connection.execute("DELETE FROM otp_codes WHERE created_at < ?", (cutoff,))
+            return cursor.rowcount
+
+    def _purge_if_due(self, force: bool = False) -> None:
+        """惰性清理:启动时清一次,之后读路径上每小时最多清一次。"""
+        if self.retention_days <= 0:
+            return
+        now = time.monotonic()
+        if not force and now - self._last_purge < 3600:
+            return
+        self._last_purge = now
+        try:
+            removed = self.purge_older_than(self.retention_days)
+            if removed:
+                print(
+                    f"OTP retention: purged {removed} record(s) older than {self.retention_days}d",
+                    flush=True,
+                )
+        except sqlite3.Error as error:
+            print(f"OTP retention purge failed: {error}", flush=True)
 
     def put(
         self,
@@ -190,11 +224,17 @@ class OtpStore:
                 "expiresAt": isoformat(expires),
             }
 
-    def put_fetched_code(self, phone: str, code: str) -> None:
+    def put_fetched_code(self, phone: str, code: str) -> str:
+        """源接口取回码入库。同码去重:未过期跳过,已过期只续期不插新行(防重复刷新刷出垃圾行)。
+
+        Returns:
+            "inserted"(新码入库) / "refreshed"(同码续期) / "unchanged"(同码仍有效)。
+        """
+        now = utc_now()
         with self.lock, self._connection() as connection:
             row = connection.execute(
                 """
-                SELECT code, expires_epoch
+                SELECT id, code, expires_epoch
                 FROM otp_codes
                 WHERE phone = ?
                 ORDER BY id DESC
@@ -202,8 +242,19 @@ class OtpStore:
                 """,
                 (phone,),
             ).fetchone()
-        if row is not None and row["code"] == code and row["expires_epoch"] > utc_now().timestamp():
-            return
+            if row is not None and row["code"] == code:
+                if row["expires_epoch"] > now.timestamp():
+                    return "unchanged"
+                expires = now + timedelta(seconds=self.ttl_seconds)
+                connection.execute(
+                    """
+                    UPDATE otp_codes
+                    SET expires_at = ?, expires_epoch = ?
+                    WHERE id = ?
+                    """,
+                    (isoformat(expires), expires.timestamp(), row["id"]),
+                )
+                return "refreshed"
         self.put(
             request_id=uuid.uuid4().hex,
             account="",
@@ -211,6 +262,7 @@ class OtpStore:
             code=code,
             message="Fetched from captcha source",
         )
+        return "inserted"
 
     def latest(
         self,
@@ -257,6 +309,7 @@ class OtpStore:
 
     def recent(self, limit: int = 50) -> list[dict[str, Any]]:
         limit = max(1, min(limit, 200))
+        self._purge_if_due()
         with self.lock, self._connection() as connection:
             rows = connection.execute(
                 """
@@ -417,6 +470,9 @@ class OtpRequestHandler(BaseHTTPRequestHandler):
         if path == "/api/test/otp/consume":
             self._consume_otp()
             return
+        if path == "/api/test/otp/refresh":
+            self._refresh_all()
+            return
         self._error(HTTPStatus.NOT_FOUND, "not found")
 
     def _receive_otp(self) -> None:
@@ -479,6 +535,32 @@ class OtpRequestHandler(BaseHTTPRequestHandler):
             return
         self._json_response(HTTPStatus.OK, {"consumed": True, "id": record_id})
 
+    def _refresh_all(self) -> None:
+        """手动触发:对白名单逐号实时取码入库,返回逐号结果摘要。"""
+        if not self._read_access_allowed():
+            self._error(HTTPStatus.UNAUTHORIZED, "invalid read token")
+            return
+        phones = sorted(self.gateway.allowed_phones) if self.gateway.allowed_phones else []
+        if not phones:
+            self._error(HTTPStatus.BAD_REQUEST, "auto-poll whitelist is empty; set OTP_ALLOWED_PHONES first")
+            return
+        results = []
+        for phone in phones:
+            try:
+                code = self.gateway.captcha_source.fetch(phone)
+            except CaptchaSourceError as error:
+                message = str(error)
+                # 源接口对"无有效码"回 success:false(rejected),属常态;其余才是真异常
+                results.append({
+                    "phone": phone,
+                    "status": "no_valid_code" if "rejected" in message else "error",
+                    "error": message,
+                })
+                continue
+            outcome = self.gateway.store.put_fetched_code(phone, code)
+            results.append({"phone": phone, "status": outcome, "code": code})
+        self._json_response(HTTPStatus.OK, {"refreshed": len(phones), "results": results})
+
 
 class OtpGateway(ThreadingHTTPServer):
     allow_reuse_address = True
@@ -535,12 +617,23 @@ class OtpGateway(ThreadingHTTPServer):
     tr.fresh td { animation: otp-fresh 2.5s ease-out; }
     @keyframes otp-fresh { from { background:var(--good-weak); } to { background:transparent; } }
     td.t-time { white-space:nowrap; font-variant-numeric:tabular-nums; }
+    .fetch-box { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+    .fetch-box button { padding:6px 16px; border:0; border-radius:8px; background:#2b4acb; color:#fff; font:inherit; font-weight:600; cursor:pointer; }
+    .fetch-box button:disabled { opacity:.55; cursor:default; }
+    .fetch-msg { font-size:12px; color:var(--good); }
+    .fetch-msg.bad { color:#c23a2b; }
     .empty { text-align:center; color:var(--muted); padding:36px; font-size:13px; }
   </style>
 </head>
 <body>
 <main>
-  <div class="otp-head"><span class="meta">每 5 秒自动刷新 · 显示最近取码记录（含已消费/已过期，新码绿色闪示）</span></div>
+  <div class="otp-head">
+    <div class="fetch-box">
+      <button id="fetch-all-btn" type="button">全部刷新</button>
+      <span id="fetch-msg" class="fetch-msg" hidden></span>
+    </div>
+    <span class="meta">每 5 秒自动刷新 · 显示最近取码记录（含已消费/已过期，新码绿色闪示）</span>
+  </div>
   <table>
     <thead><tr><th>手机号</th><th>验证码</th><th>生成时间</th><th>过期时间</th><th>请求 ID</th><th>状态</th></tr></thead>
     <tbody id="items"><tr><td class="empty" colspan="6">加载中…</td></tr></tbody>
@@ -600,7 +693,7 @@ async function refresh() {
     items.replaceChildren();
     if (!data.items.length) {
       const row = document.createElement('tr');
-      const empty = element('td', 'empty', '暂无验证码记录，用例触发取码后约 5 秒自动出现');
+      const empty = element('td', 'empty', '暂无验证码记录，用例触发取码或在上方输入手机号点「取码」后自动出现');
       empty.colSpan = 6; row.appendChild(empty); items.appendChild(row); return;
     }
     for (const item of data.items) {
@@ -614,7 +707,8 @@ async function refresh() {
       statusCell.appendChild(element('span', 'badge ' + (item.status || ''), BADGE_TEXT[item.status] || item.status || ''));
       const ridCell = document.createElement('td');
       ridCell.appendChild(element('span', 'rid', item.requestId));
-      row.append(cell(item.phone), codeCell, relativeCell(item.createdAt), expireCell(item.expireAt), ridCell, statusCell);
+      const phoneCell = cell(item.phone);
+      row.append(phoneCell, codeCell, relativeCell(item.createdAt), expireCell(item.expireAt), ridCell, statusCell);
       items.appendChild(row);
     }
     if (newest > lastNewest) lastNewest = newest;  // 本轮闪示窗口结束,更新水位
@@ -625,6 +719,40 @@ async function refresh() {
     empty.colSpan = 6; row.appendChild(empty); items.appendChild(row);
   }
 }
+// ---------- 全部刷新(2026-10-09):点按钮由服务端对白名单逐号实时取码入库,返回逐号摘要 ----------
+const fetchMsg = document.getElementById('fetch-msg');
+function note(text, bad) {
+  fetchMsg.textContent = text;
+  fetchMsg.classList.toggle('bad', !!bad);
+  fetchMsg.hidden = false;
+}
+const fetchAllBtn = document.getElementById('fetch-all-btn');
+let fetchingAll = false;
+const RESULT_TEXT = { inserted: '新码', refreshed: '续期', unchanged: '未变' };
+async function fetchAll() {
+  if (fetchingAll) return;
+  fetchingAll = true; fetchAllBtn.disabled = true;
+  note('全部刷新中…');
+  try {
+    const response = await fetch('/api/test/otp/refresh', { method: 'POST', cache: 'no-store' });
+    const data = await response.json().catch(() => ({}));
+    if (response.ok) {
+      const parts = (data.results || []).map((result) =>
+        result.status === 'no_valid_code' ? result.phone + ' 无有效码'
+          : result.status === 'error' ? result.phone + ' 失败'
+            : result.phone + ' ' + (RESULT_TEXT[result.status] || result.status));
+      note('已刷新 ' + data.refreshed + ' 个号码：' + parts.join(' · '));
+      refresh();
+    } else {
+      note('全部刷新失败：HTTP ' + response.status + (data.error ? ' · ' + data.error : ''), true);
+    }
+  } catch (error) {
+    note('全部刷新失败：' + error.message, true);
+  } finally {
+    fetchingAll = false; fetchAllBtn.disabled = false;
+  }
+}
+fetchAllBtn.addEventListener('click', fetchAll);
 refresh(); setInterval(refresh, 5000);
 </script>
 </body>
@@ -638,6 +766,7 @@ def create_server(
     ingest_token: str,
     read_token: str,
     ttl_seconds: int = 300,
+    retention_days: int = 5,
     allowed_phones: set[str] | None = None,
     read_auth_required: bool = False,
     ingest_auth_required: bool = False,
@@ -654,7 +783,7 @@ def create_server(
         raise ValueError("ttl_seconds must be positive")
     return OtpGateway(
         (host, port),
-        OtpStore(database_path, ttl_seconds=ttl_seconds),
+        OtpStore(database_path, ttl_seconds=ttl_seconds, retention_days=retention_days),
         ingest_token,
         read_token,
         allowed_phones,
@@ -670,6 +799,12 @@ def main() -> None:
     parser.add_argument("--port", type=int, default=int(os.getenv("OTP_PORT", "8080")))
     parser.add_argument("--db", default=os.getenv("OTP_DB", "output/otp_gateway/otp.sqlite3"))
     parser.add_argument("--ttl", type=int, default=int(os.getenv("OTP_TTL_SECONDS", "300")))
+    parser.add_argument(
+        "--retention-days",
+        type=int,
+        default=int(os.getenv("OTP_RETENTION_DAYS", "5")),
+        help="记录保留天数,超期启动时及每小时清理,0=不清理(默认 5)",
+    )
     parser.add_argument("--ingest-token", default=os.getenv("OTP_INGEST_TOKEN", ""))
     parser.add_argument("--read-token", default=os.getenv("OTP_READ_TOKEN", ""))
     parser.add_argument("--allowed-phones", default=os.getenv("OTP_ALLOWED_PHONES", ""))
@@ -697,6 +832,7 @@ def main() -> None:
         args.ingest_token,
         args.read_token,
         ttl_seconds=args.ttl,
+        retention_days=args.retention_days,
         allowed_phones={phone.strip() for phone in args.allowed_phones.split(",") if phone.strip()}
         or None,
         read_auth_required=args.read_auth_required,

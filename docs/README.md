@@ -35,6 +35,7 @@
 | `aw-codegen.md` | 业务 AW 与用例编码蓝图 |
 | `aw-verify.md` | 验证蓝图（跑 pytest、诊断失败、图片转正） |
 | `AW方法指南.md` | **已有 AW 方法唯一查询入口**（34 业务方法+回归 mixin+基础操作速查；写新用例/AW 前必查，防重复创建） |
+| `AW方法编写规范.md` | **AW 方法写法强制规范**（签名/docstring 六要素/定位/断言收尾/幂等短路/自检清单） |
 | `测试用例文件规范.md` | 用例文件强制规范（一用例一文件一 test 方法、固定 setup/teardown） |
 
 ## 对话纪要（docs/conversations/）

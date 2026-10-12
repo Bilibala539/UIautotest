@@ -1,6 +1,7 @@
 # Swan AW 方法指南（唯一查询入口）
 
 > **用途**：写新用例/新 AW 前必查——先看这里有没有能复用的方法，防止 AI 在不知情的情况下重复创建 AW 或错误使用。
+> **写法规范**：新方法怎么写（签名/docstring 六要素/定位/断言收尾/自检清单）见 **`AW方法编写规范.md`**（强制）。
 > **维护**：内容提取自 `utils/aw/business/swan.py`（SwanBusiness）与 `utils/aw/business/swan_regression.py`（回归 mixin）的 docstring，方法变更后同步更新本文件。权威细节以代码 docstring 为准（本文件是索引，docstring 是正文）。
 > 生成日期：2026-10-12。
 

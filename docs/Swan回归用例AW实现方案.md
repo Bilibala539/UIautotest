@@ -48,7 +48,7 @@
 
 | # | 方法 | 说明 | 服务用例 |
 |---|---|---|---|
-| D1 | `connect_wifi(ssid, password)` | adb `cmd wifi connect-network`，系统级连 WiFi/设备热点。热点配网必须跳出 App 连系统 WiFi，现有能力做不到 | 10 热点配网 |
+| D1 | `connect_wifi(ssid, password)` | ✅ 已拍板并实现（2026-09-24）：HONOR 阉割 `cmd wifi connect-network`（Uid 2000 无权限）、`add-suggestion` 仅注册不强制连，改为系统 WLAN 设置页 UI 自动化——driver 原语 `start_action` / `wifi_current_ssid` + `AndroidBaseAW.connect_wifi`（dump_nodes 语义定位 + `cmd wifi status` 断言，详见 runtime_experience）。热点配网必须跳出 App 连系统 WiFi | 10 热点配网 |
 | D2 | `press_key(key, long_press=False)` | 现方法扩展：`input keyevent --longpress`，支持物理音量键长按 | 27, 28 |
 | D3 | `get_foreground_package()`（可选） | dumpsys 查前台包名，热启动恢复断言的稳定性辅助 | 3 |
 
@@ -97,7 +97,7 @@
 |---|---|---|---|
 | A9 | `provision(mode="ble"\|"hotspot", device_name, ssid, password)` | 统一入口调度 | 9, 10 |
 | A10 | `provision_by_ble(...)` | 设备名核对 [OCR]、下一步 [图]（已有）、SSID/密码框 [图]（新截）、连接 [OCR]、配网进度 [OCR]、`wait_toast("配网成功")`、5s 内设备列表出现 [OCR] | 9 |
-| A11 | `provision_by_hotspot(...)` | "前往设置" [OCR] → `connect_wifi`（依赖 D1 批准）→ 回 App 弹窗 [图]（新截）→ WiFi 列表 [OCR]、密码框 [图]、完成 [OCR] → `wait_toast("连接成功")` | 10 |
+| A11 | `provision_by_hotspot(...)` | "前往设置" [OCR] → `connect_wifi`（已实现）→ 回 App 弹窗 [图]（新截）→ WiFi 列表 [OCR]、密码框 [图]、完成 [OCR] → `wait_toast("连接成功")` | 10 |
 
 ---
 
@@ -199,24 +199,37 @@
 
 ---
 
-## 4. 用例文件组织（中文命名，已定稿）
+## 4. 用例文件组织（2026-10-12 改版：一用例一文件一 test 方法）
 
-文件名 = Excel"模块"列名，保留 `test_` 前缀（pytest 收集 + run_parallel 匹配的硬约束）。已实测 pytest 9.1.1 / run_parallel / conftest 对中文文件名完全兼容。
+铁律（CLAUDE.md 规则 8）：每个用例 .py 文件**有且仅有一个 `test_` 方法**；同一场景的数据变体用 `@pytest.mark.parametrize` 挂在该方法上。文件名 = 用例名，保留 `test_` 前缀（pytest 收集 + run_parallel 匹配的硬约束，中文文件名已实测兼容）。唯一例外 `test_case_driver.py`（平台 YAML 用例执行载体）。用例间共用的前置/清理编排沉到 `utils/aw/business/swan_regression.py`（播放器域/内容域/登录域三个 mixin）。
 
-```
-tests/flutter/
-├── test_启动合规与登录认证.py      # 用例1-3、8（4-5 登录迁移并入）
-├── test_配网.py                   # 用例9-10（依赖 D1 + 设备）
-├── test_播放器设备切换.py          # 用例11-12
-├── test_播放器播放控制.py          # 用例13-22，parametrize(设备类型 × 循环模式)
-├── test_播放器进度与音量.py        # 用例23-28，parametrize(设备类型)
-├── test_主框架导航与首页推荐.py    # 用例29-31
-├── test_音乐平台总览与授权.py      # 用例32-37，parametrize(平台 × 入口)
-├── test_平台内容页.py             # 用例38-40，parametrize(平台)
-├── test_歌单收藏与历史.py          # 用例41-68，parametrize(平台 × 目标 × 来源)
-├── test_搜索.py                   # 用例69-72，parametrize(范围)
-└── test_设备列表与多房间.py        # 用例73-76，parametrize(芯片 × 数量)
-```
+首批已拆分落地（tests/flutter/，26 个用例文件）：
+
+| 文件 | 用例 | 变体矩阵 |
+|---|---|---|
+| test_设备页卡片切换输出.py | 11 | — |
+| test_播放页弹层切换输出.py | 12 | — |
+| test_播放全部发起播放.py | 13 | 设备类型 |
+| test_点歌名单曲播放.py | 14 | 设备类型 |
+| test_循环模式与播放控制.py | 15-22 | 设备类型 × 循环模式 |
+| test_进度条跳转.py | 23-24 | 设备类型 × drag/click |
+| test_音量调节.py | 25-26 | 设备类型 × 4 动作 |
+| test_物理音量键.py | 27-28 | 设备类型 × 方向×长短按 |
+| test_底部Tab轮巡.py | 29 | 4 Tab |
+| test_顶部Tab切换.py | 30 | 5 Tab |
+| test_首页卡片进入.py | 31 | 3 卡片 |
+| test_歌单收藏开关.py | 41-43 | 平台 |
+| test_歌曲收藏.py | 44-55 | 目标平台 × 来源 |
+| test_最近播放.py | 56-68 | 分类 |
+| test_搜索.py | 69-72 | 范围 |
+
+存量登录域 12 个（key 定位迁移待拍板）：test_验证码登录 / test_登录态重启持久化 /
+test_登出回登录页 / test_登录登出闭环 / test_登录页形态互切 / test_密码登录成功 /
+test_错误密码拒绝 / test_首页只读断言 / test_平台页只读断言 / test_设备页只读断言 /
+test_播放页开关 / test_收藏分组详情。
+
+未拆分待排（随各域 AW 实现时按本铁律一用例一文件新建）：用例 1-8（启动登录改造）、
+9-10（配网）、32-40（授权/平台内容页）、73-76（多房间）。
 
 ---
 
@@ -224,7 +237,7 @@ tests/flutter/
 
 | # | 事项 | 影响 | 说明 |
 |---|---|---|---|
-| ① | Driver 层 D1–D3 是否批准 | 配网/音量/热启动 | 框架层改动须用户决策（项目规则 9） |
+| ① | Driver 层 D1–D3 是否批准 | 配网/音量/热启动 | D1 已拍板（2026-09-24，UI 自动化路线，已实现+冒烟通过）；D2/D3 仍待批 |
 | ② | 播放控制键安全约定是否放开 | 用例 16–28 | 知识库标注 loop/prev/next/volume"⛔只断言不点"（探索期约定 + 无任务时点击无反应）。回归必须真点真音箱 |
 | ③ | 声学断言降级口径 | 用例 25–28 | "声音如期变大变小"无法自动断言，降级为音量条位置/静音图标 UI 态 |
 | ④ | 实体设备 rig | 用例 9–14、19–28、73–76 | 多房间需 ≥3 台 A31 + 3 台 H76D/H76G；切换/播放需 ≥2 台 WiFi 音箱常在线；配网需 1 台**未配网**设备。设备清单谁准备 |
@@ -257,6 +270,6 @@ tests/flutter/
 
 | 层 | 数量 | 备注 |
 |---|---|---|
-| Driver | +3（待批） | connect_wifi / press_key 扩展 / get_foreground_package |
+| Driver | +2（D1 已实现） | start_action / wifi_current_ssid 原语；connect_wifi 编排在 AndroidBaseAW（见 Base 行） |
 | Base | +5 | find_image_rect / wait_toast / long_press_key / region_changed / drag_on_template |
 | Business | 36 个方法（9 域，A1–A36） | 含登录域 6 个改造、3 个统一入口、2 个纯前置/清理 |

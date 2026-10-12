@@ -3127,6 +3127,19 @@ class DashboardHandler(BaseHTTPRequestHandler):
             except PatrolStatusMissing as error:
                 self.send_error_json(str(error), HTTPStatus.NOT_FOUND)
             return
+        # 巡检快照历史(2026-10-12 入库配套):最近 N 轮,新→旧;登录闸内,limit 上限 200
+        if parsed.path == "/api/patrol/history":
+            query = parse_qs(parsed.query)
+            try:
+                limit = int(query.get("limit", ["50"])[0])
+            except ValueError:
+                self.send_error_json("limit must be an integer", HTTPStatus.BAD_REQUEST)
+                return
+            try:
+                self.send_json({"items": patrol_history(self.store.database_path, max(1, min(limit, 200)))})
+            except sqlite3.Error as error:
+                self.send_error_json(f"巡检历史查询失败: {error}", HTTPStatus.INTERNAL_SERVER_ERROR)
+            return
         self.send_error_json("not found", HTTPStatus.NOT_FOUND)
 
     def read_json(self) -> dict[str, Any]:
@@ -3894,7 +3907,7 @@ def metrics_history(query: dict[str, list[str]]) -> dict[str, Any]:
 # ==================== 机器监控 section 结束 ====================
 
 # ==================== 巡检流程总览:巡检状态快照只读代理(设计稿 docs/设计稿/巡检流程监控-设计稿.html v0.6,口径权威 docs/agent模块档案/巡检机制.md) ====================
-# 独立 section:仅本段常量/函数 + do_GET 内 /api/patrol/status 路由,不依赖、不改其他模块代码。
+# 独立 section:仅本段常量/函数 + do_GET 内 /api/patrol/* 路由 + main() 一行线程启动,不依赖、不改其他模块代码。
 # 数据源:巡检 agent 每轮覆盖写 last_status.json(.167 cron 每日 08:41/19:43,巡检机制.md §6);
 # 本端点只读原样返回,好坏判定/快照超期判定归前端(与机器监控"卡态前端判定"同口径);
 # 浏览器通道走登录闸,无需 MACHINE_EXEMPT。快照缺失/不可读 → 404,前端显"巡检数据缺失"+重试(规范 4.7/6.9)。
@@ -3913,6 +3926,83 @@ def patrol_status() -> dict:
     except (OSError, ValueError) as error:
         raise PatrolStatusMissing(f"巡检状态文件不可读: {error}") from error
 
+
+# ==================== 巡检快照入库(2026-10-12 增):每轮快照留档,支撑回溯/趋势 ====================
+# 平台侧采集,巡检脚本零改动:后台线程每 60s 读快照文件,ts 唯一键 INSERT OR IGNORE 幂等;
+# 快照文件虽被巡检每轮覆盖,历史行已留档。查询走 GET /api/patrol/history(登录闸内)。
+PATROL_INGEST_INTERVAL_S = 60.0
+
+
+def _patrol_db_connect(db_path: str | Path) -> sqlite3.Connection:
+    """section 自持连接(不走 DashboardStore,保隔离);建表语句幂等。"""
+    connection = sqlite3.connect(db_path, timeout=30)
+    connection.execute(
+        "CREATE TABLE IF NOT EXISTS patrol_snapshots ("
+        "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "ts TEXT NOT NULL UNIQUE,"
+        "host TEXT NOT NULL DEFAULT '',"
+        "payload TEXT NOT NULL,"  # 快照 JSON 全文(原样)
+        "ingested_at TEXT NOT NULL DEFAULT (datetime('now')))"
+    )
+    return connection
+
+
+def ingest_patrol_snapshot(db_path: str | Path) -> bool:
+    """当前快照入库(ts 幂等);新入一条返回 True。失败吞掉记 stderr,不影响服务主链路。"""
+    try:
+        snapshot = patrol_status()
+    except PatrolStatusMissing:
+        return False
+    connection = _patrol_db_connect(db_path)
+    try:
+        with connection:
+            connection.execute(
+                "INSERT OR IGNORE INTO patrol_snapshots(ts, host, payload) VALUES(?,?,?)",
+                (str(snapshot.get("ts", "")), str(snapshot.get("host", "")),
+                 json.dumps(snapshot, ensure_ascii=False)),
+            )
+            return connection.total_changes > 0
+    except sqlite3.Error as error:
+        print(f"[patrol-ingest] 快照入库失败: {error}", file=sys.stderr, flush=True)
+        return False
+    finally:
+        connection.close()
+
+
+def patrol_history(db_path: str | Path, limit: int = 50) -> list[dict[str, Any]]:
+    """最近 N 轮快照(新→旧);payload 解为对象随行返回。"""
+    connection = _patrol_db_connect(db_path)
+    try:
+        connection.row_factory = sqlite3.Row
+        with connection:
+            rows = connection.execute(
+                "SELECT id, ts, host, payload, ingested_at FROM patrol_snapshots"
+                " ORDER BY ts DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
+    finally:
+        connection.close()
+    return [
+        {"id": row["id"], "ts": row["ts"], "host": row["host"],
+         "ingested_at": row["ingested_at"], "snapshot": json.loads(row["payload"])}
+        for row in rows
+    ]
+
+
+def _patrol_ingest_loop(db_path: str | Path) -> None:
+    while True:
+        ingest_patrol_snapshot(db_path)
+        time.sleep(PATROL_INGEST_INTERVAL_S)
+
+
+def patrol_ingest_start(db_path: str | Path) -> None:
+    """main() 唯一 hook:先同步入一次(重启后立即有行),再起守护线程持续采集。"""
+    import threading  # 局部导入,保 section 自包含(同文件 mid-file 导入先例)
+
+    ingest_patrol_snapshot(db_path)
+    threading.Thread(target=_patrol_ingest_loop, args=(db_path,), daemon=True,
+                     name="patrol-ingest").start()
+
 # ==================== 巡检流程总览 section 结束 ====================
 
 # 页面独立维护在 dashboard/page.html(四页签:会话/包管理/用例历史/验证码工具)
@@ -3928,6 +4018,7 @@ def main() -> None:
     parser.add_argument("--database", default=str(DEFAULT_DATABASE))
     args = parser.parse_args()
     server = create_server(args.host, args.port, args.database)
+    patrol_ingest_start(args.database)  # 巡检快照入库线程(见巡检 section:60s 一采,ts 幂等)
     print(f"Dashboard listening on http://{args.host}:{args.port}")
     try:
         server.serve_forever()

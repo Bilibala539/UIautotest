@@ -190,10 +190,16 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
 
     @_aw_method_report
     def list_accessibility_keys_by_prefix(self, prefix: str) -> list[str]:
-        """列出当前页面 resource_id 以 prefix 开头的语义 key（去重、有序）。
+        """按前缀列出当前页语义 key（去重、有序）——⚠️ 仅探索与只读判断辅助。
 
-        用于设备卡这类按 UUID 动态拼接 key 的元素计数/存在性判断，
-        避免把 UUID 写死在用例里。仅做判断，点击仍走 click_accessibility。
+        身份：通用辅助（无方案编号），服务设备卡 UUID 动态 key 场景
+        （wifi_device_card_<UUID> 前缀计数）。
+        用途边界：**仅存在性/计数判断**（如设备页断言"至少一张设备卡"），
+        严禁用于取坐标做运行时点击（坐标来源唯一性铁律，CLAUDE.md 规则 2）；
+        运行时定位/断言一律 [图]/[OCR]。这是业务层唯一合法的语义树读取入口，
+        新方法不得新增 dump 依赖。
+        前置：任意页面（读当前语义树快照）。
+        返回：去重升序 key 列表（prefix 无命中返回空列表，不断言）。
         """
         found: list[str] = []
         for node in self.dump_semantics():
@@ -802,34 +808,24 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         未等到 → 视为已授权，返回 False 由调用方继续收尾断言（弹窗缺失
         不算失败）。
 
-        ⚠️ 受控例外：本方法在业务层经 dump 定位系统弹窗按钮，突破
-        「业务方法禁止依赖 dump 做定位」的约定——系统弹窗不在 Flutter
-        语义树内、无图像模板可用、按钮为系统渲染（resource-id 惯例
-        button1=肯定键「忽略」/button2=否定键「取消」），且属一次性授权
-        的流程前置。弹窗处置收敛在本方法内，**不**并入 android_base
+        定位（2026-10-12 坐标来源唯一性整改，审计 P0）：「忽略」按钮为
+        系统渲染（不在 Flutter 语义树、无图像模板），按其可见按钮文案
+        [OCR] 定位——adb 截屏含系统弹窗，click_text 轮询匹配「忽略」。
+        弹窗处置收敛在本方法内，**不**并入 android_base
         dismiss_app_popups 规则表（规则表按按钮文字自动点击，存在全局
         误触状态变更的风险，同 _dismiss_auth_notice_popup 的考量）。
         """
-        deadline = time.monotonic() + timeout
-        while time.monotonic() < deadline:
-            for node in self.dump_semantics():
-                node_id = (node.get("resource_id") or "").split("/")[-1]
-                label = node.get("text") or node.get("content_desc") or ""
-                if node_id == "button1" and "忽略" in label:
-                    center = node.get("center")
-                    assert center is not None, (
-                        "电池优化弹窗「忽略」按钮节点缺 bounds，无法点击")
-                    logger.info(
-                        "select_device: 系统电池优化弹窗出现，点「忽略」%s",
-                        center)
-                    self.tap(center[0], center[1])
-                    return True
-            self.sleep(1.0)
+        clicked = self.click_text("忽略", timeout=timeout)
+        if clicked:
+            logger.info("select_device: 系统电池优化弹窗出现，[OCR] 点「忽略」")
+            return True
         logger.info(
             "select_device: 窗口期内未见电池优化弹窗（视为已授权，继续切换）")
         return False
 
-    def _wait_compact_text_in_region(self, text: str, region, timeout: float,
+    def _wait_compact_text_in_region(self, text: str,
+                                     region: tuple[int, int, int, int],
+                                     timeout: float,
                                      what: str, must: bool = True) -> bool:
         """region 内轮询 OCR 断言/探测文本（两侧 compact 归一化比对）。
 
@@ -1222,7 +1218,7 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
             logger.warning("seek_to: OCR 未取得进度双时间，退化为播放态断言")
             self.assert_playing()
 
-    def _find_volume_slider(self, timeout: float = 10.0):
+    def _find_volume_slider(self, timeout: float = 10.0) -> tuple[int, int, int, int] | None:
         """定位音量滑条真轨道矩形（± 钮锚定推导），返回 rect 或 None。
 
         ± 钮为弹窗静态控件（SWAN_PLAYER_VOLUME_MINUS/PLUS 正式模板），匹配
@@ -1470,6 +1466,8 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
     def _track_point(cls, rect: tuple[int, int, int, int], ratio: float,
                      axis: str = "x") -> tuple[int, int]:
         """轨道矩形 + 比例 → 屏幕点（矩形中线取点）。"""
+        if axis not in ("x", "y"):
+            raise ValueError(f"axis 仅支持 x / y，收到 {axis!r}")
         x, y, w, h = rect
         if axis == "x":
             return x + int(w * ratio), y + h // 2
@@ -1484,6 +1482,8 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         （音量滑条的填充态模板匹配矩形会漂移，run4d run2 实测废弃），此处
         由静态 ± 钮锚定推导，几何稳定。
         """
+        if axis not in ("x", "y"):
+            raise ValueError(f"axis 仅支持 x / y，收到 {axis!r}")
         start = self._track_point(rect, start_ratio, axis)
         end = self._track_point(rect, end_ratio, axis)
         return self.swipe(start[0], start[1], end[0], end[1], duration)
@@ -1498,6 +1498,8 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         终点即目标比例位，落点为 pointer 手势终点，与点击语义等价。
         轴向与 _volume_ratios 同约定：x 轴值随比例增，纵轴下小上大。
         """
+        if axis not in ("x", "y"):
+            raise ValueError(f"axis 仅支持 x / y，收到 {axis!r}")
         ratio = value / 100.0
         if axis == "x":
             start_ratio = max(0.0, ratio - 0.02)     # 目标位左邻 2%
@@ -1702,6 +1704,8 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         切换，重试仍失败则报错）；「已播歌曲」卡在最近播放区，可能被底部
         播放条遮挡下半部或位于折叠下方，需上滑露出（知识库 swan_播放历史页）。
         """
+        if scroll not in ("up", "down"):
+            raise ValueError(f"scroll 仅支持 up / down，收到 {scroll!r}")
         for attempt in range(attempts):
             pos = self.find_text_by_ocr(text, timeout=3)
             if pos is not None:
@@ -2540,7 +2544,7 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
             self.press_back()
 
     @_aw_method_report
-    def assert_search_results(self, tab: str, platforms=None,
+    def assert_search_results(self, tab: str, platforms: list[str] | None = None,
                               timeout: float = 10.0,
                               allow_empty: bool = False) -> None:
         """搜索结果分类断言（A34，回归用例69-72后半）。
@@ -2616,7 +2620,9 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
             tab_text,
             f"且关键词 {keyword!r} 未 OCR 命中" if keyword else "")
 
-    def _assert_text_in_region(self, text: str, region, timeout: float,
+    def _assert_text_in_region(self, text: str,
+                               region: tuple[int, int, int, int],
+                               timeout: float,
                                what: str, scrolls: int = 2) -> None:
         """region 内 OCR 断言文本，未命中时上滑整屏重试（列表折叠下方条目）。"""
         for attempt in range(scrolls + 1):

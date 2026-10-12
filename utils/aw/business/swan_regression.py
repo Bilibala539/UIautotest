@@ -112,12 +112,13 @@ class SwanPlayerRegressionMixin:
     # y≈1500 起的全局底部导航图标行，防止误点「首页/平台/设备/我的」
     _BOTTOM_BAR_REGION = (0, 1370, 720, 116)
 
-    def setup(self):
+    def setup(self) -> None:
+        """pytest 生命周期钩子（conftest _auto_test_lifecycle 调用）：实例化用户与基础操作入口。"""
         self.user = self.users("swan")
         self.aw = self.user.aw  # 业务层实例 = 基础操作 + SwanBusiness 业务方法
         self.phone = self.user.phone
 
-    def teardown(self):
+    def teardown(self) -> None:
         """G3/G4：关残留弹层 → 尽力暂停（rig 卫生）→ 收播放页 → 输出恢复 →
         退出 push 页 → 回首页。
 
@@ -144,7 +145,7 @@ class SwanPlayerRegressionMixin:
     # ---------- 锚点探测（模板缺失防护 + 首页壳判据） ----------
 
     def _probe_image(self, template: str, timeout: int = 1,
-                     threshold: float = 0.8):
+                     threshold: float = 0.8) -> tuple[int, int] | None:
         """模板文件在盘才 find_image；缺失记日志按未命中处理。
 
         AWBase.find_image 对缺失模板文件是 assert 崩溃而非返回 None（框架层
@@ -466,7 +467,7 @@ class SwanContentRegressionMixin(SwanPlayerRegressionMixin):
     COLLECT_PLAYER_SONG = (os.environ.get("SWAN_COLLECT_PLAYER_SONG", "").strip()
                            or os.environ.get("SWAN_TEST_SONG", "").strip())
 
-    def teardown(self):
+    def teardown(self) -> None:
         """G3/G4：关弹层（设备弹层+音量弹层）-> 尽力暂停 -> 收播放页 ->
         退出 push 页 -> 回首页。
 
@@ -511,7 +512,8 @@ class SwanLoginRegressionMixin:
     新用例不要模仿（CLAUDE.md 规则 2）。
     """
 
-    def setup(self):
+    def setup(self) -> None:
+        """pytest 生命周期钩子：实例化用户与基础操作入口（另读 SWAN_PASSWORD/SWAN_PACKAGE）。"""
         self.user = self.users("swan")
         self.aw = self.user.aw  # 业务层实例 = 基础操作 + SwanBusiness 业务方法
         self.phone = self.user.phone

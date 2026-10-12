@@ -25,7 +25,7 @@ import os
 import pytest
 
 from conftest import BaseTest
-from tests.flutter.swan_regression_common2 import SwanContentRegressionMixin
+from utils.aw.business.swan_regression import SwanContentRegressionMixin
 
 _platform = os.environ.get("PLATFORM", "web").strip().lower()
 _has_phone = bool(os.environ.get("SWAN_PHONE", "").strip())

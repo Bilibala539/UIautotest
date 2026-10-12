@@ -1,0 +1,39 @@
+"""Swan 回归·播放器域：我喜欢页点歌名单曲播放（回归用例 14）。
+
+用例 → AW 映射（docs/Swan回归用例AW实现方案.md §2.3 域3）：
+- 用例14 我喜欢页点歌名单曲播放 → start_play(mode="song")
+  （歌名经 SWAN_TEST_SONG 注入，未配置自动 skip）
+
+矩阵：device_type（speaker=手机扬声器默认输出 / wifi_device=rig 音箱
+SWAN_DEVICE_NAME）。
+rig 环境变量与公共前置/清理见 utils/aw/business/swan_regression.py。
+清理（G3/G4）：关弹层 → 尽力暂停 → 收播放页 → 输出恢复 → 回首页（mixin teardown）。
+"""
+from __future__ import annotations
+
+import os
+
+import pytest
+
+from conftest import BaseTest
+from utils.aw.business.swan_regression import DEVICE_TYPES, SwanPlayerRegressionMixin
+
+_platform = os.environ.get("PLATFORM", "web").strip().lower()
+_has_phone = bool(os.environ.get("SWAN_PHONE", "").strip())
+
+pytestmark = pytest.mark.skipif(
+    _platform != "flutter" or not _has_phone,
+    reason="Swan 用例需要 PLATFORM=flutter 和 SWAN_PHONE",
+)
+
+
+class TestPlaySingleSong(SwanPlayerRegressionMixin, BaseTest):
+    """我喜欢页点歌名单曲播放（回归用例 14）。"""
+
+    @pytest.mark.parametrize("device_type", DEVICE_TYPES)
+    def test_play_single_song(self, device_type):
+        """用例14：我喜欢页点歌名单曲播放（SWAN_TEST_SONG 未配置则 skip）。"""
+        if not self.SONG_NAME:
+            pytest.skip("未配置 SWAN_TEST_SONG（rig 我喜欢歌单中的歌曲名）")
+        self._preset_playing(device_type, source=self.SONG_NAME, mode="song")
+        self.user.assert_now_playing(self.SONG_NAME)

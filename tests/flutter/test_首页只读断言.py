@@ -1,0 +1,48 @@
+"""Swan Flutter 首页只读断言（原 test_swan_readonly_pages.py，2026-10-12 拆分）。
+
+覆盖：首页元素（4 个全局 tab + 底部播放条非致命探测）。
+前置：账号已登录（用例开头 login_by_sms 幂等确保，已在首页自动跳过）。
+
+⛔ 危险入口一律不点（只做存在性断言）：
+授权/充值、播放暂停/音量/上下首、设备卡/设置/同步/添加设备、注销账号、
+任何确认弹窗。
+断言辅助与锚点探测在 SwanLoginRegressionMixin（业务层，存量 key 口径）。
+每条用例收尾回首页（G3/G4）。
+"""
+from __future__ import annotations
+
+import os
+
+import pytest
+
+from conftest import BaseTest
+from utils.aw.business.swan import SwanBusiness
+from utils.aw.business.swan_regression import SwanLoginRegressionMixin
+
+_platform = os.environ.get("PLATFORM", "web").strip().lower()
+_has_phone = bool(os.environ.get("SWAN_PHONE", "").strip())
+
+pytestmark = pytest.mark.skipif(
+    _platform != "flutter" or not _has_phone,
+    reason="Swan 用例需要 PLATFORM=flutter 和 SWAN_PHONE",
+)
+
+
+class TestSwanHomeReadonly(SwanLoginRegressionMixin, BaseTest):
+    """首页只读断言。"""
+
+    def test_home_page_elements(self):
+        """首页元素：4 个全局 tab key + 底部播放条（非致命探测）。
+
+        底部播放条模板截于「输出=扬声器/- -」无会话态，rig 持久播放会话
+        （输出=设备名+曲目名）下内容永久偏离模板，存在性降级为非致命探测：
+        命中记 info，未命中记 warning 不挂用例（口径同
+        swan_regression verify-run3）。
+        """
+        self._ensure_logged_in_on_home()
+        for key in (SwanBusiness.KEY_TAB_RECOMMEND,
+                    SwanBusiness.KEY_TAB_PLATFORM,
+                    SwanBusiness.KEY_TAB_DEVICE,
+                    SwanBusiness.KEY_TAB_ME):
+            assert self.aw.accessibility_exists(key), f"首页缺少 tab key: {key}"
+        self._probe_bottom_player_bar()

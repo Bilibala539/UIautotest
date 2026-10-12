@@ -922,7 +922,7 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         交付收起钮浅底/深底双模板（极性实测 -0.9 根除互扰）后，探测改
         _find_dismiss_btn（双模板 + 顶栏 region 双保险），点击仍点命中
         模板位置；旧单模板与返回箭头态模板保留作兜底。
-        swan_regression_common._dismiss_player_if_any（teardown 清理）与本
+        swan_regression._dismiss_player_if_any（teardown 清理）与本
         方法共用此实现，防两份收起逻辑漂移。
         """
         template = self._find_dismiss_btn(timeout=timeout)
@@ -939,7 +939,7 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         背景）下点播放条进页成功、收起钮白 chevron 落在亮背景上 score<0.8
         被误判未进页（13:35 FAIL 截图实证页面已开）。播放页到位断言统一
         收口本方法（start_play / select_device WiFi 分支 / 设备弹层退化
-        分支 / collect_song player 收尾 / swan_regression_common.
+        分支 / collect_song player 收尾 / swan_regression.
         _open_player_page），检测器与 _dismiss_full_player 共用
         _find_dismiss_btn，防两份收起逻辑漂移。
         """
@@ -1495,7 +1495,7 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         """首页容器判据：任一顶 Tab 未选中态图可见（region 限定顶 Tab 行）。
 
         首页 5 个顶 Tab 至多 1 个处于选中态，任一张未选中态图可见即在
-        首页容器（与 tests/flutter/swan_regression_common.py 的
+        首页容器（与 utils/aw/business/swan_regression.py 的
         _ensure_logged_in_on_home 同口径，不依赖当前激活的是哪个顶 Tab）。
         ⚠️ 必须 region 限定 _TOP_TAB_ROW_REGION：未选中态小图在平台/我的页
         内容区有假阳性命中（verify-run3 实测 AITab按钮 0.836@(295,1171) /
@@ -1567,7 +1567,7 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         顶 Tab 行只在首页容器渲染：不在首页时先经底部导航 [图] 回首页
         （顶 Tab 持久化陷阱，见域4 段注）。顶 Tab 用未选中态已转正图定位；
         目标 Tab 的未选中态图不可见即视为已停在该 Tab（选中态图标不匹配
-        未选中态模板，同 tests/flutter/swan_regression_common.py
+        未选中态模板，同 utils/aw/business/swan_regression.py
         _stay_on_recommend_tab 的判定口径）。
         到位断言：目标 Tab 选中态图 [图]（verify R2 换锚，五 Tab 同一口径，
         不依赖各 Tab 内容布局，见 _TOP_TAB_ANCHORS 注）。
@@ -2462,7 +2462,7 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         Tab 行 region 限定点击，原地切换内容区。
 
         结果断言两种口径（由 platforms 参数驱动；测试层经环境变量
-        SWAN_SEARCH_PLATFORMS 控制，见 swan_regression_common2.py）：
+        SWAN_SEARCH_PLATFORMS 控制，见 swan_regression.py）：
         - platforms 为空/None（SWAN_SEARCH_PLATFORMS 未配置＝干净未授权
           账号）：断言空态——SWAN_SEARCH_EMPTY [图]，缺失时退化 OCR
           「没有找到相关结果」。

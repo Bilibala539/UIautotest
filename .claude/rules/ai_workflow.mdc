@@ -152,7 +152,7 @@ Phase 5: 运行验证 + 自检修复 + 图片转正（aw-verify）
 | 4.1 | 在 `utils/aw/business/<project>.py` 中编写业务 AW 方法 | 方法已添加，无 `self.tap(x,y)` |
 | 4.2 | 确保只调用 AWBase 方法，断言优先 `image_exists` | 代码符合编码规范 |
 | 4.3 | 在 `utils/user.py` 的 用户类（如 SwanUser） 中添加代理方法 | 代理方法已添加 |
-| 4.4 | 在 `tests/checklist/` 中创建测试用例 | 用例继承 BaseTest，setup/teardown 正确 |
+| 4.4 | 在 `E:\UIAutotest\tests\flutter` 中创建测试用例 | 用例继承 BaseTest，setup/teardown 正确 |
 
 **完成标志**：AW 方法、用户类（如 SwanUser） 代理、测试用例三件齐全。
 

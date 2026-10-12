@@ -42,8 +42,8 @@
 
 | 方法 | 干嘛 | 关键参数/注意 |
 |---|---|---|
-| `go_home(timeout=15)` | 回首页 | **存量 key 导航**，仅限 tab 壳内使用；push 页先 back_to_tab_shell |
-| `go_bottom_tab(name, timeout=15)` | 底部四 Tab 轮巡（首页/平台/设备/我的） | 存量 key 点击 + 图片断言到位 |
+| `go_home(timeout=15)` | 回首页容器 | [图]（2026-10-12 存量 key 迁移）；幂等：首页 Tab 选中时短路不点（选中态图未截，到位断言走顶 Tab 行图+OCR「推荐」）；push 页自动先 back_to_tab_shell |
+| `go_bottom_tab(name, timeout=15)` | 底部四 Tab 轮巡（首页/平台/设备/我的） | [图] 未选中态图点击 + 各页特有锚断言到位（2026-10-12 核对：域4 起即 [图] 实现，无 key）；非法 name 报 ValueError |
 | `go_top_tab(name, timeout=15)` | 首页五顶 Tab 切换（推荐/音乐/AI/可视音箱/电台） | [图]；顶 Tab 有持久化陷阱，方法内部已处理 |
 | `open_home_card(name, timeout=15)` | 首页推荐卡片进入对应页 | [OCR]；歌单卡未找到时内部下拉刷新重试 |
 | `back_to_tab_shell(max_backs=3)` | 逐级 press_back 退出 push 页回 tab 壳 | [图] 锚定判定；**teardown 链必备**（push 页直接 go_home 必炸） |
@@ -111,7 +111,7 @@
 | `_preset_playing(device_type, source, mode)` | 播放前置：登录→确定输出（speaker 防污染校验/wifi 切 rig 含短路探测）→推荐顶 Tab→我喜欢页→start_play |
 | `_preset_playing_on_favorite(source, mode)` | 内容域播放前置（到位判据改 OCR「宝藏音乐，随心收藏」） |
 | `_ensure_logged_in_on_home()` | 幂等登录+首页壳三级锚断言（登录页/未知页先 relaunch 重置） |
-| `_stay_on_recommend_tab()` / `_open_device_page()` / `_open_player_page()` / `_click_bottom_player_bar()` | 顶 Tab 复位（持久化陷阱）/设备页导航/播放页导航（模板失配走条带 OCR 兜底） |
+| `_stay_on_recommend_tab()` / `_open_device_page()` / `_open_player_page()` / `_click_bottom_player_bar()` | 顶 Tab 复位（持久化陷阱）/设备页导航（2026-10-12 迁移 [图]：SWAN_TAB_DEVICE 点击，已在设备页锚可见时短路）/播放页导航（模板失配走条带 OCR 兜底） |
 | `_probe_image(template, timeout, threshold)` | 模板缺失防护探测（find_image 对缺失模板是 assert 崩溃，可选命中一律走它） |
 | `_close_sheet_if_any` / `_close_volume_popup_if_any` / `_pause_if_playing` / `_dismiss_player_if_any` | 残留清理四件套（弹层探测关闭/暂停/收播放页） |
 | `_restore_speaker_output_if_needed()` / `_ensure_speaker_output()` | 输出防污染（teardown 非断言版 / speaker 前置硬断言版） |

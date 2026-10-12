@@ -17,7 +17,7 @@
 | 知识库 | `knowledge/swan/`，MCP：`knowledge_graph_swan` / `vector_kb_swan` |
 | 元素图片 | 草稿 `image_ai/flutter/` → 转正 `image/flutter/`（`image_name_mapping.py` 支持 flutter 平台） |
 | 账号 | 环境变量 `SWAN_PHONE` / `SWAN_PASSWORD`，验证码走验证码平台（`SWAN_OTP_GATEWAY`） |
-| 定位策略 | accessibility key > OCR 文本 > 图像模板；**禁止坐标** |
+| 定位策略 | 图像模板 > OCR 文本（2026-09-20 定稿）；accessibility key 仅限 explorer 探索与调试，运行时禁用；坐标来源唯一性——运行时坐标只能来自图/OCR（2026-10-12 铁律） |
 | 首页约定 | Swan 首页 = 底部"推荐/首页" tab（以探索结果为准，知识库 `root_page` 确认后固化） |
 
 ## 下游 agent 速查

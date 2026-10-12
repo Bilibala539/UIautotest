@@ -66,6 +66,12 @@
 - 提交失败后**表单状态残留**（已填文本 + 协议已勾选），重跑需重启 App 重置（登录页无持久化，重启回全新验证码形态）
 - 互斥形态判据：验证码页有 `login_use_password_button` 无 `login_password_field`；密码页反之
 
+### 元素截图（image_ai/flutter，2026-10-12 W1-A key 迁移草稿，待 verify 转正）
+
+| 元素 | 常量（草稿） | 图片文件 |
+|---|---|---|
+| 密码输入框（未聚焦空态整行白盒含边框，右侧闭眼图标入模） | `SWAN_PASSWORD_FIELD` | image_ai/flutter/swan_密码页_密码输入框.png |
+
 ## 缺口
 
 - `login_area_code_button` 点开后的区号列表未探索

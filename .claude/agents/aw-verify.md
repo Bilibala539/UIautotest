@@ -27,4 +27,4 @@ model: opus
 - App：Swan（Flutter，com.swan.network），Android 真机（ANDROID_DEVICE_SERIAL）
 - 用户类 SwanUser → SwanBusiness（utils/aw/business/swan.py）
 - 知识库 knowledge/swan/（MCP：knowledge_graph_swan / vector_kb_swan）
-- 定位：accessibility key > OCR 文本 > 图像模板，禁止坐标
+- 定位：图像模板 > OCR 文本（2026-09-20 定稿）；accessibility key 仅限 explorer 探索与调试，运行时禁用；坐标来源唯一性铁律（2026-10-12）——运行时坐标只能来自图像模板匹配或 OCR

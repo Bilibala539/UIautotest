@@ -30,6 +30,7 @@
 | 列表行「设备管理」（设备管理分组下的可点行） | `SWAN_ME_DEVICE_MANAGE_ROW`     | image/flutter/swan_我的_设备管理行.png |
 | 列表行「音质设置」              | `SWAN_ME_SOUND_QUALITY_ROW`     | image/flutter/swan_我的_音质设置行.png |
 | 右上角扫一扫图标 | `SWAN_ME_SCAN_ICON` | image/flutter/swan_我的_扫一扫图标.png（2026-09-10 Wave1 采集，离线匹配 1.000，已转正） |
+| 顶部账号信息入口行头像本体（logout 路径第一步，⚠️ 只截图断言；不含昵称/手机号个人数据） | `SWAN_ME_ACCOUNT_ENTRY`（草稿） | image_ai/flutter/swan_我的_账号信息入口.png（2026-10-12 W1-A 采集，待 verify 转正；元素超浅色 std≈7，验收留意） |
 ⚠️ dump 中"我的权益""设备管理""更多"出现两次（标题行 + 可点击行），实际可点的是后者。
 
 ## 关联

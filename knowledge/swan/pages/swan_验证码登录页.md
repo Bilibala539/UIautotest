@@ -38,6 +38,16 @@ Swan（com.swan.network v5.3.0）启动后的默认落地页。手机号 + 验�
 | 《隐私政策》链接 | `SWAN_LOGIN_PRIVACY_POLICY_LINK` | image/flutter/swan_隐私政策链接.png |
 | 《使用政策》链接 | `SWAN_LOGIN_USAGE_POLICY_LINK` | image/flutter/swan_使用政策链接.png |
 | 「下一步」按钮（⚠️ 截图为未输手机号的置灰态） | `SWAN_LOGIN_SUBMIT_BTN` | image/flutter/swan_下一步按钮.png |
+
+### 元素截图（image_ai/flutter，2026-10-12 W1-A key 迁移草稿，待 verify 转正）
+
+| 元素 | 常量（草稿） | 图片文件 |
+|---|---|---|
+| 手机号输入框（未聚焦空态整行白盒含边框） | `SWAN_LOGIN_PHONE_FIELD` | image_ai/flutter/swan_登录_手机号输入框.png |
+| 协议勾选框未选态（本体 30x30，不含文字） | `SWAN_LOGIN_AGREEMENT_UNCHECKED` | image_ai/flutter/swan_登录_协议勾选框_未选.png |
+| 协议勾选框已选态（与上行成对同位） | `SWAN_LOGIN_AGREEMENT_CHECKED` | image_ai/flutter/swan_登录_协议勾选框_已选.png |
+| 「下一步」可用态（黑底白字，已输号+已勾协议；与置灰态成对） | `SWAN_LOGIN_SUBMIT_ENABLED` | image_ai/flutter/swan_登录_下一步按钮_可用态.png |
+| 右上角「密码登入」切换入口 | `SWAN_LOGIN_PASSWORD_ENTRY` | image_ai/flutter/swan_登录_密码登入入口.png |
 ## 页面布局
 
 ```

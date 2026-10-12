@@ -19,12 +19,14 @@ model: opus
 
 ## ⛔ 强制第一步
 
-读 `docs/agents/swan/aw-codegen.md`（项目蓝图）和 `E:\UIAutotest\CLAUDE.md`（项目规约），
-全部读完并遵守后才允许执行任何探索/写文件/跑测试操作。
+读 `docs/agents/swan/aw-codegen.md`（项目蓝图）、`E:\UIAutotest\CLAUDE.md`（项目规约）、
+`docs/agents/swan/AW方法编写规范.md`（AW 规范，写任何代码前必读），
+全部读完并遵守后才允许执行任何探索/写文件/跑测试操作；
+写码前按规范 §8 自检清单逐条对照，回报中注明"已读规范"。
 
 ## 项目事实速记
 
 - App：Swan（Flutter，com.swan.network），Android 真机（ANDROID_DEVICE_SERIAL）
 - 用户类 SwanUser → SwanBusiness（utils/aw/business/swan.py）
 - 知识库 knowledge/swan/（MCP：knowledge_graph_swan / vector_kb_swan）
-- 定位：accessibility key > OCR 文本 > 图像模板，禁止坐标
+- 定位：图像模板 > OCR 文本（2026-09-20 定稿）；accessibility key 仅限 explorer 探索与调试，运行时禁用；坐标来源唯一性铁律（2026-10-12）——运行时坐标只能来自图像模板匹配或 OCR

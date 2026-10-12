@@ -13,8 +13,8 @@ import os
 import pytest
 
 from conftest import BaseTest
-from image.image_name_mapping import SWAN_DEVICE_ADD_BTN
-from utils.aw.business.swan import SwanBusiness
+from image.image_name_mapping import SWAN_DEVICE_ADD_BTN, SWAN_TAB_DEVICE
+from utils.aw.business.swan import SwanBusiness  # 仅用 PREFIX_* 常量（探索辅助豁免候选，待拍板）
 from utils.aw.business.swan_regression import SwanLoginRegressionMixin
 
 _platform = os.environ.get("PLATFORM", "web").strip().lower()
@@ -36,14 +36,10 @@ class TestSwanDevicePageReadonly(SwanLoginRegressionMixin, BaseTest):
         dump 判断，不写死 UUID。⛔ 不点设备卡/同步/音量/添加设备。
         """
         self._ensure_logged_in_on_home()
-        self.aw.click_accessibility(SwanBusiness.KEY_TAB_DEVICE)
-        assert self.aw.wait_accessibility(
-            SwanBusiness.KEY_DEVICE_PAGE, timeout=15
-        ), "未进入设备页（device_page 未出现）"
-        assert self.aw.accessibility_exists(
-            SwanBusiness.KEY_DEVICE_ADD_BUTTON
-        ), "设备页缺少添加设备按钮"
-        self.aw.image_exists(SWAN_DEVICE_ADD_BTN, timeout=10)
+        # 2026-10-12 key 迁移：SWAN_TAB_DEVICE [图] 点击，到位断言用
+        # 设备页特有锚 SWAN_DEVICE_ADD_BTN [图]（key+图片双校验合并为图）
+        self.aw.click_image(SWAN_TAB_DEVICE, timeout=10)
+        self.aw.image_exists(SWAN_DEVICE_ADD_BTN, timeout=15)
         card_keys = self.aw.list_accessibility_keys_by_prefix(
             SwanBusiness.PREFIX_WIFI_DEVICE_CARD
         )

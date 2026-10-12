@@ -15,6 +15,18 @@ from image.image_name_mapping import (
     SWAN_COLLECT_PLATFORM_SHEET,
     SWAN_COLLECT_SELECTED_TOPBAR,
     SWAN_DEVICE_ADD_BTN,
+    SWAN_LOGIN_AGREEMENT_CHECKED,
+    SWAN_LOGIN_AGREEMENT_UNCHECKED,
+    SWAN_LOGIN_CODE_FIELD_BOX,
+    SWAN_LOGIN_PASSWORD_ENTRY,
+    SWAN_LOGIN_PHONE_FIELD,
+    SWAN_LOGIN_PRIVACY_POLICY_LINK,
+    SWAN_LOGIN_SUBMIT_BTN,
+    SWAN_LOGIN_SUBMIT_ENABLED,
+    SWAN_ME_ACCOUNT_ENTRY,
+    SWAN_PASSWORD_FIELD,
+    SWAN_PERSON_LOGOUT_BTN,
+    SWAN_TAB_ME,
     # SWAN_DEVICE_CARD_SELECTED 已停止使用（2026-09-28 新构建口径废弃）：
     # 点 WiFi 设备卡不再就地出现「选中标识」而是进播放页，映射文件登记
     # 保留仅作历史记录，见 select_device docstring。
@@ -142,6 +154,18 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
     _SHELL_NAV_TEMPLATES = (SWAN_TAB_HOME, SWAN_TAB_PLATFORM,
                             SWAN_TAB_DEVICE, SWAN_TAB_ME)
 
+    def _login_page_anchor_visible(self, timeout: float = 1.0) -> bool:
+        """登录页锚 [图]：置灰「下一步」/隐私政策链接任一可见（与回归 mixin
+        _LOGIN_PAGE_TEMPLATES 同口径；2026-10-12 登录域 key 迁移的新公共锚）。"""
+        return any(self.find_image(t, timeout=timeout) is not None
+                   for t in (SWAN_LOGIN_SUBMIT_BTN, SWAN_LOGIN_PRIVACY_POLICY_LINK))
+
+    def _home_shell_visible(self, timeout: float = 1.0) -> bool:
+        """首页壳锚 [图]：底部导航 4 图任一可见（壳级判据，不区分具体页；
+        到位断言用 go_home/_home_anchor_visible，勿以壳锚代替首页判据）。"""
+        return any(self.find_image(t, timeout=timeout) is not None
+                   for t in self._SHELL_NAV_TEMPLATES)
+
     @_aw_method_report
     def go_home(self, timeout: float = 15.0) -> None:
         """回到首页容器（G3/G4 用例收尾统一入口）。存量 key 迁移 2026-10-12。
@@ -219,6 +243,7 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
     ) -> None:
         """确保 Swan 已登录并回到首页，支持 password / sms 两种方式。
 
+        （域1 统一入口；存量 key 迁移 2026-10-12，定位全 [图]）
         App 须已打开，当前处于登录页或显示底部导航的已登录页面。
         已登录时直接复用当前会话，不校验账号身份，也不切换账号。
         未登录时，省略的凭据从 SWAN_PHONE / SWAN_PASSWORD 读取；
@@ -228,7 +253,7 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         """
         if method not in ("password", "sms"):
             raise ValueError("method 仅支持 password 或 sms")
-        if self.accessibility_exists(self.KEY_TAB_ME):
+        if self._home_shell_visible(timeout=2):
             self.go_home()
             return
 
@@ -241,134 +266,197 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
             if not isinstance(password, str) or not password.strip():
                 raise ValueError("请提供密码或配置 SWAN_PASSWORD")
 
-        assert self.wait_accessibility(
-            self.KEY_LOGIN_PAGE, timeout=15
-        ), "login 需要从登录页或已登录的底部导航页面调用"
+        assert self._login_page_anchor_visible(
+            timeout=15), "login 需要从登录页或已登录的底部导航页面调用（登录页锚 [图] 未命中）"
         self.relaunch_app(os.getenv("SWAN_PACKAGE", "com.swan.network"))
-        if self.accessibility_exists(self.KEY_TAB_ME):
+        if self._home_shell_visible(timeout=2):
             self.go_home()
             return
-        assert self.wait_accessibility(
-            self.KEY_LOGIN_PAGE, timeout=15
-        ), "重启后未进入登录页"
+        assert self._login_page_anchor_visible(timeout=15), (
+            "重启后未进入登录页（登录页锚 [图] 未命中；请核对登录页模板质量/页面改版）")
         if method == "password":
             self.login_with_password(phone, password)
         else:
             self.login_by_sms(phone, wait_code=wait_code)
         self.go_home()
 
+    # 密码页「登录」提交按钮 region（720x1612 口径）：提交按钮位于表单区
+    # 下半屏；region 仅收窄 OCR 范围非坐标定位。「登录」二字在密码页唯一
+    # （右上角回切钮文案是「验证码登入」，输入框 placeholder 无"登录"），
+    # 可用态按钮 [图] 待补截（element 待办），补截后切 [图] 主路径。
+    _LOGIN_SUBMIT_REGION = (0, 1050, 720, 562)
+
     @_aw_method_report
     def login_with_password(self, phone: str, password: str) -> None:
-        """密码登录（2026-09-08 真机实测流程），最终停在首页。
+        """密码登录（存量 key 迁移 2026-10-12 [图] 化），最终停在首页。
 
-        实测流程（真机 c0614b6a 验证通过）：
-        1. 若当前不在密码形态（无 login_password_field），点 login_use_password_button
-           从验证码形态切入（密码页与验证码页同根 login_page，右上角互切）
-        2. 点 login_phone_field → input_text 手机号（ASCII，adb input 直输可用）
-        3. 点 login_password_field → input_text 密码
-        4. press_back 收软键盘（实测只收键盘，不会像验证码输入页那样退出 App），
-           否则键盘遮挡提交按钮
-        5. 勾选 login_agreement_checkbox → 点 login_submit_button（文案"登录"，
-           与验证码页"下一步"同 key 不同形态；未填满/未勾协议时置灰不可点）
-        6. 等 tab_me 判进首页
+        四步链：
+        ①页面证明/形态：SWAN_PASSWORD_FIELD [图] 不可见时点
+          SWAN_LOGIN_PASSWORD_ENTRY [图]（右上角「密码登入」）切入密码形态，
+          以 SWAN_PASSWORD_FIELD [图] 出现断言形态切换生效。
+        ②③定位/操作：SWAN_LOGIN_PHONE_FIELD [图] 点击 → clear_input →
+          input_text → SWAN_PASSWORD_FIELD [图] 点击 → clear_input →
+          input_text → press_back 收软键盘（实测只收键盘不退 App，键盘
+          遮挡提交钮的图定位）→ 协议两态图幂等勾选（未选态可见才点，
+          勾后已选态 [图] 断言）→ 提交 [OCR] click_text("登录")（region
+          限定表单下半屏；可用态图待补截后切 [图]）。
+        ④生效验证：go_home()（首页壳三级锚到位断言内含）。
 
         前提：协议勾选框处于未勾选态（登出后的全新登录页即如此）。登录页表单
         状态（已填文本/勾选态）在登出后会残留，若从"提交失败后的表单"直接重试，
-        应先重启 App 重置表单（见 test_swan_password_login.py 收尾处理）。
+        应先重启 App 重置表单（见 test_密码登录成功.py 收尾处理）。
         登录成功会顶掉本机旧会话（单点登录），属正常现象。
         """
-        if not self.accessibility_exists(self.KEY_PASSWORD_FIELD):
-            self.click_accessibility(self.KEY_USE_PASSWORD_BUTTON)
-            assert self.wait_accessibility(
-                self.KEY_PASSWORD_FIELD, timeout=10
-            ), "切到密码登录形态失败（login_password_field 未出现）"
-        self.click_accessibility(self.KEY_PHONE_FIELD)
+        if self.find_image(SWAN_PASSWORD_FIELD, timeout=2) is None:
+            self.click_image(SWAN_LOGIN_PASSWORD_ENTRY, timeout=10)
+            assert self.find_image(SWAN_PASSWORD_FIELD, timeout=10) is not None, (
+                "切到密码登录形态失败（SWAN_PASSWORD_FIELD [图] 未出现，"
+                "请核对密码页模板质量/页面改版）")
+        self.click_image(SWAN_LOGIN_PHONE_FIELD, timeout=10)
         self.clear_input()  # 防表单残留：先清空再输入
         self.input_text(phone)
-        self.click_accessibility(self.KEY_PASSWORD_FIELD)
+        self.click_image(SWAN_PASSWORD_FIELD, timeout=10)
         self.clear_input()
         self.input_text(password)
         self.press_back()
-        self.click_accessibility(self.KEY_AGREEMENT)
-        self.click_accessibility(self.KEY_SUBMIT)
-        assert self.wait_accessibility(self.KEY_TAB_ME, timeout=20), "登录后未进入首页"
+        if self.find_image(SWAN_LOGIN_AGREEMENT_UNCHECKED, timeout=3) is not None:
+            self.click_image(SWAN_LOGIN_AGREEMENT_UNCHECKED, timeout=5)
+        assert self.find_image(SWAN_LOGIN_AGREEMENT_CHECKED, timeout=3) is not None, (
+            "协议勾选失败（勾选后已选态图 [图] 未命中，请核对两态模板）")
+        self.click_text("登录", timeout=5, region=self._LOGIN_SUBMIT_REGION)
+        self.go_home()
 
     @_aw_method_report
     def login_by_sms(self, phone: str, wait_code: float = 60.0) -> None:
-        """验证码登录：输入手机号 → 下一步（自动发送验证码）→ 平台取码 → 填码自动提交。
+        """验证码登录：填手机号 → 下一步（自动发送验证码）→ 平台取码 → 填码自动提交进首页。
 
-        实测（2026-09-08）：点"下一步"后 App 自动发送验证码并跳到验证码输入页，
-        没有"获取验证码"按钮；验证码 4 位，填满第 4 位自动提交进首页。
-        确认验证码输入页出现后才向平台取码。
+        （域1 主链路，存量 key 迁移 2026-10-12 全 [图]/[OCR]；回归用例4 及各域登录前置）
+        四步链：
+        ①页面证明/幂等：登录页锚 [图] 不可见且首页壳锚可见 = 已登录跳过；
+          两锚均不可见 = 停在未知页，本方法无防护（mixin
+          _ensure_logged_in_on_home 的 relaunch 兜底承担），行为同存量约定。
+        ②③ enter_sms_code_step（填号/勾协议/下一步，内部含生效验证）→
+          网关取码 → SWAN_LOGIN_CODE_FIELD_BOX [图] 点击 → input_text(code)。
+        ④生效验证：go_home()（首页壳三级锚到位断言内含）。
+        ⚠️ 坑（存量实测 2026-09-08）：点「下一步」后 App 自动发送验证码并跳
+        验证码输入页（无"获取验证码"按钮）；码 4 位填满自动提交。
         前提：处于验证码登录形态，协议勾选框未勾选（全新登录页默认态）；
         若从勾选过的残留表单进入，调用方须先重启 App 重置表单。
         """
-        # 已在首页视为已登录
-        if self.accessibility_exists(self.KEY_TAB_ME):
-            logger.info("已在首页，跳过登录")
+        # 已登录幂等（首页壳锚可见=已登录；登录页锚不可见排除登录页态）
+        if not self._login_page_anchor_visible(timeout=1) and \
+                self._home_shell_visible(timeout=2):
+            logger.info("已在首页（首页壳锚 [图] 可见），跳过登录")
             return
         self.enter_sms_code_step(phone)
         code = self._fetch_sms_code(phone, wait=wait_code)
-        self.click_accessibility(self.KEY_CODE_FIELD)
+        self.click_image(SWAN_LOGIN_CODE_FIELD_BOX, timeout=10)
         self.input_text(code)
-        assert self.wait_accessibility(self.KEY_TAB_ME, timeout=20), "登录后未进入首页"
+        self.go_home()
 
     @_aw_method_report
     def enter_sms_code_step(self, phone: str, timeout: float = 15.0) -> None:
-        """验证码登录第一步：填手机号 → 勾协议 → 点"下一步"，停在验证码输入页。
+        """验证码登录第一步：填手机号 → 勾协议 → 点「下一步」，停验证码输入页。
 
-        前提：全新验证码登录形态（协议未勾选）；"下一步"自动发送验证码
-        （无独立"获取验证码"按钮），之后网关才能取到本次验证码。
-        分步封装，供需要断言中间状态的用例使用；一步到位用 login_by_sms。
+        （存量 key 迁移 2026-10-12 全 [图]；用例4 分步断言中间态用；
+        一步到位用 login_by_sms）
+        四步链：
+        ①页面证明：登录页锚 [图]（置灰「下一步」/隐私政策链接）硬断言。
+        ②③定位/操作：SWAN_LOGIN_PHONE_FIELD [图] 点击 → clear_input →
+          input_text(phone) → press_back 收软键盘（图定位需视觉无遮挡，
+          密码流程同款先例）→ 协议两态图幂等勾选（SWAN_LOGIN_AGREEMENT_
+          UNCHECKED 可见才点，勾后已选态 [图] 断言）→ SWAN_LOGIN_SUBMIT_
+          ENABLED [图] 点击（可用态；置灰态在屏 = 协议未勾成功，由已选态
+          断言先行拦截）。
+        ④生效验证：SWAN_LOGIN_CODE_FIELD_BOX [图]（验证码输入页特有锚）。
+        ⚠️ 坑（存量实测）：「下一步」点击后自动发码（无独立"获取验证码"
+        按钮），之后网关才能取到本次验证码；表单残留会使协议反选，
+        残留场景调用方先 relaunch_app 重置。
         """
-        self.click_accessibility(self.KEY_PHONE_FIELD)
+        assert self._login_page_anchor_visible(timeout=timeout), (
+            "enter_sms_code_step 需在登录页调用（登录页锚 [图] 未命中）")
+        self.click_image(SWAN_LOGIN_PHONE_FIELD, timeout=10)
         self.clear_input()  # 防表单残留：先清空再输入
         self.input_text(phone)
-        self.click_accessibility(self.KEY_AGREEMENT)
-        self.click_accessibility(self.KEY_SUBMIT)
-        assert self.wait_accessibility(
-            self.KEY_CODE_FIELD, timeout=timeout
-        ), "点击下一步后未进入验证码输入页（login_code_field 未出现）"
+        self.press_back()  # 收软键盘：避免遮挡协议框/「下一步」按钮的图定位
+        if self.find_image(SWAN_LOGIN_AGREEMENT_UNCHECKED, timeout=3) is not None:
+            self.click_image(SWAN_LOGIN_AGREEMENT_UNCHECKED, timeout=5)
+        assert self.find_image(SWAN_LOGIN_AGREEMENT_CHECKED, timeout=3) is not None, (
+            "协议勾选失败（勾选后已选态图 SWAN_LOGIN_AGREEMENT_CHECKED [图] 未命中，"
+            "请核对两态模板质量或页面改版）")
+        self.click_image(SWAN_LOGIN_SUBMIT_ENABLED, timeout=5)
+        assert self.find_image(SWAN_LOGIN_CODE_FIELD_BOX, timeout=timeout) is not None, (
+            "点击下一步后未进入验证码输入页（SWAN_LOGIN_CODE_FIELD_BOX [图] 未命中；"
+            "请核对截图质量/页面改版，或提交按钮可用态图失配）")
 
     @_aw_method_report
     def fill_sms_code(self, code: str) -> None:
         """向验证码输入框追加输入（adb input text 为追加语义），不主动提交。
 
+        （存量 key 迁移 2026-10-12：定位换 SWAN_LOGIN_CODE_FIELD_BOX [图]）
         满 4 位由 App 自动提交（设计行为，见模块卡片已知坑5）；
-        分段输入（如先 3 位断言不提交、再补第 4 位断言自动提交）即依赖追加语义。
+        分段输入（如先 3 位断言不提交、再补第 4 位断言自动提交）即依赖追加语义；
+        生效验证由调用方按分段语义自行断言（半步原语，四步链④移交调用方）。
         """
-        self.click_accessibility(self.KEY_CODE_FIELD)
+        self.click_image(SWAN_LOGIN_CODE_FIELD_BOX, timeout=10)
         self.input_text(code)
 
     @_aw_method_report
     def relaunch_app(self, package: str, timeout: float = 30.0) -> None:
-        """杀进程后冷启动，等待冷启动落地页出现（已登录→首页 tab_me，未登录→登录页）。
+        """杀进程后冷启动，等待落地页锚 [图]（已登录→首页壳，未登录→登录页）。
 
+        （存量 key 迁移 2026-10-12：落地判定换双锚 [图]）
         用途：登录页表单残留重置（登录页无状态持久化）、冷启动 token 恢复链路用例。
-        落地页断言由调用方按登录态选择（tab_me 或 login_page）。
+        生效验证：首页壳锚（底部导航 4 图）或登录页锚（置灰「下一步」/隐私
+        政策链接）任一可见即通过；超时断言带证据帧。
         """
         self.driver.stop_app(package)
         self.driver.start_app(package)
-        landed = self.wait_accessibility(self.KEY_TAB_ME, timeout=timeout) or \
-            self.wait_accessibility(self.KEY_LOGIN_PAGE, timeout=5)
-        assert landed, "冷启动后既未到首页也未到登录页"
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            if self._home_shell_visible(timeout=1) or \
+                    self._login_page_anchor_visible(timeout=1):
+                return
+            self.sleep(1.0)
+        shot = self._snap_chain_miss("relaunch")
+        assert False, (
+            f"冷启动 {timeout}s 后既未见首页壳锚也未见登录页锚 [图]"
+            f"（启动失败/卡启动页？证据帧 {shot}）")
 
     @_aw_method_report
     def logout_if_needed(self) -> None:
         """若已登录则登出，回到登录页（G3/G4 清理约定）。
 
-        路径：首页 tab_me → me_user_profile_entry → person_info_logout_button。
-        注意 `person_info_cancel_account_button`（注销账号）就在旁边，禁止误点。
+        （存量 key 迁移 2026-10-12 全 [图]；用例8/各域清理前置）
+        四步链：
+        ①页面证明/幂等：登录页锚 [图] 可见 = 未登录直接返回；否则首页壳
+          锚可见 = 已登录。
+        ②③定位/操作：SWAN_TAB_ME [图] 可见才点（我的 Tab 选中时该未选中
+          态图不可见，幂等跳过——同 go_home 选中态口径）→
+          SWAN_ME_ACCOUNT_ENTRY [图] 到位断言（我的页特有锚）并点击 →
+          SWAN_PERSON_LOGOUT_BTN [图] 定位（同时证明已到个人信息页）并点击。
+        ④生效验证：登录页锚 [图] 可见。
+        ⚠️ 坑：注销账号按钮与「退出登入」同页，SWAN_PERSON_LOGOUT_BTN 为
+        「退出登入」按钮本体图（element 2026-10-12 实测 134x37），模板即
+        区分；勿改用 OCR「退出」宽匹配（会撞注销确认文案）。
         """
-        if not self.accessibility_exists(self.KEY_TAB_ME):
-            logger.info("未登录，无需登出")
+        if self._login_page_anchor_visible(timeout=2):
+            logger.info("logout_if_needed: 登录页锚可见（未登录），跳过登出")
             return
-        self.click_accessibility(self.KEY_TAB_ME)
-        assert self.wait_accessibility(self.KEY_ME_PROFILE_ENTRY, timeout=10), "未进入我的页"
-        self.click_accessibility(self.KEY_ME_PROFILE_ENTRY)
-        assert self.wait_accessibility(self.KEY_PERSON_INFO_PAGE, timeout=10), "未进入个人信息页"
-        self.click_accessibility(self.KEY_LOGOUT_BUTTON)
-        assert self.wait_accessibility(self.KEY_LOGIN_PAGE, timeout=20), "登出后未回到登录页"
+        assert self._home_shell_visible(timeout=10), (
+            "logout_if_needed 无法判定登录态（登录页锚与首页壳锚 [图] 均未命中，"
+            "App 停未知页；先 relaunch_app 或 back_to_tab_shell 再调）")
+        if self.find_image(SWAN_TAB_ME, timeout=2) is not None:
+            self.click_image(SWAN_TAB_ME, timeout=10)
+        else:
+            logger.info("logout_if_needed: 已在我的页（我的 Tab 选中态），跳过底部导航点击")
+        assert self.find_image(SWAN_ME_ACCOUNT_ENTRY, timeout=10) is not None, (
+            "未进入我的页（SWAN_ME_ACCOUNT_ENTRY [图] 未命中，请核对模板/页面改版）")
+        self.click_image(SWAN_ME_ACCOUNT_ENTRY, timeout=10)
+        self.click_image(SWAN_PERSON_LOGOUT_BTN, timeout=10)
+        assert self._login_page_anchor_visible(timeout=20), (
+            "登出后未回到登录页（登录页锚 [图] 20s 未命中；疑登出弹窗未处置，"
+            "请核对失败截图现场）")
 
     # =================================================================
     # 域 3：播放器与播放控制（回归用例 11-28，方案 A12-A20）

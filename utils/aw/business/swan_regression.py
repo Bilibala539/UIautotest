@@ -56,6 +56,7 @@ from __future__ import annotations
 
 import logging
 import os
+import time
 
 from image.image_name_mapping import (
     SWAN_BOTTOM_PLAYER_BAR,
@@ -520,83 +521,87 @@ class SwanLoginRegressionMixin:
         self.password = os.environ.get("SWAN_PASSWORD", "").strip()
         self.package = os.environ.get("SWAN_PACKAGE", "com.swan.network").strip()
 
-    # ---------- 断言辅助 ----------
+    # ---------- 断言辅助（2026-10-12 登录域 key 迁移：全 [图]/[OCR]） ----------
 
     def _assert_on_login_page(self, timeout: float = 15.0) -> None:
-        """登录页断言：key 根节点 + 置灰态「下一步」图片。"""
-        assert self.aw.wait_accessibility(
-            SwanBusiness.KEY_LOGIN_PAGE, timeout=timeout
-        ), "未回到登录页（login_page 未出现）"
-        # 置灰态「下一步」模板仅存在于登录页，作为图片级二次确认
-        self.aw.image_exists(SWAN_LOGIN_SUBMIT_BTN, timeout=10)
+        """登录页断言：登录页锚 [图]（置灰「下一步」/隐私政策链接任一）。"""
+        assert self.aw._login_page_anchor_visible(timeout=timeout), (
+            "未回到登录页（登录页锚 [图] 未命中，请核对 SWAN_LOGIN_* 模板/页面改版）")
 
     def _assert_on_home(self, timeout: float = 15.0) -> None:
-        """首页断言：tab_me key + 底部导航 4 图任一（图片级确认）。
+        """首页断言：底部导航 4 图 [图] 任一轮询命中。
 
         底部播放条模板截于「输出=扬声器/- -」无会话态，rig 持久播放会话
         （输出=设备名+曲目名）下内容永久偏离模板，不作到位门槛，仅非致命
         探测记日志（口径同 swan_regression verify-run3）。
         """
-        assert self.aw.wait_accessibility(
-            SwanBusiness.KEY_TAB_ME, timeout=timeout
-        ), "未进入首页（tab_me 未出现）"
-        self._assert_home_shell_image()
+        deadline = time.monotonic() + timeout
+        while True:
+            if any(self._probe_image(t, timeout=1) is not None
+                   for t in self._BOTTOM_NAV_TEMPLATES):
+                break
+            if time.monotonic() >= deadline:
+                assert False, (f"未进入首页（底部导航 4 图 [图] {timeout}s 均未命中，"
+                               "请核对模板/是否停在其他页）")
+            time.sleep(0.5)
         self._probe_bottom_player_bar()
 
     def _assert_sms_form(self, timeout: float = 15.0) -> None:
-        """验证码登录页形态：password_field 不存在 + use_password_button 存在。"""
-        assert self.aw.wait_accessibility(
-            SwanBusiness.KEY_USE_PASSWORD_BUTTON, timeout=timeout
-        ), "验证码登录形态断言失败（login_use_password_button 未出现）"
-        assert not self.aw.accessibility_exists(
-            SwanBusiness.KEY_PASSWORD_FIELD
-        ), "验证码登录形态下出现了密码输入框，形态互斥被破坏"
+        """验证码登录页形态互斥 [图]：「密码登入」入口可见 + 密码框不可见。"""
+        assert self._probe_image(SWAN_LOGIN_PASSWORD_ENTRY, timeout=timeout) is not None, (
+            "验证码登录形态断言失败（SWAN_LOGIN_PASSWORD_ENTRY [图] 未出现）")
+        assert self._probe_image(SWAN_PASSWORD_FIELD, timeout=1) is None, (
+            "验证码登录形态下出现了密码输入框 [图]，形态互斥被破坏")
 
     def _assert_password_form(self, timeout: float = 15.0) -> None:
-        """密码登录页形态：password_field 存在 + use_password_button 不存在
-        + use_sms_button 存在（三重 key 校验）。"""
-        assert self.aw.wait_accessibility(
-            SwanBusiness.KEY_PASSWORD_FIELD, timeout=timeout
-        ), "密码登录形态断言失败（login_password_field 未出现）"
-        assert not self.aw.accessibility_exists(
-            SwanBusiness.KEY_USE_PASSWORD_BUTTON
-        ), "密码登录形态下仍存在「密码登入」切换按钮，形态互斥被破坏"
-        assert self.aw.accessibility_exists(
-            SwanBusiness.KEY_USE_SMS_BUTTON
-        ), "密码登录形态下缺少「验证码登入」反向切换按钮"
+        """密码登录页形态互斥 [图]：密码框可见 + 「密码登入」入口不可见。
 
-    def _ensure_fresh_sms_form(self):
+        ⚠️ 存量三重校验的第三重（「验证码登入」回切钮 [图] 存在）待
+        element 补截该按钮图后恢复；当前二重校验已能判定互斥。
+        """
+        assert self._probe_image(SWAN_PASSWORD_FIELD, timeout=timeout) is not None, (
+            "密码登录形态断言失败（SWAN_PASSWORD_FIELD [图] 未出现）")
+        assert self._probe_image(SWAN_LOGIN_PASSWORD_ENTRY, timeout=1) is None, (
+            "密码登录形态下仍存在「密码登入」切换按钮 [图]，形态互斥被破坏")
+
+    def _ensure_fresh_sms_form(self) -> None:
         """前置归一化：确保停在全新验证码登录形态（空表单、协议未勾选）。
 
-        - 已登录（tab_me 存在）→ 先登出回登录页
-        - 未登录但停在脏表单（密码形态 / 有错误提示残留，上一轮中断遗留）
-          → 重启 App 重置（实测登录页表单无持久化，重启回到全新验证码形态）
+        - 已登录（底部导航 4 图任一可见）→ 先登出回登录页
+        - 未登录但停在脏表单（密码形态 [图] / 有「密码错误」提示 [OCR]，
+          上一轮中断遗留）→ 重启 App 重置（实测登录页表单无持久化，
+          重启回到全新验证码形态）
         """
-        if self.aw.accessibility_exists(SwanBusiness.KEY_TAB_ME):
+        if any(self._probe_image(t, timeout=1) is not None
+               for t in self._BOTTOM_NAV_TEMPLATES):
             self.user.logout_if_needed()
-        if (self.aw.accessibility_exists(SwanBusiness.KEY_PASSWORD_FIELD)
-                or self.aw.accessibility_exists(SwanBusiness.KEY_ERROR_TEXT)):
+        if (self._probe_image(SWAN_PASSWORD_FIELD, timeout=1) is not None
+                or self.aw.find_text_by_ocr("密码错误", timeout=1) is not None):
             self.user.driver.stop_app(self.package)
             self.user.driver.start_app(self.package)
-            assert self.aw.wait_accessibility(
-                SwanBusiness.KEY_LOGIN_PAGE, timeout=30
-            ), "重启 App 后未回到登录页"
+            assert self.aw._login_page_anchor_visible(timeout=30), (
+                "重启 App 后未回到登录页（登录页锚 [图] 未命中）")
         self._assert_sms_form()
 
     def _ensure_logged_in_on_home(self) -> None:
-        """幂等登录并断言在首页（登录域口径：tab_me key + 底部导航 4 图任一）。
+        """幂等登录并断言在首页（登录域口径：底部导航 4 图 [图] 任一轮询命中）。
 
         ⚠️ 与 SwanPlayerRegressionMixin._ensure_logged_in_on_home（图片三级
-        锚判据）同名不同实现：本版属存量 key 断言，仅登录域用例使用。
+        锚判据）同名不同实现：本版为登录域简版（4 图壳锚，无顶 Tab 轮询），
+        仅登录域用例使用。
         底部播放条模板截于「输出=扬声器/- -」无会话态，rig 持久播放会话
         （输出=设备名+曲目名）下内容永久偏离模板，不作到位门槛，仅非致命
         探测记日志（口径同 swan_regression verify-run3）。
         """
         self.user.login_by_sms(self.phone)
-        assert self.aw.wait_accessibility(
-            SwanBusiness.KEY_TAB_ME, timeout=15
-        ), "未进入首页（tab_me 未出现）"
-        self._assert_home_shell_image()
+        deadline = time.monotonic() + 15
+        while True:
+            if any(self._probe_image(t, timeout=1) is not None
+                   for t in self._BOTTOM_NAV_TEMPLATES):
+                break
+            if time.monotonic() >= deadline:
+                assert False, "未进入首页（底部导航 4 图 [图] 15s 均未命中）"
+            time.sleep(0.5)
         self._probe_bottom_player_bar()
 
     def _assert_any_text(self, texts, timeout: int = 10) -> str:

@@ -3120,6 +3120,13 @@ class DashboardHandler(BaseHTTPRequestHandler):
                     HTTPStatus.SERVICE_UNAVAILABLE,
                 )
             return
+        # ==================== 巡检流程总览(规范 6.9):快照只读,缺失→404,超期判定归前端 ====================
+        if parsed.path == "/api/patrol/status":
+            try:
+                self.send_json(patrol_status())
+            except PatrolStatusMissing as error:
+                self.send_error_json(str(error), HTTPStatus.NOT_FOUND)
+            return
         self.send_error_json("not found", HTTPStatus.NOT_FOUND)
 
     def read_json(self) -> dict[str, Any]:
@@ -3885,6 +3892,28 @@ def metrics_history(query: dict[str, list[str]]) -> dict[str, Any]:
     }
 
 # ==================== 机器监控 section 结束 ====================
+
+# ==================== 巡检流程总览:巡检状态快照只读代理(设计稿 docs/设计稿/巡检流程监控-设计稿.html v0.6,口径权威 docs/agent模块档案/巡检机制.md) ====================
+# 独立 section:仅本段常量/函数 + do_GET 内 /api/patrol/status 路由,不依赖、不改其他模块代码。
+# 数据源:巡检 agent 每轮覆盖写 last_status.json(.167 cron 每日 08:41/19:43,巡检机制.md §6);
+# 本端点只读原样返回,好坏判定/快照超期判定归前端(与机器监控"卡态前端判定"同口径);
+# 浏览器通道走登录闸,无需 MACHINE_EXEMPT。快照缺失/不可读 → 404,前端显"巡检数据缺失"+重试(规范 4.7/6.9)。
+PATROL_STATUS_FILE = os.environ.get("PATROL_STATUS_FILE", "/opt/patrol/last_status.json")
+
+
+class PatrolStatusMissing(RuntimeError):
+    """巡检状态快照不存在/不可读 → 404(前端只区分"有快照/没快照"两态)。"""
+
+
+def patrol_status() -> dict:
+    """读巡检状态快照原样返回;缺失与损坏同归 PatrolStatusMissing(404)。"""
+    path = Path(PATROL_STATUS_FILE)
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as error:
+        raise PatrolStatusMissing(f"巡检状态文件不可读: {error}") from error
+
+# ==================== 巡检流程总览 section 结束 ====================
 
 # 页面独立维护在 dashboard/page.html(四页签:会话/包管理/用例历史/验证码工具)
 DASHBOARD_HTML = (Path(__file__).resolve().parent / "page.html").read_text(encoding="utf-8")

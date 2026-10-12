@@ -249,6 +249,81 @@
     .mc-pct { width:42px; flex:none; text-align:right; font-size:12px; }
     .mc-degraded { padding:34px 14px; text-align:center; color:var(--muted); font-size:13px; }
     .mc-degraded .ghost { margin-left:10px; }
+    /* ==================== 巡检流程总览(ptl,规范 6.9;设计稿 docs/设计稿/巡检流程监控-设计稿.html v0.6"静默控制台") ====================
+       正常节点减重(无边框无阴影白块,hover 才浮现 brand 边);异常红卡=全页唯一重物(1.5px 红边+语义 tint 双层阴影+17px 名字,
+       阴影/动效曲线按 2026-10-12 规范增补红线区条款);暂不可判(未巡检/无数据)=虚线空心透明底;机器数据 mono 双声道。 */
+    #ptl-root { margin-top:20px; padding-top:20px; border-top:1px solid var(--line); }
+    .ptl-head { display:flex; align-items:baseline; gap:8px; margin-bottom:14px; }
+    .ptl-bread { font-size:13px; font-weight:500; color:var(--muted); }
+    .ptl-bread-sub { font-size:12px; color:var(--muted); font-weight:400; }
+    .ptl-head .ghost { margin-left:auto; padding:5px 12px; font-size:12px; }
+    /* hero:页签内唯一标题级(23px/700),异常条目 3px 红左边条(呼应 toast 竖条先例) */
+    .ptl-hero { margin-bottom:30px; }
+    .ptl-hero-line { font-size:23px; font-weight:700; line-height:1.5; }
+    .ptl-hero-line.ok { color:var(--ink); } .ptl-hero-line.bad { color:var(--bad); }
+    .ptl-hero-item { font-size:14px; margin-top:10px; padding:1px 0 1px 12px; border-left:3px solid var(--bad); line-height:1.5; }
+    .ptl-hero-item b { color:var(--bad); }
+    .ptl-hero-meta { color:var(--muted); font-size:12px; margin-top:14px; line-height:1.9; }
+    /* 双链:链上的点 */
+    .ptl-chainblock { margin-top:26px; }
+    .ptl-chain-title { display:flex; align-items:center; gap:10px; font-size:13px; font-weight:600; margin-bottom:12px; }
+    .ptl-lane-sub { font-family:Consolas,Menlo,monospace; font-size:11px; font-weight:500; color:var(--muted); background:var(--neutral-weak); border-radius:999px; padding:2px 10px; }
+    .ptl-chain { display:flex; align-items:center; flex-wrap:wrap; gap:6px; }
+    .ptl-stage { display:flex; flex-direction:column; align-items:flex-start; gap:5px; background:var(--card); border:1px solid transparent; border-radius:10px; padding:12px 16px; cursor:pointer; transition:border-color .12s cubic-bezier(.32,.72,0,1), background .12s cubic-bezier(.32,.72,0,1), box-shadow .12s cubic-bezier(.32,.72,0,1); }
+    .ptl-stage:hover { border-color:var(--brand); background:var(--hover); }
+    .ptl-stage-head { display:flex; align-items:center; gap:9px; }
+    .ptl-light { width:10px; height:10px; border-radius:999px; flex-shrink:0; }
+    .ptl-s-name { font-size:14px; font-weight:600; color:var(--ink); }
+    .ptl-s-st { font-size:12px; color:var(--muted); font-weight:400; }
+    .ptl-stage.ok .ptl-light { background:var(--good); }
+    .ptl-stage.unknown { border:1px dashed var(--line); background:transparent; transition:none; }
+    .ptl-stage.unknown .ptl-light { background:none; border:2px solid var(--line); }
+    .ptl-stage.unknown .ptl-s-name { color:var(--muted); font-weight:500; }
+    .ptl-stage.unknown:hover { border-color:var(--muted); background:var(--card); }
+    .ptl-stage.bad { border:1.5px solid var(--bad); background:var(--bad-weak); padding:15px 20px; box-shadow:0 1px 2px rgba(201,42,42,.08), 0 6px 16px rgba(201,42,42,.07); }
+    .ptl-stage.bad:hover { border-color:var(--bad); background:var(--bad-weak); }
+    .ptl-stage.bad .ptl-light { background:var(--bad); }
+    .ptl-stage.bad .ptl-s-name { font-size:17px; }
+    .ptl-impact { font-size:13px; color:var(--bad); line-height:1.55; margin-top:1px; }
+    .ptl-arr { flex-shrink:0; position:relative; width:22px; height:12px; }
+    .ptl-arr::before { content:''; position:absolute; left:1px; right:6px; top:50%; height:1.5px; background:var(--muted); opacity:.45; transform:translateY(-50%); }
+    .ptl-arr::after { content:''; position:absolute; right:3px; top:50%; width:6px; height:6px; border-right:1.5px solid var(--muted); border-top:1.5px solid var(--muted); opacity:.45; transform:translateY(-50%) rotate(45deg); }
+    .ptl-linkrow { font-size:12px; color:var(--muted); margin:16px 0 2px 4px; }
+    /* 底座:两链共同地基,低调实底条,坏时变红 */
+    .ptl-base { display:inline-flex; align-items:center; gap:9px; font-size:13px; color:var(--muted); cursor:pointer; margin-top:24px; padding:10px 16px; border-radius:10px; background:var(--neutral-weak); transition:background .12s cubic-bezier(.32,.72,0,1), box-shadow .12s cubic-bezier(.32,.72,0,1); }
+    .ptl-base::before { content:''; width:8px; height:8px; border-radius:999px; background:var(--good); flex-shrink:0; }
+    .ptl-base:hover { background:var(--line); }
+    .ptl-base.bad { color:var(--bad); background:var(--bad-weak); }
+    .ptl-base.bad::before { background:var(--bad); }
+    .ptl-base.bad:hover { background:var(--bad-weak); box-shadow:inset 0 0 0 1px var(--bad); }
+    .ptl-base.bad b { color:var(--bad); }
+    .ptl-stage:focus-visible, .ptl-base:focus-visible, .ptl-dr-close:focus-visible { outline:2px solid var(--brand); outline-offset:2px; }
+    /* 紧凑抽屉(规范 4.3 紧凑档 min(480px,94vw);z 层与 cd-drawer 同级 60/61,两者不同时开) */
+    #ptl-scrim { position:fixed; inset:0; background:rgba(15,23,42,.35); opacity:0; pointer-events:none; transition:opacity .18s cubic-bezier(.32,.72,0,1); z-index:60; }
+    #ptl-scrim.on { opacity:1; pointer-events:auto; }
+    #ptl-drawer { position:fixed; top:0; right:-500px; width:min(480px,94vw); height:100vh; background:var(--card); box-shadow:-8px 0 30px rgba(23,32,51,.14); z-index:61; transition:right .22s cubic-bezier(.32,.72,0,1); display:flex; flex-direction:column; }
+    #ptl-drawer.on { right:0; }
+    .ptl-dr-head { display:flex; justify-content:space-between; align-items:center; padding:16px 20px; border-bottom:1px solid var(--line); flex-shrink:0; }
+    .ptl-dr-head h3 { font-size:17px; font-weight:600; margin:0; }
+    .ptl-dr-close { border:0; background:none; font-size:12px; color:var(--muted); cursor:pointer; padding:5px 10px; border-radius:8px; }
+    .ptl-dr-close:hover { background:var(--neutral-weak); color:var(--ink); }
+    .ptl-dr-body { padding:16px 20px; overflow-y:auto; flex:1; }
+    .ptl-dr-body table { width:100%; border-collapse:collapse; font-size:13px; margin:6px 0; }
+    .ptl-dr-body th { text-align:left; color:var(--muted); font-weight:500; font-size:12px; padding:8px 12px; border-bottom:1px solid var(--line); white-space:nowrap; background:#fafbfc; }
+    .ptl-dr-body td { padding:9px 12px; border-bottom:1px solid var(--line); vertical-align:top; }
+    .ptl-dr-body h4 { font-size:14px; margin:18px 0 4px; font-weight:600; }
+    .ptl-dr-body h4:first-of-type { margin-top:6px; }
+    .ptl-dr-sec { font-size:12px; color:var(--muted); margin:14px 0 5px; font-weight:600; }
+    .ptl-tag { font-size:12px; color:var(--muted); font-weight:400; }
+    /* 徽章复用全站 .badge 胶囊,只加巡检语义色类(规范 2.2:绿=正常/红=异常/灰=无数据暂不可判) */
+    .badge.ptl-ok { color:var(--good); background:var(--good-weak); }
+    .badge.ptl-bad { color:var(--bad); background:var(--bad-weak); }
+    .badge.ptl-lvl { color:var(--muted); background:var(--neutral-weak); font-weight:500; }
+    .badge.ptl-nodata { color:var(--muted); background:var(--neutral-weak); }
+    /* 缺失态(规范 4.7:一句灰字+ghost 重试,不加插画大标语) */
+    .ptl-missing { padding:34px 14px; text-align:center; color:var(--muted); font-size:13px; }
+    .ptl-missing-meta { font-size:12px; margin:6px 0 12px; }
+    @media (max-width:760px) { .ptl-arr { width:14px; } .ptl-arr::before { right:2px; } }
   </style>
 </head>
 <body>
@@ -442,6 +517,20 @@
         <button class="ghost" id="mc-refresh">刷新</button>
       </div>
       <div id="mc-cards"><div class="empty">加载中…</div></div>
+      <!-- 巡检流程总览子区块(规范 6.9 第二子区块,设计稿 v0.6):快照级数据,进页签拉一次+手动刷新,不进资源卡 1s 轮询 -->
+      <div id="ptl-root">
+        <div class="ptl-head">
+          <span class="ptl-bread">巡检流程总览</span>
+          <span class="ptl-bread-sub">快照 /opt/patrol/last_status.json · 每日 2 轮(.167 08:41/19:43 · .176 08:47/19:47)</span>
+          <button class="ghost" id="ptl-refresh">刷新</button>
+        </div>
+        <div id="ptl-body"><div class="empty">加载中…</div></div>
+      </div>
+      <div id="ptl-scrim"></div>
+      <aside id="ptl-drawer" aria-label="巡检环节明细">
+        <div class="ptl-dr-head"><h3 id="ptl-dr-title">详情</h3><button class="ptl-dr-close" id="ptl-dr-close">关闭</button></div>
+        <div class="ptl-dr-body" id="ptl-dr-body"></div>
+      </aside>
     </section>
   </main>
   <div id="bug-modal" hidden style="position:fixed;inset:0;background:rgba(15,23,42,.45);align-items:center;justify-content:center;z-index:63">
@@ -899,7 +988,7 @@
       if (btn.dataset.page === 'suites') suLoadSuites();
       if (btn.dataset.page === 'casedefs') loadCaseDefs();
       if (btn.dataset.page === 'captcha') loadGateway();
-      if (btn.dataset.page === 'machines') mcStart(); else mcStop();  // 轮询仅本页签激活期间(设计稿 §3.2)
+      if (btn.dataset.page === 'machines') { mcStart(); ptlLoad(); } else mcStop();  // 资源卡轮询仅本页签激活期间(设计稿 §3.2);巡检快照进页签拉一次+手动刷新(规范 6.9),无定时器无需停
     });
 
     async function loadRuns() {
@@ -2743,6 +2832,289 @@
     }
 
     $('mc-refresh').onclick = () => { mcPoll(); mcPollHistory(); };
+
+    // ==================== 巡检流程总览(ptl,规范 6.9;设计稿 docs/设计稿/巡检流程监控-设计稿.html v0.6) ====================
+    // 数据源 /api/patrol/status(.167 /opt/patrol/last_status.json 原样);好坏判定/快照超期判定都在前端。
+    // 16 项检查口径以 docs/agent模块档案/巡检机制.md 为唯一权威,页面只做状态呈现+后果人话(imp=展示文案,非巡检逻辑)。
+    const PTL_STALE_HOURS = 26;   // 快照超期阈值:两轮最长间隔 11h,缺两轮以上视为缺失(设计稿接入说明 4)
+    const PTL_UNIT_OF = {         // systemd 单元检查 → 快照 services[].unit 名(与巡检 L1 白名单一致)
+      svc_dash: 'uiautotest-dashboard.service',
+      svc_sched: 'uiautotest-scheduler.service',
+      svc_timer: 'nightly-pipeline-trigger.timer',
+      svc_otp: 'swan-otp-gateway.service',
+      svc_dispatch: 'uiautotest-dispatch.service',
+      svc_map: 'swan-map-station.service',
+    };
+    const PTL_CHECKS = {
+      svc_dash:{n:'dashboard 服务',spec:'systemd active；停→L1 自动重启',lvl:'L1',imp:'平台服务停了，页面与接口全部不可用'},
+      api_probe:{n:'API 探活',spec:'health/configs/devices/apks =200；非 200 → L2',lvl:'L2',imp:'平台接口无响应，页面与机器通道可能都不通'},
+      disk167:{n:'磁盘水位(.167)',spec:'80~90% 记 L3 / ≥90% → L2',lvl:'L2',imp:'.167 磁盘将满，报告与证据可能写不下'},
+      pkg_consist:{n:'登记↔归档一致',spec:'登记 60min 宽限后归档缺文件 → L2',lvl:'L2',imp:'包登记成功但文件丢失，这些包下载会失败'},
+      svc_sched:{n:'调度器服务',spec:'systemd active；停→L1 自动重启',lvl:'L1',imp:'调度器停了，流水线不再定时排队'},
+      pending_age:{n:'pending 年龄',spec:'最老 >1h → L2 / >7 天 → L1 自动取消',lvl:'L1',imp:'流水线任务排队卡住，迟迟不开跑'},
+      svc_timer:{n:'nightly 触发器',spec:'systemd timer active；停→L1 自动拉起',lvl:'L1',imp:'每夜自动流水线不会触发'},
+      dev_heart:{n:'设备心跳',spec:'停 >24h → L2 / 停 >7 天未 offline → L1 下线',lvl:'L1',imp:'测试机失联，可领用设备变少'},
+      jk_node:{n:'build-176 节点',spec:'master /computer API 查在线；offline → L2',lvl:'L2',imp:'Jenkins 看不到构建节点，打包无法派发'},
+      jk_streak:{n:'构建连败',spec:'连败 ≥2 → L2 / 单次失败 → L3',lvl:'L2',imp:'构建连败，新包出不来'},
+      remoting:{n:'remoting 进程',spec:'pgrep -f remoting.jar；断连 → L2',lvl:'L2',imp:'构建进程掉线，打包停摆'},
+      disk176:{n:'磁盘水位(.176)',spec:'≥80% 告警 / ≥90% 严重',lvl:'L2',imp:'.176 磁盘将满，产物可能写不下'},
+      artifact_age:{n:'产物新鲜度',spec:'最新产物 >48h → L2（对齐 04:17 打包节奏）',lvl:'L2',imp:'超过 48h 没有新产物，每日打包可能停了'},
+      svc_otp:{n:'otp-gateway 服务',spec:'systemd active；停→L1 自动重启',lvl:'L1',imp:'取码服务停了，登录类用例会失败'},
+      svc_dispatch:{n:'任务派发服务',spec:'systemd active；停→L1 自动重启',lvl:'L1',imp:'新开发任务接不进来，AI 任务派发中断'},
+      svc_map:{n:'map-station 服务',spec:'systemd active；停→L1 自动重启',lvl:'L1',imp:'地图站停了，地图页打不开'},
+    };
+    const PTL_NO_DATA = new Set(['remoting', 'disk176', 'artifact_age']);  // .176 侧三项:v1 无跨机通道,诚实"无数据"不判好坏
+    const PTL_MODULES = {
+      git:      {name:'GitLab 源码',    tag:'git.hivi.com 双仓',        checks:[]},
+      jkmaster: {name:'Jenkins master',tag:'.167:8082',                checks:['jk_node','jk_streak']},
+      agent176: {name:'build-176 agent',tag:'remoting 节点',           checks:['remoting']},
+      build:    {name:'打包构建',      tag:'scripts/build_swan_apk.py',checks:['artifact_age','disk176']},
+      pkg:      {name:'包管理',        tag:'登记→上传→output/apks',    checks:['pkg_consist']},
+      sched:    {name:'流水线调度',    tag:'pipeline_configs→next_run_at',checks:['svc_sched']},
+      dispf:    {name:'建单派发',      tag:'pipeline_jobs→Jenkins',    checks:['pending_age']},
+      dsv:      {name:'任务派发服务',  tag:'Agent 任务派发·非流水线',  checks:['svc_dispatch']},
+      devpool:  {name:'设备池',        tag:'devices 表+conftest 领取', checks:['dev_heart']},
+      execm:    {name:'执行领取',      tag:'pipeline_agent.py·经平台 API',checks:['api_probe']},
+      reportm:  {name:'上报与证据',    tag:'runs/cases→历史→禅道',     checks:['disk167']},
+      core:     {name:'平台核心 dashboard',tag:':8080',                checks:['svc_dash']},
+      otp:      {name:'otp-gateway',   tag:':18080 取码',              checks:['svc_otp']},
+      map:      {name:'map-station',   tag:'swan-map-station 单元',    checks:['svc_map']},
+      timer:    {name:'nightly 定时器',tag:'systemd timer',            checks:['svc_timer']},
+      cases:    {name:'用例域',        tag:'sync_cases 仓库同步',      checks:[], uncovered:'未纳巡检'},
+      laya:     {name:'laya judge',    tag:'.176:8089 GPU 判定',       checks:[], uncovered:'未纳巡检'},
+    };
+    const PTL_CHAINS = [
+      {id:'build', name:'打包链', host:'主战场 .176', stages:[
+        {id:'pull',    name:'拉代码',   mods:['git']},
+        {id:'compile', name:'编译',     mods:['jkmaster','agent176']},
+        {id:'pack',    name:'出包',     mods:['build']},
+        {id:'archive', name:'登记归档', mods:['pkg']},
+      ]},
+      {id:'exec', name:'执行链', host:'主战场 .167', stages:[
+        {id:'sched',  name:'调度触发', mods:['sched']},
+        {id:'disp',   name:'派发',     mods:['dispf']},
+        {id:'dev',    name:'设备',     mods:['devpool']},
+        {id:'run',    name:'执行',     mods:['execm']},
+        {id:'report', name:'上报',     mods:['reportm']},
+      ]},
+    ];
+    const PTL_BASE = ['core', 'otp', 'map', 'timer', 'dsv', 'cases', 'laya'];
+
+    let ptlData = null, ptlLoading = false;
+
+    function ptlFmtTs(iso) {  // 快照 UTC ISO → 本地 YYYY-MM-DD HH:MM(机器数据 mono 双声道)
+      const d = new Date(iso);
+      if (isNaN(d)) return safe(String(iso || ''));
+      const p = n => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+    }
+    function ptlNextRun() {  // 下一轮巡检时点(.167 08:41/19:43 · .176 08:47/19:47,巡检机制.md §6/§3)
+      const now = new Date();
+      const nextOf = times => {
+        for (const hm of times) {
+          const [h, m] = hm.split(':').map(Number);
+          const t = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m);
+          if (t > now) return hm;
+        }
+        return times[0] + '(次日)';
+      };
+      return nextOf(['08:41', '19:43']) + ' / ' + nextOf(['08:47', '19:47']);
+    }
+
+    function ptlSvcState(unit) {  // systemd 单元检查:active 即正常,单元缺失/整节缺失=暂不可判
+      const rows = ptlData.services;
+      if (!Array.isArray(rows)) return 'nodata';
+      const row = rows.find(r => r.unit === unit);
+      return row ? (row.active ? 'ok' : 'bad') : 'nodata';
+    }
+    function ptlCheckState(id) {  // 检查项状态 ok/bad/nodata;阈值取快照 thresholds(巡检脚本 THRESHOLDS 同源)
+      if (PTL_NO_DATA.has(id)) return 'nodata';
+      const th = ptlData.thresholds || {};
+      if (PTL_UNIT_OF[id]) return ptlSvcState(PTL_UNIT_OF[id]);
+      switch (id) {
+        case 'api_probe': {
+          const rows = ptlData.apis;
+          if (!Array.isArray(rows) || !rows.length) return 'nodata';
+          if (rows.some(r => r.ok === false)) return 'bad';
+          return rows.every(r => r.ok === true) ? 'ok' : 'nodata';  // skipped(401 豁免未登记等)不判好坏
+        }
+        case 'disk167': {  // ≥80% 即亮红:巡检对 80~90% 也发企微观察行,页面不比巡检绿
+          const rows = ptlData.disk;
+          if (!Array.isArray(rows) || !rows.length) return 'nodata';
+          const worst = Math.max(0, ...rows.map(r => Number(r.pct) || 0));
+          return worst >= (th.disk_warn_pct || 80) ? 'bad' : 'ok';
+        }
+        case 'pkg_consist': {
+          const apks = ptlData.apks;
+          if (!apks || !Array.isArray(apks.missing_archive)) return 'nodata';
+          return apks.missing_archive.length ? 'bad' : 'ok';
+        }
+        case 'pending_age': {
+          const jobs = ptlData.pipeline_jobs;
+          if (!jobs || typeof jobs.oldest_hours !== 'number') return 'nodata';
+          return jobs.oldest_hours > (th.pending_l2_hours || 1) ? 'bad' : 'ok';
+        }
+        case 'dev_heart': {  // 快照只带 L1 候选(>7 天);24h L2 档在巡检报告内判定,快照无该字段不推算
+          const dev = ptlData.devices;
+          if (!dev || !Array.isArray(dev.l1_candidates)) return 'nodata';
+          return dev.l1_candidates.length ? 'bad' : 'ok';
+        }
+        case 'jk_node': {
+          const node = (ptlData.jenkins || {}).node;
+          if (!node || typeof node.online !== 'boolean') return 'nodata';
+          return node.online ? 'ok' : 'bad';
+        }
+        case 'jk_streak': {
+          const jobs = (ptlData.jenkins || {}).jobs;
+          if (!Array.isArray(jobs) || !jobs.length) return 'nodata';
+          return jobs.some(j => (j.consecutive_failures || 0) >= (th.jenkins_consec_fail || 2)) ? 'bad' : 'ok';
+        }
+      }
+      return 'nodata';
+    }
+    function ptlCheckDetail(c) {  // 坏时的实时数字补充,拼进后果人话(快照有数才拼)
+      if (c === 'jk_streak') {
+        const jobs = (ptlData.jenkins || {}).jobs || [];
+        const worst = jobs.reduce((m, j) => Math.max(m, j.consecutive_failures || 0), 0);
+        return worst ? `连败 ${worst} 次` : '';
+      }
+      if (c === 'disk167') {
+        const rows = ptlData.disk || [];
+        const worst = Math.max(0, ...rows.map(r => Number(r.pct) || 0));
+        return worst ? `最高 ${worst.toFixed(1)}%` : '';
+      }
+      if (c === 'pkg_consist') {
+        const n = ((ptlData.apks || {}).missing_archive || []).length;
+        return n ? `缺档 ${n} 个` : '';
+      }
+      return '';
+    }
+    function ptlImpact(c) {
+      const d = ptlCheckDetail(c);
+      return PTL_CHECKS[c].imp + (d ? `（${d}）` : '');
+    }
+    function ptlStageState(st) {  // 环节状态:nocheck=环节存在但 v1 无检查项;nodata=有检查但数据在 .176
+      const all = st.mods.flatMap(id => PTL_MODULES[id].checks);
+      const cs = all.filter(c => !PTL_NO_DATA.has(c));
+      if (!all.length) return 'nocheck';
+      if (!cs.length) return 'nodata';
+      return cs.some(c => ptlCheckState(c) === 'bad') ? 'bad' : 'ok';
+    }
+    function ptlStageImpact(st) {
+      for (const id of st.mods) {
+        for (const c of PTL_MODULES[id].checks) {
+          if (!PTL_NO_DATA.has(c) && ptlCheckState(c) === 'bad') return ptlImpact(c);
+        }
+      }
+      return '';
+    }
+    function ptlBadBase() {
+      return PTL_BASE.filter(id => PTL_MODULES[id].checks.some(c => !PTL_NO_DATA.has(c) && ptlCheckState(c) === 'bad'));
+    }
+    function ptlBaseImpact(id) {
+      return PTL_MODULES[id].checks.filter(c => !PTL_NO_DATA.has(c) && ptlCheckState(c) === 'bad').map(ptlImpact).join('；');
+    }
+
+    function ptlRender() {  // 首屏三层:hero 一句话 → 双链+底座 → 点击进抽屉(好坏两态,首屏无中间态)
+      const broken = PTL_CHAINS.flatMap(ch => ch.stages).filter(st => ptlStageState(st) === 'bad');
+      const bbase = ptlBadBase();
+      const total = Object.keys(PTL_CHECKS).length, covered = total - PTL_NO_DATA.size;
+      const tsTxt = ptlFmtTs(ptlData.ts), nextTxt = ptlNextRun();
+      let heroHtml;
+      if (!broken.length && !bbase.length) {
+        heroHtml = `<div class="ptl-hero-line ok">一切正常，下一轮巡检 ${nextTxt}</div>`
+          + `<div class="ptl-hero-meta">巡检 <b class="mono">${tsTxt}</b> · 覆盖 ${covered}/${total} 项检查`
+          + `<br>拉代码环节 v1 暂无检查项 · .176 侧 ${PTL_NO_DATA.size} 项（remoting/磁盘/产物）待 v2 跨机通道，暂无数据</div>`;
+      } else {
+        heroHtml = `<div class="ptl-hero-line bad">${broken.length + bbase.length} 项异常</div>`
+          + broken.map(st => `<div class="ptl-hero-item"><b>${st.name}</b>——${ptlStageImpact(st)}</div>`).join('')
+          + bbase.map(id => `<div class="ptl-hero-item"><b>${PTL_MODULES[id].name}</b>——${ptlBaseImpact(id)}</div>`).join('')
+          + `<div class="ptl-hero-meta">巡检 <b class="mono">${tsTxt}</b> 抓到 · 下一轮 <b class="mono">${nextTxt}</b> · 覆盖 ${covered}/${total} 项检查</div>`;
+      }
+      const chainsHtml = PTL_CHAINS.map(ch =>
+        `<div class="ptl-chainblock"><div class="ptl-chain-title">${ch.name}<span class="ptl-lane-sub">${ch.host}</span></div>`
+        + `<div class="ptl-chain">${ch.stages.map((st, i) => {
+            const s = ptlStageState(st);
+            const cls = s === 'bad' ? 'bad' : (s === 'ok' ? 'ok' : 'unknown');
+            const stTxt = s === 'ok' ? '<span class="ptl-s-st">正常</span>'
+              : (s === 'nocheck' ? '<span class="ptl-s-st">未巡检</span>'
+              : (s === 'nodata' ? '<span class="ptl-s-st">无数据</span>' : '<span class="badge ptl-bad">异常</span>'));
+            const impact = s === 'bad' ? `<div class="ptl-impact">${ptlStageImpact(st)}</div>` : '';
+            return `${i ? '<span class="ptl-arr" aria-hidden="true"></span>' : ''}<div class="ptl-stage ${cls}" data-chain="${ch.id}" data-stage="${st.id}" title="点击看${ch.name}·${st.name}明细">`
+              + `<div class="ptl-stage-head"><span class="ptl-light"></span><span class="ptl-s-name">${st.name}</span>${stTxt}</div>${impact}</div>`;
+          }).join('')}</div></div>`
+      ).join('<div class="ptl-linkrow">↓ 出包交付：登记归档后的包供执行链领取安装（同一流水线，上下游交付）</div>');
+      const baseHtml = !bbase.length
+        ? '<div class="ptl-base" id="ptl-base" title="点击查看底座服务明细" tabindex="0">底座服务全部正常（dashboard / 取码 / map-station / nightly 定时器 / Agent 任务派发；用例同步、laya 未纳巡检）· 点击看明细</div>'
+        : `<div class="ptl-base bad" id="ptl-base" title="点击查看底座服务明细" tabindex="0">底座服务异常：${bbase.map(id => `<b>${PTL_MODULES[id].name}</b>——${ptlBaseImpact(id)}`).join('；')} · 点击看明细</div>`;
+      $('ptl-body').innerHTML = `<div class="ptl-hero">${heroHtml}</div>${chainsHtml}${baseHtml}`;
+      document.querySelectorAll('#ptl-body .ptl-stage').forEach(el => el.onclick = () => {
+        const ch = PTL_CHAINS.find(c => c.id === el.dataset.chain);
+        const st = ch.stages.find(s => s.id === el.dataset.stage);
+        ptlOpenDrawer(ch.name + ' · ' + st.name, st.mods);
+      });
+      $('ptl-base').onclick = () => ptlOpenDrawer('底座服务', PTL_BASE);
+    }
+
+    function ptlRenderMissing(reason) {  // 快照缺失/超期(规范 4.7:一句灰字+ghost 重试)
+      $('ptl-body').innerHTML = `<div class="ptl-missing">巡检数据缺失<div class="ptl-missing-meta">${reason}</div><button class="ghost" id="ptl-retry">重试</button></div>`;
+      $('ptl-retry').onclick = ptlLoad;
+    }
+
+    async function ptlLoad() {  // 进页签拉一次+手动刷新(规范 6.9);快照超期判定在前端
+      if (ptlLoading) return;
+      ptlLoading = true;
+      try {
+        const resp = await fetch('/api/patrol/status');
+        if (resp.status === 404) { ptlRenderMissing('巡检状态文件不存在或不可读，每轮巡检时由巡检 agent 写入'); return; }
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        const data = await resp.json();
+        if (!data || !data.ts) { ptlRenderMissing('巡检快照格式异常（缺 ts 字段）'); return; }
+        ptlData = data;
+        const ageMs = Date.now() - new Date(data.ts).getTime();
+        if (isFinite(ageMs) && ageMs > PTL_STALE_HOURS * 3600000) {
+          ptlRenderMissing(`快照已超期未更新：最近一轮 ${ptlFmtTs(data.ts)}，巡检可能停了`);
+          return;
+        }
+        ptlRender();
+      } catch (e) {
+        ptlRenderMissing('巡检数据获取失败，可点重试');
+      } finally {
+        ptlLoading = false;
+      }
+    }
+
+    function ptlOpenDrawer(title, mods) {  // 紧凑抽屉(规范 4.3 min(480px,94vw)):模块 tag+检查项口径表+无数据说明
+      $('ptl-dr-title').textContent = title;
+      const hasNoData = mods.some(id => PTL_MODULES[id].checks.some(c => PTL_NO_DATA.has(c)));
+      const ndHtml = hasNoData ? '<div class="ptl-dr-sec">「无数据」：检查项已在 .176 侧运行，状态文件待 v2 跨机通道，暂不判定好坏。</div>' : '';
+      $('ptl-dr-body').innerHTML = mods.map(id => {
+        const m = PTL_MODULES[id];
+        let inner;
+        if (m.checks.length) {
+          inner = '<table><tr><th>检查项</th><th>口径</th><th>级别</th><th>状态</th></tr>'
+            + m.checks.map(c => {
+              const s = ptlCheckState(c);
+              const cls = s === 'bad' ? 'ptl-bad' : (s === 'nodata' ? 'ptl-nodata' : 'ptl-ok');
+              const txt = s === 'bad' ? '异常' : (s === 'nodata' ? '无数据' : '正常');
+              return `<tr><td>${PTL_CHECKS[c].n}</td><td class="mono">${PTL_CHECKS[c].spec}</td><td><span class="badge ptl-lvl">${PTL_CHECKS[c].lvl}</span></td><td><span class="badge ${cls}">${txt}</span></td></tr>`;
+            }).join('') + '</table>';
+        } else {
+          inner = `<div class="ptl-dr-sec">${m.uncovered === '未纳巡检' ? '未纳巡检：巡检 v1 未覆盖，试跑一周复盘（10-16 前后）时评估是否加项' : (m.uncovered ? m.uncovered + '：巡检不单独设项' : '外部依赖，不做检查')}</div>`;
+        }
+        return `<h4>${m.name} <span class="mono ptl-tag">${m.tag}</span></h4>${inner}`;
+      }).join('') + ndHtml;
+      $('ptl-drawer').classList.add('on');
+      $('ptl-scrim').classList.add('on');
+    }
+    function ptlCloseDrawer() {
+      $('ptl-drawer').classList.remove('on');
+      $('ptl-scrim').classList.remove('on');
+    }
+    $('ptl-refresh').onclick = ptlLoad;
+    $('ptl-dr-close').onclick = ptlCloseDrawer;
+    $('ptl-scrim').onclick = ptlCloseDrawer;
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('ptl-drawer').classList.contains('on')) ptlCloseDrawer(); });  // 规范 4.3:Esc 关闭
   </script>
 </body>
 </html>

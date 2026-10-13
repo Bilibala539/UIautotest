@@ -28,11 +28,6 @@ class TestVolumeKey(SwanPlayerRegressionMixin, BaseTest):
         """pytest 生命周期钩子（模板要求显式声明；逻辑由 mixin 提供）。"""
         super().setup()
 
-    def teardown(self) -> None:
-        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
-        super().teardown()
-
-
     @pytest.mark.parametrize("long_press,direction",
                              [(False, "up"), (False, "down"), (True, "up")])
     @pytest.mark.parametrize("device_type", DEVICE_TYPES)
@@ -44,3 +39,7 @@ class TestVolumeKey(SwanPlayerRegressionMixin, BaseTest):
         self._preset_playing(device_type)
         self.user.set_volume(50, action="drag")
         self.user.volume_key(direction=direction, long_press=long_press)
+
+    def teardown(self) -> None:
+        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
+        super().teardown()

@@ -29,11 +29,6 @@ class TestBottomTabSwitch(SwanContentRegressionMixin, BaseTest):
         """pytest 生命周期钩子（模板要求显式声明；逻辑由 mixin 提供）。"""
         super().setup()
 
-    def teardown(self) -> None:
-        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
-        super().teardown()
-
-
     @pytest.mark.parametrize("tab", BOTTOM_TABS)
     def test_bottom_tab_switch(self, tab):
         """用例29：底部四 Tab 轮巡，逐页一级锚点 [图] 断言。"""
@@ -41,3 +36,7 @@ class TestBottomTabSwitch(SwanContentRegressionMixin, BaseTest):
         if tab == "首页":
             self.user.go_bottom_tab("平台")  # 先离开首页再切回，避免短路空转
         self.user.go_bottom_tab(tab)
+
+    def teardown(self) -> None:
+        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
+        super().teardown()

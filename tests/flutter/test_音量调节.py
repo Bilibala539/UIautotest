@@ -31,11 +31,6 @@ class TestVolumeAdjust(SwanPlayerRegressionMixin, BaseTest):
         """pytest 生命周期钩子（模板要求显式声明；逻辑由 mixin 提供）。"""
         super().setup()
 
-    def teardown(self) -> None:
-        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
-        super().teardown()
-
-
     @pytest.mark.parametrize("action", ["drag", "click", "plus", "minus"])
     @pytest.mark.parametrize("device_type", DEVICE_TYPES)
     def test_volume_adjust(self, device_type, action):
@@ -43,3 +38,7 @@ class TestVolumeAdjust(SwanPlayerRegressionMixin, BaseTest):
         self._preset_playing(device_type)
         value = VOLUME_TARGET if action in ("drag", "click") else VOLUME_STEPS
         self.user.set_volume(value, action=action)
+
+    def teardown(self) -> None:
+        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
+        super().teardown()

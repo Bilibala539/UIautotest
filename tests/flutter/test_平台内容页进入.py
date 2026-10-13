@@ -33,11 +33,6 @@ class TestPlatformHomeEntry(SwanLoginRegressionMixin, BaseTest):
         """pytest 生命周期钩子（模板要求显式声明；逻辑由 mixin 提供）。"""
         super().setup()
 
-    def teardown(self) -> None:
-        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
-        super().teardown()
-
-
     @pytest.mark.parametrize("platform", ["qq", "netease"])  # 酷狗未授权不可达，拍板忽略
     def test_open_platform_home(self, platform):
         """用例38-40：平台页进入已授权平台主页，主页锚 [OCR] 断言。"""
@@ -55,3 +50,7 @@ class TestPlatformHomeEntry(SwanLoginRegressionMixin, BaseTest):
         # 收尾：主页为 push 页，退回平台页再回首页
         self.aw.press_back()
         self.user.go_home()
+
+    def teardown(self) -> None:
+        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
+        super().teardown()

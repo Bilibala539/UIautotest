@@ -28,12 +28,11 @@ class TestSwitchDeviceFromPlayerSheet(SwanPlayerRegressionMixin, BaseTest):
         """pytest 生命周期钩子（模板要求显式声明；逻辑由 mixin 提供）。"""
         super().setup()
 
-    def teardown(self) -> None:
-        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
-        super().teardown()
-
-
     def test_switch_device_from_player_sheet(self):
         """用例12：播放页右上角开设备弹层点目标设备行，断言勾选态 [图]。"""
         self._open_player_page()
         self.user.select_device(self.DEVICE_NAME, via="player")
+
+    def teardown(self) -> None:
+        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
+        super().teardown()

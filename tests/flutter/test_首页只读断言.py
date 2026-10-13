@@ -28,11 +28,6 @@ class TestSwanHomeReadonly(SwanLoginRegressionMixin, BaseTest):
         """pytest 生命周期钩子（模板要求显式声明；逻辑由 mixin 提供）。"""
         super().setup()
 
-    def teardown(self) -> None:
-        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
-        super().teardown()
-
-
     def test_home_page_elements(self):
         """首页元素：4 个全局 tab key + 底部播放条（非致命探测）。
 
@@ -49,3 +44,7 @@ class TestSwanHomeReadonly(SwanLoginRegressionMixin, BaseTest):
         assert self.aw.find_text_by_ocr("推荐", timeout=10) is not None, (
             "首页缺少顶 Tab「推荐」文字 [OCR]")
         self._probe_bottom_player_bar()
+
+    def teardown(self) -> None:
+        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
+        super().teardown()

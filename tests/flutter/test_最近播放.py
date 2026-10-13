@@ -26,19 +26,14 @@ class TestRecentPlayed(SwanContentRegressionMixin, BaseTest):
         """pytest 生命周期钩子（模板要求显式声明；逻辑由 mixin 提供）。"""
         super().setup()
 
-    def teardown(self) -> None:
-        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
-        super().teardown()
-
-
     @pytest.mark.parametrize("kind,env_key", [
-    ("歌曲", "SWAN_TEST_SONG"),
-    ("歌单", "SWAN_HISTORY_PLAYLIST"),
-    ("歌手", "SWAN_HISTORY_ARTIST"),
-    ("专辑", "SWAN_HISTORY_ALBUM"),
-    ("电台", "SWAN_HISTORY_RADIO"),
-    ("播客", "SWAN_HISTORY_PODCAST"),
-])
+        ("歌曲", "SWAN_TEST_SONG"),
+        ("歌单", "SWAN_HISTORY_PLAYLIST"),
+        ("歌手", "SWAN_HISTORY_ARTIST"),
+        ("专辑", "SWAN_HISTORY_ALBUM"),
+        ("电台", "SWAN_HISTORY_RADIO"),
+        ("播客", "SWAN_HISTORY_PODCAST"),
+    ])
     def test_recent_played(self, kind, env_key):
         """用例56-68：最近播放按分类断言条目存在（条目名未配置则 skip）。
 
@@ -58,3 +53,7 @@ class TestRecentPlayed(SwanContentRegressionMixin, BaseTest):
             self.aw.sleep(3.0)
             self.user.player_control("pause")
         self.user.assert_recent_played(kind, name)
+
+    def teardown(self) -> None:
+        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
+        super().teardown()

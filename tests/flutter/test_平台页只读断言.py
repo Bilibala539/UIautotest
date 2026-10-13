@@ -31,11 +31,6 @@ class TestSwanPlatformPageReadonly(SwanLoginRegressionMixin, BaseTest):
         """pytest 生命周期钩子（模板要求显式声明；逻辑由 mixin 提供）。"""
         super().setup()
 
-    def teardown(self) -> None:
-        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
-        super().teardown()
-
-
     def test_platform_page_readonly(self):
         """平台页只读断言：根节点 + 网易云行 key + 行图片；⛔ 不点授权/充值。"""
         self._ensure_logged_in_on_home()
@@ -53,3 +48,7 @@ class TestSwanPlatformPageReadonly(SwanLoginRegressionMixin, BaseTest):
             "平台页网易云行两态 [图] 均未命中（未到达平台页？或模板与账号"
             "授权态不匹配，请核对两态模板登记）")
         self.user.go_home()
+
+    def teardown(self) -> None:
+        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
+        super().teardown()

@@ -41,19 +41,6 @@ class TestCollectSong(SwanContentRegressionMixin, BaseTest):
         """pytest 生命周期钩子（模板要求显式声明；逻辑由 mixin 提供）。"""
         super().setup()
 
-    def teardown(self) -> None:
-        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
-        super().teardown()
-
-
-    # source="playlist_page" 用例的收藏源歌单（行内 [+] 所在详情页）：
-    # 默认取 rig SWAN 宫格实测存在的「我的家庭」（5.3.2 探索样例歌单）。
-    # 数据约定（run6 起仅剩一条）：须含 ≥1 首歌（其顶行曲将被收藏）——
-    # 旧「顶行曲不得已在目标歌单内」约定已由预清理运行时强制（收藏前先
-    # 把顶行曲从目标歌单移除，见 test_collect_song 注），不再依赖 rig
-    # 数据态；rig 数据变化（如该歌单被清空/改名）时用本变量覆盖。
-    SOURCE_PLAYLIST = os.environ.get("SWAN_COLLECT_SOURCE_PLAYLIST", "我的家庭")
-
     @pytest.mark.parametrize("source", ["player", "playlist_page"])  # 内层按列表序：player 先跑
     @pytest.mark.parametrize("target_platform",
                              SwanContentRegressionMixin.COLLECT_PLATFORMS)
@@ -100,3 +87,7 @@ class TestCollectSong(SwanContentRegressionMixin, BaseTest):
             self.user.open_playlist_detail("swan", self.SOURCE_PLAYLIST)
         self.user.collect_song(target_platform, self.COLLECT_PLAYLIST,
                                source=source)
+
+    def teardown(self) -> None:
+        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
+        super().teardown()

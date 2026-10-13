@@ -25,11 +25,6 @@ class TestSwanDevicePageReadonly(SwanLoginRegressionMixin, BaseTest):
         """pytest 生命周期钩子（模板要求显式声明；逻辑由 mixin 提供）。"""
         super().setup()
 
-    def teardown(self) -> None:
-        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
-        super().teardown()
-
-
     def test_device_page_elements(self):
         """设备页只读断言：根节点 + 添加设备（key+图片）+ 设备卡前缀匹配 ≥1 台。
 
@@ -47,3 +42,7 @@ class TestSwanDevicePageReadonly(SwanLoginRegressionMixin, BaseTest):
             "设备页显示「暂无WIFI设备」空态（账号当前未绑定设备，数据状态变化"
             "非代码问题），需先在真机上配网绑定设备后再跑本用例")
         self.user.go_home()
+
+    def teardown(self) -> None:
+        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
+        super().teardown()

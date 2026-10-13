@@ -27,11 +27,6 @@ class TestPlaySingleSong(SwanPlayerRegressionMixin, BaseTest):
         """pytest 生命周期钩子（模板要求显式声明；逻辑由 mixin 提供）。"""
         super().setup()
 
-    def teardown(self) -> None:
-        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
-        super().teardown()
-
-
     @pytest.mark.parametrize("device_type", DEVICE_TYPES)
     def test_play_single_song(self, device_type):
         """用例14：我喜欢页点歌名单曲播放（SWAN_TEST_SONG 未配置则 skip）。"""
@@ -39,3 +34,7 @@ class TestPlaySingleSong(SwanPlayerRegressionMixin, BaseTest):
             pytest.skip("未配置 SWAN_TEST_SONG（rig 我喜欢歌单中的歌曲名）")
         self._preset_playing(device_type, source=self.SONG_NAME, mode="song")
         self.user.assert_now_playing(self.SONG_NAME)
+
+    def teardown(self) -> None:
+        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
+        super().teardown()

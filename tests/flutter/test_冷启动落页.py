@@ -25,11 +25,6 @@ class TestColdStartLandedPage(SwanLoginRegressionMixin, BaseTest):
         """pytest 生命周期钩子（模板要求显式声明；逻辑由 mixin 提供）。"""
         super().setup()
 
-    def teardown(self) -> None:
-        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
-        super().teardown()
-
-
     def test_cold_start_lands_home(self):
         """用例2：登录后冷启动，断言落首页（全自动）。"""
         self._ensure_logged_in_on_home()
@@ -46,3 +41,7 @@ class TestColdStartLandedPage(SwanLoginRegressionMixin, BaseTest):
                 "账号当前已登录（首页壳锚可见）——用例1 需未登录态；"
                 "登出属状态翻转操作，安排在未登录窗口执行")
         self.user.cold_start_assert(landed="login")
+
+    def teardown(self) -> None:
+        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
+        super().teardown()

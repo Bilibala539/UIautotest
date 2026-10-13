@@ -29,11 +29,6 @@ class TestLoginPageToggle(SwanLoginRegressionMixin, BaseTest):
         """pytest 生命周期钩子（模板要求显式声明；逻辑由 mixin 提供）。"""
         super().setup()
 
-    def teardown(self) -> None:
-        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
-        super().teardown()
-
-
     def test_login_page_toggle(self):
         """登录页两种形态互切：登出 → 验证码形态 ⇄ 密码形态，断言互斥反转。
 
@@ -49,4 +44,8 @@ class TestLoginPageToggle(SwanLoginRegressionMixin, BaseTest):
         # 切回验证码形态，互斥反转（[OCR] 回切钮文案——图模板有两态渲染漏判）
         self.aw.click_text("验证码登入", timeout=10)
         self._assert_sms_form()
+
+    def teardown(self) -> None:
+        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
+        super().teardown()
         # 结束状态：未登录（验证码登录页）

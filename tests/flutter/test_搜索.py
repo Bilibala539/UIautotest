@@ -35,11 +35,6 @@ class TestSearch(SwanContentRegressionMixin, BaseTest):
         """pytest 生命周期钩子（模板要求显式声明；逻辑由 mixin 提供）。"""
         super().setup()
 
-    def teardown(self) -> None:
-        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
-        super().teardown()
-
-
     @pytest.mark.parametrize("entry", ["home", "radio"])
     @pytest.mark.parametrize("tab", ["单曲", "艺人", "专辑", "歌单", "电台", "播客"])
     def test_search_results_by_tab(self, tab, entry):
@@ -57,3 +52,7 @@ class TestSearch(SwanContentRegressionMixin, BaseTest):
         self.user.assert_search_results(
             tab, platforms,
             allow_empty=(tab == "电台" and bool(platforms)))
+
+    def teardown(self) -> None:
+        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
+        super().teardown()

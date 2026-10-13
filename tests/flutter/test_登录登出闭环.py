@@ -26,11 +26,6 @@ class TestSmsLoginLogoutRoundtrip(SwanLoginRegressionMixin, BaseTest):
         """pytest 生命周期钩子（模板要求显式声明；逻辑由 mixin 提供）。"""
         super().setup()
 
-    def teardown(self) -> None:
-        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
-        super().teardown()
-
-
     def test_sms_login_logout_roundtrip(self):
         """登录/登出完整闭环：登出→登录→登出→登录→收尾登出。"""
         self.user.logout_if_needed()
@@ -47,3 +42,7 @@ class TestSmsLoginLogoutRoundtrip(SwanLoginRegressionMixin, BaseTest):
         self._assert_on_home()
         self.user.logout_if_needed()
         self._assert_on_login_page()
+
+    def teardown(self) -> None:
+        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
+        super().teardown()

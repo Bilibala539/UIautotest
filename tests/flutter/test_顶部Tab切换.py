@@ -28,13 +28,12 @@ class TestTopTabSwitch(SwanContentRegressionMixin, BaseTest):
         """pytest 生命周期钩子（模板要求显式声明；逻辑由 mixin 提供）。"""
         super().setup()
 
-    def teardown(self) -> None:
-        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
-        super().teardown()
-
-
     @pytest.mark.parametrize("tab", TOP_TABS)
     def test_top_tab_switch(self, tab):
         """用例30：首页五顶 Tab 切换，逐 Tab 页面锚点 [图] 断言。"""
         self._ensure_logged_in_on_home()
         self.user.go_top_tab(tab)
+
+    def teardown(self) -> None:
+        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
+        super().teardown()

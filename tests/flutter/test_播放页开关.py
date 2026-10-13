@@ -30,11 +30,6 @@ class TestSwanPlayerOpenClose(SwanLoginRegressionMixin, BaseTest):
         """pytest 生命周期钩子（模板要求显式声明；逻辑由 mixin 提供）。"""
         super().setup()
 
-    def teardown(self) -> None:
-        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
-        super().teardown()
-
-
     def test_player_open_close(self):
         """播放页开关：点底部播放条进全屏播放页 → 断言后点收起按钮回首页。
 
@@ -61,3 +56,7 @@ class TestSwanPlayerOpenClose(SwanLoginRegressionMixin, BaseTest):
         ), "收起播放页后未回到首页"
         self._assert_home_shell_image()
         self._probe_bottom_player_bar()
+
+    def teardown(self) -> None:
+        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
+        super().teardown()

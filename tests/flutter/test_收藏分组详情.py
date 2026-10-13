@@ -31,11 +31,6 @@ class TestSwanFavoritesGroupDetail(SwanLoginRegressionMixin, BaseTest):
         """pytest 生命周期钩子（模板要求显式声明；逻辑由 mixin 提供）。"""
         super().setup()
 
-    def teardown(self) -> None:
-        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
-        super().teardown()
-
-
     def test_favorites_group_detail(self):
         """收藏分组详情：我的页 → SWAN收藏 → 我的家庭 → OCR 断言 → 返回回首页。"""
         self._ensure_logged_in_on_home()
@@ -58,3 +53,7 @@ class TestSwanFavoritesGroupDetail(SwanLoginRegressionMixin, BaseTest):
             SwanBusiness.KEY_ME_PROFILE_ENTRY, timeout=15
         ), "两次返回后未回到我的页"
         self.user.go_home()
+
+    def teardown(self) -> None:
+        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
+        super().teardown()

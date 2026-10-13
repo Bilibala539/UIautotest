@@ -32,11 +32,6 @@ class TestLoopModeAndControls(SwanPlayerRegressionMixin, BaseTest):
         """pytest 生命周期钩子（模板要求显式声明；逻辑由 mixin 提供）。"""
         super().setup()
 
-    def teardown(self) -> None:
-        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
-        super().teardown()
-
-
     @pytest.mark.parametrize("loop_mode", LOOP_MODES)
     @pytest.mark.parametrize("device_type", DEVICE_TYPES)
     def test_loop_mode_and_controls(self, device_type, loop_mode):
@@ -52,3 +47,7 @@ class TestLoopModeAndControls(SwanPlayerRegressionMixin, BaseTest):
         self.user.player_control("play")
         self.user.player_control("next")
         self.user.player_control("prev")
+
+    def teardown(self) -> None:
+        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
+        super().teardown()

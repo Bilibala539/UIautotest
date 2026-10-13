@@ -28,15 +28,14 @@ class TestSmsLoginSuccess(SwanLoginRegressionMixin, BaseTest):
         """pytest 生命周期钩子（模板要求显式声明；逻辑由 mixin 提供）。"""
         super().setup()
 
-    def teardown(self) -> None:
-        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
-        super().teardown()
-
-
     def test_sms_login_success(self):
         """验证码登录成功：登出确保未登录 → 取码登录 → 断言进首页。"""
         self.user.logout_if_needed()
         self._assert_on_login_page()
         self.user.login_by_sms(self.phone)
         self._assert_on_home()
+
+    def teardown(self) -> None:
+        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
+        super().teardown()
         # 结束状态：已登录停在首页（G3/G4 允许），后续用例直接复用该登录态

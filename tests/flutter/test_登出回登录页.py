@@ -27,11 +27,6 @@ class TestLogoutReturnsToLogin(SwanLoginRegressionMixin, BaseTest):
         """pytest 生命周期钩子（模板要求显式声明；逻辑由 mixin 提供）。"""
         super().setup()
 
-    def teardown(self) -> None:
-        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
-        super().teardown()
-
-
     def test_logout_returns_to_login(self):
         """登出回登录页：确保已登录 → 登出 → 断言登录页（含置灰「下一步」）。"""
         self.user.login_by_sms(self.phone)
@@ -44,4 +39,8 @@ class TestLogoutReturnsToLogin(SwanLoginRegressionMixin, BaseTest):
         assert not self.aw.accessibility_exists(
             SwanBusiness.KEY_TAB_ME
         ), "登出后首页 tab 仍存在，疑似未真正登出"
+
+    def teardown(self) -> None:
+        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
+        super().teardown()
         # 结束状态：未登录（登录页）

@@ -1,4 +1,4 @@
-# CASE-ID: aw-物理音量键_短按降
+# CASE-ID: aw-物理音量键_短按升
 # LINKED-CASE: REG-027,REG-028
 """Swan 回归·播放器域：物理音量键短按/长按（回归用例 27-28）。
 
@@ -36,7 +36,8 @@ class TestVolumeKey(SwanPlayerRegressionMixin, BaseTest):
         先经音量弹窗把音量拖到中位 50，避免 0%/100% 边界使方向断言失真。
         """
         long_press = False
-        direction = 'down'
+        direction = 'up'
+        device_type = "speaker"
         self._preset_playing(device_type)
         self.user.set_volume(50, action="drag")
         self.user.volume_key(direction=direction, long_press=long_press)

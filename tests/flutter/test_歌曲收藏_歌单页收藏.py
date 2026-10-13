@@ -39,6 +39,10 @@ from utils.aw.business.swan_regression import SwanContentRegressionMixin
 class TestCollectSong(SwanContentRegressionMixin, BaseTest):
     """歌曲收藏到指定歌单（回归用例 44-55）。"""
 
+    # source="playlist_page" 用例的收藏源歌单（行内 [+] 所在详情页）：
+    # 须含 ≥1 首歌（其顶行曲将被收藏）；rig 数据变化时用环境变量覆盖
+    SOURCE_PLAYLIST = os.environ.get("SWAN_COLLECT_SOURCE_PLAYLIST", "我的家庭")
+
     def setup(self) -> None:
         """pytest 生命周期钩子（模板要求显式声明；逻辑由 mixin 提供）。"""
         super().setup()

@@ -1,3 +1,4 @@
+# CASE-ID: aw-密码登录成功
 """Swan Flutter 密码登录成功（原 test_swan_password_login.py，2026-10-12 一用例一文件拆分）。
 
 业务方法复用 SwanBusiness：

@@ -1,3 +1,5 @@
+# CASE-ID: aw-冷启动落页
+# LINKED-CASE: REG-001,REG-002
 """Swan 回归·域1：冷启动落页断言（回归用例 1-2）。
 
 用例 → AW 映射（docs/Swan回归用例AW实现方案.md §2.3 域1）：

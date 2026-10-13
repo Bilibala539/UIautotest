@@ -1,3 +1,5 @@
+# CASE-ID: aw-首页卡片进入_歌单
+# LINKED-CASE: REG-031
 """Swan 回归·导航域：首页推荐 Tab 卡片进入对应页面（回归用例 31）。
 
 用例 → AW 映射（docs/Swan回归用例AW实现方案.md §2.3 域4）：

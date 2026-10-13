@@ -3245,19 +3245,29 @@ class DashboardStore:
             else:
                 item["module_cn"] = ""
             if item["case_type"] == "text":
+                # 多值挂接(2026-10-13 P4):linked_case_id 允许逗号分隔(一个脚本覆盖
+                # 多条回归用例),LIKE 全串匹配命中所有覆盖方
                 autos = connection.execute(
                     """SELECT case_id, title, module, source_bug FROM case_defs
-                       WHERE case_type='auto' AND linked_case_id=?
+                       WHERE case_type='auto' AND (',' || linked_case_id || ',') LIKE ?
                        ORDER BY case_id""",
-                    (item["case_id"],),
+                    (f"%,{item['case_id']},%",),
                 ).fetchall()
                 item["auto_cases"] = [dict(a) for a in autos]
             else:
-                linked = connection.execute(
-                    "SELECT case_id, title FROM case_defs WHERE case_id=?",
-                    (item["linked_case_id"],),
-                ).fetchone()
-                item["text_case"] = dict(linked) if linked else None
+                # auto 行:拆逗号取全部挂接的文字用例(text_cases;text_case 保留为首条,兼容旧页面)
+                linked_items = []
+                for token in str(item["linked_case_id"] or "").split(","):
+                    token = token.strip()
+                    if not token:
+                        continue
+                    linked = connection.execute(
+                        "SELECT case_id, title FROM case_defs WHERE case_id=?", (token,),
+                    ).fetchone()
+                    if linked:
+                        linked_items.append(dict(linked))
+                item["text_cases"] = linked_items
+                item["text_case"] = linked_items[0] if linked_items else None
         return item
 
     def list_case_defs(
@@ -3290,7 +3300,7 @@ class DashboardStore:
                     LIMIT ?""",
                 (*params, limit),
             ).fetchall()
-        # 列表视图一次性挂双向关联(text 行 -> auto_cases)
+        # 列表视图一次性挂双向关联(text 行 -> auto_cases;auto 行 linked_case_id 逗号多值拆分)
         autos: dict[str, list[dict[str, Any]]] = {}
         # 套件归属装饰:一条 SQL 批量查全部成员关系,勿 N+1
         suites_map: dict[str, list[str]] = {}
@@ -3302,7 +3312,11 @@ class DashboardStore:
                    FROM case_defs WHERE case_type='auto' AND linked_case_id != ''
                    ORDER BY case_id"""
             ).fetchall():
-                autos.setdefault(row["linked_case_id"], []).append(dict(row))
+                # 逗号多值:一条 auto 覆盖 N 条文字用例,每条都要能看到这个脚本
+                for token in str(row["linked_case_id"]).split(","):
+                    token = token.strip()
+                    if token:
+                        autos.setdefault(token, []).append(dict(row))
             for row in connection.execute(
                 "SELECT case_id, suite_id FROM suite_cases ORDER BY suite_id, seq"
             ).fetchall():
@@ -4146,7 +4160,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self.send_json({"cases": self.store.list_case_defs_structured()})
             return
         if parsed.path.startswith("/api/case-defs/"):
-            case_id = parsed.path.removeprefix("/api/case-defs/").strip("/")
+            case_id = unquote(parsed.path.removeprefix("/api/case-defs/").strip("/"))  # unquote:中文编号(aw-xxx)路径解码;ASCII 编号不受影响
             try:
                 self.send_json(self.store.get_case_def(case_id))
             except KeyError as error:
@@ -4774,7 +4788,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 return
             payload = self.read_json()
             if parsed.path.startswith("/api/case-defs/"):
-                case_id = parsed.path.removeprefix("/api/case-defs/").strip("/")
+                case_id = unquote(parsed.path.removeprefix("/api/case-defs/").strip("/"))  # unquote:中文编号(aw-xxx)路径解码;ASCII 编号不受影响
                 if not case_id:
                     self.send_error_json("case_id is required", HTTPStatus.BAD_REQUEST)
                     return
@@ -4856,7 +4870,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 self.send_error_json(str(error), HTTPStatus.NOT_FOUND)
             return
         if parsed.path.startswith("/api/case-defs/"):
-            case_id = parsed.path.removeprefix("/api/case-defs/").strip("/")
+            case_id = unquote(parsed.path.removeprefix("/api/case-defs/").strip("/"))  # unquote:中文编号(aw-xxx)路径解码;ASCII 编号不受影响
             if not case_id:
                 self.send_error_json("case_id is required", HTTPStatus.BAD_REQUEST)
                 return

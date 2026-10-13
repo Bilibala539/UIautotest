@@ -1,3 +1,5 @@
+# CASE-ID: aw-平台入口跳转_网易云歌单
+# LINKED-CASE: REG-038,REG-039,REG-040
 """Swan 回归·域6：平台主页入口跳转（回归用例 38-40 深化）。
 
 用例 → AW 映射（docs/Swan回归用例AW实现方案.md §2.3 域6）：

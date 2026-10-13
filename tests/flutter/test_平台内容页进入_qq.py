@@ -1,3 +1,5 @@
+# CASE-ID: aw-平台内容页进入_qq
+# LINKED-CASE: REG-038,REG-039,REG-040
 """Swan 回归·域6：平台内容页进入（回归用例 38-40）。
 
 用例 → AW 映射（docs/Swan回归用例AW实现方案.md §2.3 域6）：

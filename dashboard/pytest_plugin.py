@@ -1,15 +1,21 @@
 from __future__ import annotations
 
 import os
+import re
 import socket
 import time
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 from .client import DashboardClient
 
 _active_reporter: "DashboardReporter | None" = None
+
+# 文件头 `# CASE-ID: aw-xxx` 标记(2026-10-13 P4,scripts/sync_cases.py --annotate 写入):
+# 命中则执行结果按该编号聚合(与平台 auto 用例 case_id 同源);读不到回退 nodeid
+_CASE_ID_RE = re.compile(r"^#\s*CASE-ID:\s*(\S+)", re.MULTILINE)
 
 
 def _now() -> str:
@@ -23,7 +29,29 @@ class DashboardReporter:
         self.started_at = _now()
         self.case_results: dict[str, dict[str, Any]] = {}
         self.case_started: dict[str, float] = {}
+        self._case_id_cache: dict[str, str] = {}   # 文件路径 -> CASE-ID(含回退值)
         self.enabled = self.client.enabled
+
+    def _case_id_for(self, nodeid: str) -> str:
+        """nodeid -> 上报用例编号:文件头 CASE-ID 标记优先,回退原 nodeid。
+
+        parametrize 变体(nodeid 带参数段)同文件共享一个 CASE-ID——执行结果
+        按脚本文件聚合,与平台 auto 用例(一文件一条)对齐。结果缓存,一文件只读一次。
+        """
+        file_part = nodeid.split("::")[0]
+        cached = self._case_id_cache.get(file_part)
+        if cached is not None:
+            return cached
+        case_id = nodeid
+        try:
+            head = Path(file_part).read_text(encoding="utf-8", errors="replace")[:2000]
+            marked = _CASE_ID_RE.search(head)
+            if marked:
+                case_id = marked.group(1)
+        except OSError:
+            pass
+        self._case_id_cache[file_part] = case_id
+        return case_id
 
     def start(self) -> None:
         if not self.enabled:
@@ -62,7 +90,7 @@ class DashboardReporter:
         log_parts = [part for part in [getattr(report, "capstdout", ""), getattr(report, "capstderr", "")] if part]
         error = getattr(report, "longreprtext", "") if status == "failed" else ""
         result = {
-            "case_id": nodeid,
+            "case_id": self._case_id_for(nodeid),
             "name": short_name,
             "platform": os.environ.get("PLATFORM", "android").lower(),
             "status": status,

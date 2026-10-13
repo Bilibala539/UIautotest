@@ -1,3 +1,5 @@
+# CASE-ID: aw-歌曲收藏_播放页收藏
+# LINKED-CASE: REG-044,REG-045,REG-046,REG-047,REG-048,REG-049,REG-050,REG-051,REG-052,REG-053,REG-054,REG-055
 """Swan 回归·收藏历史域：歌曲收藏到指定歌单（回归用例 44-55）。
 
 用例 → AW 映射（docs/Swan回归用例AW实现方案.md §2.3 域7）：

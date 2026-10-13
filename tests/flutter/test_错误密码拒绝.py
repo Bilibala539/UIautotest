@@ -1,3 +1,4 @@
+# CASE-ID: aw-错误密码拒绝
 """Swan Flutter 错误密码被拒绝（原 test_swan_password_login.py，2026-10-12 拆分）。
 
 业务方法复用 SwanBusiness，用例层只做编排与断言。

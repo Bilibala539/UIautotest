@@ -1,3 +1,5 @@
+# CASE-ID: aw-循环模式与播放控制_单曲循环_音箱
+# LINKED-CASE: REG-015,REG-016,REG-017,REG-018,REG-019,REG-020,REG-021,REG-022
 """Swan 回归·播放器域：循环模式与播放控制序列（回归用例 15-22 矩阵）。
 
 用例 → AW 映射（docs/Swan回归用例AW实现方案.md §2.3 域3）：

@@ -1,3 +1,5 @@
+# CASE-ID: aw-物理音量键_短按降
+# LINKED-CASE: REG-027,REG-028
 """Swan 回归·播放器域：物理音量键短按/长按（回归用例 27-28）。
 
 用例 → AW 映射（docs/Swan回归用例AW实现方案.md §2.3 域3）：

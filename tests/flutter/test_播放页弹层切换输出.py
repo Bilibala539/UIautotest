@@ -1,3 +1,5 @@
+# CASE-ID: aw-播放页弹层切换输出
+# LINKED-CASE: REG-012
 """Swan 回归·播放器域：播放页设备弹层切换输出（回归用例 12）。
 
 用例 → AW 映射（docs/Swan回归用例AW实现方案.md §2.3 域3）：

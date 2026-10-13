@@ -1,3 +1,4 @@
+# CASE-ID: aw-收藏分组详情
 """Swan Flutter 收藏分组详情只读断言（原 test_swan_readonly_pages.py，2026-10-12 拆分）。
 
 覆盖：我的页 → SWAN收藏 → 我的家庭分组详情。

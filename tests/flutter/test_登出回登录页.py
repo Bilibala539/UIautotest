@@ -1,3 +1,4 @@
+# CASE-ID: aw-登出回登录页
 """Swan Flutter 登出回登录页（原 test_swan_login_logout.py，2026-10-12 一用例一文件拆分）。
 
 业务方法复用 SwanBusiness（已实测），用例层只做编排与断言：

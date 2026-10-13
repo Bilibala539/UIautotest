@@ -2253,7 +2253,9 @@
         if (c.case_type === 'text' && (c.auto_cases||[]).length) {
           linkChips = c.auto_cases.map(a => `<span class="chip" onclick="event.stopPropagation();showCaseDefDrawer(decodeURIComponent('${encodeURIComponent(a.case_id)}'))">${safe(a.case_id)} ↗</span>`).join('');
         } else if (c.case_type === 'auto' && c.linked_case_id) {
-          linkChips = `<span class="chip" onclick="event.stopPropagation();showCaseDefDrawer(decodeURIComponent('${encodeURIComponent(c.linked_case_id)}'))">${safe(c.linked_case_id)} ↗</span>`;
+          // 多值挂接(2026-10-13 P4):linked_case_id 逗号分隔,逐条渲染 chip
+          linkChips = c.linked_case_id.split(',').map(t => t.trim()).filter(Boolean)
+            .map(id => `<span class="chip" onclick="event.stopPropagation();showCaseDefDrawer(decodeURIComponent('${encodeURIComponent(id)}'))">${safe(id)} ↗</span>`).join('');
         }
         const bugChip = c.source_bug ? `<span class="chip bug" title="bug 单来源">${hl(c.source_bug, q)}</span>` : '<span class="cd-none">-</span>';
         // 优先级按规范 2.3 归一展示(L2→P2 等),四档配色 chip
@@ -2370,8 +2372,9 @@
       if (pri) chips.push(`<span class="chip ${pri.toLowerCase()}">${safe(pri)}</span>`);
       if (c.case_type === 'text') {
         (c.auto_cases||[]).forEach(a => chips.push(`<span class="chip" onclick="showCaseDefDrawer(decodeURIComponent('${encodeURIComponent(a.case_id)}'))">自动化 ${safe(a.case_id)} ↗</span>`));
-      } else if (c.text_case) {
-        chips.push(`<span class="chip" onclick="showCaseDefDrawer(decodeURIComponent('${encodeURIComponent(c.text_case.case_id)}'))">文字 ${safe(c.text_case.case_id)} ↗</span>`);
+      } else if ((c.text_cases||[]).length) {
+        // 多值挂接:详情接口返回 text_cases 数组(逗号 linked_case_id 拆分),逐条 chip
+        (c.text_cases||[]).forEach(t => chips.push(`<span class="chip" onclick="showCaseDefDrawer(decodeURIComponent('${encodeURIComponent(t.case_id)}'))">文字 ${safe(t.case_id)} ↗</span>`));
       }
       if (c.source_bug) chips.push(`<span class="chip bug">bug ${safe(c.source_bug)}</span>`);
       if (c.file_path) chips.push(`<span class="chip lvl" title="仓库文件">${safe(c.file_path)}</span>`);

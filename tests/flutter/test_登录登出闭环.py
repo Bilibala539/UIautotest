@@ -1,3 +1,4 @@
+# CASE-ID: aw-登录登出闭环
 """Swan Flutter 登录/登出完整闭环（原 test_swan_login_logout.py，2026-10-12 拆分）。
 
 业务方法复用 SwanBusiness（已实测），用例层只做编排与断言：

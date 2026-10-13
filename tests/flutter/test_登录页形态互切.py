@@ -26,8 +26,12 @@ class TestLoginPageToggle(SwanLoginRegressionMixin, BaseTest):
     """登录页两种形态互切。"""
 
     def setup(self) -> None:
-        """pytest 生命周期钩子（模板要求显式声明；逻辑由 mixin 提供）。"""
-        super().setup()
+        """测试前初始化：实例化用户与基础操作入口。"""
+        self.user = self.users("swanuserA")
+        self.aw = self.user.aw
+        self.phone = self.user.phone
+        self.password = os.environ.get("SWAN_PASSWORD", "").strip()
+        self.package = os.environ.get("SWAN_PACKAGE", "com.swan.network").strip()
 
     def test_login_page_toggle(self):
         """登录页两种形态互切：登出 → 验证码形态 ⇄ 密码形态，断言互斥反转。

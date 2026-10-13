@@ -27,8 +27,12 @@ class TestSeekProgress(SwanPlayerRegressionMixin, BaseTest):
     """进度条拖动/点击跳转（回归用例 23-24）。"""
 
     def setup(self) -> None:
-        """pytest 生命周期钩子（模板要求显式声明；逻辑由 mixin 提供）。"""
-        super().setup()
+        """测试前初始化：实例化用户与基础操作入口。"""
+        self.user = self.users("swanuserA")
+        self.aw = self.user.aw
+        self.phone = self.user.phone
+        self.password = os.environ.get("SWAN_PASSWORD", "").strip()
+        self.package = os.environ.get("SWAN_PACKAGE", "com.swan.network").strip()
 
     def test_seek_progress(self):
         """用例23-24：进度条拖动/点击跳转到 75%，OCR 双时间核对落点。"""

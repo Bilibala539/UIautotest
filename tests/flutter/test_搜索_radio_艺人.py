@@ -32,8 +32,12 @@ class TestSearch(SwanContentRegressionMixin, BaseTest):
     """关键词搜索与结果分类（回归用例 69-72）。"""
 
     def setup(self) -> None:
-        """pytest 生命周期钩子（模板要求显式声明；逻辑由 mixin 提供）。"""
-        super().setup()
+        """测试前初始化：实例化用户与基础操作入口。"""
+        self.user = self.users("swanuserA")
+        self.aw = self.user.aw
+        self.phone = self.user.phone
+        self.password = os.environ.get("SWAN_PASSWORD", "").strip()
+        self.package = os.environ.get("SWAN_PACKAGE", "com.swan.network").strip()
 
     def test_search_results_by_tab(self):
         """用例69-72：按分类搜索并断言结果区（空态或平台名）。

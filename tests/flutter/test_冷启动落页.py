@@ -22,8 +22,12 @@ class TestColdStartLandedPage(SwanLoginRegressionMixin, BaseTest):
     """冷启动落页断言（回归用例 1-2）。"""
 
     def setup(self) -> None:
-        """pytest 生命周期钩子（模板要求显式声明；逻辑由 mixin 提供）。"""
-        super().setup()
+        """测试前初始化：实例化用户与基础操作入口。"""
+        self.user = self.users("swanuserA")
+        self.aw = self.user.aw
+        self.phone = self.user.phone
+        self.password = os.environ.get("SWAN_PASSWORD", "").strip()
+        self.package = os.environ.get("SWAN_PACKAGE", "com.swan.network").strip()
 
     def test_cold_start_lands_home(self):
         """用例2：登录后冷启动，断言落首页（全自动）。"""

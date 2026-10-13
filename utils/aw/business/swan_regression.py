@@ -118,7 +118,7 @@ class SwanPlayerRegressionMixin:
 
     def setup(self) -> None:
         """pytest 生命周期钩子（conftest _auto_test_lifecycle 调用）：实例化用户与基础操作入口。"""
-        self.user = self.users("swan")
+        self.user = self.users("swanuserA")
         self.aw = self.user.aw  # 业务层实例 = 基础操作 + SwanBusiness 业务方法
         self.phone = self.user.phone
 
@@ -518,7 +518,7 @@ class SwanLoginRegressionMixin:
 
     def setup(self) -> None:
         """pytest 生命周期钩子：实例化用户与基础操作入口（另读 SWAN_PASSWORD/SWAN_PACKAGE）。"""
-        self.user = self.users("swan")
+        self.user = self.users("swanuserA")
         self.aw = self.user.aw  # 业务层实例 = 基础操作 + SwanBusiness 业务方法
         self.phone = self.user.phone
         self.password = os.environ.get("SWAN_PASSWORD", "").strip()

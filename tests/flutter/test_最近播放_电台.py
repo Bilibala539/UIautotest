@@ -23,8 +23,12 @@ class TestRecentPlayed(SwanContentRegressionMixin, BaseTest):
     """最近播放按分类断言（回归用例 56-68）。"""
 
     def setup(self) -> None:
-        """pytest 生命周期钩子（模板要求显式声明；逻辑由 mixin 提供）。"""
-        super().setup()
+        """测试前初始化：实例化用户与基础操作入口。"""
+        self.user = self.users("swanuserA")
+        self.aw = self.user.aw
+        self.phone = self.user.phone
+        self.password = os.environ.get("SWAN_PASSWORD", "").strip()
+        self.package = os.environ.get("SWAN_PACKAGE", "com.swan.network").strip()
 
     def test_recent_played(self):
         """用例56-68：最近播放按分类断言条目存在（条目名未配置则 skip）。

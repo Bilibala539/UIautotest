@@ -61,7 +61,7 @@ class TestCaseDriver(BaseTest):
     """YAML 用例通用驱动:每个 YAML 文件参数化为一条 pytest 用例。"""
 
     def setup(self):
-        self.user = self.users("swan")
+        self.user = self.users("swanuserA")
         self.aw = self.user.aw
         self.package = os.environ.get("SWAN_PACKAGE", "com.swan.network").strip()
         # 每条用例开始:确保 App 在前台 + 首启弹窗自动处置

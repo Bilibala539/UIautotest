@@ -10,6 +10,7 @@ import logging
 import os
 import re
 import time
+from datetime import datetime
 
 from image.image_name_mapping import (
     SWAN_COLLECT_PLATFORM_SHEET,
@@ -747,7 +748,10 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         教训（element 对照补图失去依据）。存证失败不阻断断言链（返回占位
         说明，原断言照常触发）。
         """
-        ts = time.strftime('%Y%m%d_%H%M%S_%f')
+        # ⚠️ time.strftime 在 Windows 不支持 %f（CRT 未定义指令，抛
+        # ValueError），必须用 datetime.now().strftime（2026-10-13 卸载
+        # 重装首跑冷启动失败分支实测踩雷）
+        ts = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
         path = os.path.join(SCREENSHOT_DIR, f"FAIL_chainmiss_{tag}_{ts}.png")
         try:
             os.makedirs(SCREENSHOT_DIR, exist_ok=True)
@@ -2003,9 +2007,26 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         """
         if landed not in ("home", "login"):
             raise ValueError(f"landed 仅支持 home / login，收到 {landed!r}")
-        self.relaunch_app(os.environ.get("SWAN_PACKAGE", "com.swan.network"),
-                          timeout=timeout)
+        package = os.environ.get("SWAN_PACKAGE", "com.swan.network")
+        self.driver.stop_app(package)
+        self.driver.start_app(package)
+        # 首启弹窗处置（2026-10-13 卸载重装实测：全新安装首启必有「用户
+        # 隐私协议概要」弹窗遮挡登录页锚——白名单「概要→同意」+ 系统权限
+        # 弹窗多轮清空后，落页锚才可见。⚠️ 处置必须先于落页锚判定：
+        # relaunch_app 的内置锚断言会被首启弹窗整段遮挡而超时假失败）
+        self.dismiss_app_popups(rounds=3)
         deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            # 每轮兜底处置（弹窗可能分多层逐个出现）
+            if self.dismiss_app_popups(rounds=1):
+                continue
+            if landed == "home" and (self._home_anchor_visible(timeout=1)
+                                     or self.find_text_by_ocr("推荐",
+                                                              timeout=1) is not None):
+                return
+            if landed == "login" and self._login_page_anchor_visible(timeout=1):
+                return
+            self.sleep(1.0)
         while time.monotonic() < deadline:
             if landed == "home" and (self._home_anchor_visible(timeout=1)
                                      or self.find_text_by_ocr("推荐",

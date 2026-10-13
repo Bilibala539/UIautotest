@@ -78,6 +78,7 @@ from image.image_name_mapping import (
     SWAN_PLAYER_VOLUME_PLUS,
     SWAN_PLAYER_VOLUME_POPUP,
     SWAN_PLATFORM_NETEASE_ROW,
+    SWAN_PLATFORM_NETEASE_ROW_UNAUTHORIZED,
     SWAN_SEARCH_EMPTY,
     SWAN_SEARCH_SUBMIT,
     SWAN_SONG_ROW_PLUS_BTN,
@@ -1894,6 +1895,92 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
             raise ValueError(
                 f"platform 仅支持 {sorted(self._PLATFORM_TAB_TEXT)}，收到 {platform!r}")
         return text
+
+    # =================================================================
+    # 域 6：平台内容页（回归用例 38-40，方案 A27-A28）。2026-10-13 首版。
+    # 前提：账号已授权目标平台（未授权行体点击无反应，explorer 实测+知识库
+    # 实锤）。授权流程搁置中（网易云服务端验证码不受控，2026-10-13 用户
+    # 拍板澄清），方法先行落地，真机验证待账号授权态（用例带条件 skip）。
+    # 锚点素材：knowledge/swan/draft/swan_平台多级页_*（explorer-w1d 实测）。
+    # =================================================================
+
+    # 平台主页特有搜索框文案（[OCR] 到达锚；主页搜索框文案含平台名，
+    # 与 Swan 自有搜索框区分）
+    _PLATFORM_HOME_SEARCH_TEXT = {
+        "qq": "搜索QQ音乐",
+        "netease": "搜索网易云音乐",
+    }
+    # 主页入口→落地页标题映射（A28；⚠️ expect_title 不可跨平台复用——
+    # 同名"排行榜"入口 QQ 落飙升榜详情、网易云落排行榜聚合页，explorer 实测）
+    _PLATFORM_ENTRY_TITLES = {
+        ("qq", "排行榜"): "飙升榜",
+        ("netease", "排行榜"): "排行榜",
+        ("qq", "歌单"): "歌单",
+        ("netease", "歌单"): "歌单",
+    }
+
+    def _platform_page_visible(self) -> bool:
+        """平台页锚：网易云行两态 [图] 任一可见（两态模板成对登记）。"""
+        return (self.find_image(SWAN_PLATFORM_NETEASE_ROW, timeout=2) is not None
+                or self.find_image(SWAN_PLATFORM_NETEASE_ROW_UNAUTHORIZED,
+                                   timeout=2) is not None)
+
+    @_aw_method_report
+    def open_platform(self, platform: str, timeout: float = 15.0) -> None:
+        """进入已授权平台的主页（A27，回归用例 38-40）。2026-10-13 首版。
+
+        四步链：
+        ①页面证明：平台页锚——网易云行两态 [图] 任一可见（_platform_page_
+          visible；两态模板成对，见 image_name_mapping 注记）。
+        ②③定位/操作：行体 [OCR] click_text(平台名)——**未授权行体点击无
+          反应**（explorer 实测+知识库实锤），本方法仅已授权态可用；OCR 行
+          文本命中点在文字区，天然避开右端 [−] 钮。
+        ④生效验证：主页特有搜索文案 [OCR]
+          （_PLATFORM_HOME_SEARCH_TEXT[platform]）。
+        ⚠️ 前提：账号已授权该平台。授权流程搁置中（网易云服务端验证码不受
+        控，2026-10-13 用户拍板澄清，首跑需人工协助读码）；酷狗未支持
+        （未授权不可达，用户拍板忽略）。
+        """
+        if platform not in self._PLATFORM_HOME_SEARCH_TEXT:
+            raise ValueError(
+                f"platform 仅支持 {sorted(self._PLATFORM_HOME_SEARCH_TEXT)}，收到 {platform!r}")
+        assert self._platform_page_visible(), (
+            "open_platform 需在平台页调用（网易云行两态 [图] 均未命中）")
+        platform_text = self._require_platform_text(platform)
+        self.click_text(platform_text, timeout=timeout)
+        home_text = self._PLATFORM_HOME_SEARCH_TEXT[platform]
+        assert self.find_text_by_ocr(home_text, timeout=timeout) is not None, (
+            f"点击{platform_text}行后未进入主页（主页搜索文案「{home_text}」"
+            f"[OCR] 未命中；疑账号未授权致行体点击无反应，或页面改版）")
+
+    @_aw_method_report
+    def open_platform_entry(self, platform: str, entry: str,
+                            expect_title: str = "",
+                            timeout: float = 15.0) -> None:
+        """平台主页入口跳转（A28，回归用例 38-40）。2026-10-13 首版。
+
+        流程：open_platform（已在目标主页时其主页锚命中，重复进入无害）→
+        入口 [OCR] click_text(entry) → 落地页 [OCR] 断言。
+        expect_title 规则：空 = 仅断言"离开主页"（主页搜索文案消失）；非空
+        = 断言落地页含 expect_title 文字。⚠️ expect_title 不可跨平台复用
+        （同名"排行榜"入口 QQ 落飙升榜详情、网易云落排行榜聚合页），映射
+        见 _PLATFORM_ENTRY_TITLES，未登记的 (platform, entry) 需先探索。
+        """
+        if platform not in self._PLATFORM_HOME_SEARCH_TEXT:
+            raise ValueError(
+                f"platform 仅支持 {sorted(self._PLATFORM_HOME_SEARCH_TEXT)}，收到 {platform!r}")
+        home_text = self._PLATFORM_HOME_SEARCH_TEXT[platform]
+        if self.find_text_by_ocr(home_text, timeout=2) is None:
+            self.open_platform(platform, timeout=timeout)
+        self.click_text(entry, timeout=timeout)
+        if expect_title:
+            assert self.find_text_by_ocr(expect_title, timeout=timeout) is not None, (
+                f"入口「{entry}」跳转后未见到落地页标题「{expect_title}」[OCR]；"
+                f"注意 expect_title 不可跨平台复用（{platform} 的映射见"
+                f"_PLATFORM_ENTRY_TITLES，未登记入口需先探索）")
+        else:
+            assert self.find_text_by_ocr(home_text, timeout=2) is None, (
+                f"点击入口「{entry}」后仍在主页（主页搜索文案未消失，点击未生效）")
 
     def _find_playlist_row(self, playlist: str = "") -> dict | None:
         """OCR 找歌单行：指定歌单名时包含匹配；否则取含「首歌」计数的最上方

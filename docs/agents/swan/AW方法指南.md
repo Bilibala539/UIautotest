@@ -85,6 +85,15 @@
 | `playlist_has_song(song, timeout=8)` | 判断歌单是否含某曲 | OCR 前缀匹配 |
 | `recent_played_visible(kind, name, timeout)` / `assert_recent_played(kind, name, timeout=10)` | 最近播放入口→分类页断言条目 | kind: 歌曲/歌单/歌手/专辑/电台/播客；13 条合 1 |
 
+### 2.6b 平台内容页（W1-D，2026-10-13 首版——真机验证待账号授权态）
+
+| 方法 | 干嘛 | 关键参数/注意 |
+|---|---|---|
+| `open_platform(platform)` | 进入已授权平台主页（A27） | platform: qq/netease（酷狗未授权不可达，拍板忽略）；**未授权行体点击无反应**（explorer 实锤），仅已授权态可用；生效验证=主页搜索文案 [OCR] |
+| `open_platform_entry(platform, entry, expect_title="")` | 主页入口跳转（A28） | expect_title **不可跨平台复用**（同名"排行榜"QQ 落飙升榜、网易云落排行榜页）——映射见 `_PLATFORM_ENTRY_TITLES`，未登记入口需先探索 |
+
+配套用例（test_平台内容页进入 / test_平台入口跳转）带**授权态条件 skip**（未授权态 [图] 探针自动 skip）；授权域搁置中（网易云验证码不受控），首跑需人工读码授权后自动恢复运行。
+
 ### 2.7 搜索
 
 | 方法 | 干嘛 | 关键参数/注意 |

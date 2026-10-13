@@ -24,7 +24,7 @@
 | **W1-A 存量 key 迁移** | 登录域 5 方法（login_by_sms/login_with_password/logout_if_needed/enter_sms_code_step/fill_sms_code）+ 导航 3 方法（go_home/go_bottom_tab/tab 断言）重写为 [图]/[OCR]；登录页/首页锚点图补截 | ~8 方法改造 / 登录域 12 用例文件回归验证 / 新图约 6 张 | 无外部阻塞，**最先做**（解锁全工程零 key） | ✅ **完成（2026-10-12）**：两批落地（导航 3 方法 21/21 真机绿；登录域 7 方法+mixin 6 辅助，真机首飞 3 连过含 OTP 自动取码，验收 8/9 后修复两态模板复验通过）；swan.py 运行时 key 清零；10 图转正+1 暂挂（密码提交钮待密码域用例）；登录域 4+密码域 3 用例待密码注入后跑全量 |
 | **W1-B 域1 启动登录新增** | A4 微信登录 / A5 微博登录（跨 App 授权）、A6 冷启动断言 / A7 后台恢复 / A8 绑定手机返回；用例 1-3、6-8 落地 | +5 方法 / +5 用例文件 / 新图约 4 张 | ⑤ 三方 App 登录态（微信/微博账号预置） | ⬜ 待开工 |
 | **W1-C 域5 平台授权** | A24 authorize_platform / A25 assert_platform_state / A26 deauthorize_platform；用例 32-37 | +3 方法 / +6 用例文件（parametrize 平台×入口） / 新图约 6 张 | ⑤ 三方登录态 + ⑥ 授权半自动口径拍板 | ⬜ 待开工 |
-| **W1-D 域6 平台内容页** | A27 open_platform / A28 open_platform_entry；用例 38-40 | +2 方法 / +3 用例文件 / 新图 2 张 | explorer 先补 QQ音乐/网易云/酷狗 3 个主页 draft | ⬜ 待开工（可与 W1-C 并行探索） |
+| **W1-D 域6 平台内容页** | A27 open_platform / A28 open_platform_entry；用例 38-40 | +2 方法 / +3 用例文件（2 个新用例文件 5 条，授权态条件 skip） / 新图 2 张 | explorer draft 已齐（三平台主页+歌单分类页）；**真机验证挂"账号授权态"——授权域搁置（网易云验证码不受控），用例条件 skip 已实测生效** | 🔶 代码落地（2026-10-13），真机运行待授权 |
 | **W1-E 域2 配网** | A9 provision 统一入口 / A10 BLE / A11 热点（connect_wifi 已实现）；用例 9-10 | +3 方法 / +2 用例文件 / 新图约 5 张 | ④ 1 台**未配网**设备 | ⬜ 待开工 |
 | **W1-F 域9 多房间** | A35 sync_rooms / A36 assert_room_synced；用例 73-76 | +2 方法 / +4 用例文件 / 新图约 3 张 | ④ ≥3 台 A31 + 3 台 H76D/H76G（rig 最多的一批） | ⬜ 待开工 |
 | **W1-G Driver 尾巴** | D3 get_foreground_package（热启动恢复断言辅助，可选） | +1 driver 方法 | 框架层，**须用户拍板**（规则 9） | ⬜ 待拍板 |

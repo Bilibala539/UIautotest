@@ -78,6 +78,8 @@ def test_normalize_case_fallback_and_validation():
             _normalize_case(bad)
 
 
+# P3 退役(2026-10-13):共库后 /api/case-defs/pull-api 端点已 410,拉取管线不再投用
+@pytest.mark.skip(reason="共库改造后 pull-api 已退役(410),保留断言备查")
 def test_pull_endpoint_unconfigured_skips_cleanly(_case_api_env):
     """stub 行为:CASE_API_URL 为空 => 200 + skipped=true 明确跳过,不报错、不产生脏数据。"""
     assert not is_configured()
@@ -100,6 +102,8 @@ def test_pull_endpoint_unconfigured_skips_cleanly(_case_api_env):
             gc.collect()  # Windows 删库文件需 sqlite 句柄已关
 
 
+# P3 退役(2026-10-13):共库后 /api/case-defs/pull-api 端点已 410,拉取管线不再投用
+@pytest.mark.skip(reason="共库改造后 pull-api 已退役(410),保留断言备查")
 def test_pull_pipeline_with_mock_api(_case_api_env):
     """配置指向 mock API:拉取->规范化->upsert 全链路;幂等重拉计更新;坏行进 failed。"""
     rows = [
@@ -288,6 +292,8 @@ def test_module_slug_mapping():
     assert module_slug("") == ""
 
 
+# P3 退役(2026-10-13):共库后 /api/case-defs/pull-api 端点已 410,拉取管线不再投用
+@pytest.mark.skip(reason="共库改造后 pull-api 已退役(410),保留断言备查")
 def test_pull_assigns_biz_no(monkeypatch, _case_api_env):
     """有义编号(2026-09-30):拉取管线按模块分配 wifi-001 式编号;存量空编号行
     (biz_no 上线前的库)重拉自动补号;编号终身不变、模块内接着 max+1;
@@ -347,6 +353,8 @@ def test_pull_assigns_biz_no(monkeypatch, _case_api_env):
 
 
 
+# P3 退役(2026-10-13):共库后 /api/case-defs/pull-api 端点已 410,拉取管线不再投用
+@pytest.mark.skip(reason="共库改造后 pull-api 已退役(410),保留断言备查")
 def test_pull_reanchors_former_id(monkeypatch, _case_api_env):
     """工作站改号重锚(2026-09-30):报文携带 formerId 时旧行原地改新编号,
     biz_no/人工确认态平移、套件成员与双向关联引用同步改写,不产生重复行;

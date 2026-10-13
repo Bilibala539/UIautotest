@@ -101,6 +101,9 @@ MACHINE_EXEMPT_EXACT = {
     ("POST", "/api/devices/register"),     # qa_platform/device_pool.py 设备登记/心跳
     ("POST", "/api/devices/acquire"),      # 同上:用例会话领设备
     ("GET", "/api/case-defs"),             # nightly_trigger.py 组每日套件
+    ("GET", "/api/case-defs/export"),      # 工作站 serve.py 正文拉取(用例域整合 P2,2026-10-13)
+    ("GET", "/api/modules"),               # migrate_workstation_cases.py 模块对账(用例域整合 P1)
+    ("POST", "/api/modules"),              # 同上:18 个 moduleL1 slug 模块登记(幂等,缺才建)
     ("POST", "/api/suites"),               # nightly_trigger.py 套件维护
     ("GET", "/api/tasks/queue"),           # dispatch_worker.py 领活(新机器通道)
     ("POST", "/api/dispatch/update"),      # dispatch_worker.py 回写(分析/疑问/合并/终态)
@@ -116,6 +119,7 @@ MACHINE_EXEMPT_PREFIX = {
     ("POST", "/api/pipeline-configs/"),    # pipeline_scheduler.py 到点 run
     ("POST", "/api/devices/"),             # device_pool.py release/status
     ("PUT", "/api/case-defs/"),            # sync_cases.py 用例同步(浏览器编辑同走 PUT,一并放开)
+    ("GET", "/api/case-defs/"),            # backfill_review.py 回填前拉全字段(防 PUT 清空)
     ("GET", "/api/suites/"),               # trigger_smoke.py case-paths;nightly 套件读取
     ("POST", "/api/suites/"),              # nightly_trigger.py 套件成员维护
     ("GET", "/api/apks/"),                 # pipeline_agent.py 按 apk_id 下载安装包
@@ -1155,6 +1159,8 @@ class DashboardStore:
                     human_confirmed INTEGER NOT NULL DEFAULT 0,
                     biz_no TEXT NOT NULL DEFAULT '',
                     case_scope TEXT NOT NULL DEFAULT '',
+                    structured TEXT NOT NULL DEFAULT '',
+                    review_meta TEXT NOT NULL DEFAULT '{}',
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL
                 );
@@ -1188,6 +1194,21 @@ class DashboardStore:
                 )
                 connection.execute(
                     "UPDATE case_defs SET case_scope='regression' WHERE case_id LIKE 'REG-%'"
+                )
+            # structured 为后加列(2026-10-13,用例域整合 P1):工作站原始报文 JSON
+            # (definition/gates/formerId 全量),content 的机器可读对应物——
+            # content 给人看(渲染文本),structured 给机器用(工作站还原 cases/0.3 格式)
+            if "structured" not in existing_cols:
+                connection.execute(
+                    "ALTER TABLE case_defs ADD COLUMN structured TEXT NOT NULL DEFAULT ''"
+                )
+            # review_meta 为后加列(2026-10-13,用例域整合 P2 共库):工作站人审状态
+            # JSON(status/reason/note/reviewer/decidedAt/gates)——原 decisions-<版本>.json
+            # 的库内化;human_confirmed 是其 status='stored' 的冗余投影(SQL 可过滤)。
+            # 工作站 serve.py 共库后直写本列,不再落文件
+            if "review_meta" not in existing_cols:
+                connection.execute(
+                    "ALTER TABLE case_defs ADD COLUMN review_meta TEXT NOT NULL DEFAULT '{}'"
                 )
             # 流水线定时配置(调度器每 30s 轮询,到点 POST {id}/run 建 schedule 任务)
             connection.executescript(
@@ -2951,14 +2972,26 @@ class DashboardStore:
             # 用例范围(2026-10-09):''=未分类 / full=全量用例 / regression=回归用例
             "case_scope": str(payload.get("case_scope") or "").strip().lower(),
         }
+        # structured(2026-10-13,用例域整合 P1):工作站原始报文 JSON,仅迁移/同步
+        # 管线显式携带;payload 不携带时保留 None 语义(upsert UPDATE 分支不冲掉原值,
+        # 防页面保存/sync_cases 重跑冲掉机器可读报文),与 human_confirmed 同构
+        raw_structured = payload.get("structured")
+        fields["structured"] = None if raw_structured is None else str(raw_structured)
+        # review_meta(2026-10-13,P2 共库):人审状态 JSON,仅工作站人审/迁移管线
+        # 显式携带;None 语义同 structured,页面保存不冲
+        raw_review = payload.get("review_meta")
+        fields["review_meta"] = None if raw_review is None else str(raw_review)
         if not fields["title"]:
             raise ValueError("title 必填")
         if fields["case_scope"] not in {"", "full", "regression"}:
             raise ValueError("case_scope 只能是 full(全量用例) / regression(回归用例) / 空(未分类)")
         # auto 用例不用 content(2026-10-09):脚本内容在代码工程维护(file_path 锁定
-        # 来源仓库),忽略 payload 里的 content 置空,防脏数据;文字用例不受影响
+        # 来源仓库),忽略 payload 里的 content 置空,防脏数据;文字用例不受影响。
+        # structured 同口径:auto 用例无工作站原始报文,置空(None 也归 '')。
+        # review_meta 不置空:auto 未来也可挂接人审状态,由携带方自决
         if fields["case_type"] == "auto":
             fields["content"] = ""
+            fields["structured"] = ""
         if fields["case_type"] == "auto" and fields["linked_case_id"] \
                 and fields["linked_case_id"] == case_id:
             raise ValueError("linked_case_id 不能指向自己")
@@ -3046,7 +3079,7 @@ class DashboardStore:
                     (fields["module"], MODULE_CN_SEED.get(fields["module"], fields["module"])),
                 )
             row = connection.execute(
-                "SELECT case_id, link_strength, human_confirmed, biz_no, case_scope FROM case_defs WHERE case_id=?",
+                "SELECT case_id, link_strength, human_confirmed, biz_no, case_scope, structured, review_meta FROM case_defs WHERE case_id=?",
                 (fields["case_id"],),
             ).fetchone()
             if row is None:
@@ -3058,21 +3091,24 @@ class DashboardStore:
                         case_id, case_type, title, module, priority, source,
                         source_bug, file_path, content, linked_case_id,
                         link_strength, human_confirmed, biz_no, case_scope,
-                        created_at, updated_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                        structured, review_meta, created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (fields["case_id"], fields["case_type"], fields["title"],
                      fields["module"], fields["priority"], fields["source"],
                      fields["source_bug"], fields["file_path"], fields["content"],
                      fields["linked_case_id"], new_link or "strong",
                      new_human if new_human is not None else 0,
-                     new_biz or "", insert_scope, now, now),
+                     new_biz or "", insert_scope,
+                     fields["structured"] or "",
+                     fields["review_meta"] if fields["review_meta"] is not None else "{}",
+                     now, now),
                 )
             else:
                 connection.execute(
                     """UPDATE case_defs SET case_type=?, title=?, module=?,
                        priority=?, source=?, source_bug=?, file_path=?, content=?,
                        linked_case_id=?, link_strength=?, human_confirmed=?, biz_no=?,
-                       case_scope=?, updated_at=? WHERE case_id=?""",
+                       case_scope=?, structured=?, review_meta=?, updated_at=? WHERE case_id=?""",
                     (fields["case_type"], fields["title"], fields["module"],
                      fields["priority"], fields["source"], fields["source_bug"],
                      fields["file_path"], fields["content"], fields["linked_case_id"],
@@ -3080,6 +3116,11 @@ class DashboardStore:
                      new_human if new_human is not None else (row["human_confirmed"] or 0),
                      new_biz or row["biz_no"] or "",
                      new_scope if new_scope is not None else (row["case_scope"] or ""),
+                     # structured/review_meta 未携带(None)时保留原值,防页面保存/重跑冲掉
+                     fields["structured"] if fields["structured"] is not None
+                         else (row["structured"] or ""),
+                     fields["review_meta"] if fields["review_meta"] is not None
+                         else (row["review_meta"] or "{}"),
                      now, fields["case_id"]),
                 )
         return self.get_case_def(fields["case_id"])
@@ -3125,9 +3166,9 @@ class DashboardStore:
         不自动建模块、不静默丢弃。case_id 重复走 upsert 更新;缺 case_id/标题
         为空的行走 failed;单行失败不影响其他行。
 
-        注(2026-09-28):外部用例 API 源启用后,文字用例唯一来源将切换为
-        POST /api/case-defs/pull-api(dashboard/case_api_client.py);本导入途径
-        在过渡期保留,切换后是否退役待定,注释先行。同步脚本 sync_cases.py 同理。
+        注(2026-10-13,用例域整合 P2):文字用例权威已切换为共库——工作站(:8090)
+        与本平台直连同一 case_defs 表,工作站侧具备正文 CRUD;本批量导入途径保留
+        (Excel/脚本导入仍走这里),旧"从 API 拉取"端点 /api/case-defs/pull-api 已退役(410)。
         """
         if not isinstance(rows, list) or not rows:
             raise ValueError("rows 必须是非空数组")
@@ -3277,6 +3318,21 @@ class DashboardStore:
             item["module_cn"] = modules_map.get(item["module"], item["module"])
             items.append(item)
         return items
+
+    def list_case_defs_structured(self) -> list[dict[str, Any]]:
+        """工作站接入导出(2026-10-13,用例域整合 P1/P2):text 用例全量轻列+原始报文。
+
+        正文唯一权威视角:工作站 serve.py 拉此端点取 structured 还原 cases/0.3
+        格式展示。只出 text(auto 无工作站报文),不挂装饰(autos/suites/module_cn),
+        按编号排序,工作站侧自行合并人审状态(decisions.json 权威)。
+        """
+        with self.connect() as connection:
+            rows = connection.execute(
+                """SELECT case_id, title, module, priority, human_confirmed,
+                   structured, review_meta, updated_at FROM case_defs
+                   WHERE case_type='text' ORDER BY case_id"""
+            ).fetchall()
+        return [dict(row) for row in rows]
 
     def delete_case_def(self, case_id: str) -> dict[str, Any]:
         with self.transaction() as connection:
@@ -4084,6 +4140,11 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 limit=limit,
             )})
             return
+        if parsed.path == "/api/case-defs/export":
+            # 用例域整合 P1/P2(2026-10-13):工作站接入导出,text 全量轻列+structured。
+            # 精确路径须先于 /api/case-defs/<id> 通配匹配(同 case-paths 教训)
+            self.send_json({"cases": self.store.list_case_defs_structured()})
+            return
         if parsed.path.startswith("/api/case-defs/"):
             case_id = parsed.path.removeprefix("/api/case-defs/").strip("/")
             try:
@@ -4579,24 +4640,13 @@ class DashboardHandler(BaseHTTPRequestHandler):
                     payload.get("case_ids"), payload.get("patch") or {}))
                 return
             if parsed.path == "/api/case-defs/pull-api":
-                # 从外部用例 API 拉取文字用例(2026-09-28 管理端点,手动触发;页面
-                # 按钮/脚本都走这里)。API 源启用后将成为文字用例唯一来源。
-                # stub 约定:CASE_API_URL 未配置时不报错,返回 skipped=true 明确跳过,
-                # 不写库;配置了但拉取/鉴权失败(CaseApiError)转 502,同样不写库。
-                from dashboard.case_api_client import CaseApiError, is_configured, pull_text_cases_into
-                if not is_configured():
-                    print("[case-api] 未配置 CASE_API_URL,跳过拉取(等待配置 API 接口)", flush=True)
-                    self.send_json({
-                        "ok": True, "skipped": True, "total": 0, "created": 0,
-                        "updated": 0, "failed": [], "source": "case-api",
-                        "message": "等待配置 API 接口:请在部署机 .env.local 配置 "
-                                   "CASE_API_URL / CASE_API_TOKEN 后重试",
-                    })
-                    return
-                try:
-                    self.send_json(pull_text_cases_into(self.store))
-                except CaseApiError as error:
-                    self.send_error_json(str(error), HTTPStatus.BAD_GATEWAY)
+                # 退役(2026-10-13,用例域整合 P2):共库后工作站与测试平台直连同一
+                # case_defs 表,不再有"从 API 拉取"概念(工作站具备正文 CRUD,人审
+                # 状态经 review_meta 列共享)。返回 410 提示调用方改走共库路径。
+                self.send_error_json(
+                    "该端点已退役:工作站与测试平台已共库(case_defs),"
+                    "文字用例直接在工作站维护或经批量导入,无需拉取",
+                    HTTPStatus.GONE)
                 return
             if parsed.path == "/api/modules":
                 self.send_json(self.store.create_module(payload), HTTPStatus.CREATED)

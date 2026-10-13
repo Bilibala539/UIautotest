@@ -79,6 +79,7 @@ from image.image_name_mapping import (
     SWAN_TAB_ME,
     SWAN_TAB_PLATFORM,
 )
+from utils.aw.business.swan import SwanBusiness
 
 logger = logging.getLogger(__name__)
 
@@ -115,6 +116,11 @@ class SwanPlayerRegressionMixin:
     # y≈1500 起的全局底部导航图标行，防止误点「首页/平台/设备/我的」
     _BOTTOM_BAR_REGION = (0, 1370, 720, 116)
 
+    def setup(self) -> None:
+        """pytest 生命周期钩子（conftest _auto_test_lifecycle 调用）：实例化用户与基础操作入口。"""
+        self.user = self.users("swan")
+        self.aw = self.user.aw  # 业务层实例 = 基础操作 + SwanBusiness 业务方法
+        self.phone = self.user.phone
 
     def teardown(self) -> None:
         """G3/G4：关残留弹层 → 尽力暂停（rig 卫生）→ 收播放页 → 输出恢复 →
@@ -142,7 +148,7 @@ class SwanPlayerRegressionMixin:
 
     # ---------- 锚点探测（模板缺失防护 + 首页壳判据） ----------
 
-    def probe_image(self, template: str, timeout: int = 1,
+    def _probe_image(self, template: str, timeout: int = 1,
                      threshold: float = 0.8) -> tuple[int, int] | None:
         """模板文件在盘才 find_image；缺失记日志按未命中处理。
 
@@ -155,7 +161,7 @@ class SwanPlayerRegressionMixin:
         if not os.path.exists(template):
             logger.warning("模板图未入库，按未命中跳过: %s", template)
             return None
-        return self.user.find_image(template, timeout=timeout, threshold=threshold)
+        return self.aw.find_image(template, timeout=timeout, threshold=threshold)
 
     def _login_page_on_screen(self, timeout: int = 1) -> bool:
         """登录页锚：「下一步」按钮 / 隐私政策链接图任一可见。"""
@@ -171,7 +177,7 @@ class SwanPlayerRegressionMixin:
         """断言已到首页壳：主底部导航 4 图 → 辅 OCR「推荐」→ 兜底顶 Tab 图。"""
         if self._home_nav_visible(timeout=3):
             return
-        if self.user.find_text_by_ocr("推荐", timeout=3) is not None:
+        if self.aw.find_text_by_ocr("推荐", timeout=3) is not None:
             return
         for template in self._TOP_TAB_TEMPLATES:
             if self.probe_image(template, timeout=2) is not None:
@@ -180,7 +186,7 @@ class SwanPlayerRegressionMixin:
 
     # ---------- 登录与导航 ----------
 
-    def ensure_logged_in_on_home(self) -> None:
+    def _ensure_logged_in_on_home(self) -> None:
         """幂等登录并断言在首页壳（登录复用存量 login_by_sms；到位断言用图片）。
 
         进入前防护（verify 首跑结论）：登录页锚与首页壳锚均不可见（App 停在
@@ -203,7 +209,7 @@ class SwanPlayerRegressionMixin:
         if not (self._login_page_on_screen() or self._home_nav_visible()):
             logger.info("App 停在未知页（登录页/首页壳锚均不可见），冷启动重置")
             self.user.relaunch_app(os.environ.get("SWAN_PACKAGE", "com.swan.network"))
-        self.user.login_by_sms(self.user.phone)
+        self.user.login_by_sms(self.phone)
         self._wait_home_shell()
         if self.probe_image(SWAN_BOTTOM_PLAYER_BAR, timeout=2) is not None:
             logger.info("底部播放条可见（模板命中）")
@@ -218,10 +224,10 @@ class SwanPlayerRegressionMixin:
         未选中态图可见才点；已停在推荐时该图不匹配选中态，视为已到位。
         """
         if self.probe_image(SWAN_HOME_TAB_RECOMMEND, timeout=2) is not None:
-            self.user.click_image(SWAN_HOME_TAB_RECOMMEND)
-            self.user.image_exists(SWAN_HOME_TAB_MUSIC, timeout=10)
+            self.aw.click_image(SWAN_HOME_TAB_RECOMMEND)
+            self.aw.image_exists(SWAN_HOME_TAB_MUSIC, timeout=10)
 
-    def open_device_page(self) -> None:
+    def _open_device_page(self) -> None:
         """首页 → 设备页。存量 key 迁移 2026-10-12：tab 点击改 [图]
         （SWAN_TAB_DEVICE 未选中态已转正图，verify 跨机实测 1.0）。
 
@@ -230,14 +236,14 @@ class SwanPlayerRegressionMixin:
         go_bottom_tab 选中态口径；teardown 输出恢复路径可能停在设备页）。
         到位断言：右上角「添加设备」[图]（保留原口径）。
         """
-        self.ensure_logged_in_on_home()
+        self._ensure_logged_in_on_home()
         if self.probe_image(SWAN_DEVICE_ADD_BTN, timeout=1) is not None:
             logger.info("_open_device_page: 已在设备页（添加设备锚 [图] 可见），短路返回")
             return
-        self.user.click_image(SWAN_TAB_DEVICE, timeout=10)
-        self.user.image_exists(SWAN_DEVICE_ADD_BTN, timeout=15)  # 右上角「添加设备」
+        self.aw.click_image(SWAN_TAB_DEVICE, timeout=10)
+        self.aw.image_exists(SWAN_DEVICE_ADD_BTN, timeout=15)  # 右上角「添加设备」
 
-    def open_player_page(self) -> None:
+    def _open_player_page(self) -> None:
         """首页 → 点底部播放条进全屏播放页 → 断言顶栏渲染到位。
 
         主路径：底部播放条 [图] click_image——模板截于「输出=扬声器/无曲目」
@@ -252,19 +258,19 @@ class SwanPlayerRegressionMixin:
         run5 脏跑实证单模板对电台播放页浅底失配——Radio Dum-Dum 亮黄
         背景下 9 条 wifi 用例全灭同因）。
         """
-        self.ensure_logged_in_on_home()
+        self._ensure_logged_in_on_home()
         self.click_bottom_player_bar()
-        self.user._wait_player_page_open(timeout=15)
+        self.aw._wait_player_page_open(timeout=15)
 
-    def _click_bottom_player_bar(self) -> None:
+    def click_bottom_player_bar(self) -> None:
         """点底部播放条：模板命中走 click_image，失配走条带 OCR 兜底。"""
         if self.probe_image(SWAN_BOTTOM_PLAYER_BAR, timeout=2) is not None:
-            self.user.click_image(SWAN_BOTTOM_PLAYER_BAR, timeout=5)
+            self.aw.click_image(SWAN_BOTTOM_PLAYER_BAR, timeout=5)
             return
         logger.warning(
             "底部播放条模板未命中（持久播放会话致动态内容偏离模板截图态），"
             "转条带 OCR 兜底点击")
-        items = [item for item in self.user.ocr_scan_page(region=self._BOTTOM_BAR_REGION)
+        items = [item for item in self.aw.ocr_scan_page(region=self._BOTTOM_BAR_REGION)
                  if item["text"].strip()]
         assert items, "底部播放条 OCR 兜底失败：条带内未识别到任何文字（播放条未渲染？）"
         for item in items:
@@ -272,17 +278,17 @@ class SwanPlayerRegressionMixin:
             # 短前缀子串命中率最高；条带内全部文字均属播放条（区域已避开
             # 底部导航，无误点风险），任一命中即等效点中播放条
             probe = item["text"].strip()[:4]
-            if self.user.find_text_by_ocr(probe, timeout=1,
+            if self.aw.find_text_by_ocr(probe, timeout=1,
                                         region=self._BOTTOM_BAR_REGION) is not None:
                 logger.info("底部播放条 OCR 兜底命中: %r", probe)
-                self.user.click_text(probe, timeout=2, region=self._BOTTOM_BAR_REGION)
+                self.aw.click_text(probe, timeout=2, region=self._BOTTOM_BAR_REGION)
                 return
         assert False, (f"底部播放条 OCR 兜底点击失败: 条带文字 "
                        f"{[item['text'] for item in items]} 均未复现命中")
 
     # ---------- 播放前置 ----------
 
-    def preset_playing(self, device_type: str, source: str = "favorite",
+    def _preset_playing(self, device_type: str, source: str = "favorite",
                         mode: str = "all") -> None:
         """播放前置（用例 13-28 共用）：确定输出设备 → 我喜欢页发起播放。
 
@@ -298,15 +304,15 @@ class SwanPlayerRegressionMixin:
 
         source/mode 透传 start_play（A13）；发起前确保首页停在推荐顶 Tab。
         """
-        self.ensure_logged_in_on_home()
+        self._ensure_logged_in_on_home()
         if device_type == "wifi_device":
-            self.open_player_page()
+            self._open_player_page()
             # run5 终账新签名：输出已=目标时重入弹层选行导航分叉（rig 行
             # 已选中态的点击行为未定义，失败帧 App 落设备页非播放页；进本
             # 批时输出已是 rig——文件2 遗留+恢复脚本只暂停不切回）——先探
             # 测页顶设备名已是目标则短路跳过弹层切换（方案①，实现最简）
-            if self.user._wait_compact_text_in_region(
-                    self.DEVICE_NAME, self.user._PLAYER_HEADER_DEVICE_REGION,
+            if self.aw._wait_compact_text_in_region(
+                    self.DEVICE_NAME, self.aw._PLAYER_HEADER_DEVICE_REGION,
                     3.0, what="wifi 前置短路径探测", must=False):
                 logger.info(
                     "wifi 前置：页顶输出设备名已是 %r，跳过弹层切换",
@@ -317,8 +323,8 @@ class SwanPlayerRegressionMixin:
             # 页顶输出设备名已切：compact 归一化轮询（与 select_device 收尾
             # 同口径——run6_clean2 实测 OCR 吞空格时裸 text_exists 子串永假，
             # 属构造性 flaky：今早保留空格 7/7 过、本轮吞空格 5/5 挂）
-            self.user._wait_compact_text_in_region(
-                self.DEVICE_NAME, self.user._PLAYER_HEADER_DEVICE_REGION, 10.0,
+            self.aw._wait_compact_text_in_region(
+                self.DEVICE_NAME, self.aw._PLAYER_HEADER_DEVICE_REGION, 10.0,
                 what="切换输出后的播放页页顶设备名")
             self._dismiss_player_if_any()
         elif device_type == "speaker":
@@ -326,9 +332,9 @@ class SwanPlayerRegressionMixin:
         else:
             raise ValueError(
                 f"device_type 仅支持 speaker / wifi_device，收到 {device_type!r}")
-        self.stay_on_recommend_tab()
-        self.user.click_text("我喜欢", timeout=10)                   # 我喜欢卡片 [OCR]
-        self.user.image_exists(SWAN_FAVORITE_PLAY_ALL, timeout=15)  # 已到我喜欢页
+        self._stay_on_recommend_tab()
+        self.aw.click_text("我喜欢", timeout=10)                   # 我喜欢卡片 [OCR]
+        self.aw.image_exists(SWAN_FAVORITE_PLAY_ALL, timeout=15)  # 已到我喜欢页
         self.user.start_play(source=source, mode=mode)
 
     def _restore_speaker_output_if_needed(self) -> None:
@@ -348,7 +354,7 @@ class SwanPlayerRegressionMixin:
         恢复仍是第二道保险。此处 try/except 仅限清理动作，不掩盖任何
         用例断言（规则 6 口径）。
         """
-        items = self.user.ocr_scan_page(region=self._BOTTOM_BAR_REGION)
+        items = self.aw.ocr_scan_page(region=self._BOTTOM_BAR_REGION)
         bar_text = "".join(item["text"] for item in items).strip()
         compact = bar_text.replace(" ", "")
         if not compact or "扬声器" in compact or set(compact) <= {"-", "."}:
@@ -357,7 +363,7 @@ class SwanPlayerRegressionMixin:
             "teardown 输出恢复：播放条输出设备 %r 非本机扬声器，经设备页切回",
             bar_text)
         try:
-            self.open_device_page()
+            self._open_device_page()
             self.user.select_device("扬声器", via="card")
             logger.info("teardown 输出恢复：已切回本机扬声器（select_device "
                         "本机分支含贴底条「扬声器」断言）")
@@ -381,7 +387,7 @@ class SwanPlayerRegressionMixin:
           → 设备页贴底播放条断言「扬声器」；切换失败（弹窗异常等）由
           select_device 内部断言显式报错，不静默吞掉。
         """
-        items = self.user.ocr_scan_page(region=self._BOTTOM_BAR_REGION)
+        items = self.aw.ocr_scan_page(region=self._BOTTOM_BAR_REGION)
         bar_text = "".join(item["text"] for item in items).strip()
         compact = bar_text.replace(" ", "")
         if not compact or "扬声器" in compact or set(compact) <= {"-", "."}:
@@ -389,7 +395,7 @@ class SwanPlayerRegressionMixin:
         logger.warning(
             "speaker 前置：播放条输出设备 %r 非本机扬声器（前序 wifi 用例"
             "污染），经设备页 select_device 切回本机", bar_text)
-        self.open_device_page()
+        self._open_device_page()
         self.user.select_device("扬声器", via="card")
         # 切换收尾已由 select_device 本机分支断言（设备页贴底播放条
         # 「扬声器」）；后续 _stay_on_recommend_tab 经底部导航回首页。
@@ -399,7 +405,7 @@ class SwanPlayerRegressionMixin:
     def _close_sheet_if_any(self) -> None:
         """设备弹层若还开着（标题行 [图] 可见）则返回键关闭。"""
         if self.probe_image(SWAN_DEVICE_SHEET_TITLE, timeout=1) is not None:
-            self.user.press_back()
+            self.aw.press_back()
 
     def _close_volume_popup_if_any(self) -> None:
         """音量弹层若还开着（弹窗关闭钮锚 [图] 可见）则返回键关闭。
@@ -421,7 +427,7 @@ class SwanPlayerRegressionMixin:
         """
         if self.probe_image(SWAN_PLAYER_VOLUME_POPUP, timeout=1) is not None:
             logger.info("teardown: 音量弹层在位（关闭钮锚 [图]），press_back 关闭")
-            self.user.press_back()
+            self.aw.press_back()
 
     def _pause_if_playing(self) -> None:
         """播放页可见且在播（⏸ [图]）时点暂停，避免 rig 音箱持续出声。
@@ -432,7 +438,7 @@ class SwanPlayerRegressionMixin:
         跳过暂停检查，不炸 teardown（verify 首跑缺陷 1）。
         """
         if self.probe_image(SWAN_PLAYER_PAUSE_BTN, timeout=1) is not None:
-            self.user.click_image(SWAN_PLAYER_PAUSE_BTN, timeout=2)
+            self.aw.click_image(SWAN_PLAYER_PAUSE_BTN, timeout=2)
 
     def _dismiss_player_if_any(self) -> None:
         """全屏播放页若开着（收起钮 [图] 可见）则点收起回列表页。
@@ -445,107 +451,7 @@ class SwanPlayerRegressionMixin:
         timeout=1 维持 teardown 快探测口径（播放页未开时四模板逐个失配，
         最坏约 4s）。
         """
-        self.user._dismiss_full_player(timeout=1)
-    def assert_on_login_page(self, timeout: float = 15.0) -> None:
-        """登录页断言：登录页锚 [图]（置灰「下一步」/隐私政策链接任一）。"""
-        assert self.user._login_page_anchor_visible(timeout=timeout), (
-            "未回到登录页（登录页锚 [图] 未命中，请核对 SWAN_LOGIN_* 模板/页面改版）")
-    def assert_on_home(self, timeout: float = 15.0) -> None:
-        """首页断言：底部导航 4 图 [图] 任一轮询命中。
-
-        底部播放条模板截于「输出=扬声器/- -」无会话态，rig 持久播放会话
-        （输出=设备名+曲目名）下内容永久偏离模板，不作到位门槛，仅非致命
-        探测记日志（口径同 swan_regression verify-run3）。
-        """
-        deadline = time.monotonic() + timeout
-        while True:
-            if any(self.probe_image(t, timeout=1) is not None
-                   for t in self._BOTTOM_NAV_TEMPLATES):
-                break
-            if time.monotonic() >= deadline:
-                assert False, (f"未进入首页（底部导航 4 图 [图] {timeout}s 均未命中，"
-                               "请核对模板/是否停在其他页）")
-            time.sleep(0.5)
-        self.probe_bottom_player_bar()
-    def assert_sms_form(self, timeout: float = 15.0) -> None:
-        """验证码登录页形态互斥：[OCR]「密码登入」入口可见 + 密码框 [图] 不可见。
-
-        入口用 OCR 而非图模板：「密码登入」灰胶囊图与密码页「验证码登入」
-        钮同形互扰（文字子串滑动窗口假阳性，2026-10-13 实测 0.85），
-        OCR 行文本"验证码登入"不含"密码登入"子串，天然区分。
-        """
-        assert self.user.find_text_by_ocr("密码登入", timeout=timeout) is not None, (
-            "验证码登录形态断言失败（[OCR]「密码登入」入口未出现）")
-        assert self.probe_image(SWAN_PASSWORD_FIELD, timeout=1) is None, (
-            "验证码登录形态下出现了密码输入框 [图]，形态互斥被破坏")
-    def assert_password_form(self, timeout: float = 15.0) -> None:
-        """密码登录页形态判定：[OCR] 文案对比（"验证码登入"在 + "下一步"不在）。
-
-        2026-10-13 终版口径——图模板在此页全面退役：①回切钮「验证码登入」
-        有两态渲染（灰胶囊=空表单/黑字=填表后），单图判据必漏；②密码页黑底
-        「登录」大按钮与验证码页置灰「下一步」模板形似误匹配（0.85 实测）。
-        OCR 文案语义判定对两态渲染与形似干扰均免疫：密码页有「验证码登入」
-        无「下一步」，验证码页反之。
-        """
-        assert self.user.find_text_by_ocr("验证码登入", timeout=timeout) is not None, (
-            "密码登录形态断言失败（[OCR]「验证码登入」回切钮未出现）")
-        assert self.user.find_text_by_ocr("下一步", timeout=1) is None, (
-            "密码登录形态下仍存在「下一步」按钮 [OCR]，形态互斥被破坏")
-    def ensure_fresh_sms_form(self) -> None:
-        """前置归一化：确保停在全新验证码登录形态（空表单、协议未勾选）。
-
-        - 已登录（底部导航 4 图任一可见）→ 先登出回登录页
-        - 未登录但停在密码形态/脏表单 → 重启 App 重置（实测登录页表单
-          无持久化，重启回到全新验证码形态）
-        密码形态探测用双判据：SWAN_PASSWORD_FIELD [图]（空态）**或**
-        [OCR]「验证码登入」（密码页特有回切钮文案，对掩码/已填残留态免疫
-        ——2026-10-13 实测假表单掩码态空态图失配致探测漏判，单图判据废弃）。
-        """
-        if any(self.probe_image(t, timeout=1) is not None
-               for t in self._BOTTOM_NAV_TEMPLATES):
-            self.user.logout_if_needed()
-        if (self.probe_image(SWAN_PASSWORD_FIELD, timeout=1) is not None
-                or self.user.find_text_by_ocr("验证码登入", timeout=1) is not None):
-            self.user.driver.stop_app(self.package)
-            self.user.driver.start_app(self.package)
-            assert self.user._login_page_anchor_visible(timeout=30), (
-                "重启 App 后未回到登录页（登录页锚 [图] 未命中）")
-        self.assert_sms_form()
-    def assert_any_text(self, texts, timeout: int = 10) -> str:
-        """OCR 断言任一文案出现，返回命中的文案（用于同一区域的文案变体）。"""
-        for text in texts:
-            if self.user.find_text_by_ocr(text, timeout=1) is not None:
-                return text
-        assert False, f"OCR 均未找到任一文案: {list(texts)}"
-    def probe_image(self, template: str, timeout: int = 1):
-        """模板文件在盘才 find_image；缺失记日志按未命中处理。
-
-        AWBase.find_image 对缺失模板文件是 assert 崩溃而非返回 None，
-        探测类「可选命中」调用先 os.path.exists 防护（常量为绝对路径）。
-        """
-        if not os.path.exists(template):
-            logger.warning("模板图未入库，按未命中跳过: %s", template)
-            return None
-        return self.user.find_image(template, timeout=timeout)
-    def probe_bottom_player_bar(self, timeout: int = 2) -> None:
-        """底部播放条非致命探测：模板命中记 info，未命中记 warning 不挂。
-
-        模板截于「输出=扬声器/- -」无会话态；rig 存在持久播放会话
-        （输出=HiVi M300MKII+曲目名，relaunch 不清）时播放条内容永久偏离
-        模板，不作断言门槛（verify-run3 口径）。
-        """
-        if self.probe_image(SWAN_BOTTOM_PLAYER_BAR, timeout=timeout) is not None:
-            logger.info("底部播放条可见（模板命中）")
-        else:
-            logger.warning(
-                "底部播放条模板未命中（多为持久播放会话致动态内容偏离模板"
-                "截图态），不作断言门槛")
-    def assert_home_shell_image(self, timeout: int = 3) -> None:
-        """首页壳图片级确认：底部导航 4 图任一可见（已转正、跨机稳健 1.0）。"""
-        for template in self._BOTTOM_NAV_TEMPLATES:
-            if self.probe_image(template, timeout=timeout) is not None:
-                return
-        assert False, "首页壳图片确认失败：底部导航 4 图（首页/平台/设备/我的）均未命中"
+        self.aw._dismiss_full_player(timeout=1)
 
 
 class SwanContentRegressionMixin(SwanPlayerRegressionMixin):
@@ -582,7 +488,7 @@ class SwanContentRegressionMixin(SwanPlayerRegressionMixin):
         self.user.back_to_tab_shell()
         self.user.go_home()
 
-    def preset_playing_on_favorite(self, source: str = "favorite",
+    def _preset_playing_on_favorite(self, source: str = "favorite",
                                     mode: str = "all") -> None:
         """播放前置（本批用例）：推荐顶 Tab -> 我喜欢卡 [OCR] -> 发起播放。
 
@@ -592,10 +498,10 @@ class SwanContentRegressionMixin(SwanPlayerRegressionMixin):
         （歌单加歌后失配，见 image/image_name_mapping.py 注记）。
         播放发起仍复用域3 start_play（不重写播放逻辑）。
         """
-        self.ensure_logged_in_on_home()
-        self.stay_on_recommend_tab()
-        self.user.click_text("我喜欢", timeout=10)                  # 我喜欢卡片 [OCR]
-        self.user.text_exists("宝藏音乐，随心收藏", timeout=15)     # 我喜欢页判据 [OCR]
+        self._ensure_logged_in_on_home()
+        self._stay_on_recommend_tab()
+        self.aw.click_text("我喜欢", timeout=10)                  # 我喜欢卡片 [OCR]
+        self.aw.text_exists("宝藏音乐，随心收藏", timeout=15)     # 我喜欢页判据 [OCR]
         self.user.start_play(source=source, mode=mode)
 
 
@@ -610,6 +516,13 @@ class SwanLoginRegressionMixin:
     新用例不要模仿（CLAUDE.md 规则 2）。
     """
 
+    def setup(self) -> None:
+        """pytest 生命周期钩子：实例化用户与基础操作入口（另读 SWAN_PASSWORD/SWAN_PACKAGE）。"""
+        self.user = self.users("swan")
+        self.aw = self.user.aw  # 业务层实例 = 基础操作 + SwanBusiness 业务方法
+        self.phone = self.user.phone
+        self.password = os.environ.get("SWAN_PASSWORD", "").strip()
+        self.package = os.environ.get("SWAN_PACKAGE", "com.swan.network").strip()
 
     def teardown(self) -> None:
         """登录域默认无清理动作（收尾态由各用例保证为登录页/首页，G3/G4 允许）。
@@ -620,12 +533,77 @@ class SwanLoginRegressionMixin:
 
     # ---------- 断言辅助（2026-10-12 登录域 key 迁移：全 [图]/[OCR]） ----------
 
+    def _assert_on_login_page(self, timeout: float = 15.0) -> None:
+        """登录页断言：登录页锚 [图]（置灰「下一步」/隐私政策链接任一）。"""
+        assert self.aw._login_page_anchor_visible(timeout=timeout), (
+            "未回到登录页（登录页锚 [图] 未命中，请核对 SWAN_LOGIN_* 模板/页面改版）")
 
+    def _assert_on_home(self, timeout: float = 15.0) -> None:
+        """首页断言：底部导航 4 图 [图] 任一轮询命中。
 
+        底部播放条模板截于「输出=扬声器/- -」无会话态，rig 持久播放会话
+        （输出=设备名+曲目名）下内容永久偏离模板，不作到位门槛，仅非致命
+        探测记日志（口径同 swan_regression verify-run3）。
+        """
+        deadline = time.monotonic() + timeout
+        while True:
+            if any(self.probe_image(t, timeout=1) is not None
+                   for t in self._BOTTOM_NAV_TEMPLATES):
+                break
+            if time.monotonic() >= deadline:
+                assert False, (f"未进入首页（底部导航 4 图 [图] {timeout}s 均未命中，"
+                               "请核对模板/是否停在其他页）")
+            time.sleep(0.5)
+        self.probe_bottom_player_bar()
 
+    def _assert_sms_form(self, timeout: float = 15.0) -> None:
+        """验证码登录页形态互斥：[OCR]「密码登入」入口可见 + 密码框 [图] 不可见。
 
+        入口用 OCR 而非图模板：「密码登入」灰胶囊图与密码页「验证码登入」
+        钮同形互扰（文字子串滑动窗口假阳性，2026-10-13 实测 0.85），
+        OCR 行文本"验证码登入"不含"密码登入"子串，天然区分。
+        """
+        assert self.aw.find_text_by_ocr("密码登入", timeout=timeout) is not None, (
+            "验证码登录形态断言失败（[OCR]「密码登入」入口未出现）")
+        assert self.probe_image(SWAN_PASSWORD_FIELD, timeout=1) is None, (
+            "验证码登录形态下出现了密码输入框 [图]，形态互斥被破坏")
 
-    def ensure_logged_in_on_home(self) -> None:
+    def _assert_password_form(self, timeout: float = 15.0) -> None:
+        """密码登录页形态判定：[OCR] 文案对比（"验证码登入"在 + "下一步"不在）。
+
+        2026-10-13 终版口径——图模板在此页全面退役：①回切钮「验证码登入」
+        有两态渲染（灰胶囊=空表单/黑字=填表后），单图判据必漏；②密码页黑底
+        「登录」大按钮与验证码页置灰「下一步」模板形似误匹配（0.85 实测）。
+        OCR 文案语义判定对两态渲染与形似干扰均免疫：密码页有「验证码登入」
+        无「下一步」，验证码页反之。
+        """
+        assert self.aw.find_text_by_ocr("验证码登入", timeout=timeout) is not None, (
+            "密码登录形态断言失败（[OCR]「验证码登入」回切钮未出现）")
+        assert self.aw.find_text_by_ocr("下一步", timeout=1) is None, (
+            "密码登录形态下仍存在「下一步」按钮 [OCR]，形态互斥被破坏")
+
+    def _ensure_fresh_sms_form(self) -> None:
+        """前置归一化：确保停在全新验证码登录形态（空表单、协议未勾选）。
+
+        - 已登录（底部导航 4 图任一可见）→ 先登出回登录页
+        - 未登录但停在密码形态/脏表单 → 重启 App 重置（实测登录页表单
+          无持久化，重启回到全新验证码形态）
+        密码形态探测用双判据：SWAN_PASSWORD_FIELD [图]（空态）**或**
+        [OCR]「验证码登入」（密码页特有回切钮文案，对掩码/已填残留态免疫
+        ——2026-10-13 实测假表单掩码态空态图失配致探测漏判，单图判据废弃）。
+        """
+        if any(self.probe_image(t, timeout=1) is not None
+               for t in self._BOTTOM_NAV_TEMPLATES):
+            self.user.logout_if_needed()
+        if (self.probe_image(SWAN_PASSWORD_FIELD, timeout=1) is not None
+                or self.aw.find_text_by_ocr("验证码登入", timeout=1) is not None):
+            self.user.driver.stop_app(self.package)
+            self.user.driver.start_app(self.package)
+            assert self.aw._login_page_anchor_visible(timeout=30), (
+                "重启 App 后未回到登录页（登录页锚 [图] 未命中）")
+        self._assert_sms_form()
+
+    def _ensure_logged_in_on_home(self) -> None:
         """幂等登录并断言在首页（登录域口径：底部导航 4 图 [图] 任一轮询命中）。
 
         ⚠️ 与 SwanPlayerRegressionMixin._ensure_logged_in_on_home（图片三级
@@ -635,7 +613,7 @@ class SwanLoginRegressionMixin:
         （输出=设备名+曲目名）下内容永久偏离模板，不作到位门槛，仅非致命
         探测记日志（口径同 swan_regression verify-run3）。
         """
-        self.user.login_by_sms(self.user.phone)
+        self.user.login_by_sms(self.phone)
         deadline = time.monotonic() + 15
         while True:
             if any(self.probe_image(t, timeout=1) is not None
@@ -646,6 +624,12 @@ class SwanLoginRegressionMixin:
             time.sleep(0.5)
         self.probe_bottom_player_bar()
 
+    def _assert_any_text(self, texts, timeout: int = 10) -> str:
+        """OCR 断言任一文案出现，返回命中的文案（用于同一区域的文案变体）。"""
+        for text in texts:
+            if self.aw.find_text_by_ocr(text, timeout=1) is not None:
+                return text
+        assert False, f"OCR 均未找到任一文案: {list(texts)}"
 
     # ---------- 锚点探测辅助（口径同 swan_regression） ----------
 
@@ -655,5 +639,34 @@ class SwanLoginRegressionMixin:
         SWAN_TAB_HOME, SWAN_TAB_PLATFORM, SWAN_TAB_DEVICE, SWAN_TAB_ME,
     )
 
+    def _probe_image(self, template: str, timeout: int = 1):
+        """模板文件在盘才 find_image；缺失记日志按未命中处理。
 
+        AWBase.find_image 对缺失模板文件是 assert 崩溃而非返回 None，
+        探测类「可选命中」调用先 os.path.exists 防护（常量为绝对路径）。
+        """
+        if not os.path.exists(template):
+            logger.warning("模板图未入库，按未命中跳过: %s", template)
+            return None
+        return self.aw.find_image(template, timeout=timeout)
 
+    def _probe_bottom_player_bar(self, timeout: int = 2) -> None:
+        """底部播放条非致命探测：模板命中记 info，未命中记 warning 不挂。
+
+        模板截于「输出=扬声器/- -」无会话态；rig 存在持久播放会话
+        （输出=HiVi M300MKII+曲目名，relaunch 不清）时播放条内容永久偏离
+        模板，不作断言门槛（verify-run3 口径）。
+        """
+        if self.probe_image(SWAN_BOTTOM_PLAYER_BAR, timeout=timeout) is not None:
+            logger.info("底部播放条可见（模板命中）")
+        else:
+            logger.warning(
+                "底部播放条模板未命中（多为持久播放会话致动态内容偏离模板"
+                "截图态），不作断言门槛")
+
+    def _assert_home_shell_image(self, timeout: int = 3) -> None:
+        """首页壳图片级确认：底部导航 4 图任一可见（已转正、跨机稳健 1.0）。"""
+        for template in self._BOTTOM_NAV_TEMPLATES:
+            if self.probe_image(template, timeout=timeout) is not None:
+                return
+        assert False, "首页壳图片确认失败：底部导航 4 图（首页/平台/设备/我的）均未命中"

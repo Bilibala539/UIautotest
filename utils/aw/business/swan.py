@@ -91,12 +91,13 @@ from image.image_name_mapping import (
 from utils.aw.aw_base import SCREENSHOT_DIR
 from utils.aw.base.flutter_base import FlutterBaseAW
 from utils.aw.business.common import CommonBusinessMixin
+from utils.aw.business.swan_regression import SwanPlayerRegressionMixin
 from utils.aw.evidence import _aw_method_report
 
 logger = logging.getLogger(__name__)
 
 
-class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
+class SwanBusiness(SwanPlayerRegressionMixin, CommonBusinessMixin, FlutterBaseAW):
     """Swan 项目业务编排（flutter 端），Swan 专属业务方法放这里。"""
 
     # 登录页 accessibility key（✅ = 2026-09-08 真机 uiautomator dump 验证）

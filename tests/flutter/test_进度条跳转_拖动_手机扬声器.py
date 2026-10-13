@@ -27,19 +27,15 @@ class TestSeekProgress(SwanPlayerRegressionMixin, BaseTest):
     """进度条拖动/点击跳转（回归用例 23-24）。"""
 
     def setup(self) -> None:
-        """测试前初始化：实例化用户与基础操作入口。"""
-        self.user = self.users("swanuserA")
-        self.aw = self.user.aw
-        self.phone = self.user.phone
-        self.password = os.environ.get("SWAN_PASSWORD", "").strip()
-        self.package = os.environ.get("SWAN_PACKAGE", "com.swan.network").strip()
+        """测试前初始化：实例化用户对象（用户信息挂在 userA 上）。"""
+        self.userA = self.users("swanuserA")
 
     def test_seek_progress(self):
         """用例23-24：进度条拖动/点击跳转到 75%，OCR 双时间核对落点。"""
         action = 'drag'
         device_type = 'speaker'
         self._preset_playing(device_type)
-        self.user.seek_to(SEEK_RATIO, action=action)
+        self.userA.seek_to(SEEK_RATIO, action=action)
 
     def teardown(self) -> None:
         """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""

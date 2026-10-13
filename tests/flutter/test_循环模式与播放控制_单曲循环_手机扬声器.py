@@ -29,12 +29,8 @@ class TestLoopModeAndControls(SwanPlayerRegressionMixin, BaseTest):
     """循环模式 × 播放控制矩阵（回归用例 15-22）。"""
 
     def setup(self) -> None:
-        """测试前初始化：实例化用户与基础操作入口。"""
-        self.user = self.users("swanuserA")
-        self.aw = self.user.aw
-        self.phone = self.user.phone
-        self.password = os.environ.get("SWAN_PASSWORD", "").strip()
-        self.package = os.environ.get("SWAN_PACKAGE", "com.swan.network").strip()
+        """测试前初始化：实例化用户对象（用户信息挂在 userA 上）。"""
+        self.userA = self.users("swanuserA")
 
     def test_loop_mode_and_controls(self):
         """用例15-22：设备类型 × 循环模式矩阵上的播放控制序列。
@@ -46,11 +42,11 @@ class TestLoopModeAndControls(SwanPlayerRegressionMixin, BaseTest):
         loop_mode = 'single'
         device_type = 'speaker'
         self._preset_playing(device_type)
-        self.user.set_loop_mode(loop_mode)
-        self.user.player_control("pause")
-        self.user.player_control("play")
-        self.user.player_control("next")
-        self.user.player_control("prev")
+        self.userA.set_loop_mode(loop_mode)
+        self.userA.player_control("pause")
+        self.userA.player_control("play")
+        self.userA.player_control("next")
+        self.userA.player_control("prev")
 
     def teardown(self) -> None:
         """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""

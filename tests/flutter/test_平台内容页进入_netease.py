@@ -30,30 +30,26 @@ class TestPlatformHomeEntry(SwanLoginRegressionMixin, BaseTest):
     """平台内容页进入（回归用例 38-40）。"""
 
     def setup(self) -> None:
-        """测试前初始化：实例化用户与基础操作入口。"""
-        self.user = self.users("swanuserA")
-        self.aw = self.user.aw
-        self.phone = self.user.phone
-        self.password = os.environ.get("SWAN_PASSWORD", "").strip()
-        self.package = os.environ.get("SWAN_PACKAGE", "com.swan.network").strip()
+        """测试前初始化：实例化用户对象（用户信息挂在 userA 上）。"""
+        self.userA = self.users("swanuserA")
 
     def test_open_platform_home(self):
         """用例38-40：平台页进入已授权平台主页，主页锚 [OCR] 断言。"""
         platform = 'netease'
         self._ensure_logged_in_on_home()
-        self.aw.click_image(SWAN_TAB_PLATFORM, timeout=10)
+        self.userA.click_image(SWAN_TAB_PLATFORM, timeout=10)
         # 账号授权态探针：网易云行未授权态 [图] 可见 = 全未授权 → skip
-        assert self.aw._platform_page_visible(), (
+        assert self.userA._platform_page_visible(), (
             "未到达平台页（网易云行两态 [图] 均未命中）")
-        if self.aw.find_image(SWAN_PLATFORM_NETEASE_ROW_UNAUTHORIZED,
+        if self.userA.find_image(SWAN_PLATFORM_NETEASE_ROW_UNAUTHORIZED,
                               timeout=3) is not None:
             pytest.skip(
                 "账号未授权任何平台（网易云行未授权态 [图] 命中）——平台内容"
                 "用例需已授权态；授权域搁置中（网易云验证码不受控，首跑需人工读码）")
-        self.user.open_platform(platform)
+        self.userA.open_platform(platform)
         # 收尾：主页为 push 页，退回平台页再回首页
-        self.aw.press_back()
-        self.user.go_home()
+        self.userA.press_back()
+        self.userA.go_home()
 
     def teardown(self) -> None:
         """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""

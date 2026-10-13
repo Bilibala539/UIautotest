@@ -42,12 +42,8 @@ class TestCollectSong(SwanContentRegressionMixin, BaseTest):
     SOURCE_PLAYLIST = os.environ.get("SWAN_COLLECT_SOURCE_PLAYLIST", "我的家庭")
 
     def setup(self) -> None:
-        """测试前初始化：实例化用户与基础操作入口。"""
-        self.user = self.users("swanuserA")
-        self.aw = self.user.aw
-        self.phone = self.user.phone
-        self.password = os.environ.get("SWAN_PASSWORD", "").strip()
-        self.package = os.environ.get("SWAN_PACKAGE", "com.swan.network").strip()
+        """测试前初始化：实例化用户对象（用户信息挂在 userA 上）。"""
+        self.userA = self.users("swanuserA")
 
     def test_collect_song(self):
         """用例44-55：歌曲收藏到目标歌单（来源 player/playlist_page × 目标平台）。
@@ -77,7 +73,7 @@ class TestCollectSong(SwanContentRegressionMixin, BaseTest):
                 # 预清理（run6）：目标曲往轮收藏成功后仍留在目标歌单（收藏
                 # 持久无自动回滚），先移除再开播，否则二轮必撞拦截（run5
                 # 文件3 死因）
-                self.user.remove_song_from_playlist(
+                self.userA.remove_song_from_playlist(
                     target_platform, self.COLLECT_PLAYLIST, song)
                 self._preset_playing_on_favorite(source=song, mode="song")
             else:
@@ -85,14 +81,14 @@ class TestCollectSong(SwanContentRegressionMixin, BaseTest):
         else:
             # 前置：源歌单详情页含 ≥1 首歌（SOURCE_PLAYLIST）；行内 [+] 恒收
             # 最上行——先提取最上行歌名，把它从目标歌单移除（若在）再重进
-            self.user.open_playlist_detail("swan", self.SOURCE_PLAYLIST)
-            source_song = self.user.top_song_row_name()
-            self.user.remove_song_from_playlist(
+            self.userA.open_playlist_detail("swan", self.SOURCE_PLAYLIST)
+            source_song = self.userA.top_song_row_name()
+            self.userA.remove_song_from_playlist(
                 target_platform, self.COLLECT_PLAYLIST, source_song)
             # remove 后置条件=tab 壳（open_playlist_detail 对任意歌单详情页
             # 短路，须壳态起点防同页短路误路由），重进源页进入收藏
-            self.user.open_playlist_detail("swan", self.SOURCE_PLAYLIST)
-        self.user.collect_song(target_platform, self.COLLECT_PLAYLIST,
+            self.userA.open_playlist_detail("swan", self.SOURCE_PLAYLIST)
+        self.userA.collect_song(target_platform, self.COLLECT_PLAYLIST,
                                source=source)
 
     def teardown(self) -> None:

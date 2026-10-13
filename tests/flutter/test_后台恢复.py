@@ -20,17 +20,13 @@ class TestBackgroundResume(SwanLoginRegressionMixin, BaseTest):
     """后台恢复（回归用例 3）。"""
 
     def setup(self) -> None:
-        """测试前初始化：实例化用户与基础操作入口。"""
-        self.user = self.users("swanuserA")
-        self.aw = self.user.aw
-        self.phone = self.user.phone
-        self.password = os.environ.get("SWAN_PASSWORD", "").strip()
-        self.package = os.environ.get("SWAN_PACKAGE", "com.swan.network").strip()
+        """测试前初始化：实例化用户对象（用户信息挂在 userA 上）。"""
+        self.userA = self.users("swanuserA")
 
     def test_background_resume_home(self):
         """用例3：切后台再回前台，断言恢复到首页壳（全自动）。"""
         self._ensure_logged_in_on_home()
-        self.user.background_resume()  # 默认锚=首页壳（底部导航 4 图）
+        self.userA.background_resume()  # 默认锚=首页壳（底部导航 4 图）
 
     def teardown(self) -> None:
         """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""

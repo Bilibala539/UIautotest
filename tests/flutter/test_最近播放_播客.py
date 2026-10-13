@@ -23,12 +23,8 @@ class TestRecentPlayed(SwanContentRegressionMixin, BaseTest):
     """最近播放按分类断言（回归用例 56-68）。"""
 
     def setup(self) -> None:
-        """测试前初始化：实例化用户与基础操作入口。"""
-        self.user = self.users("swanuserA")
-        self.aw = self.user.aw
-        self.phone = self.user.phone
-        self.password = os.environ.get("SWAN_PASSWORD", "").strip()
-        self.package = os.environ.get("SWAN_PACKAGE", "com.swan.network").strip()
+        """测试前初始化：实例化用户对象（用户信息挂在 userA 上）。"""
+        self.userA = self.users("swanuserA")
 
     def test_recent_played(self):
         """用例56-68：最近播放按分类断言条目存在（条目名未配置则 skip）。
@@ -44,13 +40,13 @@ class TestRecentPlayed(SwanContentRegressionMixin, BaseTest):
         if not name:
             pytest.skip(f"未配置 {env_key}（rig 播放记录中的条目名）")
         if kind == "歌曲" and os.environ.get("SWAN_HISTORY_FRESH_PLAY", "").strip() \
-                and not self.user.recent_played_visible(kind, name):
+                and not self.userA.recent_played_visible(kind, name):
             # 现场播放造历史数据：点名播放 3s（确保最近播放落库，main
             # 拍板 3-5s 口径）即暂停（rig 卫生，避免音箱持续出声）
             self._preset_playing_on_favorite(source=name, mode="song")
-            self.aw.sleep(3.0)
-            self.user.player_control("pause")
-        self.user.assert_recent_played(kind, name)
+            self.userA.sleep(3.0)
+            self.userA.player_control("pause")
+        self.userA.assert_recent_played(kind, name)
 
     def teardown(self) -> None:
         """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""

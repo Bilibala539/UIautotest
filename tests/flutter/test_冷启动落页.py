@@ -22,29 +22,25 @@ class TestColdStartLandedPage(SwanLoginRegressionMixin, BaseTest):
     """冷启动落页断言（回归用例 1-2）。"""
 
     def setup(self) -> None:
-        """测试前初始化：实例化用户与基础操作入口。"""
-        self.user = self.users("swanuserA")
-        self.aw = self.user.aw
-        self.phone = self.user.phone
-        self.password = os.environ.get("SWAN_PASSWORD", "").strip()
-        self.package = os.environ.get("SWAN_PACKAGE", "com.swan.network").strip()
+        """测试前初始化：实例化用户对象（用户信息挂在 userA 上）。"""
+        self.userA = self.users("swanuserA")
 
     def test_cold_start_lands_home(self):
         """用例2：登录后冷启动，断言落首页（全自动）。"""
         self._ensure_logged_in_on_home()
-        self.user.cold_start_assert(landed="home")
+        self.userA.cold_start_assert(landed="home")
 
     def test_cold_start_lands_login(self):
         """用例1：未登录冷启动，断言落登录页（状态条件——需未登录态）。"""
         # 未登录态探测：登录页锚可见才跑（登出会消耗 135 会话恢复成本，
         # 本用例设计为"未登录窗口条件执行"）
-        if not self.aw._login_page_anchor_visible(timeout=2) and \
+        if not self.userA._login_page_anchor_visible(timeout=2) and \
                 any(self._probe_image(t, timeout=1) is not None
                     for t in self._BOTTOM_NAV_TEMPLATES):
             pytest.skip(
                 "账号当前已登录（首页壳锚可见）——用例1 需未登录态；"
                 "登出属状态翻转操作，安排在未登录窗口执行")
-        self.user.cold_start_assert(landed="login")
+        self.userA.cold_start_assert(landed="login")
 
     def teardown(self) -> None:
         """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""

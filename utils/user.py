@@ -44,9 +44,14 @@ class User:
             raise ValueError("必须传入 browser 或 driver")
 
         self.browser = browser
-        self.username = username
-        self.password = password
         self.name = name
+        # 用户信息统一存 info 字典（用户拍板 2026-10-13）；子类以只读
+        # property 覆盖的属性（如 SwanUser.password/phone）不再 setattr，
+        # 避免 property 无 setter 的 AttributeError
+        self.info = {"name": name, "username": username, "password": password}
+        for key, val in (("username", username), ("password", password)):
+            if not isinstance(getattr(type(self), key, None), property):
+                setattr(self, key, val)
         self.driver = driver or SeleniumWebDriver(browser)
         if self.business_cls is None:
             raise RuntimeError(f"{type(self).__name__} 未绑定业务类 business_cls")
@@ -98,7 +103,11 @@ class AndroidUser(User):
 
 
 class SwanUser(User):
-    """Swan 项目测试用户（flutter 端）。"""
+    """Swan 项目测试用户（flutter 端）。
+
+    用户信息统一保存在用户对象上（self.userA.phone / .password / .name /
+    .info 字典），用例通过 users("swanuserA") 实例化后直接访问。
+    """
 
     business_cls = SwanBusiness
 
@@ -108,3 +117,17 @@ class SwanUser(User):
         import os
 
         return os.environ.get("SWAN_PHONE", "").strip()
+
+    @property
+    def password(self) -> str:
+        """当前账号密码（环境变量 SWAN_PASSWORD）。"""
+        import os
+
+        return os.environ.get("SWAN_PASSWORD", "").strip()
+
+    @property
+    def package(self) -> str:
+        """被测 App 包名（环境变量 SWAN_PACKAGE）。"""
+        import os
+
+        return os.environ.get("SWAN_PACKAGE", "com.swan.network").strip()

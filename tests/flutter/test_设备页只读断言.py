@@ -22,12 +22,8 @@ class TestSwanDevicePageReadonly(SwanLoginRegressionMixin, BaseTest):
     """设备页只读断言。"""
 
     def setup(self) -> None:
-        """测试前初始化：实例化用户与基础操作入口。"""
-        self.user = self.users("swanuserA")
-        self.aw = self.user.aw
-        self.phone = self.user.phone
-        self.password = os.environ.get("SWAN_PASSWORD", "").strip()
-        self.package = os.environ.get("SWAN_PACKAGE", "com.swan.network").strip()
+        """测试前初始化：实例化用户对象（用户信息挂在 userA 上）。"""
+        self.userA = self.users("swanuserA")
 
     def test_device_page_elements(self):
         """设备页只读断言：根节点 + 添加设备（key+图片）+ 设备卡前缀匹配 ≥1 台。
@@ -40,12 +36,12 @@ class TestSwanDevicePageReadonly(SwanLoginRegressionMixin, BaseTest):
         # 空态文案「暂无WIFI设备」不存在 = 有绑定卡（旧方案读 UI 树数
         # UUID 动态卡，坐标铁律整改后退役；设备卡按 UUID 动态生成无法
         # 截图模板，OCR 空态反断言是唯一合规且可靠的判据）
-        self.aw.click_image(SWAN_TAB_DEVICE, timeout=10)
-        self.aw.image_exists(SWAN_DEVICE_ADD_BTN, timeout=15)
-        assert self.aw.find_text_by_ocr("暂无", timeout=3) is None, (
+        self.userA.click_image(SWAN_TAB_DEVICE, timeout=10)
+        self.userA.image_exists(SWAN_DEVICE_ADD_BTN, timeout=15)
+        assert self.userA.find_text_by_ocr("暂无", timeout=3) is None, (
             "设备页显示「暂无WIFI设备」空态（账号当前未绑定设备，数据状态变化"
             "非代码问题），需先在真机上配网绑定设备后再跑本用例")
-        self.user.go_home()
+        self.userA.go_home()
 
     def teardown(self) -> None:
         """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""

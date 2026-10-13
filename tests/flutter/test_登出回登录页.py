@@ -24,23 +24,19 @@ class TestLogoutReturnsToLogin(SwanLoginRegressionMixin, BaseTest):
     """登出回登录页。"""
 
     def setup(self) -> None:
-        """测试前初始化：实例化用户与基础操作入口。"""
-        self.user = self.users("swanuserA")
-        self.aw = self.user.aw
-        self.phone = self.user.phone
-        self.password = os.environ.get("SWAN_PASSWORD", "").strip()
-        self.package = os.environ.get("SWAN_PACKAGE", "com.swan.network").strip()
+        """测试前初始化：实例化用户对象（用户信息挂在 userA 上）。"""
+        self.userA = self.users("swanuserA")
 
     def test_logout_returns_to_login(self):
         """登出回登录页：确保已登录 → 登出 → 断言登录页（含置灰「下一步」）。"""
-        self.user.login_by_sms(self.phone)
-        assert self.aw.accessibility_exists(
+        self.userA.login_by_sms(self.userA.phone)
+        assert self.userA.accessibility_exists(
             SwanBusiness.KEY_TAB_ME
         ), "前置登录失败，未进入首页"
 
-        self.user.logout_if_needed()
+        self.userA.logout_if_needed()
         self._assert_on_login_page()
-        assert not self.aw.accessibility_exists(
+        assert not self.userA.accessibility_exists(
             SwanBusiness.KEY_TAB_ME
         ), "登出后首页 tab 仍存在，疑似未真正登出"
 

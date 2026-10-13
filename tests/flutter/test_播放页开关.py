@@ -27,12 +27,8 @@ class TestSwanPlayerOpenClose(SwanLoginRegressionMixin, BaseTest):
     """播放页开关只读断言。"""
 
     def setup(self) -> None:
-        """测试前初始化：实例化用户与基础操作入口。"""
-        self.user = self.users("swanuserA")
-        self.aw = self.user.aw
-        self.phone = self.user.phone
-        self.password = os.environ.get("SWAN_PASSWORD", "").strip()
-        self.package = os.environ.get("SWAN_PACKAGE", "com.swan.network").strip()
+        """测试前初始化：实例化用户对象（用户信息挂在 userA 上）。"""
+        self.userA = self.users("swanuserA")
 
     def test_player_open_close(self):
         """播放页开关：点底部播放条进全屏播放页 → 断言后点收起按钮回首页。
@@ -40,22 +36,22 @@ class TestSwanPlayerOpenClose(SwanLoginRegressionMixin, BaseTest):
         播放/暂停等控制键仅做存在性断言，⛔ 不点。
         """
         self._ensure_logged_in_on_home()
-        self.aw.click_accessibility(SwanBusiness.KEY_BOTTOM_PLAYER)
-        assert self.aw.wait_accessibility(
+        self.userA.click_accessibility(SwanBusiness.KEY_BOTTOM_PLAYER)
+        assert self.userA.wait_accessibility(
             SwanBusiness.KEY_FULL_PLAYER_PAGE, timeout=15
         ), "未进入全屏播放页（full_player_page 未出现）"
         # 控制类入口仅存在性断言（key + 图片双校验），不下发点击
-        assert self.aw.accessibility_exists(
+        assert self.userA.accessibility_exists(
             SwanBusiness.KEY_PLAYER_DISMISS_BUTTON
         ), "播放页缺少收起按钮"
-        assert self.aw.accessibility_exists(
+        assert self.userA.accessibility_exists(
             SwanBusiness.KEY_PLAYER_PLAY_PAUSE_BUTTON
         ), "播放页缺少播放/暂停按钮"
-        self.aw.image_exists(SWAN_PLAYER_DISMISS_BTN, timeout=10)
-        self.aw.image_exists(SWAN_PLAYER_PLAY_PAUSE_BTN, timeout=10)
+        self.userA.image_exists(SWAN_PLAYER_DISMISS_BTN, timeout=10)
+        self.userA.image_exists(SWAN_PLAYER_PLAY_PAUSE_BTN, timeout=10)
 
-        self.aw.click_accessibility(SwanBusiness.KEY_PLAYER_DISMISS_BUTTON)
-        assert self.aw.wait_accessibility(
+        self.userA.click_accessibility(SwanBusiness.KEY_PLAYER_DISMISS_BUTTON)
+        assert self.userA.wait_accessibility(
             SwanBusiness.KEY_TAB_ME, timeout=15
         ), "收起播放页后未回到首页"
         self._assert_home_shell_image()

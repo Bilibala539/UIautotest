@@ -26,20 +26,16 @@ class TestBottomTabSwitch(SwanContentRegressionMixin, BaseTest):
     """底部四 Tab 轮巡（回归用例 29）。"""
 
     def setup(self) -> None:
-        """测试前初始化：实例化用户与基础操作入口。"""
-        self.user = self.users("swanuserA")
-        self.aw = self.user.aw
-        self.phone = self.user.phone
-        self.password = os.environ.get("SWAN_PASSWORD", "").strip()
-        self.package = os.environ.get("SWAN_PACKAGE", "com.swan.network").strip()
+        """测试前初始化：实例化用户对象（用户信息挂在 userA 上）。"""
+        self.userA = self.users("swanuserA")
 
     def test_bottom_tab_switch(self):
         """用例29：底部四 Tab 轮巡，逐页一级锚点 [图] 断言。"""
         tab = '设备'
         self._ensure_logged_in_on_home()
         if tab == "首页":
-            self.user.go_bottom_tab("平台")  # 先离开首页再切回，避免短路空转
-        self.user.go_bottom_tab(tab)
+            self.userA.go_bottom_tab("平台")  # 先离开首页再切回，避免短路空转
+        self.userA.go_bottom_tab(tab)
 
     def teardown(self) -> None:
         """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""

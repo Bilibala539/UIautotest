@@ -23,18 +23,14 @@ class TestPasswordLoginSuccess(SwanLoginRegressionMixin, BaseTest):
     """密码登录成功。"""
 
     def setup(self) -> None:
-        """测试前初始化：实例化用户与基础操作入口。"""
-        self.user = self.users("swanuserA")
-        self.aw = self.user.aw
-        self.phone = self.user.phone
-        self.password = os.environ.get("SWAN_PASSWORD", "").strip()
-        self.package = os.environ.get("SWAN_PACKAGE", "com.swan.network").strip()
+        """测试前初始化：实例化用户对象（用户信息挂在 userA 上）。"""
+        self.userA = self.users("swanuserA")
 
     def test_password_login_success(self):
         """密码登录成功：确保未登录 → 密码页输手机号/密码 → 勾协议 → 登录 → 进首页。"""
         self._ensure_fresh_sms_form()
 
-        self.user.login_with_password(self.phone, self.password)
+        self.userA.login_with_password(self.userA.phone, self.userA.password)
         self._assert_on_home()
 
     def teardown(self) -> None:

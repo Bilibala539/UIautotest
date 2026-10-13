@@ -25,18 +25,14 @@ class TestTopTabSwitch(SwanContentRegressionMixin, BaseTest):
     """首页五顶 Tab 切换（回归用例 30）。"""
 
     def setup(self) -> None:
-        """测试前初始化：实例化用户与基础操作入口。"""
-        self.user = self.users("swanuserA")
-        self.aw = self.user.aw
-        self.phone = self.user.phone
-        self.password = os.environ.get("SWAN_PASSWORD", "").strip()
-        self.package = os.environ.get("SWAN_PACKAGE", "com.swan.network").strip()
+        """测试前初始化：实例化用户对象（用户信息挂在 userA 上）。"""
+        self.userA = self.users("swanuserA")
 
     def test_top_tab_switch(self):
         """用例30：首页五顶 Tab 切换，逐 Tab 页面锚点 [图] 断言。"""
         tab = '电台'
         self._ensure_logged_in_on_home()
-        self.user.go_top_tab(tab)
+        self.userA.go_top_tab(tab)
 
     def teardown(self) -> None:
         """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""

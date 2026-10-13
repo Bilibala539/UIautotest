@@ -24,12 +24,8 @@ class TestPlaySingleSong(SwanPlayerRegressionMixin, BaseTest):
     """我喜欢页点歌名单曲播放（回归用例 14）。"""
 
     def setup(self) -> None:
-        """测试前初始化：实例化用户与基础操作入口。"""
-        self.user = self.users("swanuserA")
-        self.aw = self.user.aw
-        self.phone = self.user.phone
-        self.password = os.environ.get("SWAN_PASSWORD", "").strip()
-        self.package = os.environ.get("SWAN_PACKAGE", "com.swan.network").strip()
+        """测试前初始化：实例化用户对象（用户信息挂在 userA 上）。"""
+        self.userA = self.users("swanuserA")
 
     def test_play_single_song(self):
         """用例14：我喜欢页点歌名单曲播放（SWAN_TEST_SONG 未配置则 skip）。"""
@@ -37,7 +33,7 @@ class TestPlaySingleSong(SwanPlayerRegressionMixin, BaseTest):
         if not self.SONG_NAME:
             pytest.skip("未配置 SWAN_TEST_SONG（rig 我喜欢歌单中的歌曲名）")
         self._preset_playing(device_type, source=self.SONG_NAME, mode="song")
-        self.user.assert_now_playing(self.SONG_NAME)
+        self.userA.assert_now_playing(self.SONG_NAME)
 
     def teardown(self) -> None:
         """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""

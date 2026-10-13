@@ -25,17 +25,13 @@ class TestSwitchDeviceFromPlayerSheet(SwanPlayerRegressionMixin, BaseTest):
     """播放页设备弹层切换输出（回归用例 12）。"""
 
     def setup(self) -> None:
-        """测试前初始化：实例化用户与基础操作入口。"""
-        self.user = self.users("swanuserA")
-        self.aw = self.user.aw
-        self.phone = self.user.phone
-        self.password = os.environ.get("SWAN_PASSWORD", "").strip()
-        self.package = os.environ.get("SWAN_PACKAGE", "com.swan.network").strip()
+        """测试前初始化：实例化用户对象（用户信息挂在 userA 上）。"""
+        self.userA = self.users("swanuserA")
 
     def test_switch_device_from_player_sheet(self):
         """用例12：播放页右上角开设备弹层点目标设备行，断言勾选态 [图]。"""
         self._open_player_page()
-        self.user.select_device(self.DEVICE_NAME, via="player")
+        self.userA.select_device(self.DEVICE_NAME, via="player")
 
     def teardown(self) -> None:
         """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""

@@ -28,12 +28,8 @@ class TestVolumeAdjust(SwanPlayerRegressionMixin, BaseTest):
     """音量弹窗滑条/加减钮调节（回归用例 25-26）。"""
 
     def setup(self) -> None:
-        """测试前初始化：实例化用户与基础操作入口。"""
-        self.user = self.users("swanuserA")
-        self.aw = self.user.aw
-        self.phone = self.user.phone
-        self.password = os.environ.get("SWAN_PASSWORD", "").strip()
-        self.package = os.environ.get("SWAN_PACKAGE", "com.swan.network").strip()
+        """测试前初始化：实例化用户对象（用户信息挂在 userA 上）。"""
+        self.userA = self.users("swanuserA")
 
     def test_volume_adjust(self):
         """用例25-26：音量弹窗滑条拖/点与加减钮调节（UI 态百分比核对）。"""
@@ -41,7 +37,7 @@ class TestVolumeAdjust(SwanPlayerRegressionMixin, BaseTest):
         device_type = 'speaker'
         self._preset_playing(device_type)
         value = VOLUME_TARGET if action in ("drag", "click") else VOLUME_STEPS
-        self.user.set_volume(value, action=action)
+        self.userA.set_volume(value, action=action)
 
     def teardown(self) -> None:
         """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""

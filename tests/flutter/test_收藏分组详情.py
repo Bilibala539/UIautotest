@@ -28,35 +28,31 @@ class TestSwanFavoritesGroupDetail(SwanLoginRegressionMixin, BaseTest):
     """收藏分组详情只读断言。"""
 
     def setup(self) -> None:
-        """测试前初始化：实例化用户与基础操作入口。"""
-        self.user = self.users("swanuserA")
-        self.aw = self.user.aw
-        self.phone = self.user.phone
-        self.password = os.environ.get("SWAN_PASSWORD", "").strip()
-        self.package = os.environ.get("SWAN_PACKAGE", "com.swan.network").strip()
+        """测试前初始化：实例化用户对象（用户信息挂在 userA 上）。"""
+        self.userA = self.users("swanuserA")
 
     def test_favorites_group_detail(self):
         """收藏分组详情：我的页 → SWAN收藏 → 我的家庭 → OCR 断言 → 返回回首页。"""
         self._ensure_logged_in_on_home()
-        self.aw.click_accessibility(SwanBusiness.KEY_TAB_ME)
-        assert self.aw.wait_accessibility(
+        self.userA.click_accessibility(SwanBusiness.KEY_TAB_ME)
+        assert self.userA.wait_accessibility(
             SwanBusiness.KEY_ME_PROFILE_ENTRY, timeout=15
         ), "未进入我的页"
-        self.aw.click_image(SWAN_ME_FAVORITES_ROW)
+        self.userA.click_image(SWAN_ME_FAVORITES_ROW)
         # 收藏页无 accessibility key，用图片行断言进入成功
-        self.aw.image_exists(SWAN_FAV_FAMILY_GROUP_ROW, timeout=10)
+        self.userA.image_exists(SWAN_FAV_FAMILY_GROUP_ROW, timeout=10)
 
-        self.aw.click_image(SWAN_FAV_FAMILY_GROUP_ROW)
+        self.userA.click_image(SWAN_FAV_FAMILY_GROUP_ROW)
         # "我的家庭"详情页：无已知 key，按 OCR 断言（文案变体任一命中）
         self._assert_any_text(("播放全部", "首歌"), timeout=15)
 
-        self.aw.press_back()  # 详情页 → SWAN收藏页
-        self.aw.image_exists(SWAN_FAV_FAMILY_GROUP_ROW, timeout=10)
-        self.aw.press_back()  # SWAN收藏页 → 我的页
-        assert self.aw.wait_accessibility(
+        self.userA.press_back()  # 详情页 → SWAN收藏页
+        self.userA.image_exists(SWAN_FAV_FAMILY_GROUP_ROW, timeout=10)
+        self.userA.press_back()  # SWAN收藏页 → 我的页
+        assert self.userA.wait_accessibility(
             SwanBusiness.KEY_ME_PROFILE_ENTRY, timeout=15
         ), "两次返回后未回到我的页"
-        self.user.go_home()
+        self.userA.go_home()
 
     def teardown(self) -> None:
         """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""

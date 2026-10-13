@@ -23,24 +23,20 @@ class TestLoginStatePersistsRestart(SwanLoginRegressionMixin, BaseTest):
     """登录态跨进程重启持久化。"""
 
     def setup(self) -> None:
-        """测试前初始化：实例化用户与基础操作入口。"""
-        self.user = self.users("swanuserA")
-        self.aw = self.user.aw
-        self.phone = self.user.phone
-        self.password = os.environ.get("SWAN_PASSWORD", "").strip()
-        self.package = os.environ.get("SWAN_PACKAGE", "com.swan.network").strip()
+        """测试前初始化：实例化用户对象（用户信息挂在 userA 上）。"""
+        self.userA = self.users("swanuserA")
 
     def test_login_state_persists_restart(self):
         """登录态跨进程重启持久化：杀 App 重启后仍在首页，收尾登出。"""
         # 前置登录（未登录则补登录）
-        self.user.login_by_sms(self.phone)
+        self.userA.login_by_sms(self.userA.phone)
         self._assert_on_home()
 
-        self.user.driver.stop_app(self.package)
-        self.user.driver.start_app(self.package)
+        self.userA.driver.stop_app(self.userA.package)
+        self.userA.driver.start_app(self.userA.package)
         self._assert_on_home(timeout=30)  # 冷启动约 5s，等 tab_me + 底部播放条
 
-        self.user.logout_if_needed()  # 收尾登出，保持后续用例起点干净
+        self.userA.logout_if_needed()  # 收尾登出，保持后续用例起点干净
 
     def teardown(self) -> None:
         """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""

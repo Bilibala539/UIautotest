@@ -108,6 +108,19 @@
 
 硬性纪律速记:凭据只在 .167 /opt/uiautotest/.env.local;模块 agent 不部署不提交 git(主会话统一做);运行面(.167/.176)绝不 kill 全部进程,只杀指定 PID。
 
+## 用例域纪律(一库两服务,2026-10-13 起)
+
+工作站(:8090,`/opt/app`)与测试平台(:8080)**共库**:唯一数据源 `/opt/uiautotest/output/dashboard.sqlite3` 的 `case_defs` 表,两边展示与增删改查打同一张表(方案与遗留待办:`docs/用例域整合计划.md`)。
+
+- **文字用例(text)**:工作站创作/维护,编号沿用工作站 `launch-NEG-001` 式(不重编号);正文 `structured` 列(机器读原始报文)+ `content` 列(人读渲染),人审状态在 `review_meta` 列。**新文字用例请勿手写 YAML/文件,直接在工作站或平台 API 建**
+- **自动化用例(auto)**:case_id = `aw-<py文件主干>`(去 `test_` 前缀,中文保留,如 `aw-冷启动落页`);由 `scripts/sync_cases.py` 扫描 `tests/flutter/test_*.py` 文件头标记入库。**改挂接关系 = 改文件头标记再重跑 sync,勿直改库**
+- **py 文件头标记格式**(`sync_cases.py --annotate` 可补写;pytest 上报按 CASE-ID 聚合,parametrize 变体同文件共享一个编号):
+  ```
+  # CASE-ID: aw-冷启动落页
+  # LINKED-CASE: REG-015,REG-016
+  ```
+- **旧 76 条 REG-xxx** 保留作挂接锚点(D1 默认);docstring"回归用例 N"锚点已迁移到文件头 LINKED-CASE 标记,新用例一律用标记行
+
 ## 团队分工
 
 本项目在 `.claude/agents/` 下定义了长期团队角色。主会话作为 **orchestrator** 对接用户；遇到具体任务派给对应 agent：

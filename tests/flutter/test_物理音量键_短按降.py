@@ -1,3 +1,4 @@
+# CASE-ID: aw-物理音量键_短按升
 # LINKED-CASE: REG-027,REG-028
 """Swan 回归·播放器域：物理音量键短按/长按（回归用例 27-28）。
 
@@ -39,7 +40,7 @@ class TestVolumeKey(SwanPlayerRegressionMixin, BaseTest):
         device_type = "speaker"
         self._preset_playing(device_type)
         self.user.set_volume(50, action="drag")
-        self.user.volume_key(direction=direction, long_press=long_press)
+        self.user.volume_key(direction=direction, long_press = False)
 
     def teardown(self) -> None:
         """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""

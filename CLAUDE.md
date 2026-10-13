@@ -100,26 +100,21 @@
 当 `click_image` / `image_exists` 失败时，**禁止**加 `tap(x, y)` 作为 fallback。
 正确做法：先查图片质量（规则7），重截图或调阈值。坐标回退是伪修复，换环境必坏。
 
-## 平台开发进度恢复(新会话/新窗口必读)
+## 测试平台(已分离,2026-10-13)
 
-接手 Swan 测试平台相关工作前,先读这两份拿到全貌,再接着干:
-1. `docs/agent团队名册.md` —— 团队角色、硬性纪律、交接记录(最新进度看这里)
-2. `docs/测试套件管理计划.md` —— 总体里程碑 M1-M6 与当前所处阶段
+测试平台与工作站代码已剥离至独立仓库 **git.hivi.com/yumiao/swan-map-station**(本地 E:\swan-map-station);分离方案与资产清单见 `docs/测试平台分离准备.md`。平台相关工作(用例管理/包管理/流水线/打包/巡检/监控)到平台仓做,平台模块 agent 定义也在那边(`.claude/agents/`);通用纪律不变:凭据只在 .167 /opt/uiautotest/.env.local;运行面绝不 kill 全部进程,只杀指定 PID。
 
-硬性纪律速记:凭据只在 .167 /opt/uiautotest/.env.local;模块 agent 不部署不提交 git(主会话统一做);运行面(.167/.176)绝不 kill 全部进程,只杀指定 PID。
+## 用例域纪律(2026-10-13 起)
 
-## 用例域纪律(一库两服务,2026-10-13 起)
-
-工作站(:8090,`/opt/app`)与测试平台(:8080)**共库**:唯一数据源 `/opt/uiautotest/output/dashboard.sqlite3` 的 `case_defs` 表,两边展示与增删改查打同一张表(方案与遗留待办:`docs/用例域整合计划.md`)。
-
-- **文字用例(text)**:工作站创作/维护,编号沿用工作站 `launch-NEG-001` 式(不重编号);正文 `structured` 列(机器读原始报文)+ `content` 列(人读渲染),人审状态在 `review_meta` 列。**新文字用例请勿手写 YAML/文件,直接在工作站或平台 API 建**
-- **自动化用例(auto)**:case_id = `aw-<py文件主干>`(去 `test_` 前缀,中文保留,如 `aw-冷启动落页`);由 `scripts/sync_cases.py` 扫描 `tests/flutter/test_*.py` 文件头标记入库。**改挂接关系 = 改文件头标记再重跑 sync,勿直改库**
-- **py 文件头标记格式**(`sync_cases.py --annotate` 可补写;pytest 上报按 CASE-ID 聚合,parametrize 变体同文件共享一个编号):
+- **文字用例**:权威源在工作站(平台仓 swan-map-station;工作站 :8090 与测试平台 :8080 共库 case_defs),编号 `launch-NEG-001` 式;**新文字用例直接在工作站或平台 API 建,勿手写 YAML**
+- **自动化用例(auto)**:case_id = `aw-<py文件主干>`(去 `test_` 前缀,中文保留,如 `aw-冷启动落页`);入库由**平台仓** `scripts/sync_cases.py` 扫描文件头标记完成。**改挂接关系 = 改文件头标记再重跑 sync(平台仓执行),勿直改库**
+- **py 文件头标记格式**(pytest 上报按 CASE-ID 聚合,parametrize 变体同文件共享一个编号):
   ```
   # CASE-ID: aw-冷启动落页
   # LINKED-CASE: REG-015,REG-016
   ```
-- **旧 76 条 REG-xxx** 保留作挂接锚点(D1 默认);docstring"回归用例 N"锚点已迁移到文件头 LINKED-CASE 标记,新用例一律用标记行
+- **旧 76 条 REG-xxx** 保留作挂接锚点;docstring"回归用例 N"锚点已迁移到文件头 LINKED-CASE 标记,新用例一律用标记行
+- pytest 执行结果经 `reporter/`(原 dashboard.pytest_plugin,分离后留本仓)上报测试平台
 
 ## 团队分工
 

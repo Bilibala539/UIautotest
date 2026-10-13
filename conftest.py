@@ -17,7 +17,7 @@ from utils.aw.driver.android_driver import AndroidAdbDriver
 from utils.aw.driver.flutter_driver import FlutterAndroidDriver
 from utils.user import AndroidUser, SwanUser, TTUser
 
-pytest_plugins = ["dashboard.pytest_plugin"]
+pytest_plugins = ["reporter.pytest_plugin"]  # 2026-10-13 平台分离:dashboard.pytest_plugin 迁至 reporter/(上报对留自动化仓)
 
 load_dotenv()
 load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env.local"))
@@ -100,45 +100,8 @@ def _cleanup_intermediate_screenshots() -> None:
 
 @pytest.hookimpl(tryfirst=True)
 def pytest_sessionstart(session) -> None:
-    """环境门禁(③ preflight)+ 设备池领取(P3):仅 flutter/android 平台。"""
-    if os.environ.get("PREFLIGHT", "").strip() in {"1", "true", "True", "on"}:
-        from qa_platform.preflight import run_preflight
-        verdict = run_preflight()
-        for item in verdict["results"]:
-            mark = "✅" if item["ok"] else ("🚫 阻塞" if item["blocking"] else "⚠️ 非阻塞")
-            logger.info(f"[preflight] {mark} {item['check']}: {item['detail']}")
-        if verdict["verdict"] == "ENV_BLOCKED":
-            blocked = ", ".join(verdict["blocked_by"])
-            logger.error(f"[preflight] 环境阻塞({blocked}),会话终止。环境问题按 bug 处理。")
-            pytest.exit(f"环境门禁未通过: {blocked}", returncode=3)
-
-    # 设备池:平台会话(有 DASHBOARD_URL)且未显式关闭(DEVICE_POOL=0)时启用
-    _platform_now = os.environ.get("PLATFORM", "web").strip().lower()
-    _pool_enabled = (
-        _platform_now in {"flutter", "android"}
-        and os.environ.get("DASHBOARD_URL", "").strip()
-        and os.environ.get("DEVICE_POOL", "1").strip() not in {"0", "false", "off"}
-        and not os.environ.get("ANDROID_DEVICE_SERIAL", "").strip()  # 手动指定串号时不抢池
-    )
-    if _pool_enabled:
-        from qa_platform.device_pool import DevicePoolError, DevicePoolSession, register_local_devices
-        try:
-            register_local_devices(platform=_platform_now)
-        except DevicePoolError as error:
-            logger.warning(f"[device-pool] 设备注册失败(不影响会话): {error}")
-        run_id = os.environ.get("DASHBOARD_RUN_ID") or f"pool-{_log_timestamp}"
-        os.environ["DASHBOARD_RUN_ID"] = run_id
-        global _device_pool
-        _device_pool = DevicePoolSession(platform=_platform_now, run_id=run_id)
-        try:
-            serial = _device_pool.acquire()
-            logger.info(f"[device-pool] 已领取设备: {serial}(会话 {run_id})")
-        except DevicePoolError as error:
-            logger.error(f"[device-pool] 无可领设备: {error}")
-            pytest.exit(f"设备池无空闲设备: {error}", returncode=3)
-
-
-_device_pool = None  # 当前会话的设备池领取对象(见 pytest_sessionstart)
+    """会话启动：平台/账号门禁已由 pytest_collection_modifyitems 统一处理；
+    设备池/preflight 随测试平台剥离至平台仓（2026-10-13），真机直连 adb。"""
 
 
 @pytest.hookimpl(tryfirst=True)

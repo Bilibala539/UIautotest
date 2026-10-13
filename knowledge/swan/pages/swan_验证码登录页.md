@@ -10,7 +10,10 @@ Swan（com.swan.network v5.3.0）启动后的默认落地页。手机号 + 验�
 ## 进入方式
 
 - 启动 App：`adb shell monkey -p com.swan.network -c android.intent.category.LAUNCHER 1`，约 5s 后落到本页
-- 从密码登录页：点右上角"密码登入"的反向切换（key 待密码页 dump 后补充）
+- 从密码登录页：点右上角「验证码登入」回切钮反向切换（右上角为形态互切钮：
+  验证码页显「密码登入」→ 进密码页；密码页显「验证码登入」→ 回本页。2026-10-13
+  回切钮 [图] `SWAN_PWD_SMS_TOGGLE` 转正，互切实测双向通过；同页「下一步」/
+  「登录」提交钮文案随形态切换，OCR 文案对比可作形态判据）
 
 ## 关键元素（来源：uiautomator dump，无障碍键）
 

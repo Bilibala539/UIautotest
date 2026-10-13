@@ -228,3 +228,6 @@ models/
 
 # KB vector index (per-machine cache, regenerate locally)
 knowledge/swan/.chroma_db/
+
+# Edge CDP 调试临时目录（web 平台 Selenium 启动残留）
+edge-cdp-*/

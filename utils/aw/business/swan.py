@@ -1982,6 +1982,76 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
             assert self.find_text_by_ocr(home_text, timeout=2) is None, (
                 f"点击入口「{entry}」后仍在主页（主页搜索文案未消失，点击未生效）")
 
+    # =================================================================
+    # 域 1：启动合规（回归用例 1-3，方案 A6-A7）。2026-10-13 首版。
+    # A6 冷启动落页 / A7 后台恢复——纯 App 内操作零人工依赖，全自动验证。
+    # A8 绑定手机页返回：搁置（绑定页仅对未绑定手机账号出现，135 已绑定
+    # 不可达，知识库亦无该页记录；如未来引入无手机号测试账号再启用）。
+    # =================================================================
+
+    @_aw_method_report
+    def cold_start_assert(self, landed: str = "home",
+                          timeout: float = 30.0) -> None:
+        """冷启动落页断言（A6，回归用例 1-2）。2026-10-13 首版。
+
+        四步链（操作=relaunch，验证=指定落页锚）：
+        - landed="home"：relaunch 后断言首页容器锚（_home_anchor_visible
+          [图] 或 OCR「推荐」——go_home 同款三级锚口径）；
+        - landed="login"：relaunch 后断言登录页锚 [图]。
+        ⚠️ landed="login" 仅未登录态可真机验证（135 已登录，冷启动落首页；
+        首次安装/未登录设备的用例 1 分支为条件执行）。
+        """
+        if landed not in ("home", "login"):
+            raise ValueError(f"landed 仅支持 home / login，收到 {landed!r}")
+        self.relaunch_app(os.environ.get("SWAN_PACKAGE", "com.swan.network"),
+                          timeout=timeout)
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            if landed == "home" and (self._home_anchor_visible(timeout=1)
+                                     or self.find_text_by_ocr("推荐",
+                                                              timeout=1) is not None):
+                return
+            if landed == "login" and self._login_page_anchor_visible(timeout=1):
+                return
+            self.sleep(1.0)
+        shot = self._snap_chain_miss(f"coldstart_{landed}")
+        assert False, (
+            f"冷启动落页断言失败：{timeout}s 内未落到预期页面 {landed!r}"
+            f"（首页锚/登录页锚均未命中？证据帧 {shot}）")
+
+    @_aw_method_report
+    def background_resume(self, expect_image: str = "",
+                          expect_text: str = "",
+                          back_seconds: float = 3.0,
+                          timeout: float = 30.0) -> None:
+        """后台恢复断言（A7，回归用例 3）。2026-10-13 首版。
+
+        四步链：press_home 切后台（App 保留会话）→ 停留 back_seconds →
+        start_app 拉回前台 → 恢复锚断言。
+        恢复锚二选一：expect_image=[图] 模板常量（一级页特有控件）；或
+        expect_text=[OCR] 页面文字。均缺省时默认断言首页壳（底部导航 4 图）。
+        ⚠️ 恢复锚选"切后台前的当前页特有锚"——调用方保证当前停在该页。
+        """
+        if expect_image and expect_text:
+            raise ValueError("expect_image 与 expect_text 只能二选一（均空=默认首页壳锚）")
+        self.press_home()
+        self.sleep(back_seconds)
+        self.driver.start_app(os.environ.get("SWAN_PACKAGE", "com.swan.network"))
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            if expect_image and self.find_image(expect_image, timeout=1) is not None:
+                return
+            if expect_text and self.find_text_by_ocr(expect_text, timeout=1) is not None:
+                return
+            if not expect_image and self._home_shell_visible(timeout=1):
+                return
+            self.sleep(1.0)
+        shot = self._snap_chain_miss("background_resume")
+        assert False, (
+            f"后台恢复断言失败：{timeout}s 内恢复锚未命中（expect_image="
+            f"{expect_image!r} / expect_text={expect_text!r}；App 被系统回收？"
+            f"证据帧 {shot}）")
+
     def _find_playlist_row(self, playlist: str = "") -> dict | None:
         """OCR 找歌单行：指定歌单名时包含匹配；否则取含「首歌」计数的最上方
         一行（行格式「歌单名 N首歌」，OCR 可能拆开返回，点计数文案同样命中

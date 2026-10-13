@@ -39,6 +39,7 @@
 [完成] 或 [失败]
 文件变更：<路径列表 + 一句话>
 新增图片常量：<列表> 或 无
+执行报告：<output/aw_reports/ 下该方法的 HTML 报告路径>
 建议 verify 命令：PLATFORM=flutter pytest tests/flutter/test_xxx.py -v
 遗留问题：无 或 <内容>
 ```

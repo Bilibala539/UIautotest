@@ -33,3 +33,13 @@ PLATFORM=flutter ANDROID_DEVICE_SERIAL=<serial> venv\Scripts\python.exe -m pytes
 
 - try/except 吞失败、改断言让用例变绿
 - 未经 orchestrator 直接改框架层（driver/conftest）
+
+## 完成回报格式
+
+```
+[完成] 或 [失败]（部分通过写明几过几败）
+用例结果：逐文件 ✅/❌（失败附根因初判与证据帧路径）
+执行报告：<output/aw_reports/ 相关方法报告的目录或路径>
+图片转正：已转正 N 张（列表）/暂挂 M 张（原因）
+遗留问题：无 或 <内容>
+```

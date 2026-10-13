@@ -67,8 +67,11 @@ from image.image_name_mapping import (
     SWAN_HOME_TAB_MUSIC,
     SWAN_HOME_TAB_RADIO,
     SWAN_HOME_TAB_RECOMMEND,
+    SWAN_LOGIN_PASSWORD_ENTRY,
     SWAN_LOGIN_PRIVACY_POLICY_LINK,
     SWAN_LOGIN_SUBMIT_BTN,
+    SWAN_PASSWORD_FIELD,
+    SWAN_PWD_SMS_TOGGLE,
     SWAN_PLAYER_PAUSE_BTN,
     SWAN_PLAYER_VOLUME_POPUP,
     SWAN_TAB_DEVICE,
@@ -547,36 +550,46 @@ class SwanLoginRegressionMixin:
         self._probe_bottom_player_bar()
 
     def _assert_sms_form(self, timeout: float = 15.0) -> None:
-        """验证码登录页形态互斥 [图]：「密码登入」入口可见 + 密码框不可见。"""
-        assert self._probe_image(SWAN_LOGIN_PASSWORD_ENTRY, timeout=timeout) is not None, (
-            "验证码登录形态断言失败（SWAN_LOGIN_PASSWORD_ENTRY [图] 未出现）")
+        """验证码登录页形态互斥：[OCR]「密码登入」入口可见 + 密码框 [图] 不可见。
+
+        入口用 OCR 而非图模板：「密码登入」灰胶囊图与密码页「验证码登入」
+        钮同形互扰（文字子串滑动窗口假阳性，2026-10-13 实测 0.85），
+        OCR 行文本"验证码登入"不含"密码登入"子串，天然区分。
+        """
+        assert self.aw.find_text_by_ocr("密码登入", timeout=timeout) is not None, (
+            "验证码登录形态断言失败（[OCR]「密码登入」入口未出现）")
         assert self._probe_image(SWAN_PASSWORD_FIELD, timeout=1) is None, (
             "验证码登录形态下出现了密码输入框 [图]，形态互斥被破坏")
 
     def _assert_password_form(self, timeout: float = 15.0) -> None:
-        """密码登录页形态互斥 [图]：密码框可见 + 「密码登入」入口不可见。
+        """密码登录页形态判定：[OCR] 文案对比（"验证码登入"在 + "下一步"不在）。
 
-        ⚠️ 存量三重校验的第三重（「验证码登入」回切钮 [图] 存在）待
-        element 补截该按钮图后恢复；当前二重校验已能判定互斥。
+        2026-10-13 终版口径——图模板在此页全面退役：①回切钮「验证码登入」
+        有两态渲染（灰胶囊=空表单/黑字=填表后），单图判据必漏；②密码页黑底
+        「登录」大按钮与验证码页置灰「下一步」模板形似误匹配（0.85 实测）。
+        OCR 文案语义判定对两态渲染与形似干扰均免疫：密码页有「验证码登入」
+        无「下一步」，验证码页反之。
         """
-        assert self._probe_image(SWAN_PASSWORD_FIELD, timeout=timeout) is not None, (
-            "密码登录形态断言失败（SWAN_PASSWORD_FIELD [图] 未出现）")
-        assert self._probe_image(SWAN_LOGIN_PASSWORD_ENTRY, timeout=1) is None, (
-            "密码登录形态下仍存在「密码登入」切换按钮 [图]，形态互斥被破坏")
+        assert self.aw.find_text_by_ocr("验证码登入", timeout=timeout) is not None, (
+            "密码登录形态断言失败（[OCR]「验证码登入」回切钮未出现）")
+        assert self.aw.find_text_by_ocr("下一步", timeout=1) is None, (
+            "密码登录形态下仍存在「下一步」按钮 [OCR]，形态互斥被破坏")
 
     def _ensure_fresh_sms_form(self) -> None:
         """前置归一化：确保停在全新验证码登录形态（空表单、协议未勾选）。
 
         - 已登录（底部导航 4 图任一可见）→ 先登出回登录页
-        - 未登录但停在脏表单（密码形态 [图] / 有「密码错误」提示 [OCR]，
-          上一轮中断遗留）→ 重启 App 重置（实测登录页表单无持久化，
-          重启回到全新验证码形态）
+        - 未登录但停在密码形态/脏表单 → 重启 App 重置（实测登录页表单
+          无持久化，重启回到全新验证码形态）
+        密码形态探测用双判据：SWAN_PASSWORD_FIELD [图]（空态）**或**
+        [OCR]「验证码登入」（密码页特有回切钮文案，对掩码/已填残留态免疫
+        ——2026-10-13 实测假表单掩码态空态图失配致探测漏判，单图判据废弃）。
         """
         if any(self._probe_image(t, timeout=1) is not None
                for t in self._BOTTOM_NAV_TEMPLATES):
             self.user.logout_if_needed()
         if (self._probe_image(SWAN_PASSWORD_FIELD, timeout=1) is not None
-                or self.aw.find_text_by_ocr("密码错误", timeout=1) is not None):
+                or self.aw.find_text_by_ocr("验证码登入", timeout=1) is not None):
             self.user.driver.stop_app(self.package)
             self.user.driver.start_app(self.package)
             assert self.aw._login_page_anchor_visible(timeout=30), (

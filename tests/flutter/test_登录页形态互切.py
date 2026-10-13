@@ -17,7 +17,7 @@ import os
 import pytest
 
 from conftest import BaseTest
-from utils.aw.business.swan import SwanBusiness
+from image.image_name_mapping import SWAN_PWD_SMS_TOGGLE
 from utils.aw.business.swan_regression import SwanLoginRegressionMixin
 
 _platform = os.environ.get("PLATFORM", "web").strip().lower()
@@ -34,14 +34,18 @@ class TestLoginPageToggle(SwanLoginRegressionMixin, BaseTest):
     """登录页两种形态互切。"""
 
     def test_login_page_toggle(self):
-        """登录页两种形态互切：登出 → 验证码形态 ⇄ 密码形态，断言互斥反转。"""
+        """登录页两种形态互切：登出 → 验证码形态 ⇄ 密码形态，断言互斥反转。
+
+        2026-10-13 key 迁移：形态切换用 [OCR]「密码登入」/ SWAN_PWD_SMS_TOGGLE
+        [图]（回切钮）；互斥判定走 mixin 断言辅助（[图]+[OCR] 组合）。
+        """
         self._ensure_fresh_sms_form()
 
-        # 切到密码形态
-        self.aw.click_accessibility(SwanBusiness.KEY_USE_PASSWORD_BUTTON)
+        # 切到密码形态（[OCR]；灰胶囊图与「验证码登入」同形互扰，禁用图模板）
+        self.aw.click_text("密码登入", timeout=10)
         self._assert_password_form()
 
-        # 切回验证码形态，互斥反转
-        self.aw.click_accessibility(SwanBusiness.KEY_USE_SMS_BUTTON)
+        # 切回验证码形态，互斥反转（[OCR] 回切钮文案——图模板有两态渲染漏判）
+        self.aw.click_text("验证码登入", timeout=10)
         self._assert_sms_form()
         # 结束状态：未登录（验证码登录页）

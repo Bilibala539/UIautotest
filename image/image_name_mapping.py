@@ -501,8 +501,9 @@ SWAN_ME_ACCOUNT_ENTRY = image_path("swan_我的_账号信息入口.png", platfor
 SWAN_PERSON_LOGOUT_BTN = image_path("swan_个人信息_退出登入按钮.png", platform="flutter", )  # 页面=个人信息页 | 元素=「退出登入」按钮文本（白底黑字；logout 清理路径终点）| 2026-10-12 | HONOR AKFDCP4718425500 720x1612 | 134x37
 # 以下 2 张 2026-10-12 晚间补截（orchestrator 借四件套后未登录窗口，密码页填假表单态截图、未提交）：
 SWAN_PWD_SMS_TOGGLE = image_path("swan_密码页_验证码登入入口.png", platform="flutter", )  # 页面=密码登入页 | 元素=右上角「验证码登入」回切钮（黑字态，填表后渲染）| 2026-10-12 | HONOR 720x1612 | 178x46
-SWAN_PWD_LOGIN_SUBMIT_ENABLED = image_path("swan_密码页_登录按钮_可用态.png", platform="flutter", draft=True)  # 页面=密码登入页 | 元素=「登录」提交按钮黑底白字可用态（填表+勾协议后）| 2026-10-12 | HONOR 720x1612 | 220x78
+SWAN_PWD_LOGIN_SUBMIT_ENABLED = image_path("swan_密码页_登录按钮_可用态.png", platform="flutter", draft=True)  # 页面=密码登入页 | 元素=「登录」提交按钮黑底白字可用态（填表+勾协议后）| 2026-10-12 | HONOR 720x1612 | 220x78 | ⚠️ 2026-10-13 起「登录」提交走 [OCR] region 主路径（见 swan._LOGIN_SUBMIT_REGION），本图转备查不转正（黑底大按钮与置灰「下一步」模板存在形似互扰风险）
 SWAN_PLATFORM_NETEASE_ROW_UNAUTHORIZED = image_path("swan_平台_网易云音乐行_未授权态.png", platform="flutter", )  # 页面=平台页 | 元素=网易云音乐行卡未授权态（白底+「未授权」+黑[+]，logo+文字区不含[+]钮）| 2026-10-12 | HONOR 720x1612 | 400x124
+SWAN_NETEASE_PLUS_BTN = image_path("swan_平台_网易云授权加号钮_未授权.png", platform="flutter", draft=True)  # 页面=平台页 | 元素=网易云行右侧黑色[+]授权钮（未授权态；A24 authorize_platform 操作目标 ⛔ 授权需专卡）| 2026-10-12 | HONOR 720x1612 | 60x58
 
 
 __all__ = [
@@ -636,6 +637,7 @@ __all__ = [
     "SWAN_PWD_SMS_TOGGLE",
     "SWAN_PWD_LOGIN_SUBMIT_ENABLED",
     "SWAN_PLATFORM_NETEASE_ROW_UNAUTHORIZED",
+    "SWAN_NETEASE_PLUS_BTN",
     "WEB_DRAFT_IMAGE_DIR",
     "WEB_IMAGE_DIR",
     "demote_image",

@@ -280,11 +280,13 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
             self.login_by_sms(phone, wait_code=wait_code)
         self.go_home()
 
-    # 密码页「登录」提交按钮 region（720x1612 口径）：提交按钮位于表单区
-    # 下半屏；region 仅收窄 OCR 范围非坐标定位。「登录」二字在密码页唯一
-    # （右上角回切钮文案是「验证码登入」，输入框 placeholder 无"登录"），
-    # 可用态按钮 [图] 待补截（element 待办），补截后切 [图] 主路径。
-    _LOGIN_SUBMIT_REGION = (0, 1050, 720, 562)
+    # 密码页「登录」提交按钮 region（720x1612 口径，2026-10-13 实测修正）：
+    # 按钮黑底实际位于 y≈880-960（首版目视 1050 定错致 OCR region 只裁到
+    # 协议区，FAIL_text_exists 证据帧确认），修正为覆盖密码框下方到协议区；
+    # region 仅收窄 OCR 范围非坐标定位。「登录」二字在密码页唯一（右上角
+    # 回切钮文案「验证码登入」不含"登录"），可用态按钮 [图] 已存草稿备查
+    # （SWAN_PWD_LOGIN_SUBMIT_ENABLED，OCR 主路径下不引用不转正）。
+    _LOGIN_SUBMIT_REGION = (0, 820, 720, 300)
 
     @_aw_method_report
     def login_with_password(self, phone: str, password: str) -> None:
@@ -307,10 +309,17 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         应先重启 App 重置表单（见 test_密码登录成功.py 收尾处理）。
         登录成功会顶掉本机旧会话（单点登录），属正常现象。
         """
-        if self.find_image(SWAN_PASSWORD_FIELD, timeout=2) is None:
-            self.click_image(SWAN_LOGIN_PASSWORD_ENTRY, timeout=10)
-            assert self.find_image(SWAN_PASSWORD_FIELD, timeout=10) is not None, (
-                "切到密码登录形态失败（SWAN_PASSWORD_FIELD [图] 未出现，"
+        if self.find_image(SWAN_PASSWORD_FIELD, timeout=2) is None \
+                and self.find_text_by_ocr("验证码登入", timeout=2) is None:
+            # 形态探测双判据（2026-10-13）：密码框 [图]（空态）+ [OCR]
+            # 「验证码登入」（密码页特有回切钮，对掩码/已填残留态免疫）——
+            # 两判据均不可见才切形态；形态切换用 [OCR]「密码登入」：灰胶囊
+            # 图与密码页「验证码登入」钮同形互扰（文字子串，滑动窗口 0.85
+            # 假阳性，2026-10-13 实测），OCR 行文本天然区分
+            self.click_text("密码登入", timeout=10)
+            assert self.find_image(SWAN_PASSWORD_FIELD, timeout=10) is not None \
+                or self.find_text_by_ocr("验证码登入", timeout=3) is not None, (
+                "切到密码登录形态失败（密码框 [图] 与「验证码登入」[OCR] 均未命中，"
                 "请核对密码页模板质量/页面改版）")
         self.click_image(SWAN_LOGIN_PHONE_FIELD, timeout=10)
         self.clear_input()  # 防表单残留：先清空再输入

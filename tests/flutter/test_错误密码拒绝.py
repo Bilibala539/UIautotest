@@ -17,7 +17,11 @@ import os
 import pytest
 
 from conftest import BaseTest
-from utils.aw.business.swan import SwanBusiness
+from image.image_name_mapping import (
+    SWAN_LOGIN_AGREEMENT_UNCHECKED,
+    SWAN_LOGIN_PHONE_FIELD,
+    SWAN_PASSWORD_FIELD,
+)
 from utils.aw.business.swan_regression import SwanLoginRegressionMixin
 
 _platform = os.environ.get("PLATFORM", "web").strip().lower()
@@ -38,29 +42,29 @@ class TestWrongPasswordRejected(SwanLoginRegressionMixin, BaseTest):
         login_error_text 错误提示，收尾重启重置表单后 login_by_sms 恢复登录态。"""
         self._ensure_fresh_sms_form()
 
-        # 切到密码形态，输入正确手机号 + 错误密码
-        self.aw.click_accessibility(SwanBusiness.KEY_USE_PASSWORD_BUTTON)
+        # 切到密码形态，输入正确手机号 + 错误密码（2026-10-13 key 迁移：全 [图]/[OCR]）
+        self.aw.click_text("密码登入", timeout=10)
         self._assert_password_form()
-        self.aw.click_accessibility(SwanBusiness.KEY_PHONE_FIELD)
+        self.aw.click_image(SWAN_LOGIN_PHONE_FIELD, timeout=10)
         self.aw.clear_input()
         self.aw.input_text(self.phone)
-        self.aw.click_accessibility(SwanBusiness.KEY_PASSWORD_FIELD)
+        self.aw.click_image(SWAN_PASSWORD_FIELD, timeout=10)
         self.aw.clear_input()
         self.aw.input_text("000000")
         self.aw.press_back()  # 收键盘（实测只收键盘不退出 App）
-        self.aw.click_accessibility(SwanBusiness.KEY_AGREEMENT)
-        self.aw.click_accessibility(SwanBusiness.KEY_SUBMIT)
+        self.aw.click_image(SWAN_LOGIN_AGREEMENT_UNCHECKED, timeout=5)
+        self.aw.click_text("登录", timeout=5, region=self.aw._LOGIN_SUBMIT_REGION)
 
-        # 断言未进首页：错误密码不应跳转首页
-        assert not self.aw.wait_accessibility(
-            SwanBusiness.KEY_TAB_ME, timeout=8
-        ), "错误密码竟进入了首页（tab_me 出现），登录校验失效！"
+        # 断言未进首页：错误密码不应跳转首页（首页壳锚 [图] 反断言）
+        assert not any(self._probe_image(t, timeout=1) is not None
+                       for t in self._BOTTOM_NAV_TEMPLATES), (
+            "错误密码竟进入了首页（底部导航 4 图出现），登录校验失效！")
 
         # 断言出现错误提示（实测：错误文案非 toast，是常驻节点
-        # login_error_text，content-desc"密码错误，请重新输入！"）
-        assert self.aw.accessibility_exists(
-            SwanBusiness.KEY_ERROR_TEXT
-        ), "错误密码后未出现 login_error_text 错误提示"
+        # login_error_text，content-desc"密码错误，请重新输入！"；
+        # key 迁移后用 [OCR] 定位错误文案）
+        assert self.aw.find_text_by_ocr("密码错误", timeout=10) is not None, (
+            "错误密码后未出现「密码错误」错误提示 [OCR]")
 
         # 收尾：提交失败后的登录页表单有残留（已填文本 + 协议已勾选，
         # login_by_sms 再点协议会反选导致"下一步"置灰），重启 App 重置表单

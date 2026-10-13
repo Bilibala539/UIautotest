@@ -24,18 +24,19 @@ from image.image_name_mapping import (
 )
 from utils.aw.business.swan_regression import SwanLoginRegressionMixin
 
-_platform = os.environ.get("PLATFORM", "web").strip().lower()
-_has_phone = bool(os.environ.get("SWAN_PHONE", "").strip())
-_has_password = bool(os.environ.get("SWAN_PASSWORD", "").strip())
-
-pytestmark = pytest.mark.skipif(
-    _platform != "flutter" or not _has_phone or not _has_password,
-    reason="Swan 密码用例需要 PLATFORM=flutter 和 SWAN_PHONE/SWAN_PASSWORD",
-)
 
 
 class TestWrongPasswordRejected(SwanLoginRegressionMixin, BaseTest):
     """错误密码被拒绝（只试 1 次，防锁号）。"""
+
+    def setup(self) -> None:
+        """pytest 生命周期钩子（模板要求显式声明；逻辑由 mixin 提供）。"""
+        super().setup()
+
+    def teardown(self) -> None:
+        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
+        super().teardown()
+
 
     def test_wrong_password_rejected(self):
         """错误密码被拒绝（只试 1 次，防锁号）：断言未进首页且出现

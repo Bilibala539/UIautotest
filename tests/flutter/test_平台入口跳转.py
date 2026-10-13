@@ -21,26 +21,24 @@ from image.image_name_mapping import (
 )
 from utils.aw.business.swan_regression import SwanLoginRegressionMixin
 
-_platform = os.environ.get("PLATFORM", "web").strip().lower()
-_has_phone = bool(os.environ.get("SWAN_PHONE", "").strip())
-
-pytestmark = pytest.mark.skipif(
-    _platform != "flutter" or not _has_phone,
-    reason="Swan 用例需要 PLATFORM=flutter 和 SWAN_PHONE",
-)
-
-# (平台, 入口, expect_title)——expect_title 按 explorer 实测映射，勿跨平台复用
-ENTRIES = [
-    ("qq", "排行榜", "飙升榜"),
-    ("netease", "排行榜", "排行榜"),
-    ("netease", "歌单", "歌单"),
-]
-
 
 class TestPlatformEntryNavigation(SwanLoginRegressionMixin, BaseTest):
     """平台主页入口跳转（回归用例 38-40 深化）。"""
 
-    @pytest.mark.parametrize("platform,entry,expect_title", ENTRIES)
+    def setup(self) -> None:
+        """pytest 生命周期钩子（模板要求显式声明；逻辑由 mixin 提供）。"""
+        super().setup()
+
+    def teardown(self) -> None:
+        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
+        super().teardown()
+
+
+    @pytest.mark.parametrize("platform,entry,expect_title", [
+    ("qq", "排行榜", "飙升榜"),
+    ("netease", "排行榜", "排行榜"),
+    ("netease", "歌单", "歌单"),
+])
     def test_open_platform_entry(self, platform, entry, expect_title):
         """平台主页入口跳转：入口 [OCR] 点击 + 落地页标题 [OCR] 断言。"""
         self._ensure_logged_in_on_home()

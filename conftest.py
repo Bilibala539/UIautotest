@@ -283,6 +283,30 @@ def test_user_manager():
     return UserManager(os.path.join(_BASE_DIR, "config", "users_info.json"))
 
 
+# Swan 用例的平台/账号门禁集中处理（2026-10-13 用户拍板：用例文件里不写
+# 模块级 _platform/_has_phone 探测与 pytestmark skipif，统一框架层过滤）
+_SWAN_TESTS_DIR = os.path.join("tests", "flutter")
+_PASSWORD_CASE_STEMS = {"test_登录页形态互切", "test_密码登录成功", "test_错误密码拒绝"}
+
+
+def pytest_collection_modifyitems(config, items):
+    platform = os.environ.get("PLATFORM", "web").strip().lower()
+    has_phone = bool(os.environ.get("SWAN_PHONE", "").strip())
+    has_password = bool(os.environ.get("SWAN_PASSWORD", "").strip())
+    for item in items:
+        path = str(item.fspath)
+        if _SWAN_TESTS_DIR not in path:
+            continue
+        if platform != "flutter":
+            item.add_marker(pytest.mark.skip(
+                reason=f"Swan 用例需要 PLATFORM=flutter（当前 {platform}）"))
+        elif not has_phone:
+            item.add_marker(pytest.mark.skip(reason="Swan 用例需要 SWAN_PHONE"))
+        elif (os.path.splitext(os.path.basename(path))[0] in _PASSWORD_CASE_STEMS
+              and not has_password):
+            item.add_marker(pytest.mark.skip(reason="密码域用例需要 SWAN_PASSWORD"))
+
+
 def pytest_sessionfinish(session, exitstatus) -> None:
     # 归还设备池里的设备(无论会话成败),再生成 Allure 报告
     if _device_pool is not None:

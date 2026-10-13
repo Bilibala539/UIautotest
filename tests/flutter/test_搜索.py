@@ -27,23 +27,21 @@ import pytest
 from conftest import BaseTest
 from utils.aw.business.swan_regression import SwanContentRegressionMixin
 
-_platform = os.environ.get("PLATFORM", "web").strip().lower()
-_has_phone = bool(os.environ.get("SWAN_PHONE", "").strip())
-
-pytestmark = pytest.mark.skipif(
-    _platform != "flutter" or not _has_phone,
-    reason="Swan 用例需要 PLATFORM=flutter 和 SWAN_PHONE",
-)
-
-SEARCH_TABS = ["单曲", "艺人", "专辑", "歌单", "电台", "播客"]
-SEARCH_ENTRIES = ["home", "radio"]
-
 
 class TestSearch(SwanContentRegressionMixin, BaseTest):
     """关键词搜索与结果分类（回归用例 69-72）。"""
 
-    @pytest.mark.parametrize("entry", SEARCH_ENTRIES)
-    @pytest.mark.parametrize("tab", SEARCH_TABS)
+    def setup(self) -> None:
+        """pytest 生命周期钩子（模板要求显式声明；逻辑由 mixin 提供）。"""
+        super().setup()
+
+    def teardown(self) -> None:
+        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
+        super().teardown()
+
+
+    @pytest.mark.parametrize("entry", ["home", "radio"])
+    @pytest.mark.parametrize("tab", ["单曲", "艺人", "专辑", "歌单", "电台", "播客"])
     def test_search_results_by_tab(self, tab, entry):
         """用例69-72：按分类搜索并断言结果区（空态或平台名）。
 

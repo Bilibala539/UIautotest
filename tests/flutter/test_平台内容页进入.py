@@ -25,21 +25,20 @@ from image.image_name_mapping import (
 )
 from utils.aw.business.swan_regression import SwanLoginRegressionMixin
 
-_platform = os.environ.get("PLATFORM", "web").strip().lower()
-_has_phone = bool(os.environ.get("SWAN_PHONE", "").strip())
-
-pytestmark = pytest.mark.skipif(
-    _platform != "flutter" or not _has_phone,
-    reason="Swan 用例需要 PLATFORM=flutter 和 SWAN_PHONE",
-)
-
-PLATFORMS = ["qq", "netease"]  # 酷狗未授权不可达，用户拍板忽略
-
 
 class TestPlatformHomeEntry(SwanLoginRegressionMixin, BaseTest):
     """平台内容页进入（回归用例 38-40）。"""
 
-    @pytest.mark.parametrize("platform", PLATFORMS)
+    def setup(self) -> None:
+        """pytest 生命周期钩子（模板要求显式声明；逻辑由 mixin 提供）。"""
+        super().setup()
+
+    def teardown(self) -> None:
+        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
+        super().teardown()
+
+
+    @pytest.mark.parametrize("platform", ["qq", "netease"])  # 酷狗未授权不可达，拍板忽略
     def test_open_platform_home(self, platform):
         """用例38-40：平台页进入已授权平台主页，主页锚 [OCR] 断言。"""
         self._ensure_logged_in_on_home()

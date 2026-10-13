@@ -18,29 +18,27 @@ import pytest
 from conftest import BaseTest
 from utils.aw.business.swan_regression import SwanContentRegressionMixin
 
-_platform = os.environ.get("PLATFORM", "web").strip().lower()
-_has_phone = bool(os.environ.get("SWAN_PHONE", "").strip())
 
-pytestmark = pytest.mark.skipif(
-    _platform != "flutter" or not _has_phone,
-    reason="Swan 用例需要 PLATFORM=flutter 和 SWAN_PHONE",
-)
+class TestRecentPlayed(SwanContentRegressionMixin, BaseTest):
+    """最近播放按分类断言（回归用例 56-68）。"""
 
-# (分类 kind, 条目名环境变量)；歌曲类条目名复用播放器域 SWAN_TEST_SONG
-HISTORY_KINDS = [
+    def setup(self) -> None:
+        """pytest 生命周期钩子（模板要求显式声明；逻辑由 mixin 提供）。"""
+        super().setup()
+
+    def teardown(self) -> None:
+        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
+        super().teardown()
+
+
+    @pytest.mark.parametrize("kind,env_key", [
     ("歌曲", "SWAN_TEST_SONG"),
     ("歌单", "SWAN_HISTORY_PLAYLIST"),
     ("歌手", "SWAN_HISTORY_ARTIST"),
     ("专辑", "SWAN_HISTORY_ALBUM"),
     ("电台", "SWAN_HISTORY_RADIO"),
     ("播客", "SWAN_HISTORY_PODCAST"),
-]
-
-
-class TestRecentPlayed(SwanContentRegressionMixin, BaseTest):
-    """最近播放按分类断言（回归用例 56-68）。"""
-
-    @pytest.mark.parametrize("kind,env_key", HISTORY_KINDS)
+])
     def test_recent_played(self, kind, env_key):
         """用例56-68：最近播放按分类断言条目存在（条目名未配置则 skip）。
 

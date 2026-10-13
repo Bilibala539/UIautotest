@@ -19,17 +19,19 @@ import pytest
 from conftest import BaseTest
 from utils.aw.business.swan_regression import DEVICE_TYPES, SwanPlayerRegressionMixin
 
-_platform = os.environ.get("PLATFORM", "web").strip().lower()
-_has_phone = bool(os.environ.get("SWAN_PHONE", "").strip())
-
-pytestmark = pytest.mark.skipif(
-    _platform != "flutter" or not _has_phone,
-    reason="Swan 用例需要 PLATFORM=flutter 和 SWAN_PHONE",
-)
 
 
 class TestVolumeKey(SwanPlayerRegressionMixin, BaseTest):
     """物理音量键短按/长按（回归用例 27-28）。"""
+
+    def setup(self) -> None:
+        """pytest 生命周期钩子（模板要求显式声明；逻辑由 mixin 提供）。"""
+        super().setup()
+
+    def teardown(self) -> None:
+        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
+        super().teardown()
+
 
     @pytest.mark.parametrize("long_press,direction",
                              [(False, "up"), (False, "down"), (True, "up")])

@@ -32,17 +32,19 @@ import pytest
 from conftest import BaseTest
 from utils.aw.business.swan_regression import SwanContentRegressionMixin
 
-_platform = os.environ.get("PLATFORM", "web").strip().lower()
-_has_phone = bool(os.environ.get("SWAN_PHONE", "").strip())
-
-pytestmark = pytest.mark.skipif(
-    _platform != "flutter" or not _has_phone,
-    reason="Swan 用例需要 PLATFORM=flutter 和 SWAN_PHONE",
-)
 
 
 class TestCollectSong(SwanContentRegressionMixin, BaseTest):
     """歌曲收藏到指定歌单（回归用例 44-55）。"""
+
+    def setup(self) -> None:
+        """pytest 生命周期钩子（模板要求显式声明；逻辑由 mixin 提供）。"""
+        super().setup()
+
+    def teardown(self) -> None:
+        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
+        super().teardown()
+
 
     # source="playlist_page" 用例的收藏源歌单（行内 [+] 所在详情页）：
     # 默认取 rig SWAN 宫格实测存在的「我的家庭」（5.3.2 探索样例歌单）。

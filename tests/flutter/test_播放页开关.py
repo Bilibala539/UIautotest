@@ -21,17 +21,19 @@ from image.image_name_mapping import (
 from utils.aw.business.swan import SwanBusiness
 from utils.aw.business.swan_regression import SwanLoginRegressionMixin
 
-_platform = os.environ.get("PLATFORM", "web").strip().lower()
-_has_phone = bool(os.environ.get("SWAN_PHONE", "").strip())
-
-pytestmark = pytest.mark.skipif(
-    _platform != "flutter" or not _has_phone,
-    reason="Swan 用例需要 PLATFORM=flutter 和 SWAN_PHONE",
-)
 
 
 class TestSwanPlayerOpenClose(SwanLoginRegressionMixin, BaseTest):
     """播放页开关只读断言。"""
+
+    def setup(self) -> None:
+        """pytest 生命周期钩子（模板要求显式声明；逻辑由 mixin 提供）。"""
+        super().setup()
+
+    def teardown(self) -> None:
+        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
+        super().teardown()
+
 
     def test_player_open_close(self):
         """播放页开关：点底部播放条进全屏播放页 → 断言后点收起按钮回首页。

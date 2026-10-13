@@ -524,6 +524,13 @@ class SwanLoginRegressionMixin:
         self.password = os.environ.get("SWAN_PASSWORD", "").strip()
         self.package = os.environ.get("SWAN_PACKAGE", "com.swan.network").strip()
 
+    def teardown(self) -> None:
+        """登录域默认无清理动作（收尾态由各用例保证为登录页/首页，G3/G4 允许）。
+
+        显式定义以保证用例文件的 super().teardown() 链安全（mixin 无定义时
+        super 链到 object 会 AttributeError，2026-10-13 后台恢复用例实测）。"""
+        logger.info("登录域 teardown：无自定义清理（收尾态由用例保证）")
+
     # ---------- 断言辅助（2026-10-12 登录域 key 迁移：全 [图]/[OCR]） ----------
 
     def _assert_on_login_page(self, timeout: float = 15.0) -> None:

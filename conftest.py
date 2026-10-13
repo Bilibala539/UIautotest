@@ -17,7 +17,7 @@ from utils.aw.driver.android_driver import AndroidAdbDriver
 from utils.aw.driver.flutter_driver import FlutterAndroidDriver
 from utils.user import AndroidUser, SwanUser, TTUser
 
-pytest_plugins = ["dashboard.pytest_plugin"]
+pytest_plugins = ["reporter.pytest_plugin"]  # 2026-10-13 平台分离:dashboard.pytest_plugin 迁至 reporter/(上报对留自动化仓)
 
 load_dotenv()
 load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env.local"))

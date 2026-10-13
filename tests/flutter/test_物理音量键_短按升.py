@@ -35,6 +35,7 @@ class TestVolumeKey(SwanPlayerRegressionMixin, BaseTest):
         """
         long_press = False
         direction = 'up'
+        device_type = "speaker"
         self._preset_playing(device_type)
         self.user.set_volume(50, action="drag")
         self.user.volume_key(direction=direction, long_press=long_press)

@@ -62,7 +62,6 @@ class TestCaseDriver(BaseTest):
 
     def setup(self):
         self.userA = self.users("swanuserA")
-        self.aw = self.userA
         self.userA.package = os.environ.get("SWAN_PACKAGE", "com.swan.network").strip()
         # 每条用例开始:确保 App 在前台 + 首启弹窗自动处置
         # (2026-09-22 用户拍板:打开 App 后框架级检测弹窗;新装包首启的
@@ -98,7 +97,7 @@ class TestCaseDriver(BaseTest):
                 f"action '{action}' 不在允许名单内(基础 AW {len(_BASE_ACTIONS)} 个 + "
                 f"SwanBusiness 公开方法 {len(_business_actions())} 个)"
             )
-        return getattr(self.aw, action)
+        return getattr(self.userA, action)
 
     def _run_step(self, index: int, step: dict, context: dict) -> None:
         action, args = step["action"], step["args"]

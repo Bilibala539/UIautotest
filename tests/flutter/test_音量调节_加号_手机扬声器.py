@@ -17,7 +17,7 @@ import os
 import pytest
 
 from conftest import BaseTest
-from utils.aw.business.swan_regression import DEVICE_TYPES, SwanPlayerRegressionMixin
+from utils.aw.business.swan_regression import SwanPlayerRegressionMixin
 
 
 VOLUME_TARGET = 40  # drag/click 音量目标（百分比）
@@ -31,10 +31,10 @@ class TestVolumeAdjust(SwanPlayerRegressionMixin, BaseTest):
         """pytest 生命周期钩子（模板要求显式声明；逻辑由 mixin 提供）。"""
         super().setup()
 
-    @pytest.mark.parametrize("action", ["drag", "click", "plus", "minus"])
-    @pytest.mark.parametrize("device_type", DEVICE_TYPES)
-    def test_volume_adjust(self, device_type, action):
+    def test_volume_adjust(self):
         """用例25-26：音量弹窗滑条拖/点与加减钮调节（UI 态百分比核对）。"""
+        action = 'plus'
+        device_type = 'speaker'
         self._preset_playing(device_type)
         value = VOLUME_TARGET if action in ("drag", "click") else VOLUME_STEPS
         self.user.set_volume(value, action=action)

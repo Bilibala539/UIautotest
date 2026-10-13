@@ -26,15 +26,7 @@ class TestRecentPlayed(SwanContentRegressionMixin, BaseTest):
         """pytest 生命周期钩子（模板要求显式声明；逻辑由 mixin 提供）。"""
         super().setup()
 
-    @pytest.mark.parametrize("kind,env_key", [
-        ("歌曲", "SWAN_TEST_SONG"),
-        ("歌单", "SWAN_HISTORY_PLAYLIST"),
-        ("歌手", "SWAN_HISTORY_ARTIST"),
-        ("专辑", "SWAN_HISTORY_ALBUM"),
-        ("电台", "SWAN_HISTORY_RADIO"),
-        ("播客", "SWAN_HISTORY_PODCAST"),
-    ])
-    def test_recent_played(self, kind, env_key):
+    def test_recent_played(self):
         """用例56-68：最近播放按分类断言条目存在（条目名未配置则 skip）。
 
         歌曲类条件造数（run5 改版）：SWAN_HISTORY_FRESH_PLAY 配置时先探测
@@ -42,6 +34,8 @@ class TestRecentPlayed(SwanContentRegressionMixin, BaseTest):
         不造数；不可见才现场播放 3s 造记录（name 须为 rig 我喜欢歌单中的
         歌曲名）再断言——避免已有记录时的重复造数开销。
         """
+        kind = '播客'
+        env_key = 'SWAN_HISTORY_PODCAST'
         name = os.environ.get(env_key, "").strip()
         if not name:
             pytest.skip(f"未配置 {env_key}（rig 播放记录中的条目名）")

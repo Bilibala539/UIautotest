@@ -17,7 +17,7 @@ import os
 import pytest
 
 from conftest import BaseTest
-from utils.aw.business.swan_regression import DEVICE_TYPES, SwanPlayerRegressionMixin
+from utils.aw.business.swan_regression import SwanPlayerRegressionMixin
 
 
 
@@ -28,14 +28,13 @@ class TestVolumeKey(SwanPlayerRegressionMixin, BaseTest):
         """pytest 生命周期钩子（模板要求显式声明；逻辑由 mixin 提供）。"""
         super().setup()
 
-    @pytest.mark.parametrize("long_press,direction",
-                             [(False, "up"), (False, "down"), (True, "up")])
-    @pytest.mark.parametrize("device_type", DEVICE_TYPES)
-    def test_volume_key(self, device_type, direction, long_press):
+    def test_volume_key(self):
         """用例27-28：物理音量键短按升/降与长按（百分比增减方向断言）。
 
         先经音量弹窗把音量拖到中位 50，避免 0%/100% 边界使方向断言失真。
         """
+        long_press = True
+        direction = 'up'
         self._preset_playing(device_type)
         self.user.set_volume(50, action="drag")
         self.user.volume_key(direction=direction, long_press=long_press)

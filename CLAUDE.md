@@ -84,7 +84,7 @@
 
 ### 8. 一用例一文件一 test 方法（铁律）
 
-每个用例 .py 文件**有且仅有一个 `test_` 方法**；不同测试场景各自独立成文件。同一场景的数据变体可在该方法上用 `@pytest.mark.parametrize` 扩展执行项。适用本工程全部平台（web/android/flutter）。例外仅限 `tests/flutter/test_case_driver.py`（平台 YAML 用例执行载体）。用例间共用的前置/清理编排沉到业务层（`utils/aw/business/`，如 `swan_regression.py`）。
+每个用例 .py 文件**有且仅有一个 `test_` 方法**；不同测试场景、不同数据变体各自独立成文件，**值写死在用例里**。**严禁使用 `@pytest.mark.parametrize`**（2026-10-13 拍板：参数装饰器=一个文件跑多条，等价于一文件多用例）。适用本工程全部平台（web/android/flutter）。例外仅限 `tests/flutter/test_case_driver.py`（平台 YAML 用例执行载体）。用例间共用的前置/清理编排沉到业务层（`utils/aw/business/`，如 `swan_regression.py`）。
 
 ### 9. 框架层改动须用户决策
 
@@ -196,6 +196,7 @@ python scripts/knowledge/auto_update.py --force    # 强制全量更新
 - ❌ `try/except` 吞掉测试失败
 - ❌ 只断言"没异常"
 - ❌ 一个 py 文件里多个 test 方法（一用例一文件一 test 方法，规则 8 铁律）
+- ❌ `@pytest.mark.parametrize`（参数装饰器禁用——变体各自独立成文件，规则 8 铁律）
 - ❌ 修用例时自行改框架层（`conftest.py`/`run_parallel.py`/`driver/*`）— 须用户决策
 - ❌ `click_image` 失败后加 `tap(x,y)` 坐标回退（必须修图片）
 

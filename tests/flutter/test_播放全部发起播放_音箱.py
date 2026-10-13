@@ -17,7 +17,7 @@ import os
 import pytest
 
 from conftest import BaseTest
-from utils.aw.business.swan_regression import DEVICE_TYPES, SwanPlayerRegressionMixin
+from utils.aw.business.swan_regression import SwanPlayerRegressionMixin
 
 
 
@@ -28,9 +28,9 @@ class TestPlayAllFromFavorite(SwanPlayerRegressionMixin, BaseTest):
         """pytest 生命周期钩子（模板要求显式声明；逻辑由 mixin 提供）。"""
         super().setup()
 
-    @pytest.mark.parametrize("device_type", DEVICE_TYPES)
-    def test_play_all_from_favorite(self, device_type):
+    def test_play_all_from_favorite(self):
         """用例13：我喜欢页「播放全部」发起播放，断言播放态双证据。"""
+        device_type = 'wifi_device'
         self._preset_playing(device_type)
         self.user.assert_playing()  # 显式复核（start_play 收尾已断言一次）
 

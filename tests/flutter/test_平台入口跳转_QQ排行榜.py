@@ -29,13 +29,11 @@ class TestPlatformEntryNavigation(SwanLoginRegressionMixin, BaseTest):
         """pytest 生命周期钩子（模板要求显式声明；逻辑由 mixin 提供）。"""
         super().setup()
 
-    @pytest.mark.parametrize("platform,entry,expect_title", [
-        ("qq", "排行榜", "飙升榜"),
-        ("netease", "排行榜", "排行榜"),
-        ("netease", "歌单", "歌单"),
-    ])
-    def test_open_platform_entry(self, platform, entry, expect_title):
+    def test_open_platform_entry(self):
         """平台主页入口跳转：入口 [OCR] 点击 + 落地页标题 [OCR] 断言。"""
+        platform = 'qq'
+        entry = '排行榜'
+        expect_title = '飙升榜'
         self._ensure_logged_in_on_home()
         self.aw.click_image(SWAN_TAB_PLATFORM, timeout=10)
         assert self.aw._platform_page_visible(), (

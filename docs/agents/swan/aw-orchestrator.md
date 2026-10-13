@@ -107,7 +107,7 @@ git reset --hard HEAD   # 还原后带具体失败原因重新派发或交回用
 | G2 | 涉及元素图片已注册（如用图像定位） | grep `image/image_name_mapping.py` | 先派 aw-element |
 | G3 | 用例有清理步骤 | Swan 约定：用例结束回到**未登录或首页**状态（登出或杀进程重启），避免污染下一条用例 | 补充后再 spawn |
 | G4 | 清理后能回到稳定起点 | 登出 → 回到登录页，或 force-stop 后 start_app | 补充后再 spawn |
-| G5 | 同功能参数变体合并 parametrize | 检查相似用例描述 | 提示合并，不阻断 |
+| G5 | 数据变体各自独立成文件（禁 parametrize） | 检查相似用例描述 | 提示拆分，不阻断 |
 
 ## ⏱️ 超时阈值
 

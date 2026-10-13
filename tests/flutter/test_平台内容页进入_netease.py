@@ -33,9 +33,9 @@ class TestPlatformHomeEntry(SwanLoginRegressionMixin, BaseTest):
         """pytest 生命周期钩子（模板要求显式声明；逻辑由 mixin 提供）。"""
         super().setup()
 
-    @pytest.mark.parametrize("platform", ["qq", "netease"])  # 酷狗未授权不可达，拍板忽略
-    def test_open_platform_home(self, platform):
+    def test_open_platform_home(self):
         """用例38-40：平台页进入已授权平台主页，主页锚 [OCR] 断言。"""
+        platform = 'netease'
         self._ensure_logged_in_on_home()
         self.aw.click_image(SWAN_TAB_PLATFORM, timeout=10)
         # 账号授权态探针：网易云行未授权态 [图] 可见 = 全未授权 → skip

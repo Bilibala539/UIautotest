@@ -41,10 +41,7 @@ class TestCollectSong(SwanContentRegressionMixin, BaseTest):
         """pytest 生命周期钩子（模板要求显式声明；逻辑由 mixin 提供）。"""
         super().setup()
 
-    @pytest.mark.parametrize("source", ["player", "playlist_page"])  # 内层按列表序：player 先跑
-    @pytest.mark.parametrize("target_platform",
-                             SwanContentRegressionMixin.COLLECT_PLATFORMS)
-    def test_collect_song(self, target_platform, source):
+    def test_collect_song(self):
         """用例44-55：歌曲收藏到目标歌单（来源 player/playlist_page × 目标平台）。
 
         可重复性（run6 设计，取代 run5「预校验 skip + 人工轮换」方案 C）：
@@ -63,6 +60,8 @@ class TestCollectSong(SwanContentRegressionMixin, BaseTest):
           _tap_song_row_plus 同锚定，提取行=将收藏行），预清理后重进源页。
         source="player" 前置复用域3 start_play（经 _preset_playing_on_favorite
         到我喜欢页，收尾已在播放页）。"""
+        target_platform = 'swan'
+        source = 'player'
         self._ensure_logged_in_on_home()
         if source == "player":
             song = self.COLLECT_PLAYER_SONG

@@ -19,7 +19,7 @@ import os
 import pytest
 
 from conftest import BaseTest
-from utils.aw.business.swan_regression import DEVICE_TYPES, SwanPlayerRegressionMixin
+from utils.aw.business.swan_regression import SwanPlayerRegressionMixin
 
 
 LOOP_MODES = ["list", "single", "shuffle"]
@@ -32,15 +32,15 @@ class TestLoopModeAndControls(SwanPlayerRegressionMixin, BaseTest):
         """pytest 生命周期钩子（模板要求显式声明；逻辑由 mixin 提供）。"""
         super().setup()
 
-    @pytest.mark.parametrize("loop_mode", LOOP_MODES)
-    @pytest.mark.parametrize("device_type", DEVICE_TYPES)
-    def test_loop_mode_and_controls(self, device_type, loop_mode):
+    def test_loop_mode_and_controls(self):
         """用例15-22：设备类型 × 循环模式矩阵上的播放控制序列。
 
         set_loop_mode 以目标态图标 [图] 断言收尾；暂停/继续分别以
         assert_paused/assert_playing 双证据断言；切歌后断言播放态保持
         （具体曲目切换由已知歌名的用例经 assert_now_playing 复核，见用例14）。
         """
+        loop_mode = 'single'
+        device_type = 'wifi_device'
         self._preset_playing(device_type)
         self.user.set_loop_mode(loop_mode)
         self.user.player_control("pause")

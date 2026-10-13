@@ -17,7 +17,7 @@ import os
 import pytest
 
 from conftest import BaseTest
-from utils.aw.business.swan_regression import DEVICE_TYPES, SwanPlayerRegressionMixin
+from utils.aw.business.swan_regression import SwanPlayerRegressionMixin
 
 
 SEEK_RATIO = 0.75  # 进度跳转目标比例
@@ -30,10 +30,10 @@ class TestSeekProgress(SwanPlayerRegressionMixin, BaseTest):
         """pytest 生命周期钩子（模板要求显式声明；逻辑由 mixin 提供）。"""
         super().setup()
 
-    @pytest.mark.parametrize("action", ["drag", "click"])
-    @pytest.mark.parametrize("device_type", DEVICE_TYPES)
-    def test_seek_progress(self, device_type, action):
+    def test_seek_progress(self):
         """用例23-24：进度条拖动/点击跳转到 75%，OCR 双时间核对落点。"""
+        action = 'click'
+        device_type = 'speaker'
         self._preset_playing(device_type)
         self.user.seek_to(SEEK_RATIO, action=action)
 

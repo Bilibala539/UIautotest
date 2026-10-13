@@ -16,7 +16,7 @@ import os
 import pytest
 
 from conftest import BaseTest
-from utils.aw.business.swan_regression import DEVICE_TYPES, SwanPlayerRegressionMixin
+from utils.aw.business.swan_regression import SwanPlayerRegressionMixin
 
 
 
@@ -27,9 +27,9 @@ class TestPlaySingleSong(SwanPlayerRegressionMixin, BaseTest):
         """pytest 生命周期钩子（模板要求显式声明；逻辑由 mixin 提供）。"""
         super().setup()
 
-    @pytest.mark.parametrize("device_type", DEVICE_TYPES)
-    def test_play_single_song(self, device_type):
+    def test_play_single_song(self):
         """用例14：我喜欢页点歌名单曲播放（SWAN_TEST_SONG 未配置则 skip）。"""
+        device_type = 'wifi_device'
         if not self.SONG_NAME:
             pytest.skip("未配置 SWAN_TEST_SONG（rig 我喜欢歌单中的歌曲名）")
         self._preset_playing(device_type, source=self.SONG_NAME, mode="song")

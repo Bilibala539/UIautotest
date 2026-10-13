@@ -243,6 +243,19 @@ class AndroidAdbDriver(BasePlatformDriver):
         self._run("shell", "am", "start", "-a", action)
         return True
 
+    def get_foreground_package(self) -> Optional[str]:
+        """返回当前前台应用包名（D3 原语，2026-10-13 用户提议拍板）。
+
+        dumpsys window mCurrentFocus 解析——系统级事实，用于"App 是否
+        在前台"判定（back_to_tab_shell 防盲退护栏等），比 UI 树（仅 App
+        内可见）与截图模板（两态失配）都强，且能区分"前台怪页"与"桌面"。
+        解析失败返回 None（调用方按未知处理，不做乐观假设）。
+        """
+        result = self._run("shell", "dumpsys", "window")
+        output = result.stdout.decode("utf-8", errors="replace")
+        match = re.search(r"mCurrentFocus=Window\{[^}]*\s([\w.]+)/", output)
+        return match.group(1) if match else None
+
     def wifi_current_ssid(self) -> Optional[str]:
         """返回当前连接 WiFi 的 SSID，未连接返回 None（cmd wifi status 解析）。"""
         result = self._run("shell", "cmd", "wifi", "status")

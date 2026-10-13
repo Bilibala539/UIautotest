@@ -2481,11 +2481,14 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
     def _app_page_anchor_visible(self, timeout: float = 1.0) -> bool:
         """前台仍在 Swan App 内的页面锚探测（back_to_tab_shell 防盲退用）。
 
-        tab 壳锚（_tab_shell_anchor_visible）或 back 链途经 push 页锚
-        [图]（_APP_PAGE_ANCHORS）任一命中即在 App 内；全未命中再 dump
-        语义树兜底——bottom_player（贴底迷你播放条 key）除搜索全屏路由
-        外全页面常驻（explorer 各页 dump 实测恒有），桌面 launcher 恒无
-        此节点。探测口径宁缺勿滥：App 内未知页误判「退到桌面」的代价是
+        三级判定（2026-10-13 改造，审计待拍板项按用户提议落地）：
+        1. tab 壳锚（_tab_shell_anchor_visible）或 push 页锚 [图]
+           （_APP_PAGE_ANCHORS）任一命中即在 App 内；
+        2. 全未命中时查**前台包名**（D3 原语 get_foreground_package，
+           dumpsys 系统级事实）——包名 = com.swan.network 即在 App 内
+           （覆盖未知页/怪页，比 UI 树与截图模板都强）；
+        3. 均不成立（前台非 Swan）才判"已退到桌面"。
+        探测口径宁缺勿滥：App 内未知页误判「退到桌面」的代价是
         start_app 拉回（App 已在前台时为无害空操作）+ 提前中止 back 循环，
         不会比原盲 back 行为更差（见 back_to_tab_shell 注）。
         """
@@ -2494,8 +2497,8 @@ class SwanBusiness(CommonBusinessMixin, FlutterBaseAW):
         for template in self._APP_PAGE_ANCHORS:
             if self.find_image(template, timeout=timeout) is not None:
                 return True
-        return any((node.get("resource_id") or "") == "bottom_player"
-                   for node in self.dump_semantics())
+        return self.driver.get_foreground_package() == os.environ.get(
+            "SWAN_PACKAGE", "com.swan.network")
 
     @_aw_method_report
     def back_to_tab_shell(self, max_backs: int = 3) -> None:

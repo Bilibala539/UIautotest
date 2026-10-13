@@ -14,7 +14,6 @@ import pytest
 
 from conftest import BaseTest
 from image.image_name_mapping import SWAN_DEVICE_ADD_BTN, SWAN_TAB_DEVICE
-from utils.aw.business.swan import SwanBusiness  # 仅用 PREFIX_* 常量（探索辅助豁免候选，待拍板）
 from utils.aw.business.swan_regression import SwanLoginRegressionMixin
 
 _platform = os.environ.get("PLATFORM", "web").strip().lower()
@@ -36,16 +35,13 @@ class TestSwanDevicePageReadonly(SwanLoginRegressionMixin, BaseTest):
         dump 判断，不写死 UUID。⛔ 不点设备卡/同步/音量/添加设备。
         """
         self._ensure_logged_in_on_home()
-        # 2026-10-12 key 迁移：SWAN_TAB_DEVICE [图] 点击，到位断言用
-        # 设备页特有锚 SWAN_DEVICE_ADD_BTN [图]（key+图片双校验合并为图）
+        # 2026-10-13 key/dump 迁移：设备卡存在断言改 [OCR] 反向判据——
+        # 空态文案「暂无WIFI设备」不存在 = 有绑定卡（旧方案读 UI 树数
+        # UUID 动态卡，坐标铁律整改后退役；设备卡按 UUID 动态生成无法
+        # 截图模板，OCR 空态反断言是唯一合规且可靠的判据）
         self.aw.click_image(SWAN_TAB_DEVICE, timeout=10)
         self.aw.image_exists(SWAN_DEVICE_ADD_BTN, timeout=15)
-        card_keys = self.aw.list_accessibility_keys_by_prefix(
-            SwanBusiness.PREFIX_WIFI_DEVICE_CARD
-        )
-        assert card_keys, (
-            "设备页未发现任何 WIFI 设备卡（wifi_device_card_* 为空）。"
-            "若页面显示「暂无WIFI设备」，说明账号当前未绑定设备（数据状态变化，"
-            "非代码问题），需先在真机上重新配网绑定设备后再跑本用例"
-        )
+        assert self.aw.find_text_by_ocr("暂无", timeout=3) is None, (
+            "设备页显示「暂无WIFI设备」空态（账号当前未绑定设备，数据状态变化"
+            "非代码问题），需先在真机上配网绑定设备后再跑本用例")
         self.user.go_home()

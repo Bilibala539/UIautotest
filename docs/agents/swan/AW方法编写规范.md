@@ -52,6 +52,23 @@ def xxx(self, ...) -> None:
 
 终版判据模式：**正断言 = 本页特有文案 [OCR] 可见（"验证码登入"）；负断言 = 对页特有文案 [OCR] 不可见（"下一步"）**——OCR 行文本语义对比对子串/两态/形似全部免疫。教训来源：`_assert_password_form` 四轮迭代实录（tests/flutter/test_登录页形态互切.py）。
 
+### 3.2 UI 树运行时依赖清零实录（2026-10-13，用户两提案落地）
+
+审计遗留的 2 处运行时 dump 依赖，均找到比 UI 树更强的合规替代，dump 全工程清零：
+
+1. **防盲退护栏**（`_app_page_anchor_visible`）→ 用户提议的**前台包名判定**：
+   driver 原语 `get_foreground_package()`（dumpsys window mCurrentFocus，D3 拍板
+   实现）——系统级事实，比 UI 树（仅 App 内可见）与截图模板（两态失配）都强，
+   且能区分"前台怪页"与"桌面"。三级判定：tab 壳锚/push 页锚 [图] → 前台包名
+   → 均不成立才判桌面。
+2. **设备卡计数**（list_accessibility_keys_by_prefix 运行时调用）→ **空态反断言**
+   ：设备卡按 UUID 动态生成无法截图，但空态文案「暂无WIFI设备」稳定——
+   `[OCR] "暂无" 不存在 = 有绑定卡`，反向判据完全合规且语义清晰。
+
+模式总结：动态/无法截图的元素，先找它的**反面稳定锚**（空态文案/特有缺失项），
+再不行才考虑豁免——本项目已无需豁免。`list_accessibility_keys_by_prefix` 方法
+保留（仅探索辅助，docstring 已警示），运行时调用点为 0。
+
 ### 3.1 baseAW 能力不足时的处理（用户拍板 2026-10-12）
 
 业务方法只允许调用 base 层（AWBase / 平台 base）**已封装**的操作。base 已有方法无法满足时：

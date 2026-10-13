@@ -138,10 +138,10 @@ class TestCaseDriver(BaseTest):
                 or self.userA.accessibility_exists(K.KEY_ERROR_TEXT)
                 or self.userA.accessibility_exists(K.KEY_CODE_FIELD)):
             self.userA.relaunch_app(self.userA.package)
-            assert self._wait_through_popups(
+            assert self.userA.wait_through_popups(
                 K.KEY_LOGIN_PAGE, timeout
             ), "重启 App 后未回到登录页"
-        assert self._wait_through_popups(
+        assert self.userA.wait_through_popups(
             K.KEY_USE_PASSWORD_BUTTON, timeout
         ), "未停在验证码登录形态(login_use_password_button 未出现)"
 

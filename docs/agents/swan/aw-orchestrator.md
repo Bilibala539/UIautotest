@@ -40,6 +40,8 @@
 
 ## 🗺️ 编排模式
 
+> 单功能从 0 到 1 的端到端执行步骤（Phase 1-5 与交付报告模板）见 `端到端工作流.md`。
+
 ### 模式一：enrich-kb（探索补知识库）—— 当前主模式
 
 触发：探索、补充知识、新页面、页面改版、知识库巡检。
@@ -78,7 +80,7 @@ Step 5  （可选）aw-element 截关键元素 → image_ai/flutter/
 ### 模式三：fix-batch（修复失败用例）
 
 失败聚类 → 逐个：代码-用例一致性校验 → verify 诊断 → 修复 → verify 重跑（≤3 轮）。
-详见 `.claude/commands/fix-batch.md`（通用流程，路径按 Swan 替换）。
+详见 `.claude/commands/fix-batch.md`（已按 Swan 口径改写，2026-10-14）。
 
 ### 模式判断
 

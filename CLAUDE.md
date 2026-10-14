@@ -16,7 +16,7 @@
 | Swan（音乐 App） | Flutter (Android) | `SwanUser` | `SwanBusiness` | `knowledge/swan/` |
 | 智能音箱显示屏系统（名称待定） | Android | `AndroidUser` | `AndroidBusiness` | `knowledge/android/` |
 
-架构细则见 `docs/aw-architecture.html`、`.claude/rules/aw_architecture.mdc`；各项目 agent 编排见 `docs/agents/<project>/`。
+架构细则见 `docs/aw-architecture.html`；端到端写用例工作流见 `docs/agents/swan/端到端工作流.md`；各项目 agent 编排见 `docs/agents/<project>/`。（原 `.claude/rules/ai_workflow.mdc`、`aw_architecture.mdc` 已于 2026-10-14 并入以上两处后删除）
 
 ## 关键路径速查
 
@@ -47,7 +47,8 @@
 | `docs/待办与缺口清单.md` | **当前权威 plan**：已拍板决定 + 文档/环境缺口，开工前必读 |
 | `docs/runtime_experience.md` | 运行时经验知识库（子 Agent 执行经验沉淀，供语义检索注入） |
 | `run_parallel.py` | 并行测试运行器入口 |
-| `.claude/rules/` | 流程与架构规则（ai_workflow / aw_architecture）；编码规范已并入本文件 |
+| `docs/agents/swan/端到端工作流.md` | 端到端写用例工作流（Phase 1-5：知识库→探索→截取→生成→验证转正） |
+| `.claude/rules/` | 已清空（2026-10-14）：编码规范并入本文件；架构并入 `docs/aw-architecture.html`；工作流并入 `docs/agents/swan/端到端工作流.md` |
 
 ## 硬性规则（任何 agent 都必须遵守）
 
@@ -212,7 +213,7 @@ python scripts/knowledge/auto_update.py --force    # 强制全量更新
 
 | 场景 | 正确做法 |
 |------|----------|
-| 自动化登录账号 | **只用测试账号 13555555555**（OTP 白名单内，验证码接口可自动取码）；**18946151218 是一次性演示账号，禁止任何自动化登录/登出**（白名单不含，退出不可逆）——`.env.local` 的 `SWAN_PHONE` 必须指向 135 号（2026-10-12 曾配错为 189 致 agent 误用，用户手动救场） |
+| 自动化登录账号 | **只用测试账号 13555555555**（OTP 白名单内，验证码接口可自动取码）；**18946151218 为人工专用账号，严禁任何自动化登录/登出**（2026-10-12 拍板：白名单不含，退出不可逆）——`.env.local` 的 `SWAN_PHONE` 必须指向 135 号（2026-10-12 曾配错为 189 致 agent 误用，用户手动救场） |
 | **真机任务独占** | 同一台 adb 设备上**任何时刻只跑一个真机任务**（pytest 会话/agent 探索/补截图互斥）——并行必互相切 App 导致假失败（2026-10-12 实测：登录四件套与平台主页探索并行，设备被切进 QQ 音乐 5 条全废）。编排真机任务前先确认无其他 agent 占用设备 |
 | 浏览器文本定位 | 优先使用 `click_text`（OCR），需要稳定定位时再补充 Web 元素选择器 |
 | Python 多行命令 | 走 PowerShell 执行；避免 CodeMaker Hub 路径校验报错 |

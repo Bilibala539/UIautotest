@@ -181,5 +181,57 @@ sequenceDiagram
 </pre>
 </div>
 
+
+<div class="diagram">
+<h2>目录结构（现状，2026-10-14 自 .claude/rules/aw_architecture.mdc 并入）</h2>
+<pre>
+utils/
+├── otp_client.py           # 验证码平台客户端（纯 HTTP，无设备依赖）
+├── user.py                 # User 基类 + TTUser / AndroidUser / SwanUser
+│                           #   userA.xxx() 经 __getattr__ 代理到 business
+└── aw/
+    ├── __init__.py         # 统一入口
+    ├── aw_base.py          # 公共引擎（一份）：OCR/截图/图像匹配/swipe 基础
+    ├── search_region.py    # 屏幕区域常量 Normal.ALL / HALF_UP 等
+    ├── base/               # ★ 基础 AW：按端分，每端一套操作方法
+    │   ├── web_base.py     #   WebBaseAW(AWBase)
+    │   ├── android_base.py #   AndroidBaseAW(AWBase)：press_back/press_home…
+    │   └── flutter_base.py #   FlutterBaseAW(AndroidBaseAW)：accessibility…
+    └── business/           # ★ 业务 AW：按项目分，每项目一套
+        ├── __init__.py     #   工厂 create_business(driver)
+        ├── common.py       #   CommonBusinessMixin（跨项目公共：otp/wait_text/login 骨架）
+        ├── tiditree.py     #   TidiTreeBusiness（TidiTree，web 端）
+        ├── android.py      #   AndroidBusiness（智能音箱屏项目）
+        └── swan.py         #   SwanBusiness（Swan，flutter 端）+ swan_regression.py（回归 mixin）
+
+tests/
+├── web/ android/ flutter/  # 测试用例按端分目录
+└── conftest.py             # fixture 按平台分发用户类
+</pre>
+</div>
+
+<div class="diagram">
+<h2>用户类分发（conftest）</h2>
+<table>
+<tr><th>PLATFORM</th><th>用户类</th><th>业务类</th><th>端</th></tr>
+<tr><td>web</td><td>TTUser</td><td>TidiTreeBusiness</td><td>WebBaseAW</td></tr>
+<tr><td>android</td><td>AndroidUser</td><td>AndroidBusiness</td><td>AndroidBaseAW</td></tr>
+<tr><td>flutter</td><td>SwanUser</td><td>SwanBusiness</td><td>FlutterBaseAW</td></tr>
+</table>
+</div>
+
+<div class="diagram">
+<h2>维护规则</h2>
+<table>
+<tr><td>公共引擎 (aw_base.py)</td><td>只写一份，不要往回加端专属操作</td></tr>
+<tr><td>端专属基础操作</td><td>web → base/web_base.py；android → base/android_base.py；flutter → base/flutter_base.py</td></tr>
+<tr><td>跨项目通用业务（Mixin）</td><td>business/common.py</td></tr>
+<tr><td>项目专属业务</td><td>business/tiditree.py | android.py | swan.py；新项目 = 新增 &lt;项目&gt;.py + &lt;项目&gt;User + conftest 分发一行</td></tr>
+<tr><td>纯 HTTP 外部依赖</td><td>放 utils/ 独立客户端，由业务层调用</td></tr>
+<tr><td>user 类</td><td>只做会话关联与代理，不要在 user 类里写业务实现</td></tr>
+<tr><td>跨项目调用</td><td>天然 fail fast：TidiTree 用例调 Swan 方法 → AttributeError</td></tr>
+</table>
+</div>
+
 </body>
 </html>

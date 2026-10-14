@@ -62,5 +62,5 @@
 ## 与平台侧的边界（2026-10-13 起）
 
 测试平台（Swan 平台/工作站）代码与模块 agent 定义已剥离至 **swan-map-station** 仓
-（本地 `E:\swan-map-station`），分离方案见 `docs/测试平台分离准备.md`。
+（本地 `E:\swan-map-station`），分离方案见平台仓 `docs/测试平台分离准备.md`。
 本仓 `.claude/` 只管自动化测试框架侧（aw 五角色）；平台相关工作去平台仓做。

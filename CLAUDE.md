@@ -103,7 +103,7 @@
 
 ## 测试平台(已分离,2026-10-13)
 
-测试平台与工作站代码已剥离至独立仓库 **git.hivi.com/yumiao/swan-map-station**(本地 E:\swan-map-station);分离方案与资产清单见 `docs/测试平台分离准备.md`。平台相关工作(用例管理/包管理/流水线/打包/巡检/监控)到平台仓做,平台模块 agent 定义也在那边(`.claude/agents/`);通用纪律不变:凭据只在 .167 /opt/uiautotest/.env.local;运行面绝不 kill 全部进程,只杀指定 PID。
+测试平台与工作站代码已剥离至独立仓库 **git.hivi.com/yumiao/swan-map-station**(本地 E:\swan-map-station);分离方案与资产清单见平台仓 `docs/测试平台分离准备.md`（本仓副本已清退，历史见 2a797dc）。平台相关工作(用例管理/包管理/流水线/打包/巡检/监控)到平台仓做,平台模块 agent 定义也在那边(`.claude/agents/`);通用纪律不变:凭据只在 .167 /opt/uiautotest/.env.local;运行面绝不 kill 全部进程,只杀指定 PID。
 
 ## 用例域纪律(2026-10-13 起)
 

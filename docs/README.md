@@ -1,22 +1,21 @@
 # docs/ 文档索引
 
 > 每个文档一行：路径 + 一句话主题。新文档落位后请同步更新本索引。
-> 目录约定：项目级计划/规范/名册放 docs/ 根；各项目 agent 蓝图放 `docs/agents/<project>/`；对话纪要放 `docs/conversations/`；过时文档移 `docs/archive/`（文件头注明归档原因）。根目录只保留 README.md 与 CLAUDE.md。
+> 目录约定：项目级计划/规范放 docs/ 根；各项目 agent 蓝图放 `docs/agents/<project>/`；对话纪要放 `docs/conversations/`；过时文档直接删除（git 历史即归档，不再设 archive/ 目录）。根目录只保留 README.md 与 CLAUDE.md。
 
 ## 项目计划与规范（docs/ 根）
 
 | 路径 | 主题 |
 |---|---|
-| `待办与缺口清单.md` | **当前权威 plan**：已拍板决定 + 文档/环境缺口，开工前必读 |
+| `待办与缺口清单.md` | **当前权威 plan**：未闭环缺口 + 已拍板去向表，开工前必读 |
 | `AW补全计划.md` | **Swan AW 层补全计划**（范围：仅 flutter/Swan）：批次表/阻塞清单/编排方式/验收口径，每批完成更新 |
-| `平台建设计划.md` | Swan 测试平台建设进度计划（P1-P5，平台服务常驻 .167;.166 已退网) |
-| `平台UI设计规范.md` | dashboard 单页应用的唯一视觉与交互依据 |
-| `agent团队名册.md` | Swan 平台 Agent 团队角色名册，会话恢复入口 |
+| `Swan回归用例AW实现方案.md` | 76 条 P0 回归用例的 AW 实现清单（AW补全计划 W1 批次按其用例号派生） |
 | `UI元素截取与裁剪规范.md` | 元素截图/裁剪规范（`image_exists`/`click_image` 用图质量） |
 | `runtime_experience.md` | 运行时经验知识库（子 Agent 踩坑沉淀，供语义检索注入） |
 | `ShowUI-Windows部署指南.md` | ShowUI-2B 多模态 UI 定位环境 Windows 部署（独立 venv） |
 
 非 md 资产：`aw-architecture.html`（架构细则）。
+平台侧文档（平台建设计划/平台UI设计规范/agent团队名册/agent模块档案/分离准备 等）已于 2026-10-13 随平台分离迁至 **swan-map-station** 仓 `docs/`，本仓不再保留副本。
 
 ## 各项目 agent 蓝图（docs/agents/）
 
@@ -42,12 +41,3 @@
 |---|---|
 | `README.md` | 纪要归档约定（命名、脱敏要求） |
 | `2026-09-08-aw双维度重构与验证码平台.md` | 2026-09-08 工作对话纪要 |
-
-## 已归档（docs/archive/）
-
-| 路径 | 主题 |
-|---|---|
-| `功能地图-v1.md` | Swan App 功能地图 v1（已被 `knowledge/swan/系统认知/功能地图.md` v2 取代） |
-| `swan_kb_session_handoff.md` | Swan 知识库 v1 会话交接（v1 已建成，交接完成） |
-| `2026-06-12-v5-orchestration-fusion-design.md` | v5 编排融合设计（大部分已落地） |
-| `agents-web/` | TidiTree Web 项目 agent 蓝图旧版（未适配，启用前参照 `docs/agents/swan/` 模式适配） |

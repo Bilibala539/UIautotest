@@ -19,7 +19,7 @@
 
 ## 各项目 agent 蓝图（docs/agents/）
 
-范式：每个项目一个子目录，`.claude/agents/<role>.md` 为会话入口，本目录为对应项目蓝图。
+范式：每个项目一个子目录，本目录即该项目 agent 角色规程的唯一权威（拉起 = `general-purpose` subagent 首读对应蓝图，见 CLAUDE.md「团队分工」；`.claude/agents/` stub 已于 2026-10-15 清退）。
 
 ### docs/agents/swan/（Swan Flutter 项目，现行）
 

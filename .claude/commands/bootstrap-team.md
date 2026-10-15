@@ -14,7 +14,7 @@ description: 一键把 UIAutotest 5 人长期团队拉起来（orchestrator + ex
 
 调用 `TeamCreate`：
 - `team_name`: `uiautotest-team`
-- `agent_type`: `aw-orchestrator`
+- `agent_type`: `general-purpose`
 - `description`: `UIAutotest 长期团队：App 探索、元素截图、AW/用例生成、验证`
 
 ### 3. 派 4 个下游 teammate
@@ -22,8 +22,8 @@ description: 一键把 UIAutotest 5 人长期团队拉起来（orchestrator + ex
 团队实例建好后，通过 `Agent` 工具按下表依次派出 4 个 teammate。每个 teammate 启动时给它：
 - `team_name`: `uiautotest-team`
 - `name`: 对应 agent 名
-- `subagent_type`: 对应 agent 名（即 `.claude/agents/<name>.md` 的 name）
-- 初始任务：读 `CLAUDE.md`，再读自己蓝图里"必读"一栏的文件，读完后以以下格式向 orchestrator 汇报：
+- `subagent_type`: `general-purpose`（stub 已于 2026-10-15 清退，角色定义 = 蓝图首读）
+- 初始任务：先读 `CLAUDE.md` 与自己的蓝图 `docs/agents/swan/aw-<role>.md`，再读蓝图里"必读"一栏的文件，读完后以以下格式向 orchestrator 汇报：
   ```
   [就绪]
   职责：<一句话>
@@ -33,12 +33,12 @@ description: 一键把 UIAutotest 5 人长期团队拉起来（orchestrator + ex
 
 | name | subagent_type | 职责一句话 |
 |---|---|---|
-| explorer | aw-explorer | App 探索、更新知识库 |
-| element | aw-element | UI 元素截图、注册常量 |
-| codegen | aw-codegen | 业务 AW、PPUser 便捷方法、pytest 用例 |
-| verify | aw-verify | 跑测试、诊断失败、图片转正 |
+| explorer | general-purpose | App 探索、更新知识库 | App 探索、更新知识库 |
+| element | general-purpose | UI 元素截图、注册常量 | UI 元素截图、注册常量 |
+| codegen | general-purpose | 业务 AW、PPUser 便捷方法、pytest 用例 | 业务 AW、PPUser 便捷方法、pytest 用例 |
+| verify | general-purpose | 跑测试、诊断失败、图片转正 | 跑测试、诊断失败、图片转正 |
 
-说明：orchestrator 就是当前的主会话（team lead），不用再派。（spec-keeper 已于
+说明：orchestrator 就是当前的主会话（team lead），不用再派；角色规程唯一权威 = docs/agents/swan/aw-<role>.md（stub 已于 2026-10-15 清退）。（spec-keeper 已于
 2026-10-12 随 openspec 流程移除而删除）
 
 ### 4. 发令牌

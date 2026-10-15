@@ -123,18 +123,10 @@ UIAutotest/
 ├── .mcp.json                      # MCP Server 注册配置
 ├── .chroma_db/                    # 向量数据库（本地，不入 git）
 │
-├── .claude/agents/                # AI Agent 团队配置
-│   ├── aw-orchestrator.md        # 总协调
-│   ├── aw-explorer.md            # App 探索员
-│   ├── aw-element.md             # 元素截图员
-│   ├── aw-codegen.md             # 代码生成员
-│   └── aw-verify.md              # 验证员
-│
 └── docs/                          # 人读文档（完整索引见 docs/README.md）
     ├── UI元素截取与裁剪规范.md    # 元素截图规范
     ├── 待办与缺口清单.md          # 当前权威 plan
-    ├── agents/                    # 各项目 agent 蓝图（swan/、web/）
-    └── archive/                   # 已归档文档
+    └── agents/                    # 各项目 agent 蓝图（现行 swan/）
 ```
 
 ## 知识库系统

@@ -9,36 +9,25 @@
 ```
 .claude\
 ├── README.md                # ← 本文（目录导航）
-├── agents\                  # 5 个 Swan aw 角色的会话入口（stub）
-│   ├── aw-orchestrator.md   #   总协调——正文指向 docs/agents/swan/aw-orchestrator.md
-│   ├── aw-explorer.md       #   App 探索
-│   ├── aw-element.md        #   元素截图与常量注册
-│   ├── aw-codegen.md        #   业务 AW 与用例编码
-│   └── aw-verify.md         #   跑 pytest / 诊断失败 / 图片转正
-├── commands\
-│   ├── bootstrap-team.md    # 一键拉起 aw 团队
-│   ├── verify-team.md       # 团队装配自检
-│   ├── fix-batch.md         # 批量失败用例修复编排（Swan 口径，2026-10-14 改写）
-│   └── clean.md             # 清理
-├── skills\
-│   └── agent-run\           # 常驻 agent 运行技能
-└── rules\                   # （已清空 2026-10-14）
-                             #   原 ai_workflow.mdc → docs/agents/swan/端到端工作流.md
-                             #   原 aw_architecture.mdc → docs/aw-architecture.html
-                             #   原 rules.mdc → CLAUDE.md「编码补充规则」节
+└── commands\
+    ├── bootstrap-team.md    # 一键拉起 aw 团队（general-purpose + 蓝图首读）
+    ├── verify-team.md       # 团队装配自检
+    ├── fix-batch.md         # 批量失败用例修复编排（Swan 口径，2026-10-14 改写）
+    └── clean.md             # 清理
 ```
 
-## stub → 蓝图 两级结构（本目录的核心设计）
+## 角色规程唯一权威 = docs/agents/swan/（本目录不再存 agent 定义）
 
-`.claude/agents/<role>.md` 是**30 行以内的 stub**：写触发条件、上下文加载清单、职责红线，
-详细操作规程全部指向 `docs/agents/swan/` 下的对应蓝图（800 行级，单独演进）。
+五个长期角色的操作规程全部在 `docs/agents/swan/aw-<role>.md`（按项目分目录，单独演进）。
+`.claude/agents/` 的 30 行 stub 已于 2026-10-15 清退——stub 与蓝图长期只差一句转发，单一权威消歧义。
 
-这样分工的原因：
-- Claude Code 每次派 agent 只注入 stub——上下文轻
-- 蓝图在仓库里随代码走版本，改动有 diff 可审
-- 换机器/新会话，行为由「stub + 蓝图 + CLAUDE.md」三者共同决定，一致可复现
+- **拉起**：`Agent(subagent_type="general-purpose", name="aw-<role>")`，prompt 首行 = 先读对应蓝图 + CLAUDE.md（分工表见 CLAUDE.md「团队分工」）
+- **恢复原生定义**（需要 frontmatter 级工具/模型控制时）：按蓝图新建 30 行 stub 放回本目录——name/description + tools/model +「⛔ 强制第一步读 docs/agents/swan/aw-<role>.md」，规程不复制
 
-**改规则去哪改**：操作步骤/规范 → 改 `docs/agents/swan/` 蓝图；硬性铁律 → 改根目录 `CLAUDE.md`；触发/加载清单 → 改 stub。
+> 目录演进：rules\ 已于 10-14 清退（ai_workflow→docs/agents/swan/端到端工作流.md；aw_architecture→docs/aw-architecture.html；rules.mdc→CLAUDE.md「编码补充规则」）；skills\agent-run 已迁平台仓（28c9f4d）；agents\ stub 于 10-15 清退——本目录现只剩 commands\。
+
+**改规则去哪改**：操作步骤/规范 → 改 `docs/agents/swan/` 蓝图；硬性铁律 → 改根目录 `CLAUDE.md`。
+
 
 ## 派活路由（详见 CLAUDE.md「团队分工」）
 

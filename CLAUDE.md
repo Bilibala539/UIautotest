@@ -1,6 +1,6 @@
 # UIAutotest 多项目自动化测试项目约定
 
-> 这份文件是所有 AI 助手（我本人 + `.claude/agents/` 下所有子 agent）每次开工前的第一份必读。
+> 这份文件是所有 AI 助手（我本人 + 按角色蓝图拉起的所有子 agent）每次开工前的第一份必读。
 > 变更请慎重，因为它影响整个团队的行为。
 >
 > 铁律：所有输出一律中文（包括系统提示）。
@@ -135,16 +135,16 @@
 
 ## 团队分工
 
-本项目在 `.claude/agents/` 下定义了长期团队角色。主会话作为 **orchestrator** 对接用户；遇到具体任务派给对应 agent：
+五个长期角色 aw-orchestrator / aw-explorer / aw-element / aw-codegen / aw-verify：操作规程唯一权威在 `docs/agents/swan/aw-<role>.md`（按项目分目录；`.claude/agents/` 的 30 行 stub 已于 2026-10-15 清退，单一权威）。主会话作为 **orchestrator** 对接用户；遇到具体任务按任务特征拉人：
 
-| 任务特征 | 派给谁 | 调用方式 |
+| 任务特征 | 角色 | 蓝图 |
 |---|---|---|
-| 摸清某个页面怎么走 / 知识库缺页面 | `aw-explorer` | SendMessage（长驻，探索需要积累上下文） |
-| 截 UI 元素并注册常量 | `aw-element` | Agent()（子 Agent，每次干净上下文） |
-| 编写业务层 / 用户方法 / pytest 用例 | `aw-codegen` | Agent()（子 Agent，每次干净上下文） |
-| 跑 pytest / 诊断失败 / 图片转正 | `aw-verify` | Agent()（子 Agent，每次干净上下文） |
+| 摸清某个页面怎么走 / 知识库缺页面 | `aw-explorer` | `docs/agents/swan/aw-explorer.md` |
+| 截 UI 元素并注册常量 | `aw-element` | `docs/agents/swan/aw-element.md` |
+| 编写业务层 / 用户方法 / pytest 用例 | `aw-codegen` | `docs/agents/swan/aw-codegen.md` |
+| 跑 pytest / 诊断失败 / 图片转正 | `aw-verify` | `docs/agents/swan/aw-verify.md` |
 
-**调用方式说明**：`aw-codegen / aw-verify / aw-element` 通过 `Agent(subagent_type=...)` 每次新建实例执行，上下文干净、互不干扰。`aw-explorer` 通过 `SendMessage` 与长驻实例通信，支持多轮对话。（spec-keeper 已于 2026-10-12 随 openspec 流程移除而删除）orchestrator spawn 子 Agent 前须通过 G1-G5 派发门禁（见 `aw-orchestrator.md`），并通过 MCP 查询精确注入批次空间认知。
+**拉起方式**：`Agent(subagent_type="general-purpose", name="aw-<role>")`，prompt 首行写“先读 docs/agents/swan/aw-<role>.md 与 CLAUDE.md，严格遵守后再行动”，每次实例上下文干净、互不干扰；长驻多轮（如 aw-explorer 连续探索）用 `SendMessage` 按名通信。想要 frontmatter 级工具/模型控制时，按蓝图重建 30 行 stub 放回 `.claude/agents/`（只写转发句，规程不复制）。（spec-keeper 已于 2026-10-12 随 openspec 流程移除而删除）orchestrator 派活前须通过 G1-G5 派发门禁（见 `aw-orchestrator.md`），并通过 MCP 查询精确注入批次空间认知。
 
 要一键拉起整个团队：`/bootstrap-team`。
 

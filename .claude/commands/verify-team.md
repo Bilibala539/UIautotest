@@ -14,7 +14,7 @@ description: 装配自检 — 对每个 agent 做 smoke test，验证蓝图、�
 
 #### 1. 检查蓝图文件存在
 
-用 `Glob`：`E:\UIAutotest\.claude\agents\*.md`
+用 `Glob`：`E:\UIAutotest\docs\agents\swan\aw-*.md`
 
 预期存在：
 - aw-orchestrator.md
@@ -43,7 +43,7 @@ description: 装配自检 — 对每个 agent 做 smoke test，验证蓝图、�
 **不要执行任何实际业务**（不连模拟器、不改代码、不改知识库）。
 
 步骤：
-1. Read 你的蓝图 `E:\UIAutotest\.claude\agents\<role-name>.md`
+1. Read 你的蓝图 `E:\UIAutotest\docs\agents\swan\<role-name>.md`
 2. 按蓝图里"强制前置阅读"清单逐个 Read，每个汇报 OK / 不存在
 3. Glob 蓝图里提到的子目录（如 explorer 需要 glob pages/*.md 和 digest/features/*.md），报数量
 4. 用 ≤150 字回答：
@@ -55,16 +55,9 @@ description: 装配自检 — 对每个 agent 做 smoke test，验证蓝图、�
 不做任何实际任务。
 ```
 
-按下表派 4 个 agent（用 `Agent` 工具，`run_in_background=true` 让它们并行）：
+并行派 4 个 agent（用 `Agent` 工具，`subagent_type=general-purpose`——stub 已于 2026-10-15 清退，角色定义 = 蓝图首读；`run_in_background=true` 让它们并行）：
 
-| subagent_type | role-name |
-|---|---|
-| aw-explorer | aw-explorer |
-| aw-element | aw-element |
-| aw-codegen | aw-codegen |
-| aw-verify | aw-verify |
-
-> 备注：如果当前会话不在 `E:\UIAutotest` 目录启动，`subagent_type` 对应的蓝图不会被加载。此时回退到 `subagent_type=general-purpose`，并在 prompt 开头强调"以下是你的蓝图内容"并把蓝图 Markdown 粘贴进去。
+> 备注：stub 已于 2026-10-15 清退，角色定义统一为 general-purpose + 蓝图首读。若会话不在 `E:\UIAutotest` 目录启动，`subagent_type` 对应的蓝图不会被加载。在 prompt 开头贴入蓝图 Markdown 全文或改为"以下是你的蓝图内容"并把蓝图 Markdown 粘贴进去。
 
 #### 4. 汇总报告
 

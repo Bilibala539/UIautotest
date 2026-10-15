@@ -28,26 +28,23 @@ class TestPlatformEntryNavigation(SwanLoginRegressionMixin, BaseTest):
     """平台主页入口跳转（回归用例 38-40 深化）。"""
 
     def setup(self) -> None:
-        """pytest 生命周期钩子（模板要求显式声明；逻辑由 mixin 提供）。"""
-        super().setup()
+        """测试前初始化：实例化用户对象（用户信息挂在 userA 上）。"""
+        self.userA = self.users("swanuserA")
 
     def test_open_platform_entry(self):
         """平台主页入口跳转：入口 [OCR] 点击 + 落地页标题 [OCR] 断言。"""
-        platform = 'qq'
-        entry = '排行榜'
-        expect_title = '飙升榜'
-        self._ensure_logged_in_on_home()
-        self.aw.click_image(SWAN_TAB_PLATFORM, timeout=10)
-        assert self.aw._platform_page_visible(), (
+        self.userA.ensure_logged_in_on_home()
+        self.userA.click_image(SWAN_TAB_PLATFORM, timeout=10)
+        assert self.userA._platform_page_visible(), (
             "未到达平台页（网易云行两态 [图] 均未命中）")
-        if self.aw.find_image(SWAN_PLATFORM_NETEASE_ROW_UNAUTHORIZED,
+        if self.userA.find_image(SWAN_PLATFORM_NETEASE_ROW_UNAUTHORIZED,
                               timeout=3) is not None:
             pytest.skip(
                 "账号未授权任何平台——平台内容用例需已授权态；授权域搁置中")
-        self.user.open_platform_entry(platform, entry, expect_title)
-        self.aw.press_back()  # 落地页 → 主页
-        self.user.go_home()
+        self.userA.open_platform_entry('qq', '排行榜', '飙升榜')
+        self.userA.press_back()  # 落地页 → 主页
+        self.userA.go_home()
 
     def teardown(self) -> None:
-        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
-        super().teardown()
+        """无用例私有清理（冷启动模型：App 冷启动由框架夹具承担）。"""
+        pass

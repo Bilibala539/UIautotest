@@ -27,21 +27,18 @@ class TestVolumeKey(SwanPlayerRegressionMixin, BaseTest):
     """物理音量键短按/长按（回归用例 27-28）。"""
 
     def setup(self) -> None:
-        """pytest 生命周期钩子（模板要求显式声明；逻辑由 mixin 提供）。"""
-        super().setup()
+        """测试前初始化：实例化用户对象（用户信息挂在 userA 上）。"""
+        self.userA = self.users("swanuserA")
 
     def test_volume_key(self):
         """用例27-28：物理音量键短按升/降与长按（百分比增减方向断言）。
 
         先经音量弹窗把音量拖到中位 50，避免 0%/100% 边界使方向断言失真。
         """
-        long_press = False
-        direction = 'up'
-        device_type = "speaker"
-        self._preset_playing(device_type)
-        self.user.set_volume(50, action="drag")
-        self.user.volume_key(direction=direction, long_press=long_press)
+        self.userA.preset_playing('speaker')
+        self.userA.set_volume(50, action="drag")
+        self.userA.volume_key(direction='up', long_press=False)
 
     def teardown(self) -> None:
-        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
-        super().teardown()
+        """无用例私有清理（冷启动模型：App 冷启动由框架夹具承担）。"""
+        pass

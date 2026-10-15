@@ -30,17 +30,14 @@ class TestVolumeAdjust(SwanPlayerRegressionMixin, BaseTest):
     """音量弹窗滑条/加减钮调节（回归用例 25-26）。"""
 
     def setup(self) -> None:
-        """pytest 生命周期钩子（模板要求显式声明；逻辑由 mixin 提供）。"""
-        super().setup()
+        """测试前初始化：实例化用户对象（用户信息挂在 userA 上）。"""
+        self.userA = self.users("swanuserA")
 
     def test_volume_adjust(self):
         """用例25-26：音量弹窗滑条拖/点与加减钮调节（UI 态百分比核对）。"""
-        action = 'minus'
-        device_type = 'wifi_device'
-        self._preset_playing(device_type)
-        value = VOLUME_TARGET if action in ("drag", "click") else VOLUME_STEPS
-        self.user.set_volume(value, action=action)
+        self.userA.preset_playing('wifi_device')
+        self.userA.set_volume(VOLUME_STEPS, action='minus')
 
     def teardown(self) -> None:
-        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
-        super().teardown()
+        """无用例私有清理（冷启动模型：App 冷启动由框架夹具承担）。"""
+        pass

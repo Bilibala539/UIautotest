@@ -24,21 +24,21 @@ class TestLoginStatePersistsRestart(SwanLoginRegressionMixin, BaseTest):
     """登录态跨进程重启持久化。"""
 
     def setup(self) -> None:
-        """pytest 生命周期钩子（模板要求显式声明；逻辑由 mixin 提供）。"""
-        super().setup()
+        """测试前初始化：实例化用户对象（用户信息挂在 userA 上）。"""
+        self.userA = self.users("swanuserA")
 
     def test_login_state_persists_restart(self):
         """登录态跨进程重启持久化：杀 App 重启后仍在首页，收尾登出。"""
         # 前置登录（未登录则补登录）
-        self.user.login_by_sms(self.phone)
-        self._assert_on_home()
+        self.userA.login_by_sms(self.userA.phone)
+        self.userA.assert_on_home()
 
-        self.user.driver.stop_app(self.package)
-        self.user.driver.start_app(self.package)
-        self._assert_on_home(timeout=30)  # 冷启动约 5s，等 tab_me + 底部播放条
+        self.userA.driver.stop_app(self.userA.package)
+        self.userA.driver.start_app(self.userA.package)
+        self.userA.assert_on_home(timeout=30)  # 冷启动约 5s，等 tab_me + 底部播放条
 
-        self.user.logout_if_needed()  # 收尾登出，保持后续用例起点干净
+        self.userA.logout_if_needed()  # 收尾登出，保持后续用例起点干净
 
     def teardown(self) -> None:
-        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
-        super().teardown()
+        """无用例私有清理（冷启动模型：App 冷启动由框架夹具承担）。"""
+        pass

@@ -25,23 +25,23 @@ class TestLogoutReturnsToLogin(SwanLoginRegressionMixin, BaseTest):
     """登出回登录页。"""
 
     def setup(self) -> None:
-        """pytest 生命周期钩子（模板要求显式声明；逻辑由 mixin 提供）。"""
-        super().setup()
+        """测试前初始化：实例化用户对象（用户信息挂在 userA 上）。"""
+        self.userA = self.users("swanuserA")
 
     def test_logout_returns_to_login(self):
         """登出回登录页：确保已登录 → 登出 → 断言登录页（含置灰「下一步」）。"""
-        self.user.login_by_sms(self.phone)
-        assert self.aw.accessibility_exists(
+        self.userA.login_by_sms(self.userA.phone)
+        assert self.userA.accessibility_exists(
             SwanBusiness.KEY_TAB_ME
         ), "前置登录失败，未进入首页"
 
-        self.user.logout_if_needed()
-        self._assert_on_login_page()
-        assert not self.aw.accessibility_exists(
+        self.userA.logout_if_needed()
+        self.userA.assert_on_login_page()
+        assert not self.userA.accessibility_exists(
             SwanBusiness.KEY_TAB_ME
         ), "登出后首页 tab 仍存在，疑似未真正登出"
 
     def teardown(self) -> None:
-        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
-        super().teardown()
+        """无用例私有清理（冷启动模型：App 冷启动由框架夹具承担）。"""
+        pass
         # 结束状态：未登录（登录页）

@@ -28,36 +28,36 @@ class TestSwanPlayerOpenClose(SwanLoginRegressionMixin, BaseTest):
     """播放页开关只读断言。"""
 
     def setup(self) -> None:
-        """pytest 生命周期钩子（模板要求显式声明；逻辑由 mixin 提供）。"""
-        super().setup()
+        """测试前初始化：实例化用户对象（用户信息挂在 userA 上）。"""
+        self.userA = self.users("swanuserA")
 
     def test_player_open_close(self):
         """播放页开关：点底部播放条进全屏播放页 → 断言后点收起按钮回首页。
 
         播放/暂停等控制键仅做存在性断言，⛔ 不点。
         """
-        self._ensure_logged_in_on_home()
-        self.aw.click_accessibility(SwanBusiness.KEY_BOTTOM_PLAYER)
-        assert self.aw.wait_accessibility(
+        self.userA.ensure_logged_in_on_home()
+        self.userA.click_accessibility(SwanBusiness.KEY_BOTTOM_PLAYER)
+        assert self.userA.wait_accessibility(
             SwanBusiness.KEY_FULL_PLAYER_PAGE, timeout=15
         ), "未进入全屏播放页（full_player_page 未出现）"
         # 控制类入口仅存在性断言（key + 图片双校验），不下发点击
-        assert self.aw.accessibility_exists(
+        assert self.userA.accessibility_exists(
             SwanBusiness.KEY_PLAYER_DISMISS_BUTTON
         ), "播放页缺少收起按钮"
-        assert self.aw.accessibility_exists(
+        assert self.userA.accessibility_exists(
             SwanBusiness.KEY_PLAYER_PLAY_PAUSE_BUTTON
         ), "播放页缺少播放/暂停按钮"
-        self.aw.image_exists(SWAN_PLAYER_DISMISS_BTN, timeout=10)
-        self.aw.image_exists(SWAN_PLAYER_PLAY_PAUSE_BTN, timeout=10)
+        self.userA.image_exists(SWAN_PLAYER_DISMISS_BTN, timeout=10)
+        self.userA.image_exists(SWAN_PLAYER_PLAY_PAUSE_BTN, timeout=10)
 
-        self.aw.click_accessibility(SwanBusiness.KEY_PLAYER_DISMISS_BUTTON)
-        assert self.aw.wait_accessibility(
+        self.userA.click_accessibility(SwanBusiness.KEY_PLAYER_DISMISS_BUTTON)
+        assert self.userA.wait_accessibility(
             SwanBusiness.KEY_TAB_ME, timeout=15
         ), "收起播放页后未回到首页"
-        self._assert_home_shell_image()
-        self._probe_bottom_player_bar()
+        self.userA.assert_home_shell_image()
+        self.userA.probe_bottom_player_bar()
 
     def teardown(self) -> None:
-        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
-        super().teardown()
+        """无用例私有清理（冷启动模型：App 冷启动由框架夹具承担）。"""
+        pass

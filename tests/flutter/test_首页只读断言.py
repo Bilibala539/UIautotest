@@ -26,8 +26,8 @@ class TestSwanHomeReadonly(SwanLoginRegressionMixin, BaseTest):
     """首页只读断言。"""
 
     def setup(self) -> None:
-        """pytest 生命周期钩子（模板要求显式声明；逻辑由 mixin 提供）。"""
-        super().setup()
+        """测试前初始化：实例化用户对象（用户信息挂在 userA 上）。"""
+        self.userA = self.users("swanuserA")
 
     def test_home_page_elements(self):
         """首页元素：4 个全局 tab key + 底部播放条（非致命探测）。
@@ -37,15 +37,15 @@ class TestSwanHomeReadonly(SwanLoginRegressionMixin, BaseTest):
         命中记 info，未命中记 warning 不挂用例（口径同
         swan_regression verify-run3）。
         """
-        self._ensure_logged_in_on_home()
+        self.userA.ensure_logged_in_on_home()
         # 2026-10-12 key 迁移：逐 tab key 存在性断言因选中态不可见图化后
         # 不可行（当前 Tab 选中时其未选中态图恰不匹配），改为首页壳锚
         # （底部导航 4 图任一）+ 顶 Tab「推荐」OCR 双证据
-        assert self.aw._home_shell_visible(timeout=3), "首页缺少底部导航壳锚 [图]"
-        assert self.aw.find_text_by_ocr("推荐", timeout=10) is not None, (
+        assert self.userA._home_shell_visible(timeout=3), "首页缺少底部导航壳锚 [图]"
+        assert self.userA.find_text_by_ocr("推荐", timeout=10) is not None, (
             "首页缺少顶 Tab「推荐」文字 [OCR]")
-        self._probe_bottom_player_bar()
+        self.userA.probe_bottom_player_bar()
 
     def teardown(self) -> None:
-        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
-        super().teardown()
+        """无用例私有清理（冷启动模型：App 冷启动由框架夹具承担）。"""
+        pass

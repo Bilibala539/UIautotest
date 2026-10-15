@@ -27,15 +27,14 @@ class TestTopTabSwitch(SwanContentRegressionMixin, BaseTest):
     """首页五顶 Tab 切换（回归用例 30）。"""
 
     def setup(self) -> None:
-        """pytest 生命周期钩子（模板要求显式声明；逻辑由 mixin 提供）。"""
-        super().setup()
+        """测试前初始化：实例化用户对象（用户信息挂在 userA 上）。"""
+        self.userA = self.users("swanuserA")
 
     def test_top_tab_switch(self):
         """用例30：首页五顶 Tab 切换，逐 Tab 页面锚点 [图] 断言。"""
-        tab = '音乐'
-        self._ensure_logged_in_on_home()
-        self.user.go_top_tab(tab)
+        self.userA.ensure_logged_in_on_home()
+        self.userA.go_top_tab('音乐')
 
     def teardown(self) -> None:
-        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
-        super().teardown()
+        """无用例私有清理（冷启动模型：App 冷启动由框架夹具承担）。"""
+        pass

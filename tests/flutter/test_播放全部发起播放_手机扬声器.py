@@ -27,15 +27,14 @@ class TestPlayAllFromFavorite(SwanPlayerRegressionMixin, BaseTest):
     """我喜欢页「播放全部」发起播放（回归用例 13）。"""
 
     def setup(self) -> None:
-        """pytest 生命周期钩子（模板要求显式声明；逻辑由 mixin 提供）。"""
-        super().setup()
+        """测试前初始化：实例化用户对象（用户信息挂在 userA 上）。"""
+        self.userA = self.users("swanuserA")
 
     def test_play_all_from_favorite(self):
         """用例13：我喜欢页「播放全部」发起播放，断言播放态双证据。"""
-        device_type = 'speaker'
-        self._preset_playing(device_type)
-        self.user.assert_playing()  # 显式复核（start_play 收尾已断言一次）
+        self.userA.preset_playing('speaker')
+        self.userA.assert_playing()  # 显式复核（start_play 收尾已断言一次）
 
     def teardown(self) -> None:
-        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
-        super().teardown()
+        """无用例私有清理（冷启动模型：App 冷启动由框架夹具承担）。"""
+        pass

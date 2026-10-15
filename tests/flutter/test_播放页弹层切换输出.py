@@ -20,21 +20,21 @@ import pytest
 
 from conftest import BaseTest
 from utils.aw.business.swan_regression import SwanPlayerRegressionMixin
-
+0
 
 
 class TestSwitchDeviceFromPlayerSheet(SwanPlayerRegressionMixin, BaseTest):
     """播放页设备弹层切换输出（回归用例 12）。"""
 
     def setup(self) -> None:
-        """pytest 生命周期钩子（模板要求显式声明；逻辑由 mixin 提供）。"""
-        super().setup()
+        """测试前初始化：实例化用户对象（用户信息挂在 userA 上）。"""
+        self.userA = self.users("swanuserA")
 
     def test_switch_device_from_player_sheet(self):
         """用例12：播放页右上角开设备弹层点目标设备行，断言勾选态 [图]。"""
-        self._open_player_page()
-        self.user.select_device(self.DEVICE_NAME, via="player")
+        self.userA.open_player_page()
+        self.userA.select_device(self.DEVICE_NAME, via="player")
 
     def teardown(self) -> None:
-        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
-        super().teardown()
+        """无用例私有清理（冷启动模型：App 冷启动由框架夹具承担）。"""
+        pass

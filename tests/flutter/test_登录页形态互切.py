@@ -27,8 +27,8 @@ class TestLoginPageToggle(SwanLoginRegressionMixin, BaseTest):
     """登录页两种形态互切。"""
 
     def setup(self) -> None:
-        """pytest 生命周期钩子（模板要求显式声明；逻辑由 mixin 提供）。"""
-        super().setup()
+        """测试前初始化：实例化用户对象（用户信息挂在 userA 上）。"""
+        self.userA = self.users("swanuserA")
 
     def test_login_page_toggle(self):
         """登录页两种形态互切：登出 → 验证码形态 ⇄ 密码形态，断言互斥反转。
@@ -36,17 +36,17 @@ class TestLoginPageToggle(SwanLoginRegressionMixin, BaseTest):
         2026-10-13 key 迁移：形态切换用 [OCR]「密码登入」/ SWAN_PWD_SMS_TOGGLE
         [图]（回切钮）；互斥判定走 mixin 断言辅助（[图]+[OCR] 组合）。
         """
-        self._ensure_fresh_sms_form()
+        self.userA.ensure_fresh_sms_form()
 
         # 切到密码形态（[OCR]；灰胶囊图与「验证码登入」同形互扰，禁用图模板）
-        self.aw.click_text("密码登入", timeout=10)
-        self._assert_password_form()
+        self.userA.click_text("密码登入", timeout=10)
+        self.userA.assert_password_form()
 
         # 切回验证码形态，互斥反转（[OCR] 回切钮文案——图模板有两态渲染漏判）
-        self.aw.click_text("验证码登入", timeout=10)
-        self._assert_sms_form()
+        self.userA.click_text("验证码登入", timeout=10)
+        self.userA.assert_sms_form()
 
     def teardown(self) -> None:
-        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
-        super().teardown()
+        """无用例私有清理（冷启动模型：App 冷启动由框架夹具承担）。"""
+        pass
         # 结束状态：未登录（验证码登录页）

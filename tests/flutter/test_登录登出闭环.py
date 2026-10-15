@@ -24,26 +24,26 @@ class TestSmsLoginLogoutRoundtrip(SwanLoginRegressionMixin, BaseTest):
     """登录/登出完整闭环。"""
 
     def setup(self) -> None:
-        """pytest 生命周期钩子（模板要求显式声明；逻辑由 mixin 提供）。"""
-        super().setup()
+        """测试前初始化：实例化用户对象（用户信息挂在 userA 上）。"""
+        self.userA = self.users("swanuserA")
 
     def test_sms_login_logout_roundtrip(self):
         """登录/登出完整闭环：登出→登录→登出→登录→收尾登出。"""
-        self.user.logout_if_needed()
-        self._assert_on_login_page()
+        self.userA.logout_if_needed()
+        self.userA.assert_on_login_page()
 
         # 第一轮：登录 → 登出
-        self.user.login_by_sms(self.phone)
-        self._assert_on_home()
-        self.user.logout_if_needed()
-        self._assert_on_login_page()
+        self.userA.login_by_sms(self.userA.phone)
+        self.userA.assert_on_home()
+        self.userA.logout_if_needed()
+        self.userA.assert_on_login_page()
 
         # 第二轮：登录 → 收尾登出
-        self.user.login_by_sms(self.phone)
-        self._assert_on_home()
-        self.user.logout_if_needed()
-        self._assert_on_login_page()
+        self.userA.login_by_sms(self.userA.phone)
+        self.userA.assert_on_home()
+        self.userA.logout_if_needed()
+        self.userA.assert_on_login_page()
 
     def teardown(self) -> None:
-        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
-        super().teardown()
+        """无用例私有清理（冷启动模型：App 冷启动由框架夹具承担）。"""
+        pass

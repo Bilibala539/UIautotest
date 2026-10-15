@@ -11,7 +11,7 @@
 """
 from __future__ import annotations
 
-from typing import Optional, Type
+from typing import TYPE_CHECKING, Optional, Type
 
 from utils.aw.business import AndroidBusiness, SwanBusiness, TidiTreeBusiness
 from utils.aw.driver.base_driver import BasePlatformDriver
@@ -44,13 +44,20 @@ class User:
             raise ValueError("必须传入 browser 或 driver")
 
         self.browser = browser
-        self.username = username
-        self.password = password
         self.name = name
+        # 用户信息统一存 info 字典（用户拍板 2026-10-13）；子类以只读
+        # property 覆盖的属性（如 SwanUser.password/phone）不再 setattr，
+        # 避免 property 无 setter 的 AttributeError
+        self.info = {"name": name, "username": username, "password": password}
+        for key, val in (("username", username), ("password", password)):
+            if not isinstance(getattr(type(self), key, None), property):
+                setattr(self, key, val)
         self.driver = driver or SeleniumWebDriver(browser)
         if self.business_cls is None:
             raise RuntimeError(f"{type(self).__name__} 未绑定业务类 business_cls")
         self.business = self.business_cls(self.driver)
+        self.business.user = self    # 反向引用：业务方法经 self.user 访问
+        self.business.userA = self   # 别名：mixin 方法统一 self.userA 直调
 
     def __getattr__(self, name: str):
         # 仅在常规属性查找失败时触发；business 尚未赋值时直接报错避免递归
@@ -98,7 +105,11 @@ class AndroidUser(User):
 
 
 class SwanUser(User):
-    """Swan 项目测试用户（flutter 端）。"""
+    """Swan 项目测试用户（flutter 端）。
+
+    用户信息统一保存在用户对象上（self.userA.phone / .password / .name /
+    .info 字典），用例通过 users("swanuserA") 实例化后直接访问。
+    """
 
     business_cls = SwanBusiness
 
@@ -108,3 +119,31 @@ class SwanUser(User):
         import os
 
         return os.environ.get("SWAN_PHONE", "").strip()
+
+    @property
+    def password(self) -> str:
+        """当前账号密码（环境变量 SWAN_PASSWORD）。"""
+        import os
+
+        return os.environ.get("SWAN_PASSWORD", "").strip()
+
+    @property
+    def package(self) -> str:
+        """被测 App 包名（环境变量 SWAN_PACKAGE）。"""
+        import os
+
+        return os.environ.get("SWAN_PACKAGE", "com.swan.network").strip()
+
+
+# IDE 导航支持（仅静态分析，运行时零影响——TYPE_CHECKING 恒为 False）：
+# 业务方法经 __getattr__ 动态代理，静态分析不可见，故在类型层补一条继承，
+# 让 userA.xxx() 可 Ctrl+点击直达业务类（含 mixin）的真实方法声明。
+if TYPE_CHECKING:
+    class TTUser(TTUser, TidiTreeBusiness):  # noqa: F811
+        pass
+
+    class AndroidUser(AndroidUser, AndroidBusiness):  # noqa: F811
+        pass
+
+    class SwanUser(SwanUser, SwanBusiness):  # noqa: F811
+        pass

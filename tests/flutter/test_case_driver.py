@@ -61,22 +61,20 @@ class TestCaseDriver(BaseTest):
     """YAML 用例通用驱动:每个 YAML 文件参数化为一条 pytest 用例。"""
 
     def setup(self):
-        self.user = self.users("swan")
-        self.aw = self.user.aw
-        self.package = os.environ.get("SWAN_PACKAGE", "com.swan.network").strip()
+        self.userA = self.users("swanuserA")
         # 每条用例开始:确保 App 在前台 + 首启弹窗自动处置
         # (2026-09-22 用户拍板:打开 App 后框架级检测弹窗;新装包首启的
         # 隐私协议弹窗不点掉,登录页语义树虽在但不可交互)
-        starter = getattr(self.user.driver, "start_app", None)
+        starter = getattr(self.userA.driver, "start_app", None)
         if starter is not None:
-            starter(self.package)
-            self.aw.dismiss_app_popups()
+            starter(self.userA.package)
+            self.userA.dismiss_app_popups()
 
     # ---------- 插值上下文 ----------
 
     def _context(self) -> dict:
         context = dict(os.environ)
-        phone = self.user.phone
+        phone = self.userA.phone
         context["phone"] = phone
 
         class _OtpVar:
@@ -98,7 +96,7 @@ class TestCaseDriver(BaseTest):
                 f"action '{action}' 不在允许名单内(基础 AW {len(_BASE_ACTIONS)} 个 + "
                 f"SwanBusiness 公开方法 {len(_business_actions())} 个)"
             )
-        return getattr(self.aw, action)
+        return getattr(self.userA, action)
 
     def _run_step(self, index: int, step: dict, context: dict) -> None:
         action, args = step["action"], step["args"]
@@ -120,11 +118,11 @@ class TestCaseDriver(BaseTest):
         """
         deadline = time.monotonic() + timeout
         while True:
-            if self.aw.wait_accessibility(key, timeout=4.0):
+            if self.userA.wait_accessibility(key, timeout=4.0):
                 return True
             if time.monotonic() >= deadline:
                 return False
-            self.aw.dismiss_app_popups()
+            self.userA.dismiss_app_popups()
 
     def _normalize_login_state(self, timeout: float = 15.0) -> None:
         """登录模块前置归一化(移植自登录试点 _ensure_fresh_sms_form)。
@@ -133,12 +131,12 @@ class TestCaseDriver(BaseTest):
         重启重置(登录页无状态持久化)。结束态:全新验证码登录页。
         """
         K = SwanBusiness
-        if self.aw.accessibility_exists(K.KEY_TAB_ME):
-            self.user.logout_if_needed()
-        if (self.aw.accessibility_exists(K.KEY_PASSWORD_FIELD)
-                or self.aw.accessibility_exists(K.KEY_ERROR_TEXT)
-                or self.aw.accessibility_exists(K.KEY_CODE_FIELD)):
-            self.aw.relaunch_app(self.package)
+        if self.userA.accessibility_exists(K.KEY_TAB_ME):
+            self.userA.logout_if_needed()
+        if (self.userA.accessibility_exists(K.KEY_PASSWORD_FIELD)
+                or self.userA.accessibility_exists(K.KEY_ERROR_TEXT)
+                or self.userA.accessibility_exists(K.KEY_CODE_FIELD)):
+            self.userA.relaunch_app(self.userA.package)
             assert self._wait_through_popups(
                 K.KEY_LOGIN_PAGE, timeout
             ), "重启 App 后未回到登录页"

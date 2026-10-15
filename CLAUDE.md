@@ -16,7 +16,7 @@
 | Swan（音乐 App） | Flutter (Android) | `SwanUser` | `SwanBusiness` | `knowledge/swan/` |
 | 智能音箱显示屏系统（名称待定） | Android | `AndroidUser` | `AndroidBusiness` | `knowledge/android/` |
 
-架构细则见 `docs/aw-architecture.html`；端到端写用例工作流见 `docs/agents/swan/端到端工作流.md`；各项目 agent 编排见 `docs/agents/<project>/`。（原 `.claude/rules/ai_workflow.mdc`、`aw_architecture.mdc` 已于 2026-10-14 并入以上两处后删除）
+架构细则见 `docs/aw-architecture.html`；端到端写用例工作流见 `docs/agents/swan/端到端工作流.md`；各项目 agent 编排见 `docs/agents/<project>/`。
 
 ## 关键路径速查
 
@@ -28,7 +28,7 @@
 | `utils/aw/business/` | 业务 AW 按项目分：`tiditree.py` / `swan.py` / `android.py` + `common.py`（跨项目 Mixin） |
 | `utils/user.py` | `User` 基类 + `TTUser` / `SwanUser` / `AndroidUser`（`__getattr__` 代理业务方法） |
 | `tests/` | pytest 用例 |
-| `image/web/`、`image/android/`、`image/flutter/` | **正式**元素图片（跑通后才进；flutter=Swan 端 62 张已转正） |
+| `image/web/`、`image/android/`、`image/flutter/` | **正式**元素图片（跑通后才进） |
 | `image_ai/web/`、`image_ai/android/`、`image_ai/flutter/` | **暂存**元素图片（新截的） |
 | `image/image_name_mapping.py` | 平台图片路径与转正工具 |
 | `knowledge/web/` | TidiTree Web 知识库（app_map.json + pages/*.md + digest/） |
@@ -44,11 +44,10 @@
 | `scripts/knowledge/` | 知识库维护脚本（backlinks/embedding/promote/auto_update） |
 | `docs/UI元素截取与裁剪规范.md` | 元素截图规范 |
 | `docs/agents/swan/AW方法指南.md` | Swan 已有 AW 方法查询入口（写新用例/AW 前必查，防重复创建） |
-| `docs/待办与缺口清单.md` | **当前权威 plan**：已拍板决定 + 文档/环境缺口，开工前必读 |
+| `docs/待办与缺口清单.md` | **当前权威 plan**：拍板去向 + 未闭环缺口，开工前必读 |
 | `docs/runtime_experience.md` | 运行时经验知识库（子 Agent 执行经验沉淀，供语义检索注入） |
 | `run_parallel.py` | 并行测试运行器入口 |
 | `docs/agents/swan/端到端工作流.md` | 端到端写用例工作流（Phase 1-5：知识库→探索→截取→生成→验证转正） |
-| `.claude/rules/` | 已清空（2026-10-14）：编码规范并入本文件；架构并入 `docs/aw-architecture.html`；工作流并入 `docs/agents/swan/端到端工作流.md` |
 
 ## 硬性规则（任何 agent 都必须遵守）
 
@@ -85,7 +84,7 @@
 
 ### 8. 一用例一文件一 test 方法（铁律）
 
-每个用例 .py 文件**有且仅有一个 `test_` 方法**；不同测试场景、不同数据变体各自独立成文件，**值写死在用例里**。**严禁使用 `@pytest.mark.parametrize`**（2026-10-13 拍板：参数装饰器=一个文件跑多条，等价于一文件多用例）。适用本工程全部平台（web/android/flutter）。例外仅限 `tests/flutter/test_case_driver.py`（平台 YAML 用例执行载体）。用例间共用的前置/清理编排沉到业务层（`utils/aw/business/`，如 `swan_regression.py`）。
+每个用例 .py 文件**有且仅有一个 `test_` 方法**；不同测试场景、不同数据变体各自独立成文件，**值写死在用例里**。**严禁使用 `@pytest.mark.parametrize`**（参数装饰器=一个文件跑多条，等价于一文件多用例）。适用本工程全部平台（web/android/flutter）。例外仅限 `tests/flutter/test_case_driver.py`（平台 YAML 用例执行载体）。用例间共用的前置/清理编排沉到业务层（`utils/aw/business/`，如 `swan_regression.py`）。
 
 ### 9. 框架层改动须用户决策
 
@@ -103,25 +102,25 @@
 
 ### 11. 用户对象方法必须静态可解析（IDE 跳转可达）
 
-`self.userA.xxx()` 的每个方法/属性都必须能被 IDE Ctrl+点击直达声明（2026-10-14 拍板：Ctrl+点击报"找不到要转到的声明"即违规）。机制已内建，勿破坏：
+`self.userA.xxx()` 的每个方法/属性都必须能被 IDE Ctrl+点击直达声明（Ctrl+点击报"找不到要转到的声明"即违规）。机制已内建，勿破坏：
 - `utils/user.py` 末尾 `if TYPE_CHECKING:` 静态视图（`class SwanUser(SwanUser, SwanBusiness)`）——`__getattr__` 动态代理对 IDE 不可见，靠这条补齐
 - `conftest.py` `TTUsersFactory.__call__` overload——`users("swanuserA"/"swanuserB")` 静态解析为 `SwanUser`；新增用户 key 须同步扩 overload
-- 新业务方法一律定义在 SwanBusiness MRO（含 mixin）上，即自动获得静态可见性——mixin 不挂 MRO，userA 既调不到也看不到（2026-10-14 实锤：Content mixin 漏挂 MRO，10 处调用运行时 AttributeError）
+- 新业务方法一律定义在 SwanBusiness MRO（含 mixin）上，即自动获得静态可见性——mixin 不挂 MRO，userA 既调不到也看不到
 - 若未来给用户类新增动态代理，必须同步更新 TYPE_CHECKING 静态视图
 
 ### 12. 冷启动模型：夹具负责 App 冷启动，teardown 一律 pass
 
-（2026-10-14 拍板）每条用例开始前由框架夹具强制冷启动 App（杀旧进程→拉起→处置弹窗，conftest `_cold_start_swan_app`），取代各域 mixin teardown 的 G3/G4 清理链——实测已登录态冷启动到首页锚 4.2s，比导航回退链更快，且每条用例起点 100% 确定：
-- 用例 teardown 显式声明但 body 为 `pass`（仅用例私有清理才写实际逻辑）；**禁止 `super().teardown()`**（mixin teardown 已退役）
+每条用例开始前由框架夹具强制冷启动 App（杀旧进程→拉起→处置弹窗，conftest `_cold_start_swan_app`），取代各域 mixin teardown 的 G3/G4 清理链，每条用例起点 100% 确定：
+- 用例 teardown 显式声明但 body 为 `pass`（仅用例私有清理才写实际逻辑）；**禁止 `super().teardown()`**
 - 登录态经 token 持久化，重启不丢；密码域/未登录态用例的前置逻辑不变
 - G3/G4 辅助方法（_close_sheet_if_any 等）仍留业务层备用，但不再由生命周期自动调用
 
 
-## 测试平台(已分离,2026-10-13)
+## 测试平台
 
-测试平台与工作站代码已剥离至独立仓库 **git.hivi.com/yumiao/swan-map-station**(本地 E:\swan-map-station);分离方案与资产清单见平台仓 `docs/测试平台分离准备.md`（本仓副本已清退，历史见 2a797dc）。平台相关工作(用例管理/包管理/流水线/打包/巡检/监控)到平台仓做,平台模块 agent 定义也在那边(`.claude/agents/`);通用纪律不变:凭据只在 .167 /opt/uiautotest/.env.local;运行面绝不 kill 全部进程,只杀指定 PID。
+测试平台与工作站代码在独立仓库 **git.hivi.com/yumiao/swan-map-station**（本地 E:\swan-map-station），方案与资产清单见平台仓 `docs/测试平台分离准备.md`。平台相关工作（用例管理/包管理/流水线/打包/巡检/监控）到平台仓做，平台模块 agent 定义也在那边（`.claude/agents/`）。通用纪律：凭据只在 .167 /opt/uiautotest/.env.local；运行面绝不 kill 全部进程，只杀指定 PID。
 
-## 用例域纪律(2026-10-13 起)
+## 用例域纪律
 
 - **文字用例**:权威源在工作站(平台仓 swan-map-station;工作站 :8090 与测试平台 :8080 共库 case_defs),编号 `launch-NEG-001` 式;**新文字用例直接在工作站或平台 API 建,勿手写 YAML**
 - **自动化用例(auto)**:case_id = `aw-<py文件主干>`(去 `test_` 前缀,中文保留,如 `aw-冷启动落页`);入库由**平台仓** `scripts/sync_cases.py` 扫描文件头标记完成。**改挂接关系 = 改文件头标记再重跑 sync(平台仓执行),勿直改库**
@@ -130,12 +129,12 @@
   # CASE-ID: aw-冷启动落页
   # LINKED-CASE: REG-015,REG-016
   ```
-- **旧 76 条 REG-xxx** 保留作挂接锚点;docstring"回归用例 N"锚点已迁移到文件头 LINKED-CASE 标记,新用例一律用标记行
-- pytest 执行结果经 `reporter/`(原 dashboard.pytest_plugin,分离后留本仓)上报测试平台
+- REG-xxx 为既有回归挂接锚点编号；新用例一律用文件头 LINKED-CASE 标记行
+- pytest 执行结果经 `reporter/` 上报测试平台
 
 ## 团队分工
 
-五个长期角色 aw-orchestrator / aw-explorer / aw-element / aw-codegen / aw-verify：操作规程唯一权威在 `docs/agents/swan/aw-<role>.md`（按项目分目录；`.claude/agents/` 的 30 行 stub 已于 2026-10-15 清退，单一权威）。主会话作为 **orchestrator** 对接用户；遇到具体任务按任务特征拉人：
+五个长期角色 aw-orchestrator / aw-explorer / aw-element / aw-codegen / aw-verify：操作规程唯一权威在 `docs/agents/swan/aw-<role>.md`（按项目分目录，单一权威）。主会话作为 **orchestrator** 对接用户；遇到具体任务按任务特征拉人：
 
 | 任务特征 | 角色 | 蓝图 |
 |---|---|---|
@@ -144,7 +143,7 @@
 | 编写业务层 / 用户方法 / pytest 用例 | `aw-codegen` | `docs/agents/swan/aw-codegen.md` |
 | 跑 pytest / 诊断失败 / 图片转正 | `aw-verify` | `docs/agents/swan/aw-verify.md` |
 
-**拉起方式**：`Agent(subagent_type="general-purpose", name="aw-<role>")`，prompt 首行写“先读 docs/agents/swan/aw-<role>.md 与 CLAUDE.md，严格遵守后再行动”，每次实例上下文干净、互不干扰；长驻多轮（如 aw-explorer 连续探索）用 `SendMessage` 按名通信。想要 frontmatter 级工具/模型控制时，按蓝图重建 30 行 stub 放回 `.claude/agents/`（只写转发句，规程不复制）。（spec-keeper 已于 2026-10-12 随 openspec 流程移除而删除）orchestrator 派活前须通过 G1-G5 派发门禁（见 `aw-orchestrator.md`），并通过 MCP 查询精确注入批次空间认知。
+**拉起方式**：`Agent(subagent_type="general-purpose", name="aw-<role>")`，prompt 首行写“先读 docs/agents/swan/aw-<role>.md 与 CLAUDE.md，严格遵守后再行动”，每次实例上下文干净、互不干扰；长驻多轮（如 aw-explorer 连续探索）用 `SendMessage` 按名通信。想要 frontmatter 级工具/模型控制时，按蓝图重建 30 行 stub 放回 `.claude/agents/`（只写转发句，规程不复制）。orchestrator 派活前须通过 G1-G5 派发门禁（见 `aw-orchestrator.md`），并通过 MCP 查询精确注入批次空间认知。
 
 要一键拉起整个团队：`/bootstrap-team`。
 
@@ -225,20 +224,20 @@ python scripts/knowledge/auto_update.py --force    # 强制全量更新
 - ❌ 修用例时自行改框架层（`conftest.py`/`run_parallel.py`/`driver/*`）— 须用户决策
 - ❌ `click_image` 失败后加 `tap(x,y)` 坐标回退（必须修图片）
 - ❌ 用例中调用静态视图解析不到的用户对象方法（self.userA.xxx 必须 IDE Ctrl+点击可达——业务方法必须挂在 SwanBusiness MRO 上，规则 11）
-- ❌ teardown 里写 `super().teardown()`（冷启动模型下 mixin teardown 已退役，body 一律 pass，规则 12）
+- ❌ teardown 里写 `super().teardown()`（冷启动模型下 teardown body 一律 pass，规则 12）
 
 ## 运行时经验（踩坑积累，所有 agent 必知）
 
 | 场景 | 正确做法 |
 |------|----------|
-| 自动化登录账号 | **只用测试账号 13555555555**（OTP 白名单内，验证码接口可自动取码）；**18946151218 为人工专用账号，严禁任何自动化登录/登出**（2026-10-12 拍板：白名单不含，退出不可逆）——`.env.local` 的 `SWAN_PHONE` 必须指向 135 号（2026-10-12 曾配错为 189 致 agent 误用，用户手动救场） |
-| **真机任务独占** | 同一台 adb 设备上**任何时刻只跑一个真机任务**（pytest 会话/agent 探索/补截图互斥）——并行必互相切 App 导致假失败（2026-10-12 实测：登录四件套与平台主页探索并行，设备被切进 QQ 音乐 5 条全废）。编排真机任务前先确认无其他 agent 占用设备 |
+| 自动化登录账号 | **只用测试账号 13555555555**（OTP 白名单内，验证码接口可自动取码）；**18946151218 为人工专用账号，严禁任何自动化登录/登出**（白名单不含，退出不可逆）——`.env.local` 的 `SWAN_PHONE` 必须指向 135 号 |
+| **真机任务独占** | 同一台 adb 设备上**任何时刻只跑一个真机任务**（pytest 会话/agent 探索/补截图互斥）——并行必互相切 App 导致假失败。编排真机任务前先确认无其他 agent 占用设备 |
 | 浏览器文本定位 | 优先使用 `click_text`（OCR），需要稳定定位时再补充 Web 元素选择器 |
 | Python 多行命令 | 走 PowerShell 执行；避免 CodeMaker Hub 路径校验报错 |
 | OCR `click_text` 偏上 | 筛选器标签/弹窗选项/底部栏按钮加 `dy=8~12`；列表条目无需加 |
 | 图片匹配失败排查 | 灰度标准差>5、均值 5-250、无角标/阴影 → 图没问题再查代码 |
 
-## 编码补充规则（原 .claude/rules/rules.mdc 并入，编码规范以本文件为唯一载体）
+## 编码补充规则（编码规范以本文件为唯一载体）
 
 ### 异常处理
 - 默认让异常抛出；用 `if` / `assert` 做状态检查，不用异常控制流

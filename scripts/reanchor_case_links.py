@@ -21,7 +21,6 @@ from __future__ import annotations
 import argparse
 import json
 import re
-import shutil
 import sqlite3
 import sys
 import time
@@ -171,8 +170,13 @@ def apply_db(m: dict, db_path: str, dry_run: bool) -> None:
         return
 
     backup = f"{db_path}.bak-reanchor-{time.strftime('%Y%m%d-%H%M%S')}"
-    conn.close()  # 备份须在写连接打开前完成(WAL 下文件级备份需一致性)
-    shutil.copy2(db_path, backup)
+    conn.close()  # 备份在写连接打开前完成
+    src = sqlite3.connect(db_path)
+    dst = sqlite3.connect(backup)
+    with dst:
+        src.backup(dst)  # SQLite backup API:WAL 下也取一致快照(文件级拷贝会漏 -wal 帧)
+    dst.close()
+    src.close()
     print(f"[db] 已备份: {backup}")
 
     conn = sqlite3.connect(db_path, isolation_level=None)

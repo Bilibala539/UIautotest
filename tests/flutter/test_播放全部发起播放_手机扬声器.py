@@ -1,5 +1,5 @@
 # CASE-ID: aw-播放全部发起播放_手机扬声器
-# LINKED-CASE: REG-013
+# LINKED-CASE: player-POS-026,player-POS-001,player-POS-004
 """Swan 回归·播放器域：我喜欢页「播放全部」发起播放（回归用例 13）。
 
 用例 → AW 映射（docs/Swan回归用例AW实现方案.md §2.3 域3）：

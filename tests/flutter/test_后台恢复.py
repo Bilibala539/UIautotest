@@ -1,5 +1,5 @@
 # CASE-ID: aw-后台恢复
-# LINKED-CASE: REG-003
+# LINKED-CASE: nav-POS-002,player-POS-022
 """Swan 回归·域1：后台恢复（回归用例 3）。
 
 用例 → AW 映射（docs/Swan回归用例AW实现方案.md §2.3 域1）：

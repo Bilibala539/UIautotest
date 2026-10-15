@@ -1,0 +1,894 @@
+{
+  "version": "2026-10-15",
+  "reg_to_ws": {
+    "REG-001": [
+      "launch-POS-001",
+      "login-POS-001"
+    ],
+    "REG-002": [
+      "launch-POS-005",
+      "launch-POS-003"
+    ],
+    "REG-003": [
+      "nav-POS-002",
+      "player-POS-022"
+    ],
+    "REG-004": [
+      "login-POS-007",
+      "login-POS-003"
+    ],
+    "REG-005": [
+      "login-POS-008"
+    ],
+    "REG-006": [
+      "login-POS-013",
+      "login-POS-014"
+    ],
+    "REG-007": [
+      "login-POS-013"
+    ],
+    "REG-008": [
+      "login-NEG-044",
+      "login-POS-014"
+    ],
+    "REG-009": [
+      "device-POS-019",
+      "device-POS-016"
+    ],
+    "REG-010": [
+      "device-POS-023",
+      "device-POS-025"
+    ],
+    "REG-011": [
+      "player-POS-032",
+      "player-POS-033",
+      "device-POS-026"
+    ],
+    "REG-012": [
+      "player-POS-032",
+      "player-POS-033"
+    ],
+    "REG-013": [
+      "player-POS-026",
+      "player-POS-001",
+      "player-POS-004"
+    ],
+    "REG-014": [
+      "player-POS-027"
+    ],
+    "REG-015": [
+      "player-POS-008"
+    ],
+    "REG-016": [
+      "player-POS-008",
+      "player-POS-007"
+    ],
+    "REG-017": [
+      "player-POS-008",
+      "player-NEG-028"
+    ],
+    "REG-018": [
+      "player-POS-008"
+    ],
+    "REG-019": [
+      "player-POS-008",
+      "player-POS-027"
+    ],
+    "REG-020": [
+      "player-POS-008",
+      "player-POS-027"
+    ],
+    "REG-021": [
+      "player-POS-008",
+      "player-NEG-028",
+      "player-POS-027"
+    ],
+    "REG-022": [
+      "player-POS-008",
+      "player-POS-027"
+    ],
+    "REG-023": [
+      "player-POS-006"
+    ],
+    "REG-024": [
+      "player-POS-006"
+    ],
+    "REG-025": [
+      "player-POS-037",
+      "player-POS-038"
+    ],
+    "REG-026": [
+      "player-POS-037",
+      "player-POS-038"
+    ],
+    "REG-027": [
+      "settings-POS-013",
+      "settings-POS-014"
+    ],
+    "REG-028": [
+      "settings-POS-013",
+      "settings-POS-014"
+    ],
+    "REG-029": [
+      "nav-POS-001"
+    ],
+    "REG-030": [
+      "home-POS-001"
+    ],
+    "REG-031": [
+      "nav-POS-005",
+      "home-POS-003"
+    ],
+    "REG-032": [
+      "music-POS-038",
+      "music-POS-044"
+    ],
+    "REG-033": [
+      "music-POS-039",
+      "music-POS-044"
+    ],
+    "REG-034": [
+      "music-POS-040",
+      "music-POS-044"
+    ],
+    "REG-035": [
+      "music-POS-038",
+      "music-POS-047"
+    ],
+    "REG-036": [
+      "music-POS-039",
+      "music-POS-047"
+    ],
+    "REG-037": [
+      "music-POS-040",
+      "music-POS-047"
+    ],
+    "REG-038": [
+      "music-POS-002",
+      "music-POS-060"
+    ],
+    "REG-039": [
+      "music-POS-003",
+      "music-POS-060"
+    ],
+    "REG-040": [
+      "music-POS-004",
+      "music-POS-060"
+    ],
+    "REG-041": [
+      "library-POS-043"
+    ],
+    "REG-042": [
+      "library-POS-043"
+    ],
+    "REG-043": [
+      "library-POS-043",
+      "library-NEG-013"
+    ],
+    "REG-044": [
+      "library-POS-005",
+      "library-POS-036"
+    ],
+    "REG-045": [
+      "library-POS-005",
+      "library-POS-036"
+    ],
+    "REG-046": [
+      "library-POS-005",
+      "library-POS-036"
+    ],
+    "REG-047": [
+      "library-POS-009"
+    ],
+    "REG-048": [
+      "library-POS-009"
+    ],
+    "REG-049": [
+      "library-POS-009"
+    ],
+    "REG-050": [
+      "library-POS-005",
+      "library-POS-036"
+    ],
+    "REG-051": [
+      "library-POS-005",
+      "library-POS-036"
+    ],
+    "REG-052": [
+      "library-POS-005",
+      "library-POS-036"
+    ],
+    "REG-053": [
+      "library-POS-009"
+    ],
+    "REG-054": [
+      "library-POS-009"
+    ],
+    "REG-055": [
+      "library-POS-009"
+    ],
+    "REG-056": [
+      "home-POS-004",
+      "library-POS-037"
+    ],
+    "REG-057": [
+      "home-POS-004",
+      "library-POS-037"
+    ],
+    "REG-058": [
+      "home-POS-004",
+      "library-POS-037"
+    ],
+    "REG-059": [
+      "home-POS-004",
+      "library-POS-037"
+    ],
+    "REG-060": [
+      "home-POS-004",
+      "library-POS-037"
+    ],
+    "REG-061": [
+      "home-POS-004",
+      "library-POS-037"
+    ],
+    "REG-062": [
+      "home-POS-004",
+      "library-POS-037"
+    ],
+    "REG-063": [
+      "home-POS-004",
+      "library-POS-037"
+    ],
+    "REG-064": [
+      "home-POS-004",
+      "library-POS-037"
+    ],
+    "REG-065": [
+      "home-POS-004",
+      "library-POS-037"
+    ],
+    "REG-066": [
+      "home-POS-004",
+      "library-POS-037"
+    ],
+    "REG-067": [
+      "home-POS-004",
+      "library-POS-037"
+    ],
+    "REG-068": [
+      "home-POS-004",
+      "library-POS-037"
+    ],
+    "REG-069": [
+      "search-POS-016",
+      "search-POS-020"
+    ],
+    "REG-070": [
+      "search-POS-021",
+      "search-POS-016"
+    ],
+    "REG-071": [
+      "search-POS-021",
+      "search-POS-016"
+    ],
+    "REG-072": [
+      "search-POS-021",
+      "search-POS-016"
+    ],
+    "REG-073": [
+      "player-POS-030",
+      "player-POS-029"
+    ],
+    "REG-074": [
+      "player-POS-030",
+      "player-POS-029"
+    ],
+    "REG-075": [
+      "player-POS-030",
+      "player-POS-029"
+    ],
+    "REG-076": [
+      "player-POS-030",
+      "player-POS-029"
+    ]
+  },
+  "auto_relink": {
+    "aw-冷启动落页": {
+      "from": "REG-001,REG-002",
+      "to": [
+        "launch-POS-001",
+        "login-POS-001",
+        "launch-POS-005",
+        "launch-POS-003"
+      ]
+    },
+    "aw-后台恢复": {
+      "from": "REG-003",
+      "to": [
+        "nav-POS-002",
+        "player-POS-022"
+      ]
+    },
+    "aw-平台入口跳转_QQ排行榜": {
+      "from": "REG-038,REG-039,REG-040",
+      "to": [
+        "music-POS-002",
+        "music-POS-060",
+        "music-POS-003",
+        "music-POS-004"
+      ]
+    },
+    "aw-平台入口跳转_网易云排行榜": {
+      "from": "REG-038,REG-039,REG-040",
+      "to": [
+        "music-POS-002",
+        "music-POS-060",
+        "music-POS-003",
+        "music-POS-004"
+      ]
+    },
+    "aw-平台入口跳转_网易云歌单": {
+      "from": "REG-038,REG-039,REG-040",
+      "to": [
+        "music-POS-002",
+        "music-POS-060",
+        "music-POS-003",
+        "music-POS-004"
+      ]
+    },
+    "aw-平台内容页进入_netease": {
+      "from": "REG-038,REG-039,REG-040",
+      "to": [
+        "music-POS-002",
+        "music-POS-060",
+        "music-POS-003",
+        "music-POS-004"
+      ]
+    },
+    "aw-平台内容页进入_qq": {
+      "from": "REG-038,REG-039,REG-040",
+      "to": [
+        "music-POS-002",
+        "music-POS-060",
+        "music-POS-003",
+        "music-POS-004"
+      ]
+    },
+    "aw-底部Tab轮巡_平台": {
+      "from": "REG-029",
+      "to": [
+        "nav-POS-001"
+      ]
+    },
+    "aw-底部Tab轮巡_我的": {
+      "from": "REG-029",
+      "to": [
+        "nav-POS-001"
+      ]
+    },
+    "aw-底部Tab轮巡_设备": {
+      "from": "REG-029",
+      "to": [
+        "nav-POS-001"
+      ]
+    },
+    "aw-底部Tab轮巡_首页": {
+      "from": "REG-029",
+      "to": [
+        "nav-POS-001"
+      ]
+    },
+    "aw-循环模式与播放控制_列表循环_手机扬声器": {
+      "from": "REG-015,REG-016,REG-017,REG-018,REG-019,REG-020,REG-021,REG-022",
+      "to": [
+        "player-POS-008",
+        "player-POS-007",
+        "player-NEG-028",
+        "player-POS-027"
+      ]
+    },
+    "aw-循环模式与播放控制_列表循环_音箱": {
+      "from": "REG-015,REG-016,REG-017,REG-018,REG-019,REG-020,REG-021,REG-022",
+      "to": [
+        "player-POS-008",
+        "player-POS-007",
+        "player-NEG-028",
+        "player-POS-027"
+      ]
+    },
+    "aw-循环模式与播放控制_单曲循环_手机扬声器": {
+      "from": "REG-015,REG-016,REG-017,REG-018,REG-019,REG-020,REG-021,REG-022",
+      "to": [
+        "player-POS-008",
+        "player-POS-007",
+        "player-NEG-028",
+        "player-POS-027"
+      ]
+    },
+    "aw-循环模式与播放控制_单曲循环_音箱": {
+      "from": "REG-015,REG-016,REG-017,REG-018,REG-019,REG-020,REG-021,REG-022",
+      "to": [
+        "player-POS-008",
+        "player-POS-007",
+        "player-NEG-028",
+        "player-POS-027"
+      ]
+    },
+    "aw-循环模式与播放控制_随机循环_手机扬声器": {
+      "from": "REG-015,REG-016,REG-017,REG-018,REG-019,REG-020,REG-021,REG-022",
+      "to": [
+        "player-POS-008",
+        "player-POS-007",
+        "player-NEG-028",
+        "player-POS-027"
+      ]
+    },
+    "aw-循环模式与播放控制_随机循环_音箱": {
+      "from": "REG-015,REG-016,REG-017,REG-018,REG-019,REG-020,REG-021,REG-022",
+      "to": [
+        "player-POS-008",
+        "player-POS-007",
+        "player-NEG-028",
+        "player-POS-027"
+      ]
+    },
+    "aw-搜索_home_专辑": {
+      "from": "REG-069,REG-070,REG-071,REG-072",
+      "to": [
+        "search-POS-016",
+        "search-POS-020",
+        "search-POS-021"
+      ]
+    },
+    "aw-搜索_home_单曲": {
+      "from": "REG-069,REG-070,REG-071,REG-072",
+      "to": [
+        "search-POS-016",
+        "search-POS-020",
+        "search-POS-021"
+      ]
+    },
+    "aw-搜索_home_播客": {
+      "from": "REG-069,REG-070,REG-071,REG-072",
+      "to": [
+        "search-POS-016",
+        "search-POS-020",
+        "search-POS-021"
+      ]
+    },
+    "aw-搜索_home_歌单": {
+      "from": "REG-069,REG-070,REG-071,REG-072",
+      "to": [
+        "search-POS-016",
+        "search-POS-020",
+        "search-POS-021"
+      ]
+    },
+    "aw-搜索_home_电台": {
+      "from": "REG-069,REG-070,REG-071,REG-072",
+      "to": [
+        "search-POS-016",
+        "search-POS-020",
+        "search-POS-021"
+      ]
+    },
+    "aw-搜索_home_艺人": {
+      "from": "REG-069,REG-070,REG-071,REG-072",
+      "to": [
+        "search-POS-016",
+        "search-POS-020",
+        "search-POS-021"
+      ]
+    },
+    "aw-搜索_radio_专辑": {
+      "from": "REG-069,REG-070,REG-071,REG-072",
+      "to": [
+        "search-POS-016",
+        "search-POS-020",
+        "search-POS-021"
+      ]
+    },
+    "aw-搜索_radio_单曲": {
+      "from": "REG-069,REG-070,REG-071,REG-072",
+      "to": [
+        "search-POS-016",
+        "search-POS-020",
+        "search-POS-021"
+      ]
+    },
+    "aw-搜索_radio_播客": {
+      "from": "REG-069,REG-070,REG-071,REG-072",
+      "to": [
+        "search-POS-016",
+        "search-POS-020",
+        "search-POS-021"
+      ]
+    },
+    "aw-搜索_radio_歌单": {
+      "from": "REG-069,REG-070,REG-071,REG-072",
+      "to": [
+        "search-POS-016",
+        "search-POS-020",
+        "search-POS-021"
+      ]
+    },
+    "aw-搜索_radio_电台": {
+      "from": "REG-069,REG-070,REG-071,REG-072",
+      "to": [
+        "search-POS-016",
+        "search-POS-020",
+        "search-POS-021"
+      ]
+    },
+    "aw-搜索_radio_艺人": {
+      "from": "REG-069,REG-070,REG-071,REG-072",
+      "to": [
+        "search-POS-016",
+        "search-POS-020",
+        "search-POS-021"
+      ]
+    },
+    "aw-播放全部发起播放_手机扬声器": {
+      "from": "REG-013",
+      "to": [
+        "player-POS-026",
+        "player-POS-001",
+        "player-POS-004"
+      ]
+    },
+    "aw-播放全部发起播放_音箱": {
+      "from": "REG-013",
+      "to": [
+        "player-POS-026",
+        "player-POS-001",
+        "player-POS-004"
+      ]
+    },
+    "aw-播放页弹层切换输出": {
+      "from": "REG-012",
+      "to": [
+        "player-POS-032",
+        "player-POS-033"
+      ]
+    },
+    "aw-最近播放_专辑": {
+      "from": "REG-056,REG-057,REG-058,REG-059,REG-060,REG-061,REG-062,REG-063,REG-064,REG-065,REG-066,REG-067,REG-068",
+      "to": [
+        "home-POS-004",
+        "library-POS-037"
+      ]
+    },
+    "aw-最近播放_播客": {
+      "from": "REG-056,REG-057,REG-058,REG-059,REG-060,REG-061,REG-062,REG-063,REG-064,REG-065,REG-066,REG-067,REG-068",
+      "to": [
+        "home-POS-004",
+        "library-POS-037"
+      ]
+    },
+    "aw-最近播放_歌单": {
+      "from": "REG-056,REG-057,REG-058,REG-059,REG-060,REG-061,REG-062,REG-063,REG-064,REG-065,REG-066,REG-067,REG-068",
+      "to": [
+        "home-POS-004",
+        "library-POS-037"
+      ]
+    },
+    "aw-最近播放_歌手": {
+      "from": "REG-056,REG-057,REG-058,REG-059,REG-060,REG-061,REG-062,REG-063,REG-064,REG-065,REG-066,REG-067,REG-068",
+      "to": [
+        "home-POS-004",
+        "library-POS-037"
+      ]
+    },
+    "aw-最近播放_歌曲": {
+      "from": "REG-056,REG-057,REG-058,REG-059,REG-060,REG-061,REG-062,REG-063,REG-064,REG-065,REG-066,REG-067,REG-068",
+      "to": [
+        "home-POS-004",
+        "library-POS-037"
+      ]
+    },
+    "aw-最近播放_电台": {
+      "from": "REG-056,REG-057,REG-058,REG-059,REG-060,REG-061,REG-062,REG-063,REG-064,REG-065,REG-066,REG-067,REG-068",
+      "to": [
+        "home-POS-004",
+        "library-POS-037"
+      ]
+    },
+    "aw-歌曲收藏_播放页收藏": {
+      "from": "REG-044,REG-045,REG-046,REG-047,REG-048,REG-049,REG-050,REG-051,REG-052,REG-053,REG-054,REG-055",
+      "to": [
+        "library-POS-005",
+        "library-POS-036",
+        "library-POS-009"
+      ]
+    },
+    "aw-歌曲收藏_歌单页收藏": {
+      "from": "REG-044,REG-045,REG-046,REG-047,REG-048,REG-049,REG-050,REG-051,REG-052,REG-053,REG-054,REG-055",
+      "to": [
+        "library-POS-005",
+        "library-POS-036",
+        "library-POS-009"
+      ]
+    },
+    "aw-点歌名单曲播放_手机扬声器": {
+      "from": "REG-014",
+      "to": [
+        "player-POS-027"
+      ]
+    },
+    "aw-点歌名单曲播放_音箱": {
+      "from": "REG-014",
+      "to": [
+        "player-POS-027"
+      ]
+    },
+    "aw-物理音量键_短按升": {
+      "from": "REG-027,REG-028",
+      "to": [
+        "settings-POS-013",
+        "settings-POS-014"
+      ]
+    },
+    "aw-物理音量键_短按降": {
+      "from": "REG-027,REG-028",
+      "to": [
+        "settings-POS-013",
+        "settings-POS-014"
+      ]
+    },
+    "aw-物理音量键_长按升": {
+      "from": "REG-027,REG-028",
+      "to": [
+        "settings-POS-013",
+        "settings-POS-014"
+      ]
+    },
+    "aw-设备页卡片切换输出": {
+      "from": "REG-011",
+      "to": [
+        "player-POS-032",
+        "player-POS-033",
+        "device-POS-026"
+      ]
+    },
+    "aw-进度条跳转_减号_手机扬声器": {
+      "from": "REG-023,REG-024",
+      "to": [
+        "player-POS-006"
+      ]
+    },
+    "aw-进度条跳转_减号_音箱": {
+      "from": "REG-023,REG-024",
+      "to": [
+        "player-POS-006"
+      ]
+    },
+    "aw-进度条跳转_加号_手机扬声器": {
+      "from": "REG-023,REG-024",
+      "to": [
+        "player-POS-006"
+      ]
+    },
+    "aw-进度条跳转_加号_音箱": {
+      "from": "REG-023,REG-024",
+      "to": [
+        "player-POS-006"
+      ]
+    },
+    "aw-进度条跳转_拖动_手机扬声器": {
+      "from": "REG-023,REG-024",
+      "to": [
+        "player-POS-006"
+      ]
+    },
+    "aw-进度条跳转_拖动_音箱": {
+      "from": "REG-023,REG-024",
+      "to": [
+        "player-POS-006"
+      ]
+    },
+    "aw-进度条跳转_点击_手机扬声器": {
+      "from": "REG-023,REG-024",
+      "to": [
+        "player-POS-006"
+      ]
+    },
+    "aw-进度条跳转_点击_音箱": {
+      "from": "REG-023,REG-024",
+      "to": [
+        "player-POS-006"
+      ]
+    },
+    "aw-音量调节_减号_手机扬声器": {
+      "from": "REG-025,REG-026",
+      "to": [
+        "player-POS-037",
+        "player-POS-038"
+      ]
+    },
+    "aw-音量调节_减号_音箱": {
+      "from": "REG-025,REG-026",
+      "to": [
+        "player-POS-037",
+        "player-POS-038"
+      ]
+    },
+    "aw-音量调节_加号_手机扬声器": {
+      "from": "REG-025,REG-026",
+      "to": [
+        "player-POS-037",
+        "player-POS-038"
+      ]
+    },
+    "aw-音量调节_加号_音箱": {
+      "from": "REG-025,REG-026",
+      "to": [
+        "player-POS-037",
+        "player-POS-038"
+      ]
+    },
+    "aw-音量调节_拖动_手机扬声器": {
+      "from": "REG-025,REG-026",
+      "to": [
+        "player-POS-037",
+        "player-POS-038"
+      ]
+    },
+    "aw-音量调节_拖动_音箱": {
+      "from": "REG-025,REG-026",
+      "to": [
+        "player-POS-037",
+        "player-POS-038"
+      ]
+    },
+    "aw-音量调节_点击_手机扬声器": {
+      "from": "REG-025,REG-026",
+      "to": [
+        "player-POS-037",
+        "player-POS-038"
+      ]
+    },
+    "aw-音量调节_点击_音箱": {
+      "from": "REG-025,REG-026",
+      "to": [
+        "player-POS-037",
+        "player-POS-038"
+      ]
+    },
+    "aw-顶部Tab切换_AI": {
+      "from": "REG-030",
+      "to": [
+        "home-POS-001"
+      ]
+    },
+    "aw-顶部Tab切换_可视音箱": {
+      "from": "REG-030",
+      "to": [
+        "home-POS-001"
+      ]
+    },
+    "aw-顶部Tab切换_推荐": {
+      "from": "REG-030",
+      "to": [
+        "home-POS-001"
+      ]
+    },
+    "aw-顶部Tab切换_电台": {
+      "from": "REG-030",
+      "to": [
+        "home-POS-001"
+      ]
+    },
+    "aw-顶部Tab切换_音乐": {
+      "from": "REG-030",
+      "to": [
+        "home-POS-001"
+      ]
+    },
+    "aw-首页卡片进入_我喜欢": {
+      "from": "REG-031",
+      "to": [
+        "nav-POS-005",
+        "home-POS-003"
+      ]
+    },
+    "aw-首页卡片进入_最近播放": {
+      "from": "REG-031",
+      "to": [
+        "nav-POS-005",
+        "home-POS-003"
+      ]
+    },
+    "aw-首页卡片进入_歌单": {
+      "from": "REG-031",
+      "to": [
+        "nav-POS-005",
+        "home-POS-003"
+      ]
+    }
+  },
+  "auto_fill": {
+    "aw-密码登录成功": [
+      "login-POS-008"
+    ],
+    "aw-平台页只读断言": [
+      "music-POS-001"
+    ],
+    "aw-播放页开关": [
+      "player-POS-004"
+    ],
+    "aw-收藏分组详情": [
+      "library-POS-010",
+      "library-POS-032"
+    ],
+    "aw-登出回登录页": [
+      "login-POS-016"
+    ],
+    "aw-登录态重启持久化": [
+      "login-POS-015"
+    ],
+    "aw-登录登出闭环": [
+      "login-POS-016",
+      "login-POS-017"
+    ],
+    "aw-登录页形态互切": [
+      "login-POS-009"
+    ],
+    "aw-设备页只读断言": [
+      "device-POS-001"
+    ],
+    "aw-错误密码拒绝": [
+      "login-NEG-008",
+      "login-NEG-029"
+    ],
+    "aw-首页只读断言": [
+      "home-POS-003"
+    ],
+    "aw-验证码登录": [
+      "login-POS-007",
+      "login-POS-003"
+    ]
+  },
+  "driver_relink": {
+    "POS-002": {
+      "from": "LOGIN-L2-POS-002",
+      "to": [
+        "login-POS-003"
+      ]
+    }
+  },
+  "marker_fixes": {
+    "test_物理音量键_短按降.py": {
+      "case_id": "aw-物理音量键_短按降"
+    },
+    "test_物理音量键_长按升.py": {
+      "case_id": "aw-物理音量键_长按升"
+    }
+  },
+  "marker_additions": {
+    "test_冷启动落登录页.py": {
+      "case_id": "aw-冷启动落页",
+      "link": [
+        "launch-POS-001",
+        "login-POS-001"
+      ]
+    },
+    "test_冷启动落首页.py": {
+      "case_id": "aw-冷启动落页",
+      "link": [
+        "launch-POS-005",
+        "launch-POS-003"
+      ]
+    }
+  },
+  "_audit": {
+    "reg_rows_with_existing_link": {},
+    "marker_only_db_missing": [],
+    "db_only_marker_missing": [
+      "aw-冷启动落页",
+      "aw-物理音量键_短按降",
+      "aw-物理音量键_长按升"
+    ],
+    "marker_db_link_diff": {},
+    "validation_errors": []
+  }
+}

@@ -1,4 +1,5 @@
 # CASE-ID: aw-首页只读断言
+# LINKED-CASE: home-POS-003
 """Swan Flutter 首页只读断言（原 test_swan_readonly_pages.py，2026-10-12 拆分）。
 
 覆盖：首页元素（4 个全局 tab + 底部播放条非致命探测）。

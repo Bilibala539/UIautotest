@@ -1,4 +1,5 @@
 # CASE-ID: aw-登录页形态互切
+# LINKED-CASE: login-POS-009
 """Swan Flutter 登录页两形态互切（原 test_swan_password_login.py，2026-10-12 拆分）。
 
 业务方法复用 SwanBusiness，用例层只做编排与断言：

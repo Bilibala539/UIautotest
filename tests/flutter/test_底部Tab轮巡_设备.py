@@ -1,5 +1,5 @@
 # CASE-ID: aw-底部Tab轮巡_设备
-# LINKED-CASE: REG-029
+# LINKED-CASE: nav-POS-001
 """Swan 回归·导航域：底部四 Tab 轮巡（回归用例 29）。
 
 用例 → AW 映射（docs/Swan回归用例AW实现方案.md §2.3 域4）：

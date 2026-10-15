@@ -1,5 +1,5 @@
 # CASE-ID: aw-搜索_radio_播客
-# LINKED-CASE: REG-069,REG-070,REG-071,REG-072
+# LINKED-CASE: search-POS-016,search-POS-020,search-POS-021
 """Swan 回归·搜索域：关键词搜索与结果分类（回归用例 69-72）。
 
 用例 -> AW 映射（docs/Swan回归用例AW实现方案.md §2.3 域8）：

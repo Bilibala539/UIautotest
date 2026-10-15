@@ -1,3 +1,5 @@
+# CASE-ID: aw-冷启动落页
+# LINKED-CASE: launch-POS-001,login-POS-001
 """Swan 回归·域1：未登录冷启动，断言落登录页（回归用例 1，状态条件用例）。
 
 用例 → AW 映射（docs/Swan回归用例AW实现方案.md §2.3 域1）：

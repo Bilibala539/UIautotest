@@ -1,3 +1,6 @@
+---
+linked_case_id: login-POS-003
+---
 case_id: POS-002
 title: 验证码登录主路径(输入正确验证码登录成功)
 module: login

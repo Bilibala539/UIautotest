@@ -1,5 +1,5 @@
 # CASE-ID: aw-顶部Tab切换_推荐
-# LINKED-CASE: REG-030
+# LINKED-CASE: home-POS-001
 """Swan 回归·导航域：首页五顶 Tab 切换（回归用例 30）。
 
 用例 → AW 映射（docs/Swan回归用例AW实现方案.md §2.3 域4）：

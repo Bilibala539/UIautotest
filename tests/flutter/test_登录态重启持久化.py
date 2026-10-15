@@ -1,4 +1,5 @@
 # CASE-ID: aw-登录态重启持久化
+# LINKED-CASE: login-POS-015
 """Swan Flutter 登录态跨进程重启持久化（原 test_swan_login_logout.py，2026-10-12 拆分）。
 
 业务方法复用 SwanBusiness（已实测），用例层只做编排与断言：

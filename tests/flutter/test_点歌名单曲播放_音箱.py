@@ -1,5 +1,5 @@
 # CASE-ID: aw-点歌名单曲播放_音箱
-# LINKED-CASE: REG-014
+# LINKED-CASE: player-POS-027
 """Swan 回归·播放器域：我喜欢页点歌名单曲播放（回归用例 14）。
 
 用例 → AW 映射（docs/Swan回归用例AW实现方案.md §2.3 域3）：

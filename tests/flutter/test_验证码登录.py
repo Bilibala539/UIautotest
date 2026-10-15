@@ -1,4 +1,5 @@
 # CASE-ID: aw-验证码登录
+# LINKED-CASE: login-POS-007,login-POS-003
 """Swan Flutter 验证码登录成功（原 test_swan_login_logout.py，2026-10-12 一用例一文件拆分）。
 
 业务方法复用 SwanBusiness（已实测），用例层只做编排与断言：

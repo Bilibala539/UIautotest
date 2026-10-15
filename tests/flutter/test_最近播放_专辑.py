@@ -1,5 +1,5 @@
 # CASE-ID: aw-最近播放_专辑
-# LINKED-CASE: REG-056,REG-057,REG-058,REG-059,REG-060,REG-061,REG-062,REG-063,REG-064,REG-065,REG-066,REG-067,REG-068
+# LINKED-CASE: home-POS-004,library-POS-037
 """Swan 回归·收藏历史域：最近播放按分类断言（回归用例 56-68）。
 
 用例 → AW 映射（docs/Swan回归用例AW实现方案.md §2.3 域7）：

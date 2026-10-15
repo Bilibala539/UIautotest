@@ -1,5 +1,5 @@
 # CASE-ID: aw-音量调节_减号_音箱
-# LINKED-CASE: REG-025,REG-026
+# LINKED-CASE: player-POS-037,player-POS-038
 """Swan 回归·播放器域：音量弹窗滑条/加减钮调节（回归用例 25-26）。
 
 用例 → AW 映射（docs/Swan回归用例AW实现方案.md §2.3 域3）：

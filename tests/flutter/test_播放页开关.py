@@ -1,4 +1,5 @@
 # CASE-ID: aw-播放页开关
+# LINKED-CASE: player-POS-004
 """Swan Flutter 播放页开关只读断言（原 test_swan_readonly_pages.py，2026-10-12 拆分）。
 
 前置：账号已登录（用例开头 login_by_sms 幂等确保，已在首页自动跳过）。

@@ -91,13 +91,16 @@ from image.image_name_mapping import (
 from utils.aw.aw_base import SCREENSHOT_DIR
 from utils.aw.base.flutter_base import FlutterBaseAW
 from utils.aw.business.common import CommonBusinessMixin
-from utils.aw.business.swan_regression import SwanPlayerRegressionMixin
+from utils.aw.business.swan_regression import (
+    SwanContentRegressionMixin,
+    SwanPlayerRegressionMixin,
+)
 from utils.aw.evidence import _aw_method_report
 
 logger = logging.getLogger(__name__)
 
 
-class SwanBusiness(SwanPlayerRegressionMixin, CommonBusinessMixin, FlutterBaseAW):
+class SwanBusiness(SwanContentRegressionMixin, SwanPlayerRegressionMixin, CommonBusinessMixin, FlutterBaseAW):
     """Swan 项目业务编排（flutter 端），Swan 专属业务方法放这里。"""
 
     # 登录页 accessibility key（✅ = 2026-09-08 真机 uiautomator dump 验证）
@@ -305,7 +308,10 @@ class SwanBusiness(SwanPlayerRegressionMixin, CommonBusinessMixin, FlutterBaseAW
           遮挡提交钮的图定位）→ 协议两态图幂等勾选（未选态可见才点，
           勾后已选态 [图] 断言）→ 提交 [OCR] click_text("登录")（region
           限定表单下半屏；可用态图待补截后切 [图]）。
-        ④生效验证：go_home()（首页壳三级锚到位断言内含）。
+        ④生效验证：先探测「密码错误」[OCR] 常驻提示（出现即明确断言失败，
+          防止密码被拒被包装成 go_home 导航失败——2026-10-14 实锤：SWAN_PASSWORD
+          配置失配时错误被掩盖为「退出 push 页失败」），再 go_home()（首页壳
+          三级锚到位断言内含）。
 
         前提：协议勾选框处于未勾选态（登出后的全新登录页即如此）。登录页表单
         状态（已填文本/勾选态）在登出后会残留，若从"提交失败后的表单"直接重试，
@@ -336,6 +342,9 @@ class SwanBusiness(SwanPlayerRegressionMixin, CommonBusinessMixin, FlutterBaseAW
         assert self.find_image(SWAN_LOGIN_AGREEMENT_CHECKED, timeout=3) is not None, (
             "协议勾选失败（勾选后已选态图 [图] 未命中，请核对两态模板）")
         self.click_text("登录", timeout=5, region=self._LOGIN_SUBMIT_REGION)
+        assert self.find_text_by_ocr("密码错误", timeout=5) is None, (
+            "密码登录被拒（「密码错误」提示 [OCR] 可见）——请核对 SWAN_PASSWORD "
+            "与账号真实密码是否一致（连续错误有锁号风险）")
         self.go_home()
 
     @_aw_method_report

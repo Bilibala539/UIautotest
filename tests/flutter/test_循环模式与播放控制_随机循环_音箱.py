@@ -39,15 +39,13 @@ class TestLoopModeAndControls(SwanPlayerRegressionMixin, BaseTest):
         assert_paused/assert_playing 双证据断言；切歌后断言播放态保持
         （具体曲目切换由已知歌名的用例经 assert_now_playing 复核，见用例14）。
         """
-        loop_mode = 'shuffle'
-        device_type = 'wifi_device'
-        self._preset_playing(device_type)
-        self.userA.set_loop_mode(loop_mode)
+        self.userA.preset_playing('wifi_device')
+        self.userA.set_loop_mode('shuffle')
         self.userA.player_control("pause")
         self.userA.player_control("play")
         self.userA.player_control("next")
         self.userA.player_control("prev")
 
     def teardown(self) -> None:
-        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
-        super().teardown()
+        """无用例私有清理（冷启动模型：App 冷启动由框架夹具承担）。"""
+        pass

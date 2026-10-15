@@ -29,12 +29,11 @@ class TestPlaySingleSong(SwanPlayerRegressionMixin, BaseTest):
 
     def test_play_single_song(self):
         """用例14：我喜欢页点歌名单曲播放（SWAN_TEST_SONG 未配置则 skip）。"""
-        device_type = 'wifi_device'
         if not self.SONG_NAME:
             pytest.skip("未配置 SWAN_TEST_SONG（rig 我喜欢歌单中的歌曲名）")
-        self._preset_playing(device_type, source=self.SONG_NAME, mode="song")
+        self.userA.preset_playing('wifi_device', source=self.SONG_NAME, mode="song")
         self.userA.assert_now_playing(self.SONG_NAME)
 
     def teardown(self) -> None:
-        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
-        super().teardown()
+        """无用例私有清理（冷启动模型：App 冷启动由框架夹具承担）。"""
+        pass

@@ -33,12 +33,9 @@ class TestVolumeAdjust(SwanPlayerRegressionMixin, BaseTest):
 
     def test_volume_adjust(self):
         """用例25-26：音量弹窗滑条拖/点与加减钮调节（UI 态百分比核对）。"""
-        action = 'plus'
-        device_type = 'wifi_device'
-        self._preset_playing(device_type)
-        value = VOLUME_TARGET if action in ("drag", "click") else VOLUME_STEPS
-        self.userA.set_volume(value, action=action)
+        self.userA.preset_playing('wifi_device')
+        self.userA.set_volume(VOLUME_STEPS, action='plus')
 
     def teardown(self) -> None:
-        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
-        super().teardown()
+        """无用例私有清理（冷启动模型：App 冷启动由框架夹具承担）。"""
+        pass

@@ -31,10 +31,9 @@ class TestHomeCardEntry(SwanContentRegressionMixin, BaseTest):
 
     def test_home_card_entry(self):
         """用例31：首页推荐 Tab 卡片进入对应页面（卡片 OCR 定位）。"""
-        card = '最近播放'
-        self._ensure_logged_in_on_home()
-        self.userA.open_home_card(card)
+        self.userA.ensure_logged_in_on_home()
+        self.userA.open_home_card('最近播放')
 
     def teardown(self) -> None:
-        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
-        super().teardown()
+        """无用例私有清理（冷启动模型：App 冷启动由框架夹具承担）。"""
+        pass

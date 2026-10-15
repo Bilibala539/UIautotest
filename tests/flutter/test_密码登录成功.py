@@ -28,12 +28,12 @@ class TestPasswordLoginSuccess(SwanLoginRegressionMixin, BaseTest):
 
     def test_password_login_success(self):
         """密码登录成功：确保未登录 → 密码页输手机号/密码 → 勾协议 → 登录 → 进首页。"""
-        self._ensure_fresh_sms_form()
+        self.userA.ensure_fresh_sms_form()
 
         self.userA.login_with_password(self.userA.phone, self.userA.password)
-        self._assert_on_home()
+        self.userA.assert_on_home()
 
     def teardown(self) -> None:
-        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
-        super().teardown()
+        """无用例私有清理（冷启动模型：App 冷启动由框架夹具承担）。"""
+        pass
         # 结束状态：已登录停在首页

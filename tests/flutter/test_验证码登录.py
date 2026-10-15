@@ -31,11 +31,11 @@ class TestSmsLoginSuccess(SwanLoginRegressionMixin, BaseTest):
     def test_sms_login_success(self):
         """验证码登录成功：登出确保未登录 → 取码登录 → 断言进首页。"""
         self.userA.logout_if_needed()
-        self._assert_on_login_page()
+        self.userA.assert_on_login_page()
         self.userA.login_by_sms(self.userA.phone)
-        self._assert_on_home()
+        self.userA.assert_on_home()
 
     def teardown(self) -> None:
-        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
-        super().teardown()
+        """无用例私有清理（冷启动模型：App 冷启动由框架夹具承担）。"""
+        pass
         # 结束状态：已登录停在首页（G3/G4 允许），后续用例直接复用该登录态

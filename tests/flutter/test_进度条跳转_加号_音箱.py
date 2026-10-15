@@ -32,11 +32,9 @@ class TestSeekProgress(SwanPlayerRegressionMixin, BaseTest):
 
     def test_seek_progress(self):
         """用例23-24：进度条拖动/点击跳转到 75%，OCR 双时间核对落点。"""
-        action = 'plus'
-        device_type = 'wifi_device'
-        self._preset_playing(device_type)
-        self.userA.seek_to(SEEK_RATIO, action=action)
+        self.userA.preset_playing('wifi_device')
+        self.userA.seek_to(SEEK_RATIO, action='plus')
 
     def teardown(self) -> None:
-        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
-        super().teardown()
+        """无用例私有清理（冷启动模型：App 冷启动由框架夹具承担）。"""
+        pass

@@ -2,7 +2,7 @@
 
 用例 -> AW 映射（docs/Swan回归用例AW实现方案.md §2.3 域8）：
 - 用例69-72 搜索并核对结果分类矩阵 -> search(keyword, entry)
-  + assert_search_results(tab, platforms)
+  + assert_search_results('播客', platforms)
 
 矩阵：entry（home=音乐 Tab 搜索条 / radio=电台 Tab 搜索条——功能地图 8 处
 入口中仅这两处真机验证过，平台域入口 KB 未验证暂不支持）× tab（结果页
@@ -40,19 +40,17 @@ class TestSearch(SwanContentRegressionMixin, BaseTest):
 
         run4 实测口径（见模块 docstring）：授权平台下电台 Tab 空态/有结果
         均可接受（allow_empty），其余 Tab 维持「有结果」硬断言。"""
-        tab = '播客'
-        entry = 'radio'
-        keyword = (os.environ.get(f"SWAN_SEARCH_KEYWORD_{tab}", "").strip()
+        keyword = (os.environ.get("SWAN_SEARCH_KEYWORD_播客", "").strip()
                    or "piano")
         platforms = [p.strip() for p in
                      os.environ.get("SWAN_SEARCH_PLATFORMS", "").split(",")
                      if p.strip()]
-        self._ensure_logged_in_on_home()
-        self.userA.search(keyword, entry=entry)
+        self.userA.ensure_logged_in_on_home()
+        self.userA.search(keyword, entry='radio')
         self.userA.assert_search_results(
-            tab, platforms,
-            allow_empty=(tab == "电台" and bool(platforms)))
+            '播客', platforms,
+            allow_empty=False)
 
     def teardown(self) -> None:
-        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
-        super().teardown()
+        """无用例私有清理（冷启动模型：App 冷启动由框架夹具承担）。"""
+        pass

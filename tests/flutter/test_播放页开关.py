@@ -35,7 +35,7 @@ class TestSwanPlayerOpenClose(SwanLoginRegressionMixin, BaseTest):
 
         播放/暂停等控制键仅做存在性断言，⛔ 不点。
         """
-        self._ensure_logged_in_on_home()
+        self.userA.ensure_logged_in_on_home()
         self.userA.click_accessibility(SwanBusiness.KEY_BOTTOM_PLAYER)
         assert self.userA.wait_accessibility(
             SwanBusiness.KEY_FULL_PLAYER_PAGE, timeout=15
@@ -54,9 +54,9 @@ class TestSwanPlayerOpenClose(SwanLoginRegressionMixin, BaseTest):
         assert self.userA.wait_accessibility(
             SwanBusiness.KEY_TAB_ME, timeout=15
         ), "收起播放页后未回到首页"
-        self._assert_home_shell_image()
-        self._probe_bottom_player_bar()
+        self.userA.assert_home_shell_image()
+        self.userA.probe_bottom_player_bar()
 
     def teardown(self) -> None:
-        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
-        super().teardown()
+        """无用例私有清理（冷启动模型：App 冷启动由框架夹具承担）。"""
+        pass

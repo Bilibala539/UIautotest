@@ -100,6 +100,21 @@
 当 `click_image` / `image_exists` 失败时，**禁止**加 `tap(x, y)` 作为 fallback。
 正确做法：先查图片质量（规则7），重截图或调阈值。坐标回退是伪修复，换环境必坏。
 
+### 11. 用户对象方法必须静态可解析（IDE 跳转可达）
+
+`self.userA.xxx()` 的每个方法/属性都必须能被 IDE Ctrl+点击直达声明（2026-10-14 拍板：Ctrl+点击报"找不到要转到的声明"即违规）。机制已内建，勿破坏：
+- `utils/user.py` 末尾 `if TYPE_CHECKING:` 静态视图（`class SwanUser(SwanUser, SwanBusiness)`）——`__getattr__` 动态代理对 IDE 不可见，靠这条补齐
+- `conftest.py` `TTUsersFactory.__call__` overload——`users("swanuserA"/"swanuserB")` 静态解析为 `SwanUser`；新增用户 key 须同步扩 overload
+- 新业务方法一律定义在 SwanBusiness MRO（含 mixin）上，即自动获得静态可见性——mixin 不挂 MRO，userA 既调不到也看不到（2026-10-14 实锤：Content mixin 漏挂 MRO，10 处调用运行时 AttributeError）
+- 若未来给用户类新增动态代理，必须同步更新 TYPE_CHECKING 静态视图
+
+### 12. 冷启动模型：夹具负责 App 冷启动，teardown 一律 pass
+
+（2026-10-14 拍板）每条用例开始前由框架夹具强制冷启动 App（杀旧进程→拉起→处置弹窗，conftest `_cold_start_swan_app`），取代各域 mixin teardown 的 G3/G4 清理链——实测已登录态冷启动到首页锚 4.2s，比导航回退链更快，且每条用例起点 100% 确定：
+- 用例 teardown 显式声明但 body 为 `pass`（仅用例私有清理才写实际逻辑）；**禁止 `super().teardown()`**（mixin teardown 已退役）
+- 登录态经 token 持久化，重启不丢；密码域/未登录态用例的前置逻辑不变
+- G3/G4 辅助方法（_close_sheet_if_any 等）仍留业务层备用，但不再由生命周期自动调用
+
 ## 平台开发进度恢复(新会话/新窗口必读)
 
 接手 Swan 测试平台相关工作前,先读这两份拿到全貌,再接着干:
@@ -199,6 +214,8 @@ python scripts/knowledge/auto_update.py --force    # 强制全量更新
 - ❌ `@pytest.mark.parametrize`（参数装饰器禁用——变体各自独立成文件，规则 8 铁律）
 - ❌ 修用例时自行改框架层（`conftest.py`/`run_parallel.py`/`driver/*`）— 须用户决策
 - ❌ `click_image` 失败后加 `tap(x,y)` 坐标回退（必须修图片）
+- ❌ 用例中调用静态视图解析不到的用户对象方法（self.userA.xxx 必须 IDE Ctrl+点击可达——业务方法必须挂在 SwanBusiness MRO 上，规则 11）
+- ❌ teardown 里写 `super().teardown()`（冷启动模型下 mixin teardown 已退役，body 一律 pass，规则 12）
 
 ## 运行时经验（踩坑积累，所有 agent 必知）
 

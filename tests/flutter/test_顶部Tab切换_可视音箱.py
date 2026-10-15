@@ -30,10 +30,9 @@ class TestTopTabSwitch(SwanContentRegressionMixin, BaseTest):
 
     def test_top_tab_switch(self):
         """用例30：首页五顶 Tab 切换，逐 Tab 页面锚点 [图] 断言。"""
-        tab = '可视音箱'
-        self._ensure_logged_in_on_home()
-        self.userA.go_top_tab(tab)
+        self.userA.ensure_logged_in_on_home()
+        self.userA.go_top_tab('可视音箱')
 
     def teardown(self) -> None:
-        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
-        super().teardown()
+        """无用例私有清理（冷启动模型：App 冷启动由框架夹具承担）。"""
+        pass

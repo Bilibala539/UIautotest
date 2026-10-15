@@ -35,12 +35,12 @@ class TestLogoutReturnsToLogin(SwanLoginRegressionMixin, BaseTest):
         ), "前置登录失败，未进入首页"
 
         self.userA.logout_if_needed()
-        self._assert_on_login_page()
+        self.userA.assert_on_login_page()
         assert not self.userA.accessibility_exists(
             SwanBusiness.KEY_TAB_ME
         ), "登出后首页 tab 仍存在，疑似未真正登出"
 
     def teardown(self) -> None:
-        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
-        super().teardown()
+        """无用例私有清理（冷启动模型：App 冷启动由框架夹具承担）。"""
+        pass
         # 结束状态：未登录（登录页）

@@ -33,7 +33,7 @@ class TestSwanFavoritesGroupDetail(SwanLoginRegressionMixin, BaseTest):
 
     def test_favorites_group_detail(self):
         """收藏分组详情：我的页 → SWAN收藏 → 我的家庭 → OCR 断言 → 返回回首页。"""
-        self._ensure_logged_in_on_home()
+        self.userA.ensure_logged_in_on_home()
         self.userA.click_accessibility(SwanBusiness.KEY_TAB_ME)
         assert self.userA.wait_accessibility(
             SwanBusiness.KEY_ME_PROFILE_ENTRY, timeout=15
@@ -44,7 +44,7 @@ class TestSwanFavoritesGroupDetail(SwanLoginRegressionMixin, BaseTest):
 
         self.userA.click_image(SWAN_FAV_FAMILY_GROUP_ROW)
         # "我的家庭"详情页：无已知 key，按 OCR 断言（文案变体任一命中）
-        self._assert_any_text(("播放全部", "首歌"), timeout=15)
+        self.userA.assert_any_text(("播放全部", "首歌"), timeout=15)
 
         self.userA.press_back()  # 详情页 → SWAN收藏页
         self.userA.image_exists(SWAN_FAV_FAMILY_GROUP_ROW, timeout=10)
@@ -55,5 +55,5 @@ class TestSwanFavoritesGroupDetail(SwanLoginRegressionMixin, BaseTest):
         self.userA.go_home()
 
     def teardown(self) -> None:
-        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
-        super().teardown()
+        """无用例私有清理（冷启动模型：App 冷启动由框架夹具承担）。"""
+        pass

@@ -62,7 +62,6 @@ class TestCaseDriver(BaseTest):
 
     def setup(self):
         self.userA = self.users("swanuserA")
-        self.userA.package = os.environ.get("SWAN_PACKAGE", "com.swan.network").strip()
         # 每条用例开始:确保 App 在前台 + 首启弹窗自动处置
         # (2026-09-22 用户拍板:打开 App 后框架级检测弹窗;新装包首启的
         # 隐私协议弹窗不点掉,登录页语义树虽在但不可交互)
@@ -138,10 +137,10 @@ class TestCaseDriver(BaseTest):
                 or self.userA.accessibility_exists(K.KEY_ERROR_TEXT)
                 or self.userA.accessibility_exists(K.KEY_CODE_FIELD)):
             self.userA.relaunch_app(self.userA.package)
-            assert self.userA.wait_through_popups(
+            assert self._wait_through_popups(
                 K.KEY_LOGIN_PAGE, timeout
             ), "重启 App 后未回到登录页"
-        assert self.userA.wait_through_popups(
+        assert self._wait_through_popups(
             K.KEY_USE_PASSWORD_BUTTON, timeout
         ), "未停在验证码登录形态(login_use_password_button 未出现)"
 

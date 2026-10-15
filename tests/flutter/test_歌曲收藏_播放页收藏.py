@@ -60,33 +60,18 @@ class TestCollectSong(SwanContentRegressionMixin, BaseTest):
           _tap_song_row_plus 同锚定，提取行=将收藏行），预清理后重进源页。
         source="player" 前置复用域3 start_play（经 _preset_playing_on_favorite
         到我喜欢页，收尾已在播放页）。"""
-        target_platform = 'swan'
-        source = 'player'
-        self._ensure_logged_in_on_home()
-        if source == "player":
-            song = self.COLLECT_PLAYER_SONG
-            if song:
-                # 预清理（run6）：目标曲往轮收藏成功后仍留在目标歌单（收藏
-                # 持久无自动回滚），先移除再开播，否则二轮必撞拦截（run5
-                # 文件3 死因）
-                self.userA.remove_song_from_playlist(
-                    target_platform, self.COLLECT_PLAYLIST, song)
-                self._preset_playing_on_favorite(source=song, mode="song")
-            else:
-                self._preset_playing_on_favorite()
-        else:
-            # 前置：源歌单详情页含 ≥1 首歌（SOURCE_PLAYLIST）；行内 [+] 恒收
-            # 最上行——先提取最上行歌名，把它从目标歌单移除（若在）再重进
-            self.userA.open_playlist_detail("swan", self.SOURCE_PLAYLIST)
-            source_song = self.userA.top_song_row_name()
+        self.userA.ensure_logged_in_on_home()
+        song = self.COLLECT_PLAYER_SONG
+        if song:
+            # 预清理（run6）：目标曲往轮收藏成功后仍留在目标歌单（收藏
+            # 持久无自动回滚），先移除再开播，否则二轮必撞拦截（run5
+            # 文件3 死因）
             self.userA.remove_song_from_playlist(
-                target_platform, self.COLLECT_PLAYLIST, source_song)
-            # remove 后置条件=tab 壳（open_playlist_detail 对任意歌单详情页
-            # 短路，须壳态起点防同页短路误路由），重进源页进入收藏
-            self.userA.open_playlist_detail("swan", self.SOURCE_PLAYLIST)
-        self.userA.collect_song(target_platform, self.COLLECT_PLAYLIST,
-                               source=source)
+                'swan', self.COLLECT_PLAYLIST, song)
+            self.userA.preset_playing_on_favorite(source=song, mode="song")
+        self.userA.collect_song('swan', self.COLLECT_PLAYLIST,
+                               source='player')
 
     def teardown(self) -> None:
-        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
-        super().teardown()
+        """无用例私有清理（冷启动模型：App 冷启动由框架夹具承担）。"""
+        pass

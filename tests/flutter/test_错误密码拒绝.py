@@ -36,11 +36,11 @@ class TestWrongPasswordRejected(SwanLoginRegressionMixin, BaseTest):
     def test_wrong_password_rejected(self):
         """错误密码被拒绝（只试 1 次，防锁号）：断言未进首页且出现
         login_error_text 错误提示，收尾重启重置表单后 login_by_sms 恢复登录态。"""
-        self._ensure_fresh_sms_form()
+        self.userA.ensure_fresh_sms_form()
 
         # 切到密码形态，输入正确手机号 + 错误密码（2026-10-13 key 迁移：全 [图]/[OCR]）
         self.userA.click_text("密码登入", timeout=10)
-        self._assert_password_form()
+        self.userA.assert_password_form()
         self.userA.click_image(SWAN_LOGIN_PHONE_FIELD, timeout=10)
         self.userA.clear_input()
         self.userA.input_text(self.userA.phone)
@@ -52,8 +52,8 @@ class TestWrongPasswordRejected(SwanLoginRegressionMixin, BaseTest):
         self.userA.click_text("登录", timeout=5, region=self.userA._LOGIN_SUBMIT_REGION)
 
         # 断言未进首页：错误密码不应跳转首页（首页壳锚 [图] 反断言）
-        assert not any(self._probe_image(t, timeout=1) is not None
-                       for t in self._BOTTOM_NAV_TEMPLATES), (
+        assert not any(self.userA.probe_image(t, timeout=1) is not None
+                       for t in self.userA._BOTTOM_NAV_TEMPLATES), (
             "错误密码竟进入了首页（底部导航 4 图出现），登录校验失效！")
 
         # 断言出现错误提示（实测：错误文案非 toast，是常驻节点
@@ -67,10 +67,10 @@ class TestWrongPasswordRejected(SwanLoginRegressionMixin, BaseTest):
         # （登录页无状态持久化，重启回到全新验证码登录形态）
         self.userA.driver.stop_app(self.userA.package)
         self.userA.driver.start_app(self.userA.package)
-        self._assert_sms_form(timeout=30)
+        self.userA.assert_sms_form(timeout=30)
         self.userA.login_by_sms(self.userA.phone)
-        self._assert_on_home()
+        self.userA.assert_on_home()
 
     def teardown(self) -> None:
-        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
-        super().teardown()
+        """无用例私有清理（冷启动模型：App 冷启动由框架夹具承担）。"""
+        pass

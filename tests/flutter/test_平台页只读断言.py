@@ -33,7 +33,7 @@ class TestSwanPlatformPageReadonly(SwanLoginRegressionMixin, BaseTest):
 
     def test_platform_page_readonly(self):
         """平台页只读断言：根节点 + 网易云行 key + 行图片；⛔ 不点授权/充值。"""
-        self._ensure_logged_in_on_home()
+        self.userA.ensure_logged_in_on_home()
         # 2026-10-12 key 迁移：SWAN_TAB_PLATFORM [图] 点击（未选中态），
         # 到位断言用平台页特有锚——网易云行两态 [图]（行卡渲染随账号授权态
         # 切换：未授权白底+「未授权」/已授权黄底+昵称，两态模板成对，同协议
@@ -50,5 +50,5 @@ class TestSwanPlatformPageReadonly(SwanLoginRegressionMixin, BaseTest):
         self.userA.go_home()
 
     def teardown(self) -> None:
-        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
-        super().teardown()
+        """无用例私有清理（冷启动模型：App 冷启动由框架夹具承担）。"""
+        pass

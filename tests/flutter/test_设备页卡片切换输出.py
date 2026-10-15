@@ -30,9 +30,9 @@ class TestSwitchDeviceFromDevicePageCard(SwanPlayerRegressionMixin, BaseTest):
 
     def test_switch_device_from_device_page_card(self):
         """用例11：设备页点目标设备卡片，断言卡片选中态 [图]。"""
-        self._open_device_page()
+        self.userA.open_device_page()
         self.userA.select_device(self.DEVICE_NAME, via="card")
 
     def teardown(self) -> None:
-        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
-        super().teardown()
+        """无用例私有清理（冷启动模型：App 冷启动由框架夹具承担）。"""
+        pass

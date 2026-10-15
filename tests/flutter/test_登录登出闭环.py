@@ -29,20 +29,20 @@ class TestSmsLoginLogoutRoundtrip(SwanLoginRegressionMixin, BaseTest):
     def test_sms_login_logout_roundtrip(self):
         """登录/登出完整闭环：登出→登录→登出→登录→收尾登出。"""
         self.userA.logout_if_needed()
-        self._assert_on_login_page()
+        self.userA.assert_on_login_page()
 
         # 第一轮：登录 → 登出
         self.userA.login_by_sms(self.userA.phone)
-        self._assert_on_home()
+        self.userA.assert_on_home()
         self.userA.logout_if_needed()
-        self._assert_on_login_page()
+        self.userA.assert_on_login_page()
 
         # 第二轮：登录 → 收尾登出
         self.userA.login_by_sms(self.userA.phone)
-        self._assert_on_home()
+        self.userA.assert_on_home()
         self.userA.logout_if_needed()
-        self._assert_on_login_page()
+        self.userA.assert_on_login_page()
 
     def teardown(self) -> None:
-        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
-        super().teardown()
+        """无用例私有清理（冷启动模型：App 冷启动由框架夹具承担）。"""
+        pass

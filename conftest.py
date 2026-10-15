@@ -6,13 +6,15 @@ import logging
 import os
 import shutil
 import subprocess
+import time
 from datetime import datetime
-from typing import Dict, Optional
+from typing import Dict, Literal, Optional, overload
 
 import pytest
 from dotenv import load_dotenv
 
 from config.user_data import UserManager
+from utils.aw.business.swan import SwanBusiness
 from utils.aw.driver.android_driver import AndroidAdbDriver
 from utils.aw.driver.flutter_driver import FlutterAndroidDriver
 from utils.user import AndroidUser, SwanUser, TTUser
@@ -222,6 +224,12 @@ class TTUsersFactory:
         self._user_cls = user_cls
         self._created_users: Dict[str, TTUser] = {}
 
+    # overload（纯类型层，运行时不变）：让 IDE 把 users("swanuserA") 解析为
+    # SwanUser，从而 userA.xxx() 可 Ctrl+点击直达 SwanBusiness 方法声明
+    @overload
+    def __call__(self, user_key: Literal["swanuserA", "swanuserB"], **kwargs) -> SwanUser: ...
+    @overload
+    def __call__(self, user_key: str = "default", **kwargs) -> TTUser: ...
     def __call__(self, user_key: str = "default", **kwargs) -> TTUser:
         if user_key not in self._created_users:
             env_key = user_key.upper().replace("-", "_")
@@ -247,7 +255,24 @@ def users(request) -> TTUsersFactory:
     driver_class = FlutterAndroidDriver if _get_platform() == "flutter" else AndroidAdbDriver
     # 按项目分发用户类：web=TidiTree、flutter=Swan、android=智能音箱屏项目
     user_cls = {"flutter": SwanUser, "android": AndroidUser}.get(_get_platform(), TTUser)
-    return TTUsersFactory(driver=driver_class(), user_cls=user_cls)
+    driver = driver_class()
+    if _get_platform() == "flutter":
+        _cold_start_swan_app(driver)
+    return TTUsersFactory(driver=driver, user_cls=user_cls)
+
+
+def _cold_start_swan_app(driver) -> None:
+    """杀重启模型（2026-10-14 用户拍板）：每条用例开始前强制冷启动 App。
+
+    杀掉旧进程 → 拉起 → 处置首启/异步弹窗，取代各域 mixin teardown 的
+    G3/G4 清理链——每条用例起点 100% 确定（实测已登录态冷启动到首页锚 4.2s）。
+    登录态经 token 持久化，重启不丢；未登录时由用例前置自行处理。
+    """
+    package = os.environ.get("SWAN_PACKAGE", "com.swan.network").strip()
+    driver.stop_app(package)
+    time.sleep(1)
+    driver.start_app(package)
+    SwanBusiness(driver).dismiss_app_popups()
 
 
 @pytest.fixture(scope="function")

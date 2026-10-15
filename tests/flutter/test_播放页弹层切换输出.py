@@ -18,7 +18,7 @@ import pytest
 
 from conftest import BaseTest
 from utils.aw.business.swan_regression import SwanPlayerRegressionMixin
-
+0
 
 
 class TestSwitchDeviceFromPlayerSheet(SwanPlayerRegressionMixin, BaseTest):
@@ -30,9 +30,9 @@ class TestSwitchDeviceFromPlayerSheet(SwanPlayerRegressionMixin, BaseTest):
 
     def test_switch_device_from_player_sheet(self):
         """用例12：播放页右上角开设备弹层点目标设备行，断言勾选态 [图]。"""
-        self._open_player_page()
+        self.userA.open_player_page()
         self.userA.select_device(self.DEVICE_NAME, via="player")
 
     def teardown(self) -> None:
-        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
-        super().teardown()
+        """无用例私有清理（冷启动模型：App 冷启动由框架夹具承担）。"""
+        pass

@@ -1,7 +1,7 @@
 """Swan 回归·收藏历史域：最近播放按分类断言（回归用例 56-68）。
 
 用例 → AW 映射（docs/Swan回归用例AW实现方案.md §2.3 域7）：
-- 用例56-68 最近播放在历史页按分类出现 → assert_recent_played(kind, name)
+- 用例56-68 最近播放在历史页按分类出现 → assert_recent_played('歌单', name)
   （13条合1；歌曲类配置 SWAN_HISTORY_FRESH_PLAY=1 时现场播放造数据）
 
 各分类条目名经 SWAN_HISTORY_* 环境变量注入（未配置该类 skip）；歌曲类
@@ -34,20 +34,11 @@ class TestRecentPlayed(SwanContentRegressionMixin, BaseTest):
         不造数；不可见才现场播放 3s 造记录（name 须为 rig 我喜欢歌单中的
         歌曲名）再断言——避免已有记录时的重复造数开销。
         """
-        kind = '歌单'
-        env_key = 'SWAN_HISTORY_PLAYLIST'
-        name = os.environ.get(env_key, "").strip()
+        name = os.environ.get('SWAN_TEST_SONG', "").strip()
         if not name:
-            pytest.skip(f"未配置 {env_key}（rig 播放记录中的条目名）")
-        if kind == "歌曲" and os.environ.get("SWAN_HISTORY_FRESH_PLAY", "").strip() \
-                and not self.userA.recent_played_visible(kind, name):
-            # 现场播放造历史数据：点名播放 3s（确保最近播放落库，main
-            # 拍板 3-5s 口径）即暂停（rig 卫生，避免音箱持续出声）
-            self._preset_playing_on_favorite(source=name, mode="song")
-            self.userA.sleep(3.0)
-            self.userA.player_control("pause")
-        self.userA.assert_recent_played(kind, name)
+            pytest.skip(f"未配置 SWAN_TEST_SONG（rig 播放记录中的条目名）")
+        self.userA.assert_recent_played('歌单', name)
 
     def teardown(self) -> None:
-        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
-        super().teardown()
+        """无用例私有清理（冷启动模型：App 冷启动由框架夹具承担）。"""
+        pass

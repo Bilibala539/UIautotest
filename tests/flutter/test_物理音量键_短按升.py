@@ -33,13 +33,10 @@ class TestVolumeKey(SwanPlayerRegressionMixin, BaseTest):
 
         先经音量弹窗把音量拖到中位 50，避免 0%/100% 边界使方向断言失真。
         """
-        long_press = False
-        direction = 'up'
-        device_type = "speaker"
-        self._preset_playing(device_type)
+        self.userA.preset_playing('speaker')
         self.userA.set_volume(50, action="drag")
-        self.userA.volume_key(direction=direction, long_press=long_press)
+        self.userA.volume_key(direction='up', long_press=False)
 
     def teardown(self) -> None:
-        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
-        super().teardown()
+        """无用例私有清理（冷启动模型：App 冷启动由框架夹具承担）。"""
+        pass

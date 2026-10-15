@@ -31,12 +31,10 @@ class TestBottomTabSwitch(SwanContentRegressionMixin, BaseTest):
 
     def test_bottom_tab_switch(self):
         """用例29：底部四 Tab 轮巡，逐页一级锚点 [图] 断言。"""
-        tab = '首页'
-        self._ensure_logged_in_on_home()
-        if tab == "首页":
-            self.userA.go_bottom_tab("平台")  # 先离开首页再切回，避免短路空转
-        self.userA.go_bottom_tab(tab)
+        self.userA.ensure_logged_in_on_home()
+        self.userA.go_bottom_tab("平台")  # 先离开首页再切回，避免短路空转
+        self.userA.go_bottom_tab('首页')
 
     def teardown(self) -> None:
-        """G3/G4 清理链由 mixin teardown 承担（本用例无自定义清理）。"""
-        super().teardown()
+        """无用例私有清理（冷启动模型：App 冷启动由框架夹具承担）。"""
+        pass

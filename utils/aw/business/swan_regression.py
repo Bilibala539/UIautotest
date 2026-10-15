@@ -95,10 +95,6 @@ class SwanPlayerRegressionMixin:
     DEVICE_NAME = os.environ.get("SWAN_DEVICE_NAME", "Libretto_0E00")
     SONG_NAME = os.environ.get("SWAN_TEST_SONG", "")
 
-    user = None
-    aw = None
-    phone = ""
-
     # 登录页锚（均已转正）：「下一步」按钮 / 隐私政策链接任一可见即在登录页
     _LOGIN_PAGE_TEMPLATES = (SWAN_LOGIN_SUBMIT_BTN, SWAN_LOGIN_PRIVACY_POLICY_LINK)
     # 首页壳主锚：全局底部导航 4 图标（未选中态，已转正、verify 跨机实测 1.0；
@@ -114,30 +110,6 @@ class SwanPlayerRegressionMixin:
     # 模板本身 720x100 全宽条带），上下留少量容差；上边界务必低于
     # y≈1500 起的全局底部导航图标行，防止误点「首页/平台/设备/我的」
     _BOTTOM_BAR_REGION = (0, 1370, 720, 116)
-
-    def teardown(self) -> None:
-        """G3/G4：关残留弹层 → 尽力暂停（rig 卫生）→ 收播放页 → 输出恢复 →
-        退出 push 页 → 回首页。
-
-        verify-big52 根因4（explorer_output/verify_run4/run1_play_control.log）：
-        播放前置 _preset_playing 经我喜欢页（push 页）发起播放，收播放页后停在
-        我喜欢页——该页无底部导航无 tab_recommend，直接 go_home 的
-        click_accessibility(KEY_TAB_RECOMMEND) 必炸（run1 实测 6 条 teardown
-        ERROR 同因）。照搬 content mixin 范式：先 back_to_tab_shell [图] 逐级退出
-        （已在 tab 壳时零操作），go_home 保留作兜底（tab 壳内它正常工作）。
-        输出恢复（run5 对账新增，main 批准双保险）见 _restore_speaker_output_
-        if_needed：wifi_device 用例切输出后跨用例不回切，残留污染后续
-        speaker 用例（run4c run2 / run5 run1 两轮实测）。
-        """
-        self._close_sheet_if_any()
-        # 音量弹层显式探测关闭（verify-run4b：文件2 后半 wifi 用例「播放条
-        # 点击后播放页打不开」疑似残留音量弹层诱因，见 _close_volume_popup_if_any）
-        self._close_volume_popup_if_any()
-        self._pause_if_playing()
-        self._dismiss_player_if_any()
-        self._restore_speaker_output_if_needed()
-        self.user.back_to_tab_shell()
-        self.user.go_home()
 
     # ---------- 锚点探测（模板缺失防护 + 首页壳判据） ----------
 
@@ -202,7 +174,7 @@ class SwanPlayerRegressionMixin:
         if not (self._login_page_on_screen() or self._home_nav_visible()):
             logger.info("App 停在未知页（登录页/首页壳锚均不可见），冷启动重置")
             self.user.relaunch_app(os.environ.get("SWAN_PACKAGE", "com.swan.network"))
-        self.user.login_by_sms(self.phone)
+        self.user.login_by_sms(self.user.phone)
         self._wait_home_shell()
         if self.probe_image(SWAN_BOTTOM_PLAYER_BAR, timeout=2) is not None:
             logger.info("底部播放条可见（模板命中）")
@@ -263,7 +235,7 @@ class SwanPlayerRegressionMixin:
         logger.warning(
             "底部播放条模板未命中（持久播放会话致动态内容偏离模板截图态），"
             "转条带 OCR 兜底点击")
-        items = [item for item in self.aw.ocr_scan_page(region=self._BOTTOM_BAR_REGION)
+        items = [item for item in self.ocr_scan_page(region=self._BOTTOM_BAR_REGION)
                  if item["text"].strip()]
         assert items, "底部播放条 OCR 兜底失败：条带内未识别到任何文字（播放条未渲染？）"
         for item in items:
@@ -305,7 +277,7 @@ class SwanPlayerRegressionMixin:
             # 批时输出已是 rig——文件2 遗留+恢复脚本只暂停不切回）——先探
             # 测页顶设备名已是目标则短路跳过弹层切换（方案①，实现最简）
             if self.user._wait_compact_text_in_region(
-                    self.DEVICE_NAME, self.aw._PLAYER_HEADER_DEVICE_REGION,
+                    self.DEVICE_NAME, self._PLAYER_HEADER_DEVICE_REGION,
                     3.0, what="wifi 前置短路径探测", must=False):
                 logger.info(
                     "wifi 前置：页顶输出设备名已是 %r，跳过弹层切换",
@@ -317,7 +289,7 @@ class SwanPlayerRegressionMixin:
             # 同口径——run6_clean2 实测 OCR 吞空格时裸 text_exists 子串永假，
             # 属构造性 flaky：今早保留空格 7/7 过、本轮吞空格 5/5 挂）
             self.user._wait_compact_text_in_region(
-                self.DEVICE_NAME, self.aw._PLAYER_HEADER_DEVICE_REGION, 10.0,
+                self.DEVICE_NAME, self._PLAYER_HEADER_DEVICE_REGION, 10.0,
                 what="切换输出后的播放页页顶设备名")
             self._dismiss_player_if_any()
         elif device_type == "speaker":
@@ -347,7 +319,7 @@ class SwanPlayerRegressionMixin:
         恢复仍是第二道保险。此处 try/except 仅限清理动作，不掩盖任何
         用例断言（规则 6 口径）。
         """
-        items = self.aw.ocr_scan_page(region=self._BOTTOM_BAR_REGION)
+        items = self.ocr_scan_page(region=self._BOTTOM_BAR_REGION)
         bar_text = "".join(item["text"] for item in items).strip()
         compact = bar_text.replace(" ", "")
         if not compact or "扬声器" in compact or set(compact) <= {"-", "."}:
@@ -380,7 +352,7 @@ class SwanPlayerRegressionMixin:
           → 设备页贴底播放条断言「扬声器」；切换失败（弹窗异常等）由
           select_device 内部断言显式报错，不静默吞掉。
         """
-        items = self.aw.ocr_scan_page(region=self._BOTTOM_BAR_REGION)
+        items = self.ocr_scan_page(region=self._BOTTOM_BAR_REGION)
         bar_text = "".join(item["text"] for item in items).strip()
         compact = bar_text.replace(" ", "")
         if not compact or "扬声器" in compact or set(compact) <= {"-", "."}:
@@ -444,7 +416,7 @@ class SwanPlayerRegressionMixin:
         timeout=1 维持 teardown 快探测口径（播放页未开时四模板逐个失配，
         最坏约 4s）。
         """
-        self.aw._dismiss_full_player(timeout=1)
+        self._dismiss_full_player(timeout=1)
 
     def assert_on_login_page(self, timeout: float = 15.0) -> None:
         """登录页断言：登录页锚 [图]（置灰「下一步」/隐私政策链接任一）。"""
@@ -551,13 +523,6 @@ class SwanLoginRegressionMixin:
     新用例不要模仿（CLAUDE.md 规则 2）。
     """
 
-    def teardown(self) -> None:
-        """登录域默认无清理动作（收尾态由各用例保证为登录页/首页，G3/G4 允许）。
-
-        显式定义以保证用例文件的 super().teardown() 链安全（mixin 无定义时
-        super 链到 object 会 AttributeError，2026-10-13 后台恢复用例实测）。"""
-        logger.info("登录域 teardown：无自定义清理（收尾态由用例保证）")
-
     # ---------- 断言辅助（2026-10-12 登录域 key 迁移：全 [图]/[OCR]） ----------
 
 
@@ -575,7 +540,7 @@ class SwanLoginRegressionMixin:
         （输出=设备名+曲目名）下内容永久偏离模板，不作到位门槛，仅非致命
         探测记日志（口径同 swan_regression verify-run3）。
         """
-        self.user.login_by_sms(self.phone)
+        self.user.login_by_sms(self.user.phone)
         deadline = time.monotonic() + 15
         while True:
             if any(self.probe_image(t, timeout=1) is not None
@@ -620,23 +585,6 @@ class SwanContentRegressionMixin(SwanPlayerRegressionMixin):
     # test_collect_song 注）
     COLLECT_PLAYER_SONG = (os.environ.get("SWAN_COLLECT_PLAYER_SONG", "").strip()
                            or os.environ.get("SWAN_TEST_SONG", "").strip())
-
-    def teardown(self) -> None:
-        """G3/G4：关弹层（设备弹层+音量弹层）-> 尽力暂停 -> 收播放页 ->
-        退出 push 页 -> 回首页。
-
-        本批用例常停在 push 页（无底部 4 tab），须先 back_to_tab_shell [图]
-        逐级退出，再走 go_home（2026-10-12 已迁移 [图] 并内置 push 页防护；
-        back_to_tab_shell 前置保留为显式收尾口径，壳内零操作）。
-        音量弹层探测关闭继承播放器域 teardown 的 run4b 结论
-        （_close_volume_popup_if_any）。
-        """
-        self._close_sheet_if_any()
-        self._close_volume_popup_if_any()
-        self._pause_if_playing()
-        self._dismiss_player_if_any()
-        self.user.back_to_tab_shell()
-        self.user.go_home()
 
     def preset_playing_on_favorite(self, source: str = "favorite",
                                     mode: str = "all") -> None:

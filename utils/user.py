@@ -11,7 +11,7 @@
 """
 from __future__ import annotations
 
-from typing import Optional, Type
+from typing import TYPE_CHECKING, Optional, Type
 
 from utils.aw.business import AndroidBusiness, SwanBusiness, TidiTreeBusiness
 from utils.aw.driver.base_driver import BasePlatformDriver
@@ -56,6 +56,8 @@ class User:
         if self.business_cls is None:
             raise RuntimeError(f"{type(self).__name__} 未绑定业务类 business_cls")
         self.business = self.business_cls(self.driver)
+        self.business.user = self    # 反向引用：业务方法经 self.user 访问
+        self.business.userA = self   # 别名：mixin 方法统一 self.userA 直调
 
     def __getattr__(self, name: str):
         # 仅在常规属性查找失败时触发；business 尚未赋值时直接报错避免递归
@@ -131,3 +133,17 @@ class SwanUser(User):
         import os
 
         return os.environ.get("SWAN_PACKAGE", "com.swan.network").strip()
+
+
+# IDE 导航支持（仅静态分析，运行时零影响——TYPE_CHECKING 恒为 False）：
+# 业务方法经 __getattr__ 动态代理，静态分析不可见，故在类型层补一条继承，
+# 让 userA.xxx() 可 Ctrl+点击直达业务类（含 mixin）的真实方法声明。
+if TYPE_CHECKING:
+    class TTUser(TTUser, TidiTreeBusiness):  # noqa: F811
+        pass
+
+    class AndroidUser(AndroidUser, AndroidBusiness):  # noqa: F811
+        pass
+
+    class SwanUser(SwanUser, SwanBusiness):  # noqa: F811
+        pass

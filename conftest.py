@@ -296,9 +296,7 @@ def pytest_collection_modifyitems(config, items):
 
 
 def pytest_sessionfinish(session, exitstatus) -> None:
-    # 归还设备池里的设备(无论会话成败),再生成 Allure 报告
-    if _device_pool is not None:
-        _device_pool.release()
+    # 设备池引用已随基线失效（_device_pool 未定义，9a75f1d 死代码），仅生成 Allure 报告
     _generate_allure_report()
 
 

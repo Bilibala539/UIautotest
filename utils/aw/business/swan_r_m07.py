@@ -354,3 +354,52 @@ class SwanRM07Mixin:
                 self.sleep(1.0)
         assert False, (
             f"条件返回 {max_backs} 次仍未到达平台入口页(平台行锚 [OCR] 全未命中)")
+
+    # ------------------------------------------------------------------
+    # 驱动原语包装(设备级状态构造:网络开关/前台包名/进程控制)
+    # ------------------------------------------------------------------
+
+    def open_system_settings(self, action: str) -> None:
+        """经 intent action 打开系统设置页(设备级状态构造前置)。
+
+        包装 driver.start_action(`am start -a <action>`)。框架无系统层
+        网络开关 API,设置页 UI 自动化是网络开关类用例的唯一自动化通道
+        (ADD1 复审解锁);页面停留宿主之上,调用方负责开关行 OCR 定位。
+        """
+        self.driver.start_action(action)
+        self.sleep(2.0)
+
+    def foreground_package(self) -> str | None:
+        """读当前前台包名(dumpsys mCurrentFocus,设备级只读原语)。
+
+        包装 driver.get_foreground_package();用于授权拉起目标观察
+        (com.tencent.qqmusic / com.netease.cloudmusic)与无活动返回
+        判定(NEG-018)。返回 None 表示读取失败(切换瞬间/窗口未知)。
+        """
+        return self.driver.get_foreground_package()
+
+    def force_stop_app(self, package: str) -> None:
+        """force-stop 指定应用(am force-stop,冷启动窗口构造专用)。
+
+        包装 driver.stop_app();仅用于授权发起前制造 QQ 音乐服务
+        未绑定窗口(NEG-019),不用于任何清理路径(进程杀不还原状态)。
+        """
+        self.driver.stop_app(package)
+        self.sleep(1.0)
+
+    def toggle_airplane_mode(self) -> None:
+        """开/关系统飞行模式(设置页 UI 通道,断网类用例专用)。
+
+        框架无网络开关 API:经 AIRPLANE_MODE_SETTINGS 设置页 OCR 点
+        「飞行模式」行开关,按一次切换一次(开→关/关→开双向)。开关
+        生效自证由调用方以应用侧可观察结果断言(余额卡回退/离线错误
+        态),误点由 fail-loud 暴露;开关行精确定位图见 template_needs。
+        """
+        self.open_system_settings("android.settings.AIRPLANE_MODE_SETTINGS")
+        row = self.find_text_by_ocr("飞行模式", timeout=8)
+        assert row is not None, (
+            "飞行模式设置页未打开:[OCR] 未命中「飞行模式」行")
+        self.click_text("飞行模式", timeout=4)
+        self.sleep(1.5)
+        self.press_back()
+        self.sleep(2.0)

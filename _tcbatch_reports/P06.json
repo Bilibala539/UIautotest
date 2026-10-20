@@ -1,0 +1,269 @@
+{
+  "pkg": "P06",
+  "converted": [
+    "vision-NEG-003",
+    "vision-NEG-004",
+    "vision-NEG-005",
+    "vision-NEG-006",
+    "vision-NEG-010",
+    "vision-NEG-012",
+    "vision-POS-001",
+    "vision-POS-002",
+    "vision-POS-003",
+    "vision-POS-004",
+    "vision-POS-005",
+    "vision-POS-006",
+    "vision-POS-009",
+    "vision-POS-010",
+    "vision-POS-011",
+    "vision-POS-012",
+    "vision-POS-013",
+    "vision-POS-014",
+    "vision-POS-015",
+    "vision-POS-016",
+    "vision-POS-017",
+    "vision-POS-018",
+    "vision-POS-019",
+    "vision-POS-020",
+    "vision-POS-021",
+    "vision-POS-022",
+    "vision-POS-023",
+    "vision-POS-024",
+    "vision-POS-025",
+    "vision-POS-027",
+    "vision-POS-028"
+  ],
+  "skipped": [
+    {
+      "id": "vision-NEG-001",
+      "reason_code": "OTHER",
+      "reason": "框架无网络层断网/恢复编排能力（设备网络操控未封装），预览下发断言另需真机 UPnP 链路与抓包观测通道"
+    },
+    {
+      "id": "vision-NEG-002",
+      "reason_code": "OTHER",
+      "reason": "框架无网络层断网/恢复编排与响应拦截能力，VisionMutationResult(success:false) 收敛形态 UI 层不可观测"
+    },
+    {
+      "id": "vision-NEG-007",
+      "reason_code": "OTHER",
+      "reason": "框架无跨 App 系统文件选择器编排与设备存储文件预置通道（非法样本需推入系统目录），flutter 驱动仅覆盖单 App 内交互"
+    },
+    {
+      "id": "vision-NEG-008",
+      "reason_code": "OTHER",
+      "reason": "框架无 HTTP 代理抓包断言通道，请求 body 序列化形态（type 恒字符串「2」/「4」）UI 层不可观测"
+    },
+    {
+      "id": "vision-NEG-009",
+      "reason_code": "OTHER",
+      "reason": "框架无 HTTP 代理抓包断言通道，请求 type 语义边界（uploadVisualInfo/getVisionInfo?visionType=6）UI 层不可观测"
+    },
+    {
+      "id": "vision-NEG-011",
+      "reason_code": "OTHER",
+      "reason": "框架无服务端响应 mock 注入通道，跨分类同 ID 素材对需人工预置，「正在使用」标识命中断言依赖注入数据"
+    },
+    {
+      "id": "vision-NEG-013",
+      "reason_code": "OTHER",
+      "reason": "框架无 HTTP 代理抓包断言通道（body nextSelectedId=-1 哨兵形态 UI 层不可观测）；切默认为写协议面（禁区 2）"
+    },
+    {
+      "id": "vision-NEG-014",
+      "reason_code": "OTHER",
+      "reason": "框架无服务端测试数据工厂与预置/回收通道，满额态（单平台 6 方案）需服务端人工造数，且建方案写链依赖未标定的编辑器保存流"
+    },
+    {
+      "id": "vision-NEG-015",
+      "reason_code": "OTHER",
+      "reason": "框架无服务端数据预置通道，唤醒词满额上限值未定位，无法自动构造满额态"
+    },
+    {
+      "id": "vision-NEG-016",
+      "reason_code": "OTHER",
+      "reason": "框架无服务端响应 mock 注入通道，六类 URL 素材集需人工预置，判型全矩阵断言依赖注入数据"
+    },
+    {
+      "id": "vision-NEG-017",
+      "reason_code": "OTHER",
+      "reason": "框架无 App 内数据库/持久化断言通道，断言对象为数据层 itemId 组合格式与跨会话持久化，UI 层无文本呈现"
+    },
+    {
+      "id": "vision-NEG-018",
+      "reason_code": "OTHER",
+      "reason": "框架无服务端响应 mock 注入通道，getVisionData 五种 isHost 取值形态需人工预置，渲染一致性断言依赖注入"
+    },
+    {
+      "id": "vision-NEG-019",
+      "reason_code": "OTHER",
+      "reason": "框架无 HTTP 代理注入通道，双 UUID 错配请求与嵌套前缀状态串需人工预置，归一化断言依赖注入"
+    },
+    {
+      "id": "vision-NEG-020",
+      "reason_code": "PHYSICAL",
+      "reason": "设备离线/重连需对 MG100 物理断电或断网，框架无设备侧物理操作编排能力"
+    },
+    {
+      "id": "vision-NEG-021",
+      "reason_code": "OTHER",
+      "reason": "框架无 HTTP 代理延迟/乱序回包注入通道，乱序守卫断言 UI 层无法构造与观测"
+    },
+    {
+      "id": "vision-NEG-022",
+      "reason_code": "OTHER",
+      "reason": "产品现状不可达：未绑定态 Vision 域无 UI 入口（KB swan_Vision域不可达页 2026-09-10 真机实测 Tab 内容区零可点节点），allowUnboundDevicePreview 预览分支未在 UI 层实现，前置环境不成立"
+    },
+    {
+      "id": "vision-NEG-023",
+      "reason_code": "OTHER",
+      "reason": "断言对象为 debug 插桩计数（loadProjectionDeviceItemsCount==1），框架无 Widget 状态/插桩读取通道，需 mock 设备流注入"
+    },
+    {
+      "id": "vision-NEG-024",
+      "reason_code": "OTHER",
+      "reason": "框架无抓包与设备侧下发时序观测通道（320ms 兜底计时不可观测），另需 ≥4 页合成素材预置"
+    },
+    {
+      "id": "vision-NEG-025",
+      "reason_code": "OTHER",
+      "reason": "框架无服务端响应 mock 注入通道，不含已存音色 X 的列表数据需人工预置，回退断言依赖注入"
+    },
+    {
+      "id": "vision-NEG-026",
+      "reason_code": "HUMAN_ONLY",
+      "reason": "断言对象为代码资产命名一致性（vision_wallerpaper_ 拼写护栏），属代码走查口径，仅人工代码审查可执行"
+    },
+    {
+      "id": "vision-NEG-027",
+      "reason_code": "OTHER",
+      "reason": "框架仅 Android Flutter 真机驱动，无 OHOS 设备/模拟器编排通道"
+    },
+    {
+      "id": "vision-NEG-028",
+      "reason_code": "OTHER",
+      "reason": "框架无 logcat/诊断日志文件断言通道（8192 截断断言对象在日志内容），且需 debug 包日志提取"
+    },
+    {
+      "id": "vision-NEG-029",
+      "reason_code": "OTHER",
+      "reason": "断言对象为 Port 契约缺实现行为（代码构造口径），框架无静态代码检查通道；另需纯 Flutter/OHOS 无宿主环境"
+    },
+    {
+      "id": "vision-NEG-030",
+      "reason_code": "OTHER",
+      "reason": "框架无服务端数据预置通道（aiRoleVoiceMap 含列表外角色历史音色需人工造数）；保存为受控整表上传写（禁区 2/5）"
+    },
+    {
+      "id": "vision-POS-007",
+      "reason_code": "OTHER",
+      "reason": "产品现状不可达：未绑定态 Vision 域无 UI 入口（KB 2026-09-10 真机实测零可点节点），allowUnboundDevicePreview 分支未实现，壁纸页不可达"
+    },
+    {
+      "id": "vision-POS-008",
+      "reason_code": "OTHER",
+      "reason": "断言对象为 ValueKey 锚点 Flutter 内部静默预览 Widget（SWAN_WALLPAPER_PREVIEW）——框架无 Widget 树断言通道（OCR/图像模板仅覆盖可见文本与图形元素），静默视图运行时无可见锚点"
+    },
+    {
+      "id": "vision-POS-026",
+      "reason_code": "OTHER",
+      "reason": "产品现状不可达：未绑定态壁纸页不可达（KB 实测 Vision Tab 内容区零可点节点），无 MG100 态浏览无从执行"
+    }
+  ],
+  "new_methods": [
+    {
+      "name": "open_vision_wallpaper_page",
+      "file": "utils/aw/business/swan_r_p06.py",
+      "used_by": ["vision-POS-002", "vision-POS-006", "vision-POS-027", "vision-POS-028"]
+    },
+    {
+      "name": "open_vision_wallpaper_from_device",
+      "file": "utils/aw/business/swan_r_p06.py",
+      "used_by": ["vision-POS-001"]
+    },
+    {
+      "name": "open_vision_wake_words_page",
+      "file": "utils/aw/business/swan_r_p06.py",
+      "used_by": ["vision-NEG-005", "vision-NEG-006", "vision-POS-003", "vision-POS-009", "vision-POS-010", "vision-POS-011"]
+    },
+    {
+      "name": "open_wake_word_create_form",
+      "file": "utils/aw/business/swan_r_p06.py",
+      "used_by": ["vision-NEG-005", "vision-NEG-006", "vision-POS-011"]
+    },
+    {
+      "name": "open_vision_ai_roles_page",
+      "file": "utils/aw/business/swan_r_p06.py",
+      "used_by": ["vision-POS-012", "vision-POS-013", "vision-POS-014", "vision-POS-015"]
+    },
+    {
+      "name": "open_vision_voice_pack_page",
+      "file": "utils/aw/business/swan_r_p06.py",
+      "used_by": ["vision-NEG-003", "vision-POS-004", "vision-POS-016", "vision-POS-017", "vision-POS-018"]
+    },
+    {
+      "name": "open_vision_advanced_settings",
+      "file": "utils/aw/business/swan_r_p06.py",
+      "used_by": ["vision-NEG-004", "vision-NEG-010", "vision-NEG-012", "vision-POS-005", "vision-POS-019", "vision-POS-020", "vision-POS-021", "vision-POS-022", "vision-POS-023", "vision-POS-024", "vision-POS-025"]
+    },
+    {
+      "name": "open_vision_platform_page",
+      "file": "utils/aw/business/swan_r_p06.py",
+      "used_by": ["vision-NEG-004", "vision-POS-020", "vision-POS-025", "vision-POS-021", "vision-POS-023", "vision-POS-024"]
+    },
+    {
+      "name": "open_vision_scheme_editor",
+      "file": "utils/aw/business/swan_r_p06.py",
+      "used_by": ["vision-NEG-004", "vision-NEG-010", "vision-NEG-012", "vision-POS-021", "vision-POS-022", "vision-POS-023", "vision-POS-024"]
+    },
+    {
+      "name": "pick_voice_pack_row",
+      "file": "utils/aw/business/swan_r_p06.py",
+      "used_by": ["vision-NEG-003", "vision-POS-017", "vision-POS-018", "（KB 实测系统角色名候选锚，整行点击=选中+试听）"]
+    },
+    {
+      "name": "pick_vision_editor_materials",
+      "file": "utils/aw/business/swan_r_p06.py",
+      "used_by": ["vision-NEG-004", "vision-NEG-012", "vision-POS-022", "（素材条目候选 _EDITOR_MATERIAL_HINTS 待标定填入）"]
+    },
+    {
+      "name": "_vision_expect_any_text",
+      "file": "utils/aw/business/swan_r_p06.py",
+      "used_by": ["全部 Vision 域入口方法（候选 OCR 锚点命中制落地断言）"]
+    }
+  ],
+  "template_needs": [
+    {"id": "vision-NEG-003", "element": "语音包行条目锚与残留播放态标识（试听中/暂停态）", "page": "/vision/voice-pack"},
+    {"id": "vision-NEG-004", "element": "编辑器素材条目文案候选、选中态标识、编辑器内平台切换控件", "page": "/vision/advanced-settings/scheme-editor"},
+    {"id": "vision-NEG-005", "element": "新建唤醒词输入框与字数计数器（maxLength 30 收敛形态）", "page": "/vision/wake-words 新建输入态"},
+    {"id": "vision-NEG-006", "element": "特殊字符/emoji 拦截反馈文案", "page": "/vision/wake-words 新建输入态"},
+    {"id": "vision-NEG-010", "element": "平台分组卡、编辑器分类区（歌词分类有无两形态）", "page": "/vision/advanced-settings 总页与 scheme-editor"},
+    {"id": "vision-NEG-012", "element": "编辑器素材条目文案候选与已选分桶标识", "page": "/vision/advanced-settings/scheme-editor"},
+    {"id": "vision-POS-001", "element": "设备详情 Vision 配置入口、壁纸主页面双 pager 落地锚", "page": "设备详情页 /vision/wallpaper"},
+    {"id": "vision-POS-002", "element": "壁纸缩略图网格（216x124）与分类 Tab（壁纸/氛围）", "page": "/vision/wallpaper"},
+    {"id": "vision-POS-003", "element": "唤醒词列表与新建入口锚", "page": "/vision/wake-words"},
+    {"id": "vision-POS-004", "element": "语音包入口（Vision 页直入口/角色卡音色包入口）与列表锚", "page": "可视音箱 Tab /vision/voice-pack"},
+    {"id": "vision-POS-005", "element": "高级设置入口与平台分组方案卡", "page": "可视音箱 Tab /vision/advanced-settings"},
+    {"id": "vision-POS-006", "element": "「使用中」标识两态（跨分类匹配正向）", "page": "/vision/wallpaper"},
+    {"id": "vision-POS-009", "element": "自定义词计数展示文案", "page": "/vision/wake-words"},
+    {"id": "vision-POS-010", "element": "编辑/删除入口与默认词行（分化展示）", "page": "/vision/wake-words"},
+    {"id": "vision-POS-011", "element": "字数约束反馈文案与可保存态标识", "page": "/vision/wake-words 新建输入态"},
+    {"id": "vision-POS-012", "element": "系统角色 tile（小薇/惠威百科/惠声远/云舒雁在 Vision 域的渲染形态）", "page": "/vision/ai-roles"},
+    {"id": "vision-POS-013", "element": "角色卡音色名区", "page": "/vision/ai-roles"},
+    {"id": "vision-POS-014", "element": "角色选中态标识两态（已选择/取消）", "page": "/vision/ai-roles"},
+    {"id": "vision-POS-015", "element": "角色卡音色包入口与选中音色行高亮", "page": "/vision/ai-roles /vision/voice-pack"},
+    {"id": "vision-POS-016", "element": "语音包行条目与选中高亮", "page": "/vision/voice-pack"},
+    {"id": "vision-POS-017", "element": "语音包选中态迁移标识与还原态组合定位（原选中项）", "page": "/vision/voice-pack"},
+    {"id": "vision-POS-018", "element": "原选中项标识组合（非当前行强定位）与播放器残留观测锚", "page": "/vision/voice-pack"},
+    {"id": "vision-POS-019", "element": "平台分组方案卡", "page": "/vision/advanced-settings"},
+    {"id": "vision-POS-020", "element": "单平台页新建入口与空态", "page": "/vision/advanced-settings/platform"},
+    {"id": "vision-POS-021", "element": "四分类 Tab（气质/歌词/壁纸/氛围）与素材网格", "page": "/vision/advanced-settings/scheme-editor"},
+    {"id": "vision-POS-022", "element": "素材条目文案候选与单选互斥计数观测（多选/单选标识）", "page": "/vision/advanced-settings/scheme-editor"},
+    {"id": "vision-POS-023", "element": "平台 logo 区（terraceType，Qobuz=22 锚点）", "page": "/vision/advanced-settings/scheme-editor"},
+    {"id": "vision-POS-024", "element": "歌词分类项有无两形态", "page": "/vision/advanced-settings/scheme-editor"},
+    {"id": "vision-POS-025", "element": "默认方案标识与一键切默认控件", "page": "/vision/advanced-settings/platform"},
+    {"id": "vision-POS-027", "element": "动态/静态素材类型标识", "page": "/vision/wallpaper"},
+    {"id": "vision-POS-028", "element": "壁纸页关闭钮（关闭按钮形态）", "page": "/vision/wallpaper"}
+  ],
+  "notes": "TCBATCH1-ADD1 口径复审后改判：NEG-003/004/012、POS-017/018/022 六条原以「条目/文案未标定」skip，按新口径归 B 转换（OCR 候选探测 + SKIP-DATA 数据分支兜底，标定后即生效——素材条目候选统一收口 mixin._EDITOR_MATERIAL_HINTS，语音包行锚用 KB 实测系统角色名）；NEG-026 改判 HUMAN_ONLY（代码走查口径）；其余 OTHER 的 reason 均已改写为具体框架能力缺口表述（无抓包通道/无 mock 注入/无网络编排/无 OHOS 驱动/无 logcat 断言/无 Widget 树断言等）。Vision 域绑定态页面族知识库未探索（knowledge/swan/pages/swan_Vision域不可达页.md：未绑定态 Tab 内容区零可点节点，2026-09-10 真机实测），全部 OCR 入口文案（壁纸/唤醒词/语音包/高级设置/角色/新建/音色）为语义预测，template_needs 已逐条登记，需 explorer 绑定 MG100 后实测标定。系统角色名锚点取自知识库 swan_所有角色页 2026-09-10 Wave5 实测（小薇/惠威百科/惠声远/云舒雁）。NEG-005 的 S3（编辑态超长边界）与 POS-013 的 S2（路由透传对照）为数据/环境条件分支，已在文件 docstring 注明覆盖口径。"
+}

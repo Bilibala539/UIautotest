@@ -95,12 +95,29 @@ from utils.aw.business.swan_regression import (
     SwanContentRegressionMixin,
     SwanPlayerRegressionMixin,
 )
+from utils.aw.business.swan_r_p01 import SwanRP01Mixin
+from utils.aw.business.swan_r_p02 import SwanRP02Mixin
+from utils.aw.business.swan_r_p03 import SwanRP03Mixin
+from utils.aw.business.swan_r_p04 import SwanRP04Mixin
+from utils.aw.business.swan_r_p05 import SwanRP05Mixin
+from utils.aw.business.swan_r_p06 import SwanRP06Mixin
+from utils.aw.business.swan_r_p07 import SwanRP07Mixin
+from utils.aw.business.swan_r_p08 import SwanRP08Mixin
+from utils.aw.business.swan_r_p09 import SwanRP09Mixin
+from utils.aw.business.swan_r_p10 import SwanRP10Mixin
+from utils.aw.business.swan_r_m07 import SwanRM07Mixin
+from utils.aw.business.swan_r_m09 import SwanRM09Mixin
+from utils.aw.business.swan_r_m11 import SwanRM11Mixin
 from utils.aw.evidence import _aw_method_report
 
 logger = logging.getLogger(__name__)
 
 
-class SwanBusiness(SwanContentRegressionMixin, SwanPlayerRegressionMixin, CommonBusinessMixin, FlutterBaseAW):
+class SwanBusiness(SwanContentRegressionMixin, SwanPlayerRegressionMixin,
+                   SwanRP01Mixin, SwanRP02Mixin, SwanRP03Mixin, SwanRP04Mixin, SwanRP05Mixin,
+                   SwanRP06Mixin, SwanRP07Mixin, SwanRP08Mixin, SwanRP09Mixin, SwanRP10Mixin,
+                   SwanRM07Mixin, SwanRM09Mixin, SwanRM11Mixin,
+                   CommonBusinessMixin, FlutterBaseAW):
     """Swan 项目业务编排（flutter 端），Swan 专属业务方法放这里。"""
 
     # 登录页 accessibility key（✅ = 2026-09-08 真机 uiautomator dump 验证）

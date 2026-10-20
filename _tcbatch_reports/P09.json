@@ -1,0 +1,685 @@
+{
+ "pkg": "P09",
+ "converted": [
+  "help-NEG-007",
+  "help-POS-001",
+  "help-POS-002",
+  "help-POS-003",
+  "help-POS-004",
+  "help-POS-007",
+  "help-POS-008",
+  "help-POS-009",
+  "help-POS-012",
+  "help-POS-014",
+  "pay-NEG-001",
+  "pay-NEG-004",
+  "pay-NEG-005",
+  "pay-NEG-007",
+  "pay-NEG-008",
+  "pay-NEG-009",
+  "pay-NEG-013",
+  "pay-NEG-015",
+  "pay-NEG-016",
+  "pay-NEG-017",
+  "pay-NEG-025",
+  "pay-NEG-027",
+  "pay-POS-001",
+  "pay-POS-002",
+  "pay-POS-003",
+  "pay-POS-004",
+  "pay-POS-005",
+  "pay-POS-006",
+  "pay-POS-007",
+  "pay-POS-008",
+  "pay-POS-009",
+  "pay-POS-010",
+  "pay-POS-012",
+  "pay-POS-013",
+  "pay-POS-019",
+  "pay-POS-023",
+  "pay-POS-024",
+  "pay-POS-025"
+ ],
+ "skipped": [
+  {
+   "id": "pay-NEG-002",
+   "reason_code": "OTHER",
+   "reason": "框架无断网/恢复注入通道(仅 connect_wifi 恢复侧),全程断网态(进充值页/选中/返回)不可达"
+  },
+  {
+   "id": "pay-NEG-003",
+   "reason_code": "OTHER",
+   "reason": "框架无断网注入与代理响应注入通道,断网+脏 data 响应+恢复三路对照不可达"
+  },
+  {
+   "id": "pay-NEG-006",
+   "reason_code": "HUMAN_ONLY",
+   "reason": "YAML 自标 human_interruption_point:需人工预置卸载微信/支付宝的设备态并事后装回,框架无第三方客户端卸载/装回编排能力"
+  },
+  {
+   "id": "pay-NEG-010",
+   "reason_code": "THIRD_PARTY_REAL",
+   "reason": "待支付订单行只能由真实支付中断产生(禁区 1 禁发起支付),框架无支付编排与深链注入通道"
+  },
+  {
+   "id": "pay-NEG-011",
+   "reason_code": "OTHER",
+   "reason": "框架无断网/恢复注入通道,充值/消费双段断网守门不可达"
+  },
+  {
+   "id": "pay-NEG-012",
+   "reason_code": "THIRD_PARTY_REAL",
+   "reason": "待支付订单倒计时需真实支付中断产生(禁区 1),到期窗口等待时长不可控(可能数小时)且框架无时间快进能力"
+  },
+  {
+   "id": "pay-NEG-014",
+   "reason_code": "THIRD_PARTY_REAL",
+   "reason": "退款表单需微信/支付宝真实扣款订单进入(禁区 1 不可制造),非法输入族另需非 ASCII 注入通道(框架缺口)"
+  },
+  {
+   "id": "pay-NEG-018",
+   "reason_code": "THIRD_PARTY_REAL",
+   "reason": "支付结果页自然路径仅真实支付可达(禁区 1),合成态需路由带参注入通道(框架缺口)"
+  },
+  {
+   "id": "pay-NEG-019",
+   "reason_code": "THIRD_PARTY_REAL",
+   "reason": "失败结果页需真实支付失败或路由带参合成,均超出禁区 1 与框架注入能力"
+  },
+  {
+   "id": "pay-NEG-020",
+   "reason_code": "THIRD_PARTY_REAL",
+   "reason": "/me/recharge/pay-result 伪造态需路由带参注入(框架缺口),真实对照需真实支付(禁区 1)"
+  },
+  {
+   "id": "pay-NEG-021",
+   "reason_code": "THIRD_PARTY_REAL",
+   "reason": "退款入口仅存在于微信/支付宝真实扣款订单详情(禁区 1 不可制造)"
+  },
+  {
+   "id": "pay-NEG-022",
+   "reason_code": "OTHER",
+   "reason": "框架无代理响应注入通道(code/success 缺字段响应不可造),静态对照半边为源码复核非设备 UI 口径"
+  },
+  {
+   "id": "pay-NEG-023",
+   "reason_code": "THIRD_PARTY_REAL",
+   "reason": "发票表单入口在历史真实订单详情,订单为真实扣款产物(禁区 1 不可制造)"
+  },
+  {
+   "id": "pay-NEG-024",
+   "reason_code": "OTHER",
+   "reason": "框架执行编排仅 Android 真机通道,无 iOS/StoreKit 编排能力(StoreKit 目录未就绪态)"
+  },
+  {
+   "id": "pay-NEG-026",
+   "reason_code": "THIRD_PARTY_REAL",
+   "reason": "Apple 沙箱购买为真实商店交易发起(禁区 1),叠加断网注入验单失败三态对照与 iOS 通道缺口,框架均不可达"
+  },
+  {
+   "id": "pay-NEG-028",
+   "reason_code": "THIRD_PARTY_REAL",
+   "reason": "Google Play 沙箱购买为真实商店交易发起(禁区 1),叠加断网注入验单失败时序,框架均不可达"
+  },
+  {
+   "id": "pay-NEG-029",
+   "reason_code": "OTHER",
+   "reason": "框架无断网→恢复边沿注入与网络事件/logcat 观察通道,补单单飞时序不可达"
+  },
+  {
+   "id": "pay-NEG-030",
+   "reason_code": "OTHER",
+   "reason": "框架无结算事件回调注入与断网到达时序编排能力(专用轮+日志探针),非 UI 口径"
+  },
+  {
+   "id": "pay-POS-014",
+   "reason_code": "THIRD_PARTY_REAL",
+   "reason": "退款入口显隐需微信/支付宝真实订单详情,IAP 对照单更需真实 IAP 扣款(禁区 1)"
+  },
+  {
+   "id": "pay-POS-015",
+   "reason_code": "THIRD_PARTY_REAL",
+   "reason": "发票表单需历史真实订单详情入口,订单为真实扣款产物(禁区 1 不可制造)"
+  },
+  {
+   "id": "pay-POS-016",
+   "reason_code": "THIRD_PARTY_REAL",
+   "reason": "退款表单壳需微信/支付宝真实订单详情入口,订单为真实扣款产物(禁区 1 不可制造)"
+  },
+  {
+   "id": "pay-POS-017",
+   "reason_code": "THIRD_PARTY_REAL",
+   "reason": "pay-result 合成成功态需路由带参注入(框架缺口),自然路径仅真实支付可达(禁区 1)"
+  },
+  {
+   "id": "pay-POS-018",
+   "reason_code": "THIRD_PARTY_REAL",
+   "reason": "pay-result 合成失败态需路由带参注入(框架缺口),自然路径仅真实支付可达(禁区 1)"
+  },
+  {
+   "id": "pay-POS-020",
+   "reason_code": "THIRD_PARTY_REAL",
+   "reason": "待支付订单行需真实支付中断产生(禁区 1),倒计时到期观察时长不可控且框架无时间快进能力"
+  },
+  {
+   "id": "pay-POS-021",
+   "reason_code": "THIRD_PARTY_REAL",
+   "reason": "pending 订单详情的继续/取消入口依赖待支付订单(真实支付中断产物,禁区 1)"
+  },
+  {
+   "id": "pay-POS-022",
+   "reason_code": "OTHER",
+   "reason": "无 UI 步骤(编译期常量/调试包域名/渠道映射静态与配置复核),框架仅设备 UI 驱动口径"
+  },
+  {
+   "id": "help-NEG-001",
+   "reason_code": "OTHER",
+   "reason": "框架无断网注入通道,三入口 H5 断网失败态不可达"
+  },
+  {
+   "id": "help-NEG-002",
+   "reason_code": "OTHER",
+   "reason": "框架无断网注入与代理侧 query 核对通道"
+  },
+  {
+   "id": "help-NEG-003",
+   "reason_code": "OTHER",
+   "reason": "框架无断网注入通道(fallback 三行降级态不可达);正常网展示态已由 help-POS-014 覆盖"
+  },
+  {
+   "id": "help-NEG-004",
+   "reason_code": "OTHER",
+   "reason": "adb input_text 非 ASCII 不可达(NPE),框架无 ADBKeyboard/剪贴板等非 ASCII 注入通道(emoji/零宽字符/U+2028 族)"
+  },
+  {
+   "id": "help-NEG-005",
+   "reason_code": "OTHER",
+   "reason": "框架无服务端未读数预置通道(0/1/99/100+ 边界数据不可造)"
+  },
+  {
+   "id": "help-NEG-006",
+   "reason_code": "OTHER",
+   "reason": "框架无服务端未读数预置通道+无 logcat 时序探针(清零/回源瞬时序不可达)"
+  },
+  {
+   "id": "help-NEG-008",
+   "reason_code": "OTHER",
+   "reason": "核心断言为 logcat 三端点零流量核验,框架无日志断言通道;UI 遍历半边已被 help-POS-001~004 转换覆盖(重复建卷无增量)"
+  },
+  {
+   "id": "help-NEG-009",
+   "reason_code": "OTHER",
+   "reason": "非设备 UI 用例(M15 Port 替身接口签名比对+analyzer 跑批),框架仅设备 UI 驱动口径"
+  },
+  {
+   "id": "help-NEG-010",
+   "reason_code": "OTHER",
+   "reason": "框架无系统运行时权限态预置与系统文件选择器(跨进程系统 UI)编排能力,另缺 URI scheme 日志断言通道"
+  },
+  {
+   "id": "help-NEG-011",
+   "reason_code": "OTHER",
+   "reason": "OHOS 壳专属路径(原生 web 返回不经旧桥),框架执行编排仅 Android,无 OHOS 通道"
+  },
+  {
+   "id": "help-NEG-012",
+   "reason_code": "OTHER",
+   "reason": "faq H5 子文档为外部不受控内容,框架无受控 web 测试环境/内容注入能力,历史栈分轨无稳定锚"
+  },
+  {
+   "id": "help-NEG-013",
+   "reason_code": "OTHER",
+   "reason": "框架无多指捏合/双击缩放手势 API(仅单指 swipe/tap 口径)+无像素级视觉比对通道(.nav 安全区对齐)"
+  },
+  {
+   "id": "help-NEG-014",
+   "reason_code": "OTHER",
+   "reason": "执行环境单包,框架无 Release/staging 多包型对照安装编排能力"
+  },
+  {
+   "id": "help-NEG-015",
+   "reason_code": "OTHER",
+   "reason": "框架无 H5 内容注入/受控测试页能力,内链白名单绕过的恶意形态链接不可落地"
+  },
+  {
+   "id": "help-NEG-016",
+   "reason_code": "OTHER",
+   "reason": "框架无系统设置深流程(语言切换)控制能力,仅本 App 内 UI 口径"
+  },
+  {
+   "id": "help-POS-005",
+   "reason_code": "OTHER",
+   "reason": "网络帮助静态页仅直达路由可达(YAML 自标执行轮工具注入),框架无路由深链注入通道"
+  },
+  {
+   "id": "help-POS-006",
+   "reason_code": "OTHER",
+   "reason": "设备连接帮助页仅直达路由可达(YAML 自标执行轮工具注入),框架无路由深链注入通道"
+  },
+  {
+   "id": "help-POS-010",
+   "reason_code": "OTHER",
+   "reason": "框架无网络日志断言通道(轮询数据源)+无服务端超大未读数预置通道"
+  },
+  {
+   "id": "help-POS-011",
+   "reason_code": "OTHER",
+   "reason": "框架无服务端未读数预置通道(未读>0 基线),suppress/resume 时序无 UI 可观察锚"
+  },
+  {
+   "id": "help-POS-013",
+   "reason_code": "OTHER",
+   "reason": "执行环境单包,框架无 debug/profile/Release 多包型对照安装编排能力"
+  },
+  {
+   "id": "help-POS-015",
+   "reason_code": "OTHER",
+   "reason": "框架无接口响应拦截(代理注入)通道,简介双态联动的 B 轨不可造;A 轨已由 help-POS-014 覆盖"
+  },
+  {
+   "id": "help-POS-016",
+   "reason_code": "OTHER",
+   "reason": "核心断言为 logcat 三端点零请求核验,框架无日志断言通道;UI 遍历半边已被 help-POS-001~009 转换覆盖(重复建卷无增量)"
+  }
+ ],
+ "new_methods": [
+  {
+   "name": "open_me_row",
+   "file": "utils/aw/business/swan_r_p09.py",
+   "used_by": [
+    "pay-POS-003",
+    "pay-POS-004",
+    "pay-NEG-025",
+    "pay-NEG-027",
+    "help-POS-001",
+    "help-POS-002",
+    "help-POS-003",
+    "help-POS-004",
+    "help-POS-008",
+    "help-POS-009",
+    "help-POS-012",
+    "help-POS-014"
+   ]
+  },
+  {
+   "name": "open_recharge_page",
+   "file": "utils/aw/business/swan_r_p09.py",
+   "used_by": [
+    "pay-POS-001",
+    "pay-POS-002",
+    "pay-POS-005",
+    "pay-POS-006",
+    "pay-POS-007",
+    "pay-POS-008",
+    "pay-POS-009",
+    "pay-POS-012",
+    "pay-POS-019",
+    "pay-NEG-001",
+    "pay-NEG-004",
+    "pay-NEG-005",
+    "pay-NEG-007",
+    "pay-NEG-008",
+    "pay-NEG-009",
+    "pay-NEG-013",
+    "pay-NEG-015"
+   ]
+  },
+  {
+   "name": "open_recharge_record_page",
+   "file": "utils/aw/business/swan_r_p09.py",
+   "used_by": [
+    "pay-POS-002",
+    "pay-POS-008",
+    "pay-POS-009",
+    "pay-POS-012",
+    "pay-POS-019",
+    "pay-NEG-007",
+    "pay-NEG-008",
+    "pay-NEG-013",
+    "pay-NEG-015"
+   ]
+  },
+  {
+   "name": "select_recharge_tier",
+   "file": "utils/aw/business/swan_r_p09.py",
+   "used_by": [
+    "pay-POS-005",
+    "pay-NEG-001",
+    "pay-NEG-007",
+    "pay-NEG-008",
+    "pay-NEG-009"
+   ]
+  },
+  {
+   "name": "assert_recharge_tiers_visible",
+   "file": "utils/aw/business/swan_r_p09.py",
+   "used_by": [
+    "pay-POS-005",
+    "pay-NEG-001",
+    "pay-NEG-009"
+   ]
+  },
+  {
+   "name": "set_record_status_filter",
+   "file": "utils/aw/business/swan_r_p09.py",
+   "used_by": [
+    "pay-POS-009",
+    "pay-POS-012",
+    "pay-NEG-013",
+    "pay-NEG-015"
+   ]
+  },
+  {
+   "name": "open_rights_center",
+   "file": "utils/aw/business/swan_r_p09.py",
+   "used_by": [
+    "pay-POS-003",
+    "pay-POS-004",
+    "pay-POS-023",
+    "pay-NEG-025",
+    "pay-NEG-027"
+   ]
+  },
+  {
+   "name": "open_recharge_via_ai",
+   "file": "utils/aw/business/swan_r_p09.py",
+   "used_by": [
+    "pay-POS-025",
+    "pay-NEG-009"
+   ]
+  },
+  {
+   "name": "open_how_to_connect_page",
+   "file": "utils/aw/business/swan_r_p09.py",
+   "used_by": [
+    "help-POS-007"
+   ]
+  },
+  {
+   "name": "open_help_feedback_page",
+   "file": "utils/aw/business/swan_r_p09.py",
+   "used_by": [
+    "help-POS-001",
+    "help-POS-002",
+    "help-POS-003",
+    "help-POS-004",
+    "help-POS-008",
+    "help-POS-009"
+   ]
+  },
+  {
+   "name": "assert_help_rows_in_order",
+   "file": "utils/aw/business/swan_r_p09.py",
+   "used_by": [
+    "help-POS-001"
+   ]
+  },
+  {
+   "name": "open_about_page",
+   "file": "utils/aw/business/swan_r_p09.py",
+   "used_by": [
+    "help-POS-012",
+    "help-POS-014"
+   ]
+  },
+  {
+   "name": "open_feedback_h5",
+   "file": "utils/aw/business/swan_r_p09.py",
+   "used_by": [
+    "help-POS-008",
+    "help-POS-009"
+   ]
+  },
+  {
+   "name": "open_month_filter_dialog",
+   "file": "utils/aw/business/swan_r_p09.py",
+   "used_by": [
+    "pay-POS-010",
+    "pay-NEG-016"
+   ]
+  },
+  {
+   "name": "select_month_in_wheel",
+   "file": "utils/aw/business/swan_r_p09.py",
+   "used_by": [
+    "pay-POS-010"
+   ]
+  },
+  {
+   "name": "confirm_month_filter",
+   "file": "utils/aw/business/swan_r_p09.py",
+   "used_by": [
+    "pay-POS-010",
+    "pay-NEG-016"
+   ]
+  },
+  {
+   "name": "reset_month_filter",
+   "file": "utils/aw/business/swan_r_p09.py",
+   "used_by": [
+    "pay-POS-010",
+    "pay-NEG-016"
+   ]
+  },
+  {
+   "name": "assert_month_filter_dialog_closed",
+   "file": "utils/aw/business/swan_r_p09.py",
+   "used_by": [
+    "pay-POS-010",
+    "pay-NEG-016"
+   ]
+  },
+  {
+   "name": "scan_record_rows",
+   "file": "utils/aw/business/swan_r_p09.py",
+   "used_by": [
+    "pay-POS-024",
+    "pay-POS-013",
+    "pay-NEG-017"
+   ]
+  },
+  {
+   "name": "open_record_detail_first_row",
+   "file": "utils/aw/business/swan_r_p09.py",
+   "used_by": [
+    "pay-POS-013",
+    "pay-NEG-017"
+   ]
+  },
+  {
+   "name": "scroll_wheel_to_value",
+   "file": "utils/aw/business/swan_r_p09.py",
+   "used_by": [
+    "pay-NEG-016"
+   ]
+  },
+  {
+   "name": "assert_month_filter_entry_value",
+   "file": "utils/aw/business/swan_r_p09.py",
+   "used_by": [
+    "pay-POS-010",
+    "pay-NEG-016"
+   ]
+  },
+  {
+   "name": "assert_month_filter_entry_unset",
+   "file": "utils/aw/business/swan_r_p09.py",
+   "used_by": [
+    "pay-NEG-016"
+   ]
+  }
+ ],
+ "template_needs": [
+  {
+   "id": "pay-POS-001",
+   "element": "平台页充值按钮(region 模板,防与副标题「充值购买…」同词混淆)+充值页首屏锚(余额区/六档区/渠道区)",
+   "page": "平台页/充值页"
+  },
+  {
+   "id": "pay-POS-005",
+   "element": "档位选中态高亮(米黄底/边框)与 ¥ 字形 OCR 变体确认",
+   "page": "充值页"
+  },
+  {
+   "id": "pay-POS-006",
+   "element": "渠道项可用/不可用两态形态锚",
+   "page": "充值页"
+  },
+  {
+   "id": "pay-POS-007",
+   "element": "余额区数值与服务端值比对的展示锚",
+   "page": "充值页"
+  },
+  {
+   "id": "pay-POS-008",
+   "element": "充值记录订单行要素(金额/时间/状态)与空态文案锚",
+   "page": "充值记录页"
+  },
+  {
+   "id": "pay-POS-009",
+   "element": "状态筛选入口 region 锚(防与行状态文案同词混淆)+弹层六选项与选中态高亮",
+   "page": "充值记录页"
+  },
+  {
+   "id": "pay-POS-012",
+   "element": "段切换器 region 模板(防「充值记录」标题同词混淆)+消费段月份入口锚",
+   "page": "充值记录页"
+  },
+  {
+   "id": "pay-POS-019",
+   "element": "补单异常弹层/toast 形态锚(「无弹层」反断言)",
+   "page": "首页/充值页"
+  },
+  {
+   "id": "pay-POS-023",
+   "element": "权益中心 H5 首屏文案锚+惠威币余额展示锚",
+   "page": "权益中心"
+  },
+  {
+   "id": "pay-POS-025",
+   "element": "AI 余额不足提示及提示内充值入口文案锚+AI 发送按钮模板(现以 enter 键发送)",
+   "page": "AI 对话页"
+  },
+  {
+   "id": "pay-NEG-001",
+   "element": "档位选中态与商品 ID 展示锚",
+   "page": "充值页"
+  },
+  {
+   "id": "pay-NEG-004",
+   "element": "充值页进入副作用弹层(补单)形态锚",
+   "page": "充值页"
+  },
+  {
+   "id": "pay-NEG-005",
+   "element": "渠道面缺省文案与端缺省过滤的复核锚",
+   "page": "充值页"
+  },
+  {
+   "id": "pay-NEG-007",
+   "element": "充值页无确认弹层的反断言锚+待支付订单行文案锚",
+   "page": "充值页/充值记录页"
+  },
+  {
+   "id": "pay-NEG-008",
+   "element": "待支付订单行文案锚",
+   "page": "充值记录页"
+  },
+  {
+   "id": "pay-NEG-009",
+   "element": "同 pay-POS-025(AI 余额不足提示与充值入口锚)",
+   "page": "AI 对话页/充值页"
+  },
+  {
+   "id": "pay-NEG-013",
+   "element": "状态筛选入口 region 锚+遮罩区域+选中态米黄底高亮模板",
+   "page": "充值记录页"
+  },
+  {
+   "id": "pay-NEG-015",
+   "element": "段切换器 region 模板+月筛选滚轮锚(月份残留半边)",
+   "page": "充值记录页"
+  },
+  {
+   "id": "pay-NEG-025",
+   "element": "我的页权益组完整 4 行行名枚举锚",
+   "page": "我的页"
+  },
+  {
+   "id": "pay-NEG-027",
+   "element": "权益中心惠威币余额展示锚",
+   "page": "权益中心"
+  },
+  {
+   "id": "help-POS-002",
+   "element": "speaker-models H5 首屏文案锚",
+   "page": "帮助与反馈页/网页容器"
+  },
+  {
+   "id": "help-POS-003",
+   "element": "newadmin H5 首屏文案锚+H5 顶栏返回钮(.back-button)模板",
+   "page": "帮助与反馈页/网页容器"
+  },
+  {
+   "id": "help-POS-004",
+   "element": "faq H5 首屏文案锚",
+   "page": "帮助与反馈页/网页容器"
+  },
+  {
+   "id": "help-POS-007",
+   "element": "设备页「添加设备」入口文案/图锚+如何配网 H5 首屏锚",
+   "page": "设备页/添加设备页"
+  },
+  {
+   "id": "help-POS-008",
+   "element": "反馈 H5 首屏/标题文案锚",
+   "page": "用户反馈 H5"
+  },
+  {
+   "id": "help-POS-009",
+   "element": "反馈 H5 .nav 导航结构与内容区锚",
+   "page": "用户反馈 H5"
+  },
+  {
+   "id": "help-POS-012",
+   "element": "版本标签两行式 OCR 字形变体((build n))锚+可升级角标模板",
+   "page": "关于与升级页"
+  },
+  {
+   "id": "help-POS-014",
+   "element": "关于我们页 Logo 模板+简介正文与三行联系方式文案锚",
+   "page": "关于我们三级页"
+  },
+  {
+   "id": "help-NEG-007",
+   "element": "三处红点组件形态锚(登出清空的直接视觉断言,现以登录页到位间接覆盖)",
+   "page": "我的页/登录页"
+  },
+  {
+   "id": "pay-POS-010",
+   "element": "月筛选入口锚(右上第二筛选,默认文案未探索)+双轮中央选中高亮锚+入口文案更新态+月份字形(01/N月)确认",
+   "page": "充值记录页"
+  },
+  {
+   "id": "pay-NEG-016",
+   "element": "月筛选弹层重置钮/确认钮字形与蒙层区域锚(重置/关闭分支 region 消歧)+双轮滚轮控件模板与中央选中高亮锚(与 pay-POS-010 共用,远格逐格滚动 OCR 步进的槽位复核升级面)",
+   "page": "充值记录页"
+  },
+  {
+   "id": "pay-POS-013",
+   "element": "记录详情页首屏锚(标题/金额/时间/状态),行要素一致性比对升级为模板断言",
+   "page": "充值记录详情页"
+  },
+  {
+   "id": "pay-NEG-017",
+   "element": "同 pay-POS-013 详情页首屏锚(返回接管断言已在 py 内)",
+   "page": "充值记录详情页"
+  },
+  {
+   "id": "pay-POS-024",
+   "element": "记录行 time 要素字形与「没有更多」类尾锚(跨页重复判定校准)",
+   "page": "充值记录页"
+  }
+ ],
+ "notes": "1) pay-NEG-001 步骤1(金额缩放开关编译期常量检查)为非 UI 静态检查,由执行层源码/包复核承担,py 覆盖步骤2-3;pay-NEG-004 的网络副作用观察、pay-POS-003 的 URL host 判定、pay-POS-023 的桥载荷日志探针、help-NEG-007 的零回源日志与 30001 toast 捕获同属执行层,py 覆盖 UI 可观察半边并在 docstring 登记。2) pay-POS-025/pay-NEG-009 的 AI 余额不足链依赖余额=0 预置(当前测试账号 0.5 HC),运行时按 SKIP-DATA skip;发送按钮以 enter 键承接(知识库 swan_AI对话页:发送钮无文案图标)。3) 我的页行锚出自知识库 5.3.0 实测,5.3.2-b34 权益组行集以 YAML 为准(权益中心行),完整枚举待 explorer 补充。4) 充值页/充值记录页/权益中心/反馈 H5 为未探索页,细锚已集中登记 template_needs,转正后用例锚点可升级为模板断言。5) 断网/代理注入/日志探针/路由深链/服务端数据预置五类能力缺失是本包 53 条 skip 的主因,支付域禁区 1(不发起真实支付)使订单族用例只能依赖预置真实订单。6) ADD1 口径复审:原 53 条 skip 逐条重审——5 条改判 B 并已产出 py(pay-POS-010/pay-NEG-016 月筛选滚轮、pay-POS-013/pay-NEG-017 记录详情、pay-POS-024 分页计数,blocker 原为元素未截图/页面未探索,经 ocr_scan_page 全量枚举+运行时坐标 swipe 证可走通);pay-NEG-006 改码 HUMAN_ONLY(YAML 自标人工节点)、pay-NEG-026/028 改码 THIRD_PARTY_REAL(沙箱购买=真实交易发起);其余 skip 理由全部改写为点名具体框架缺口(断网/代理/路由注入、日志断言通道、非 ASCII 输入、多指手势、多包对照、系统级 UI/语言、服务端数据预置)。7) 复审补强(ADD1 捞回复核轮):pay-NEG-016 的 2026-01 距当前月 9 格超出滚轮可视窗口,select_month_in_wheel 仅支持视野内目标——新增 scroll_wheel_to_value(先下后上逐格 OCR 滚动搜索,格距取同列相邻项 y 差,坐标全运行时推导)承接远格;两条捞回用例补齐「入口文案更新」生效联动断言(assert_month_filter_entry_value)与重置/关闭 null 保持断言(assert_month_filter_entry_unset),time 查询参数核验仍归执行层。"
+}

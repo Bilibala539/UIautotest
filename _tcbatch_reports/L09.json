@@ -1,0 +1,538 @@
+{
+  "pkg": "L09",
+  "converted": [
+    "ai-NEG-002",
+    "ai-NEG-004",
+    "ai-NEG-018",
+    "ai-NEG-019",
+    "ai-NEG-020",
+    "ai-NEG-030",
+    "ai-NEG-036",
+    "ai-POS-001",
+    "ai-POS-002",
+    "ai-POS-003",
+    "ai-POS-004",
+    "ai-POS-005",
+    "ai-POS-006",
+    "ai-POS-007",
+    "ai-POS-009",
+    "ai-POS-011",
+    "ai-POS-012",
+    "ai-POS-013",
+    "ai-POS-014",
+    "ai-POS-015",
+    "ai-POS-016",
+    "ai-POS-017",
+    "ai-POS-018",
+    "ai-POS-019",
+    "ai-POS-020",
+    "ai-POS-021",
+    "ai-POS-022",
+    "ai-POS-023",
+    "ai-POS-024",
+    "ai-POS-025",
+    "ai-POS-026",
+    "ai-POS-027",
+    "ai-POS-028",
+    "ai-POS-029",
+    "ai-POS-030",
+    "ai-POS-031",
+    "ai-POS-032",
+    "ai-POS-034",
+    "ai-POS-035",
+    "ai-POS-036",
+    "ai-POS-037",
+    "ai-POS-038",
+    "ai-POS-039",
+    "ai-POS-040",
+    "ai-POS-041",
+    "ai-POS-042",
+    "ai-POS-043"
+  ],
+  "skipped": [
+    {
+      "id": "ai-NEG-001",
+      "reason_code": "OTHER",
+      "reason": "断网/恢复需人工预置；框架无网络通断原语（connect_wifi 仅连接方向），断网/弱网/恢复态不可编排"
+    },
+    {
+      "id": "ai-NEG-003",
+      "reason_code": "OTHER",
+      "reason": "弱网/断网态预置同 ai-NEG-001；框架无网络通断原语（connect_wifi 仅连接方向），断网/弱网/恢复态不可编排"
+    },
+    {
+      "id": "ai-NEG-005",
+      "reason_code": "OTHER",
+      "reason": "语音采集采样率/音频数据流为底层态；框架仅 UI/OCR 观测层，无音频流/音频底层态观察原语，断言域不可观察"
+    },
+    {
+      "id": "ai-NEG-006",
+      "reason_code": "OTHER",
+      "reason": "语音采集内部状态（采样率/音频数据流）为底层态；框架仅 UI/OCR 观测层，无音频流/音频底层态观察原语，断言域不可观察"
+    },
+    {
+      "id": "ai-NEG-007",
+      "reason_code": "OTHER",
+      "reason": "网络态切换预置需人工；框架无网络通断原语（connect_wifi 仅连接方向），断网/弱网/恢复态不可编排"
+    },
+    {
+      "id": "ai-NEG-008",
+      "reason_code": "THIRD_PARTY_REAL",
+      "reason": "拉起第三方原生 SDK 授权流，需真实第三方凭据与回跳"
+    },
+    {
+      "id": "ai-NEG-009",
+      "reason_code": "OTHER",
+      "reason": "需裁剪安装包变体构造 SDK 缺失环境；框架无定制构建变体/环境注入原语"
+    },
+    {
+      "id": "ai-NEG-010",
+      "reason_code": "OTHER",
+      "reason": "框架 input_text 原语仅 ASCII 安全注入（2000 字中文经 adb 不可达）；且播放条前置在基线账号（全平台未授权）无法建立"
+    },
+    {
+      "id": "ai-NEG-011",
+      "reason_code": "OTHER",
+      "reason": "框架 input_text 原语经 adb 注入 emoji 不可达（注入即异常）；字幕跟滚无视觉观察锚"
+    },
+    {
+      "id": "ai-NEG-012",
+      "reason_code": "OTHER",
+      "reason": "框架无 uimode/深色模式切换原语（深色主题人工预置）；<> shell 元字符经 input_text 注入不安全"
+    },
+    {
+      "id": "ai-NEG-013",
+      "reason_code": "OTHER",
+      "reason": "保存入口=红线控件 SWAN_ROLE_EDITOR_DONE，点击产生 addOrUpdateRole 服务端写；框架无服务端数据隔离/回滚原语，禁区不可豁免"
+    },
+    {
+      "id": "ai-NEG-014",
+      "reason_code": "OTHER",
+      "reason": "同 ai-NEG-013：addOrUpdateRole 服务端写 + 红线控件点击，禁区不可豁免"
+    },
+    {
+      "id": "ai-NEG-015",
+      "reason_code": "OTHER",
+      "reason": "上传入口=红线控件 SWAN_DIY_UPLOAD_CARD + 跨应用系统文件选择器无自动化锚；框架无文件推送/pm 原语"
+    },
+    {
+      "id": "ai-NEG-016",
+      "reason_code": "OTHER",
+      "reason": "同 ai-NEG-013：保存路径=红线控件 SWAN_ROLE_EDITOR_DONE + addOrUpdateRole 服务端写，禁区不可豁免"
+    },
+    {
+      "id": "ai-NEG-017",
+      "reason_code": "OTHER",
+      "reason": "会话改名入口=历史页长按菜单（未探索无 OCR 锚）+ updatePre 服务端写（禁区 5）+ emoji 数据经 adb 注入不可达"
+    },
+    {
+      "id": "ai-NEG-021",
+      "reason_code": "OTHER",
+      "reason": "框架无网络抓包/协议 mock 注入原语，接口字段级断言在 UI/OCR 层不可达"
+    },
+    {
+      "id": "ai-NEG-022",
+      "reason_code": "OTHER",
+      "reason": "框架无 WS 协议抓包/mock 注入原语，WS 协议字段断言 UI 层不可达"
+    },
+    {
+      "id": "ai-NEG-023",
+      "reason_code": "PHYSICAL",
+      "reason": "物理操作（硬件侧/物理按键），框架无此能力"
+    },
+    {
+      "id": "ai-NEG-024",
+      "reason_code": "PHYSICAL",
+      "reason": "物理操作（硬件侧/物理按键），框架无此能力"
+    },
+    {
+      "id": "ai-NEG-025",
+      "reason_code": "OTHER",
+      "reason": "音频焦点/底层服务态无 UI 观察锚；框架仅 UI/OCR 观测层，无音频流/音频底层态观察原语，断言域不可观察"
+    },
+    {
+      "id": "ai-NEG-026",
+      "reason_code": "OTHER",
+      "reason": "底层状态判定不可观察；框架仅 UI/OCR 观测层，无音频流/音频底层态观察原语，断言域不可观察，需专用仪器/人工观察"
+    },
+    {
+      "id": "ai-NEG-027",
+      "reason_code": "OTHER",
+      "reason": "断言域为音频底层态（无 UI 观察锚）；框架仅 UI/OCR 观测层，无音频流/音频底层态观察原语，断言域不可观察"
+    },
+    {
+      "id": "ai-NEG-028",
+      "reason_code": "OTHER",
+      "reason": "需降级 Port 构建变体构造特定环境；框架无定制构建变体/环境注入原语"
+    },
+    {
+      "id": "ai-NEG-029",
+      "reason_code": "OTHER",
+      "reason": "框架无网关协议抓包/mock 注入原语，网关协议断言 UI 层不可达"
+    },
+    {
+      "id": "ai-NEG-031",
+      "reason_code": "OTHER",
+      "reason": "底层状态判定不可观察；框架仅 UI/OCR 观测层，无音频流/音频底层态观察原语，断言域不可观察，需专用环境/人工观察"
+    },
+    {
+      "id": "ai-NEG-032",
+      "reason_code": "THIRD_PARTY_REAL",
+      "reason": "惠币真实消耗链路，涉真实计费"
+    },
+    {
+      "id": "ai-NEG-033",
+      "reason_code": "THIRD_PARTY_REAL",
+      "reason": "惠币真实消耗链路，涉真实计费"
+    },
+    {
+      "id": "ai-NEG-034",
+      "reason_code": "OTHER",
+      "reason": "框架无网络抓包/协议 mock 注入原语，接口字段级断言在 UI/OCR 层不可达"
+    },
+    {
+      "id": "ai-NEG-035",
+      "reason_code": "OTHER",
+      "reason": "框架无 WS 会话网关抓包/mock 注入原语，UI 层不可达"
+    },
+    {
+      "id": "ai-NEG-037",
+      "reason_code": "OTHER",
+      "reason": "iOS 平台专属；框架仅 Android 驱动（无 iOS 原语），不可执行"
+    },
+    {
+      "id": "ai-NEG-038",
+      "reason_code": "OTHER",
+      "reason": "需 Linkplay 协议 mock 注入构造特定设备态；框架无协议 mock 注入原语"
+    },
+    {
+      "id": "ai-NEG-039",
+      "reason_code": "OTHER",
+      "reason": "需 pm 权限管理与插件事件 mock；框架无权限管理原语与插件事件注入原语"
+    },
+    {
+      "id": "ai-NEG-040",
+      "reason_code": "OTHER",
+      "reason": "框架无网络抓包/协议 mock 注入原语，接口字段级断言在 UI/OCR 层不可达"
+    },
+    {
+      "id": "ai-NEG-041",
+      "reason_code": "HUMAN_ONLY",
+      "reason": "视觉像素级判定（白字白底/渲染闪烁），纯人工观察域"
+    },
+    {
+      "id": "ai-NEG-042",
+      "reason_code": "OTHER",
+      "reason": "网络态切换预置需人工；框架无网络通断原语（connect_wifi 仅连接方向），断网/弱网/恢复态不可编排"
+    },
+    {
+      "id": "ai-NEG-043",
+      "reason_code": "OTHER",
+      "reason": "网络态切换预置需人工；框架无网络通断原语（connect_wifi 仅连接方向），断网/弱网/恢复态不可编排"
+    },
+    {
+      "id": "ai-NEG-044",
+      "reason_code": "OTHER",
+      "reason": "网络态切换预置需人工；框架无网络通断原语（connect_wifi 仅连接方向），断网/弱网/恢复态不可编排"
+    },
+    {
+      "id": "ai-NEG-045",
+      "reason_code": "THIRD_PARTY_REAL",
+      "reason": "惠币真实消耗/充值链路，涉真实计费"
+    },
+    {
+      "id": "ai-POS-008",
+      "reason_code": "OTHER",
+      "reason": "同 ai-NEG-013：预置自定义角色需 addOrUpdateRole 服务端写 + 红线控件点击，禁区不可豁免"
+    },
+    {
+      "id": "ai-POS-010",
+      "reason_code": "OTHER",
+      "reason": "同 ai-POS-008：服务端角色写预置 + 红线控件，禁区不可豁免"
+    },
+    {
+      "id": "ai-POS-033",
+      "reason_code": "PHYSICAL",
+      "reason": "需蓝牙音箱 TESTDEV-BT01 已连接手机（真实蓝牙配对硬件侧），人工预置"
+    },
+    {
+      "id": "ai-POS-044",
+      "reason_code": "OTHER",
+      "reason": "框架无 uimode/深色模式切换原语（人工预置）；表格/代码块渲染可读为视觉判定（OCR 不可及）"
+    }
+  ],
+  "new_methods": [
+    {
+      "name": "assert_ai_home_gallery",
+      "file": "utils/aw/business/swan_r_m09.py",
+      "used_by": [
+        "ai-NEG-004",
+        "ai-NEG-030",
+        "ai-POS-001",
+        "ai-POS-002",
+        "ai-POS-004",
+        "ai-POS-005",
+        "ai-POS-006",
+        "ai-POS-007",
+        "ai-POS-013",
+        "ai-POS-014",
+        "ai-POS-016",
+        "ai-POS-019",
+        "ai-POS-020",
+        "ai-POS-021",
+        "ai-POS-022",
+        "ai-POS-024",
+        "ai-POS-025",
+        "ai-POS-038",
+        "ai-POS-042",
+        "ai-POS-043"
+      ]
+    },
+    {
+      "name": "open_ai_roles_page",
+      "file": "utils/aw/business/swan_r_m09.py",
+      "used_by": [
+        "ai-POS-004",
+        "ai-POS-007",
+        "ai-POS-014",
+        "ai-POS-019",
+        "ai-POS-020"
+      ]
+    },
+    {
+      "name": "open_ai_role_editor",
+      "file": "utils/aw/business/swan_r_m09.py",
+      "used_by": [
+        "ai-NEG-004",
+        "ai-POS-005",
+        "ai-POS-006",
+        "ai-POS-013",
+        "ai-POS-016",
+        "ai-POS-020",
+        "ai-POS-038"
+      ]
+    },
+    {
+      "name": "open_ai_history_page",
+      "file": "utils/aw/business/swan_r_m09.py",
+      "used_by": [
+        "ai-NEG-030",
+        "ai-POS-022",
+        "ai-POS-024",
+        "ai-POS-025"
+      ]
+    },
+    {
+      "name": "open_ai_chat_by_role",
+      "file": "utils/aw/business/swan_r_m09.py",
+      "used_by": [
+        "ai-NEG-030",
+        "ai-POS-002",
+        "ai-POS-021",
+        "ai-POS-022",
+        "ai-POS-024",
+        "ai-POS-025",
+        "ai-POS-027",
+        "ai-POS-028",
+        "ai-POS-031",
+        "ai-POS-034"
+      ]
+    },
+    {
+      "name": "send_chat_text",
+      "file": "utils/aw/business/swan_r_m09.py",
+      "used_by": [
+        "ai-NEG-030",
+        "ai-POS-021",
+        "ai-POS-022",
+        "ai-POS-024",
+        "ai-POS-025"
+      ]
+    },
+    {
+      "name": "assert_chat_token",
+      "file": "utils/aw/business/swan_r_m09.py",
+      "used_by": [
+        "ai-NEG-030",
+        "ai-POS-025"
+      ]
+    },
+    {
+      "name": "wait_ai_reply_bubble",
+      "file": "utils/aw/business/swan_r_m09.py",
+      "used_by": [
+        "ai-POS-022"
+      ]
+    },
+    {
+      "name": "swipe_ai_gallery_card",
+      "file": "utils/aw/business/swan_r_m09.py",
+      "used_by": [
+        "ai-POS-007",
+        "ai-POS-019",
+        "ai-POS-043"
+      ]
+    },
+    {
+      "name": "find_ai_topbar_text",
+      "file": "utils/aw/business/swan_r_m09.py",
+      "used_by": [
+        "ai-POS-002",
+        "ai-POS-005",
+        "ai-POS-006",
+        "ai-POS-013",
+        "ai-POS-028",
+        "ai-POS-031",
+        "ai-POS-034",
+        "ai-POS-038"
+      ]
+    },
+    {
+      "name": "find_ai_voice_form_text",
+      "file": "utils/aw/business/swan_r_m09.py",
+      "used_by": [
+        "ai-POS-016"
+      ]
+    },
+    {
+      "name": "scan_ai_chat_content",
+      "file": "utils/aw/business/swan_r_m09.py",
+      "used_by": [
+        "ai-POS-022"
+      ]
+    }
+  ],
+  "template_needs": [
+    {
+      "id": "ai-POS-021",
+      "element": "聊天页发送按钮（无文案控件；现以输入框聚焦+回车键发送替代）",
+      "page": "AI 对话页"
+    },
+    {
+      "id": "ai-POS-022",
+      "element": "聊天页发送按钮 + AI 回复气泡锚/回复时效阈值（90s 探测为标定值）",
+      "page": "AI 对话页"
+    },
+    {
+      "id": "ai-POS-024",
+      "element": "历史会话行命名口径（会话名=首条消息/预览 截断规则）",
+      "page": "AI 历史页"
+    },
+    {
+      "id": "ai-POS-025",
+      "element": "历史会话行命名口径（同 ai-POS-024）",
+      "page": "AI 历史页"
+    },
+    {
+      "id": "ai-POS-027",
+      "element": "语音输入模式 UI 形态（按住说话控件；首点可能的系统麦克风权限弹窗处理）",
+      "page": "AI 对话页·语音模式"
+    },
+    {
+      "id": "ai-POS-031",
+      "element": "输出设备弹层入口（设备副标题 chip「暂无设备」可点性未探索）",
+      "page": "AI 对话页"
+    },
+    {
+      "id": "ai-POS-034",
+      "element": "输出设备弹层入口（同 ai-POS-031）",
+      "page": "AI 对话页"
+    },
+    {
+      "id": "ai-POS-042",
+      "element": "长按遮罩菜单项形态（编辑/删除为文本或图标待标定）",
+      "page": "AI 首页·遮罩菜单"
+    },
+    {
+      "id": "ai-POS-043",
+      "element": "角色卡居中态基准图（3D PageView 翻页/遮罩补偿为视觉判定域）",
+      "page": "AI 首页·角色画廊"
+    },
+    {
+      "id": "ai-POS-016",
+      "element": "音色行点选即时回显形态（表单区当前音色显示是否随点选刷新）",
+      "page": "角色编辑器·语音选择"
+    },
+    {
+      "id": "ai_chat_realtime_action",
+      "element": "实时通话入口图标（顶栏无文案图标；关联 ai-NEG-002/ai-NEG-019/ai-POS-035/036/037）",
+      "page": "AI 对话页·顶栏"
+    },
+    {
+      "id": "ai_chat_history_action",
+      "element": "聊天页历史入口图标（顶栏无文案图标；关联 ai-POS-003）",
+      "page": "AI 对话页·顶栏"
+    },
+    {
+      "id": "ai_history_create_new_chat",
+      "element": "历史页新建会话入口图标（顶栏无文案图标；关联 ai-POS-023/ai-POS-041）",
+      "page": "AI 历史页·顶栏"
+    },
+    {
+      "id": "ai_role_gallery_roleid12_card",
+      "element": "roleId==12 官方知识库角色卡位映射（哪张卡为目标角色；关联 ai-NEG-020/ai-POS-018）",
+      "page": "AI 首页·角色画廊"
+    },
+    {
+      "id": "ai_editor_model_entry",
+      "element": "LLM 模型选择器入口（编辑器 OCR 无文本锚；关联 ai-POS-017）",
+      "page": "角色编辑器"
+    },
+    {
+      "id": "ai_model_picked_marker",
+      "element": "模型条目选中态回显形态（关联 ai-POS-017）",
+      "page": "模型选择器"
+    },
+    {
+      "id": "ai_role_checkbox_and_delete_confirm",
+      "element": "多选勾选框逐项锚 + 删除确认弹层形态（关联 ai-NEG-036）",
+      "page": "所有角色页·多选"
+    },
+    {
+      "id": "ai_multiselect_state_marker",
+      "element": "多选联动勾选态回显（☑/高亮形态；关联 ai-POS-015）",
+      "page": "所有角色页·多选"
+    },
+    {
+      "id": "ai_vision_picked_marker",
+      "element": "形象素材选中态回显形态（关联 ai-POS-011/ai-POS-012）",
+      "page": "AI形象选择页"
+    },
+    {
+      "id": "ai_history_pagination_tail",
+      "element": "历史分页尾锚（加载更多/没有更多文案形态；关联 ai-POS-026）",
+      "page": "AI 历史页"
+    },
+    {
+      "id": "ai_platform_auth_badge",
+      "element": "平台授权态标识（已授权/未授权徽标形态；关联 ai-POS-039）",
+      "page": "平台管理页"
+    },
+    {
+      "id": "ai_platform_open_entry",
+      "element": "平台卡开通入口控件形态（无文案控件；关联 ai-POS-040）",
+      "page": "平台管理页"
+    },
+    {
+      "id": "ai_history_empty_anchor",
+      "element": "历史页空态文案锚（关联 ai-NEG-018/ai-POS-041）",
+      "page": "AI 历史页"
+    },
+    {
+      "id": "ai_readaloud_entry",
+      "element": "朗读入口形态（回复气泡关联无文案控件；关联 ai-POS-030）",
+      "page": "AI 对话页·回复气泡"
+    },
+    {
+      "id": "ai_device_sheet_rows",
+      "element": "设备选择弹层行形态与 H76D/H76G 排除表（关联 ai-POS-032）",
+      "page": "AI 对话页·设备弹层"
+    },
+    {
+      "id": "ai_chat_player_shell",
+      "element": "对话页底部播放条壳文案锚（播放壳未探索；关联 ai-POS-029）",
+      "page": "AI 对话页·底部"
+    }
+  ],
+  "notes": "L09(M09 AI 助手) 89 条：转换 47、跳过 42（ADD1 口径复审后）。页面锚全部来自 wave5 真机探索 dumps（explorer_output/wave5/dumps/，基线账号 13555555555 实测）。关键约束：1) adb 中文/emoji 输入不可达，所有输入类用例以 ASCII 等价数据替代（py docstring 已注明）；2) 红线控件（角色编辑完成/惠币生成/DIY 上传/平台行按钮/设备单选列表/AI 朗读弹层选择）全程仅存在性断言零点击；3) mixin 仅编排基础 AW 层方法（登录/顶 Tab 导航在用例内完成），挂入 SwanBusiness MRO 由集成时统一完成。ADD1 复审口径（2026-10-20）：原 65 条 skipped 逐条复审，23 条 blocker 属「无文案图标待截模板/页面未探索/账号状态未预置可运行时条件 skip」改判 B 转出 py——其中图标类 8 条（NEG-002/019,POS-003/023/035/036/037/041）为结构化 skip：真实前缀（登录→AI Tab→对话/历史/角色页导航）全走既有 OCR 锚执行，行至图标阻塞步 pytest.skip 并点名 template_needs，模板补齐后即全自动；账号/数据态类 6 条（NEG-018/019/036,POS-009/015/041）以环境变量门 SWAN_AI_EMPTY_HISTORY_ACCT/SWAN_AI_ZERO_BALANCE_ACCT/SWAN_AI_PRESET_ROLE/SWAN_AI_PRESET_PROMPT 预置专用账号口径，未置位即条件 skip；探针类 9 条（POS-011/012/017/018/026/029/030/032/039/040）页面未标定锚以 OCR 关键词探针门控，未命中即退出+skip+template_needs 登记，命中即全自动断言。NEG-036 删除围栏经前置隔离：基线账号在「暂未自定义角色」空态即 skip，删除步骤仅在 SWAN_AI_PRESET_ROLE 专用账号执行，不触及基线数据。保留 42 条均为框架能力缺口或禁区（reason 已逐条点名具体原语）：OTHER 34 = 网络通断原语缺失 6（NEG-001/003/007/042/043/044）、抓包/协议 mock 注入原语缺失 6（NEG-021/022/029/034/035/040）、音频底层态观察原语缺失 6（NEG-005/006/025/026/027/031）、input_text 非 ASCII/元字符不可达 3（NEG-010/011/012）、uimode 原语缺失 2（NEG-012/POS-044，012 与输入域重叠）、构建变体/环境注入原语缺失 2（NEG-009/028）、Linkplay 协议 mock 原语 1（NEG-038）、pm 权限与插件事件原语 1（NEG-039）、iOS 原语缺失 1（NEG-037）、红线控件+服务端写禁区 7（NEG-013/014/015/016/017,POS-008/010）；THIRD_PARTY_REAL 4（NEG-008/032/033/045 惠币真实计费/第三方 SDK）、PHYSICAL 3（NEG-023/024,POS-033）、HUMAN_ONLY 1（NEG-041 视觉像素级）。"
+}

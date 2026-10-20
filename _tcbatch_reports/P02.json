@@ -1,0 +1,513 @@
+{
+ "pkg": "P02",
+ "converted": [
+  "login-NEG-001",
+  "login-NEG-002",
+  "login-NEG-003",
+  "login-NEG-004",
+  "login-NEG-005",
+  "login-NEG-009",
+  "login-NEG-010",
+  "login-NEG-011",
+  "login-NEG-012",
+  "login-NEG-013",
+  "login-NEG-022",
+  "login-NEG-023",
+  "login-NEG-024",
+  "login-NEG-025",
+  "login-NEG-026",
+  "login-NEG-027",
+  "login-NEG-028",
+  "login-NEG-030",
+  "login-NEG-045",
+  "login-NEG-048",
+  "login-NEG-049",
+  "login-NEG-050",
+  "login-NEG-051",
+  "login-NEG-052",
+  "login-POS-002",
+  "login-POS-004",
+  "login-POS-005",
+  "login-POS-010",
+  "login-POS-011",
+  "login-POS-012",
+  "login-POS-020",
+  "login-POS-021",
+  "login-POS-022"
+ ],
+ "skipped": [
+  {
+   "id": "login-LOG-001",
+   "reason_code": "OTHER",
+   "reason": "核心断言 Authorization 请求头变化需 HTTP 流量观测,框架无代理/抓包通道;第二测试账号凭据未登记(用例自带 credential-required 挂起),Qobuz 授权域星标操作依赖前两者"
+  },
+  {
+   "id": "login-LOG-003",
+   "reason_code": "OTHER",
+   "reason": "框架无 HTTP 代理/请求挂起注入通道,无法构造 /user/logout 挂起与在途 30001 业务码"
+  },
+  {
+   "id": "login-LOG-004",
+   "reason_code": "OTHER",
+   "reason": "框架无一次性账号供给通道,且无代理拦截 /user/unsubscribe 的请求包装能力,双护栏均缺"
+  },
+  {
+   "id": "login-LOG-005",
+   "reason_code": "OTHER",
+   "reason": "框架无代理响应体改写通道,无法对 /user/captcha 响应注入非法业务码"
+  },
+  {
+   "id": "login-LOG-006",
+   "reason_code": "OTHER",
+   "reason": "框架无并发请求分别注入 40006/30003 的代理编排能力(需按请求粒度挂起/放行)"
+  },
+  {
+   "id": "login-LOG-007",
+   "reason_code": "OTHER",
+   "reason": "框架无 debug/profile 切服包资产与代理观测通道;Logo 手势+确认后 kill 进程属执行红线序列(YAML 明示须主对话批准专用序列)"
+  },
+  {
+   "id": "login-LOG-008",
+   "reason_code": "OTHER",
+   "reason": "框架无 debug 切服包资产与 WS 握手级代理可见性通道,三地址切换观察不可达"
+  },
+  {
+   "id": "login-NEG-006",
+   "reason_code": "OTHER",
+   "reason": "框架无系统级断网/飞行模式控制通道,前置不可达;响应包装核对同依赖代理"
+  },
+  {
+   "id": "login-NEG-007",
+   "reason_code": "OTHER",
+   "reason": "OTP 网关白名单仅主号 135,框架无第二号码(13555555556)验证码获取通道(用例自带 BLOCKED-risk: otp-gateway 未实测)"
+  },
+  {
+   "id": "login-NEG-014",
+   "reason_code": "OTHER",
+   "reason": "框架无代理请求注入通道(硬前置明示注入 30003 业务码)"
+  },
+  {
+   "id": "login-NEG-015",
+   "reason_code": "OTHER",
+   "reason": "框架无代理请求注入通道(需分别注入 30001/40006 观察防重分支)"
+  },
+  {
+   "id": "login-NEG-016",
+   "reason_code": "OTHER",
+   "reason": "框架无代理时序控制通道(需 2s 内两次同码注入)"
+  },
+  {
+   "id": "login-NEG-017",
+   "reason_code": "OTHER",
+   "reason": "框架无代理延迟注入通道(需延迟 3s 构造在途请求窗口)"
+  },
+  {
+   "id": "login-NEG-018",
+   "reason_code": "OTHER",
+   "reason": "框架无代理请求注入通道(登录态二级页注入 30003)"
+  },
+  {
+   "id": "login-NEG-019",
+   "reason_code": "OTHER",
+   "reason": "框架无设备存储写通道(driver 无 SharedPreferences/shell 注入能力),伪造 token 前置不可构造"
+  },
+  {
+   "id": "login-NEG-020",
+   "reason_code": "OTHER",
+   "reason": "同 NEG-019:框架无设备存储写通道(空串/空白/无前缀 token 注入)"
+  },
+  {
+   "id": "login-NEG-021",
+   "reason_code": "OTHER",
+   "reason": "同 NEG-019:框架无设备存储写通道(过期 JWT 构造注入)"
+  },
+  {
+   "id": "login-NEG-031",
+   "reason_code": "OTHER",
+   "reason": "框架无系统级断网/飞行模式控制通道,断网前置不可达"
+  },
+  {
+   "id": "login-NEG-032",
+   "reason_code": "OTHER",
+   "reason": "框架无代理请求挂起通道(需挂起 /user/login 直至客户端超时)"
+  },
+  {
+   "id": "login-NEG-033",
+   "reason_code": "OTHER",
+   "reason": "框架无代理屏蔽/延迟/改写通道(对 mxnzp.com 三种故障注入)"
+  },
+  {
+   "id": "login-NEG-034",
+   "reason_code": "OTHER",
+   "reason": "框架无代理状态码/响应体改写通道"
+  },
+  {
+   "id": "login-NEG-035",
+   "reason_code": "OTHER",
+   "reason": "框架无代理延迟注入通道(延迟 /user/login 构造在途窗口)"
+  },
+  {
+   "id": "login-NEG-037",
+   "reason_code": "OTHER",
+   "reason": "断言面=单请求/请求计数,框架无代理计数与延迟通道(双击/在途防重不可观测)"
+  },
+  {
+   "id": "login-NEG-038",
+   "reason_code": "OTHER",
+   "reason": "driver 无清除应用数据(pm clear)通道,首装态不可构造"
+  },
+  {
+   "id": "login-NEG-039",
+   "reason_code": "OTHER",
+   "reason": "同 NEG-038 清数据缺口 + 框架无 adb 深链拉起通道(am start -d)"
+  },
+  {
+   "id": "login-NEG-040",
+   "reason_code": "OTHER",
+   "reason": "框架无系统级断网控制与代理 5xx 注入通道,登出失败路径不可构造"
+  },
+  {
+   "id": "login-NEG-041",
+   "reason_code": "OTHER",
+   "reason": "框架无 debug 切服包资产与代理全量观测通道"
+  },
+  {
+   "id": "login-NEG-042",
+   "reason_code": "OTHER",
+   "reason": "前置态需代理注入 50015/Mock credential 构造第三方绑定失败上下文,该页正常流程不可达"
+  },
+  {
+   "id": "login-NEG-043",
+   "reason_code": "OTHER",
+   "reason": "框架无 adb 深链拉起通道,且未登录基线态需清除应用数据(同 NEG-038 driver 缺口)"
+  },
+  {
+   "id": "login-NEG-044",
+   "reason_code": "OTHER",
+   "reason": "页面不可达(同 NEG-042 前置缺口)+框架无代理失效码注入通道"
+  },
+  {
+   "id": "login-NEG-047",
+   "reason_code": "OTHER",
+   "reason": "框架无并发压测与 ANR 探针工具链通道(Mock 并发注入/ANR 观测)"
+  },
+  {
+   "id": "login-NEG-053",
+   "reason_code": "OTHER",
+   "reason": "框架无代理响应体改写通道(空 token 成功壳)"
+  },
+  {
+   "id": "login-NEG-055",
+   "reason_code": "OTHER",
+   "reason": "打包链路无移除 .so 的变体构建通道(微博哨兵定制 APK)"
+  },
+  {
+   "id": "login-NEG-056",
+   "reason_code": "OTHER",
+   "reason": "框架无 ANR 压测与录屏对照工具链通道"
+  },
+  {
+   "id": "login-POS-006",
+   "reason_code": "OTHER",
+   "reason": "driver 无清除应用数据(pm clear)通道,首装态不可构造"
+  },
+  {
+   "id": "login-POS-018",
+   "reason_code": "OTHER",
+   "reason": "框架无代理请求注入通道(注入 30003 业务码)"
+  },
+  {
+   "id": "login-POS-019",
+   "reason_code": "OTHER",
+   "reason": "框架无 debug 切服包资产与代理观测通道"
+  },
+  {
+   "id": "login-LOG-002",
+   "reason_code": "THIRD_PARTY_REAL",
+   "reason": "微信/微博 SDK 授权 UI 在 App 外,中间授权确认为人工环节(用例自带 human_interruption_point),需真实第三方账号"
+  },
+  {
+   "id": "login-NEG-036",
+   "reason_code": "THIRD_PARTY_REAL",
+   "reason": "微信/微博 SDK 环境与跨 App 授权流程,需真实第三方 App 与账号"
+  },
+  {
+   "id": "login-NEG-046",
+   "reason_code": "THIRD_PARTY_REAL",
+   "reason": "需卸载微信的环境操控与对照微博 SDK,超出框架环境能力"
+  },
+  {
+   "id": "login-POS-013",
+   "reason_code": "THIRD_PARTY_REAL",
+   "reason": "需真实微信授权完成登录收口(图标可见性部分无锚可断言,收口部分需真实第三方账号)"
+  },
+  {
+   "id": "login-POS-014",
+   "reason_code": "THIRD_PARTY_REAL",
+   "reason": "需未绑定手机号的第三方账号+真实授权环境"
+  },
+  {
+   "id": "login-NEG-054",
+   "reason_code": "DATA_UNRECOVERABLE",
+   "reason": "连续 3/5/10 次错误密码触发锁号风险,破坏共享测试账号 13555555555(仓库纪律:错误密码只试 1 次防锁号)"
+  }
+ ],
+ "new_methods": [
+  {
+   "name": "fill_phone_number",
+   "file": "utils/aw/business/swan_r_p02.py",
+   "used_by": [
+    "login-NEG-001",
+    "login-NEG-002",
+    "login-NEG-010",
+    "login-NEG-012",
+    "login-NEG-030",
+    "login-NEG-045",
+    "login-NEG-048",
+    "login-NEG-049",
+    "login-NEG-052",
+    "login-POS-002",
+    "login-POS-004",
+    "login-POS-010",
+    "login-POS-011",
+    "login-POS-020",
+    "login-POS-021",
+    "login-POS-022"
+   ]
+  },
+  {
+   "name": "accept_agreement",
+   "file": "utils/aw/business/swan_r_p02.py",
+   "used_by": [
+    "login-NEG-001",
+    "login-NEG-002",
+    "login-NEG-010",
+    "login-NEG-012",
+    "login-NEG-045",
+    "login-NEG-049",
+    "login-NEG-051",
+    "login-NEG-052",
+    "login-POS-002",
+    "login-POS-004",
+    "login-POS-010",
+    "login-POS-011",
+    "login-POS-020",
+    "login-POS-021"
+   ]
+  },
+  {
+   "name": "cancel_agreement",
+   "file": "utils/aw/business/swan_r_p02.py",
+   "used_by": [
+    "login-NEG-001",
+    "login-POS-010"
+   ]
+  },
+  {
+   "name": "ensure_password_form",
+   "file": "utils/aw/business/swan_r_p02.py",
+   "used_by": [
+    "login-NEG-002",
+    "login-NEG-009",
+    "login-NEG-010",
+    "login-NEG-030",
+    "login-NEG-045",
+    "login-NEG-052",
+    "login-POS-002",
+    "login-POS-005",
+    "login-POS-010"
+   ]
+  },
+  {
+   "name": "assert_sms_submit_enabled",
+   "file": "utils/aw/business/swan_r_p02.py",
+   "used_by": [
+    "login-NEG-001",
+    "login-NEG-012",
+    "login-NEG-045",
+    "login-NEG-048",
+    "login-NEG-049",
+    "login-NEG-050",
+    "login-NEG-051",
+    "login-POS-004",
+    "login-POS-010",
+    "login-POS-020"
+   ]
+  },
+  {
+   "name": "assert_password_submit_enabled",
+   "file": "utils/aw/business/swan_r_p02.py",
+   "used_by": [
+    "login-NEG-030",
+    "login-NEG-045",
+    "login-NEG-052",
+    "login-POS-002",
+    "login-POS-010"
+   ]
+  },
+  {
+   "name": "assert_not_on_home",
+   "file": "utils/aw/business/swan_r_p02.py",
+   "used_by": [
+    "login-NEG-003",
+    "login-NEG-022",
+    "login-NEG-023",
+    "login-NEG-027",
+    "login-POS-012"
+   ]
+  },
+  {
+   "name": "open_area_page",
+   "file": "utils/aw/business/swan_r_p02.py",
+   "used_by": [
+    "login-NEG-011",
+    "login-NEG-012",
+    "login-POS-004",
+    "login-POS-005",
+    "login-POS-022"
+   ]
+  },
+  {
+   "name": "select_area_row",
+   "file": "utils/aw/business/swan_r_p02.py",
+   "used_by": [
+    "login-NEG-012",
+    "login-POS-004"
+   ]
+  },
+  {
+   "name": "select_china_area_row",
+   "file": "utils/aw/business/swan_r_p02.py",
+   "used_by": [
+    "login-NEG-011",
+    "login-NEG-012",
+    "login-POS-004",
+    "login-POS-005",
+    "login-POS-022"
+   ]
+  },
+  {
+   "name": "read_resend_countdown",
+   "file": "utils/aw/business/swan_r_p02.py",
+   "used_by": [
+    "login-POS-011",
+    "login-POS-021"
+   ]
+  },
+  {
+   "name": "wait_resend_ready",
+   "file": "utils/aw/business/swan_r_p02.py",
+   "used_by": [
+    "login-POS-021"
+   ]
+  },
+  {
+   "name": "index_bar_letters",
+   "file": "utils/aw/business/swan_r_p02.py",
+   "used_by": [
+    "login-NEG-011",
+    "login-POS-022"
+   ]
+  },
+  {
+   "name": "read_backfill_area_code",
+   "file": "utils/aw/business/swan_r_p02.py",
+   "used_by": [
+    "login-NEG-011"
+   ]
+  },
+  {
+   "name": "back_to_phone_step",
+   "file": "utils/aw/business/swan_r_p02.py",
+   "used_by": [
+    "login-POS-011",
+    "login-NEG-025",
+    "login-NEG-026"
+   ]
+  },
+  {
+   "name": "reveal_password_text",
+   "file": "utils/aw/business/swan_r_p02.py",
+   "used_by": [
+    "login-NEG-028"
+   ]
+  },
+  {
+   "name": "swipe_up_step",
+   "file": "utils/aw/business/swan_r_p02.py",
+   "used_by": [
+    "login-NEG-013"
+   ]
+  },
+  {
+   "name": "swipe_down_step",
+   "file": "utils/aw/business/swan_r_p02.py",
+   "used_by": [
+    "login-NEG-013"
+   ]
+  }
+ ],
+ "template_needs": [
+  {
+   "id": "login-NEG-011",
+   "element": "区号页索引条(整条,供 drag_on_template 越界/跳段扩展与单字母稳定定位)",
+   "page": "区号选择页"
+  },
+  {
+   "id": "login-NEG-022",
+   "element": "验证码错误提示文案 + 输码框 4 格数字 OCR 区域",
+   "page": "验证码输入页"
+  },
+  {
+   "id": "login-NEG-023",
+   "element": "验证码过期/错误提示文案(本地化收敛文案,核准后补 S2 清错断言)",
+   "page": "验证码输入页"
+  },
+  {
+   "id": "login-NEG-027",
+   "element": "输码框 4 格数字 OCR 区域(超长截断观测)",
+   "page": "验证码输入页"
+  },
+  {
+   "id": "login-NEG-045",
+   "element": "第三方登录图标(微信/微博)可见性模板",
+   "page": "登录页(验证码/密码两形态)"
+  },
+  {
+   "id": "login-NEG-049",
+   "element": "号段拦截行内红字文案",
+   "page": "登录页"
+  },
+  {
+   "id": "login-NEG-052",
+   "element": "号段拦截行内红字文案(密码形态同源)",
+   "page": "密码登入页"
+  },
+  {
+   "id": "login-POS-010",
+   "element": "第三方登录图标(微信/微博)可见性模板",
+   "page": "登录页(验证码/密码两形态)"
+  },
+  {
+   "id": "login-POS-022",
+   "element": "区号页索引条(整条模板,供 S5 拖拽跳段)+ area-rows-all.txt 全量行清单(S4 行总数核对)",
+   "page": "区号选择页"
+  },
+  {
+   "id": "login-NEG-025",
+   "element": "验证码页页内返回箭头模板(无文字 glyph,当前 OCR「←」探针兜底,补截转正后可切 [图] 主路径)",
+   "page": "验证码输入页"
+  },
+  {
+   "id": "login-NEG-026",
+   "element": "验证码页页内返回箭头模板(同 NEG-025)",
+   "page": "验证码输入页"
+  },
+  {
+   "id": "login-NEG-028",
+   "element": "密码框明文态/输入态模板(明文切换后 OCR 读回观测面,输入态掩码模板当前未入库)",
+   "page": "密码登入页"
+  }
+ ],
+ "notes": "ADD1 复审后改判 3 条为 B 并产出 py:NEG-011(索引条穿透,OCR 单字母探针)、NEG-023(过期码,135 真实码+>5min 真实等待替代合成号口径)、POS-022(区号页交互链可自动化面,滚动找 +998 回填)。NEG-025/026 已捞回(ADD1 复审二轮):页内返回箭头以 OCR glyph 探针(「←」子串命中点击)正面执行,back_to_phone_step 承载,模板缺口登记 template_needs。回填面:NEG-005 旧码探针、NEG-009 二次 back 行为、NEG-010 密码掩码值/协议态探针、NEG-011 S3/S4 越界拖拽与空白区点击(无锚定手势通道,YAML 自标探针回填)、NEG-022/023 失败清码契约与错误文案、NEG-024 服务端频繁限制、NEG-050 全角数字、NEG-051 空格分隔变体、POS-022 S4 行总数/S5 拖拽/S6-S7 穿透存疑/S10-S11 断网兜底。风险面:NEG-023 用例含 340s 真实等待;NEG-024 同号二次发码可能触发服务端频繁限制(失败即观察结果);POS-020 向合成号发码 1 条;POS-021/011/022/NEG-023 各真实发码;NEG-022 对已发真码做错误校验。密码步主按钮可用态图为草稿态(SWAN_PWD_LOGIN_SUBMIT_ENABLED),建议真机跑通后补截转正。ADD1 复审二轮(tc-p02-r):45 条 OTHER 逐条复核,捞回 5 条转 py——NEG-004(归零连点,连点后倒计时=首点重置值≥55 观测替代 /captcha 代理计数)、NEG-013(区号页越界回弹,swipe 有界滚动+双向越界探针+行选择回填;原 skip 理由系张冠李戴,实为 MXNZP 接口失败回退 4 行态天然兼容)、NEG-025/026(冷却延续/同号直切,OCR glyph 返回通道,倒计时延续观测=「零新请求」黑盒等价)、NEG-028(密码 16 位硬截断,SWAN_PASSWORD_FIELD 右段闭眼图标入模→reveal_password_text 切明文 OCR 读回,断言含「Aa」不含「zzzz」);强化 leader 点名 2 文件——POS-011 补 S3 同号延续(third<=second)/S5 改号重置(fourth>third and >=55)断言、NEG-022 补失败清码(find_text_by_ocr is None)/同码回填防重(回填后 9999 仍在屏)/改码清码三处断言。保留 OTHER 36 条逐条点名能力缺口(代理注入/挂起/延迟/改写、系统断网/飞行模式、SharedPreferences 写入、pm clear 清数据、adb 深链、debug 切服包+红线序列、压测/ANR 工具链、定制 APK、OTP 网关白名单);NEG-042 维持 OTHER(代理缺口)。发码计数:POS-011 主号 1+合成号 1、NEG-025 主号 1+合成号 1、NEG-004 主号 2(首条+归零重发)、NEG-026 主号 1、NEG-013/028 零发码;均 YAML 步骤必要范围,全不取码。"
+}

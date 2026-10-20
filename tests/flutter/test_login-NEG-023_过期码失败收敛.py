@@ -7,13 +7,25 @@ userA.phone 替代 YAML 合成号 13800000001,语义等价;过期=发码后真�
    防中途离页);
 2. 填过期码自动提交 → 登录失败:未进首页(assert_not_on_home)、停留输码页
    (输入框 [图] 在);错误文案本地化锚未截,登记 report.template_needs;
-3. 修改输入(点框续输一位,S2 动作)后页面态不受扰:重发按钮可点态
-   「重新发送」[OCR] 在(注:5min 等待下原倒计时已自然归零,S3「倒计时不受
-   影响」以归零后可点态为观测面);
+3.【YAML locator 与实机不符,偏差如实声明】YAML 步骤 2 locator=
+   login_phone_field(点击手机号输入框、改一位号码字符);实机输码页无手机号
+   输入框——knowledge/swan/pages/swan_验证码输入页.md(2026-09-08 真机
+   uiautomator dump 转正)关键元素仅 login_page/login_code_field/重发倒计时,
+   手机号仅以顶部静态提示「验证码已经发送至 +86…」呈现,不可编辑。采用的
+   替代动作及理由:点击验证码框(该页唯一可编辑输入)→清空已满 4 位码→重输
+   3 位「123」(不满 4 位不触发自动提交)。YAML 步骤 2 expect「输入变化即清
+   错」的机制前提是输入内容真实变化(onChanged→clearLoginError/
+   _clearInlineError),清空构成真实变化;不采用「续输第 5 位」——满 4 位自动
+   提交语义下第 5 位输入可能被输入上限丢弃、内容不变,onChanged 不触发,
+   动作可能空转(原实现缺陷,本轮修正)。「输入变化即清错」断言口径:错误
+   文案锚未截、文案未核准(report.template_needs 已登记),不伪造文案断言;
+   OCR 可断等价面=输入变化后页面态不受扰(停留输码页+验证码框 [图] 在+
+   「重新发送」可点态在),清错直证(错误条消失)待文案核准后补断言;
 4. 对照:清空输入未请求过的随机码「1234」 → 同失败路径(停留、未进首页)。
-注:S2「输入变化即清错」断言依赖错误文案锚(未截),动作已落、断言面登记
-   template_needs;文案 locale 纪律(禁硬编码中文)待文案核准后补断言。
-cleanup: 真实短信 ×1,码自然过期,无遗留态。
+cleanup(YAML recovery「重新发码」落实):步骤 4 失败停留态下点「重新发送」
+   对既有号码 userA.phone 真实发码 ×1,不读码(不调 otp.get_code),倒计时
+   重启(read_resend_countdown 非 None)即发码生效断言;新码自然过期,冷启动
+   模型清场,无遗留态。
 """
 from __future__ import annotations
 
@@ -52,9 +64,17 @@ class TestExpiredCodeRejected(SwanRP02Mixin, BaseTest):
         self.userA.assert_not_on_home()
         assert self.userA.find_image(SWAN_LOGIN_CODE_FIELD_BOX, timeout=5) is not None, (
             "过期码提交后未停留在验证码输入页")
-        # 步骤 2 动作 + 步骤 3:修改输入后页面态不受扰(重发可点态在)
+        # 步骤 2(替代动作,偏差声明见 docstring 第 3 条):点击验证码框→清空
+        # 已满 4 位码→重输 3 位(不满 4 不触发自动提交)——保证输入内容真实
+        # 变化,对齐 YAML「输入变化即清错」的触发前提;输码页无手机号框可点
+        # (YAML locator=login_phone_field 与实机不符,已如实声明)
         self.userA.click_image(SWAN_LOGIN_CODE_FIELD_BOX, timeout=10)
-        self.userA.input_text("1")
+        self.userA.clear_input()
+        self.userA.input_text("123")
+        # 步骤 3:输入变化后页面态不受扰(OCR 可断等价面,清错直证待文案核准)
+        assert self.userA.find_image(SWAN_LOGIN_CODE_FIELD_BOX, timeout=5) is not None, (
+            "输入变化后验证码输入框不可见(输码页页面态受扰)")
+        self.userA.assert_not_on_home()
         assert self.userA.find_text_by_ocr("重新发送", timeout=10) is not None, (
             "错误/改输后重发可点态不可见(页面态受扰)")
         # 步骤 4:对照——随机未请求码同失败路径
@@ -64,3 +84,8 @@ class TestExpiredCodeRejected(SwanRP02Mixin, BaseTest):
         self.userA.assert_not_on_home()
         assert self.userA.find_image(SWAN_LOGIN_CODE_FIELD_BOX, timeout=5) is not None, (
             "随机码提交后未停留验证码输入页(与过期码未走同收敛路径)")
+        # cleanup(YAML recovery「重新发码」落实):失败停留态下点「重新发送」
+        # 对既有号码真实发码,不读码;倒计时重启即发码生效断言
+        self.userA.click_text("重新发送", timeout=10)
+        assert self.userA.read_resend_countdown(timeout=30) is not None, (
+            "cleanup 重新发码后倒计时未重启(发码未生效)")

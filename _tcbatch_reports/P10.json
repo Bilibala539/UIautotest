@@ -1,0 +1,456 @@
+{
+  "pkg": "P10",
+  "converted": [
+    "settings-NEG-005",
+    "settings-NEG-007",
+    "settings-POS-002",
+    "settings-POS-003",
+    "settings-POS-008",
+    "video-NEG-006",
+    "video-NEG-012",
+    "video-NEG-014",
+    "video-POS-001",
+    "video-POS-002",
+    "video-POS-003",
+    "video-POS-004",
+    "video-POS-005",
+    "video-POS-007",
+    "video-POS-008"
+  ],
+  "skipped": [
+    {
+      "id": "settings-NEG-001",
+      "reason_code": "OTHER",
+      "reason": "框架无 WebView 桥 JS 注入通道(无法向 JavaScriptChannel 投喂畸形报文)且无桥日志/logcat 断言通道(invalid payload 告警/应答帧回执均日志面),注入与断言双缺"
+    },
+    {
+      "id": "settings-NEG-002",
+      "reason_code": "OTHER",
+      "reason": "框架无 WebView 桥 JS 注入通道(未知 handler/越界 page 报文不可投喂)且无桥日志断言通道(warn 日志与静默忽略判定面在日志)"
+    },
+    {
+      "id": "settings-NEG-003",
+      "reason_code": "OTHER",
+      "reason": "框架无 WebView 桥 JS 注入通道(ACK 帧/裸帧不可投喂)且无桥日志断言通道(告警出现与否为判定面)"
+    },
+    {
+      "id": "settings-NEG-004",
+      "reason_code": "OTHER",
+      "reason": "框架无 WebView 桥 JS 注入通道(绕过 URL 族不可投喂)且无页面加载回调断言通道(onPageStarted 零触发为日志/回调面)"
+    },
+    {
+      "id": "settings-NEG-006",
+      "reason_code": "OTHER",
+      "reason": "框架无应用安装/卸载与双包切换通道(开发包切 staging 写残留->卸载->装 Release 的序列不可构造),执行器只装单包"
+    },
+    {
+      "id": "settings-NEG-008",
+      "reason_code": "OTHER",
+      "reason": "框架无单测/白盒配置断言通道(AI host /api->/ai 推导、HIVI_AI_API_BASE_URL 依赖、WS 尾斜杠语义均纯配置层,零 UI 面)"
+    },
+    {
+      "id": "settings-NEG-009",
+      "reason_code": "OTHER",
+      "reason": "框架无构建期参数注入通道(dart-define 启动变体 debug 壳对照不可构造)且无单测通道(FallbackStore 默认链优先级为单测面)"
+    },
+    {
+      "id": "settings-NEG-010",
+      "reason_code": "PHYSICAL",
+      "reason": "物理音量键+可控 WiFi 音箱联动,专用真机轮次,单 App UI 轨无物理按键"
+    },
+    {
+      "id": "settings-NEG-011",
+      "reason_code": "OTHER",
+      "reason": "跨壳构建缺口:执行器无 iOS 壳构建与执行通道(iOS 音量键 pending 队列属 iOS 侧;Android 轨物理键另有 PHYSICAL 分轨)"
+    },
+    {
+      "id": "settings-NEG-012",
+      "reason_code": "PHYSICAL",
+      "reason": "物理音量键连按(按键事件序列),需真机物理按键"
+    },
+    {
+      "id": "settings-NEG-013",
+      "reason_code": "OTHER",
+      "reason": "框架业务层无系统语言设置控制通道(设备交互仅限 AWBase,系统设置语言页无 AW 方法,connect_wifi 先例封装于基础层 WiFi 页专用);后台改语言+resumed 补刷场景需外部 App 操作"
+    },
+    {
+      "id": "settings-NEG-014",
+      "reason_code": "OTHER",
+      "reason": "框架业务层无系统语言设置控制通道(三语集外语种 fr/ja 预置与未翻译 arb key 注入均需系统/构建侧操作,AWBase 无此通道)"
+    },
+    {
+      "id": "settings-NEG-015",
+      "reason_code": "OTHER",
+      "reason": "跨壳构建缺口:执行器无 OHOS 壳(OHOS 容器 initData 三路推送/设备流延迟构造不可达),推送次数面亦为桥日志断言通道"
+    },
+    {
+      "id": "settings-NEG-016",
+      "reason_code": "OTHER",
+      "reason": "框架无源码静态审计通道(端口六方法替身一致性/响应码七值枚举/14 包独立构建抽查为零设备静态断言,非运行时 UI 行为)"
+    },
+    {
+      "id": "settings-POS-001",
+      "reason_code": "OTHER",
+      "reason": "框架无 Release 构建安装通道(执行器包型不可控,非 Release 包误跑会弹出切服弹层违反 M17 禁区 1);环境指向恒 production 为日志断言面"
+    },
+    {
+      "id": "settings-POS-004",
+      "reason_code": "OTHER",
+      "reason": "框架无单测/白盒通道(端口六方法签名/七值枚举为单测断言)且无日志断言通道(静态调用链取注入边界为日志面)"
+    },
+    {
+      "id": "settings-POS-005",
+      "reason_code": "OTHER",
+      "reason": "框架无单测/白盒通道(_deriveAiNetworkHost 推导断言)且无日志断言通道(AI 请求 host 抽查/历史 404 拼法核对为日志面)"
+    },
+    {
+      "id": "settings-POS-006",
+      "reason_code": "OTHER",
+      "reason": "框架无源码静态审计通道(13 文件清单与 16 通道名常量逐一比对为静态断言)且无 MethodChannel 日志面(fallback 分轨注记)"
+    },
+    {
+      "id": "settings-POS-007",
+      "reason_code": "OTHER",
+      "reason": "框架无源码静态审计通道+无单测通道(OHOS 三通道常量与方法面为静态/单测断言)且跨壳 OHOS 端口面不可达"
+    },
+    {
+      "id": "settings-POS-009",
+      "reason_code": "OTHER",
+      "reason": "框架无桥日志/logcat 断言通道(getInitData 帧/应答载荷五字段/原生补推/token 掩码 grep 均日志审计面)"
+    },
+    {
+      "id": "settings-POS-010",
+      "reason_code": "OTHER",
+      "reason": "框架无单测通道(白名单四规则组断言)且无桥日志断言通道(loadRequest 成功/内链放行均日志面)"
+    },
+    {
+      "id": "settings-POS-011",
+      "reason_code": "OTHER",
+      "reason": "框架无桥日志断言通道(六 handler 分发帧/onBackKey 800ms 应答/unknown 回执均日志面,UI 无反馈为设计现状)"
+    },
+    {
+      "id": "settings-POS-012",
+      "reason_code": "OTHER",
+      "reason": "框架无桥日志断言通道(容器五步挂载时序/wrap 注入先于首帧/clearCache 时序均为日志面)"
+    },
+    {
+      "id": "settings-POS-015",
+      "reason_code": "PHYSICAL",
+      "reason": "物理音量键+AI 页嵌套 override,专用真机轮次,无物理按键"
+    },
+    {
+      "id": "settings-POS-016",
+      "reason_code": "OTHER",
+      "reason": "框架业务层无系统语言设置控制通道(三语热切换需外部改系统语言;AWBase 无系统语言页方法),三语下整页文案比对亦需语言环境受控轮"
+    },
+    {
+      "id": "settings-POS-017",
+      "reason_code": "OTHER",
+      "reason": "框架业务层无系统语言设置控制通道(后台改语言需系统设置外部操作)且 resumed 快照补刷触发为日志断言面"
+    },
+    {
+      "id": "settings-POS-018",
+      "reason_code": "OTHER",
+      "reason": "框架无源码静态审计通道(packages 14 包目录清点/树账归属/纯原生包形态均为零设备静态断言)"
+    },
+    {
+      "id": "video-NEG-001",
+      "reason_code": "OTHER",
+      "reason": "框架无网络代理/响应改写注入通道(设备列表 500/超时回包与 screen 桩设备不可构造,误判面无法复现)"
+    },
+    {
+      "id": "video-NEG-002",
+      "reason_code": "OTHER",
+      "reason": "框架无网络代理注入通道(五清晰度字段逐级置空/改名/垃圾值改写不可构造)"
+    },
+    {
+      "id": "video-NEG-003",
+      "reason_code": "OTHER",
+      "reason": "框架无网络代理注入通道(榜单接口 type/tag/sort 非法值请求改写不可构造)"
+    },
+    {
+      "id": "video-NEG-004",
+      "reason_code": "OTHER",
+      "reason": "框架无断网/恢复控制通道(AWBase 无 WiFi 开关/飞行模式方法,connect_wifi 仅连接不中断;断网降级与恢复自愈场景不可构造)"
+    },
+    {
+      "id": "video-NEG-005",
+      "reason_code": "OTHER",
+      "reason": "框架无网络代理注入通道(设备列表失败空态不可构造)+混合 screen 设备受控环境未预置(sheet 过滤面需真实异构设备)"
+    },
+    {
+      "id": "video-NEG-007",
+      "reason_code": "OTHER",
+      "reason": "框架无受控设备注入通道(离线/协议异常/TEST-SYNTHETIC 设备桩不可构造,投屏失败三段路径需受控设备面)"
+    },
+    {
+      "id": "video-NEG-008",
+      "reason_code": "OTHER",
+      "reason": "框架无多机编排/受控投屏会话通道(投屏中快照命中不重发场景需真实第二设备在播会话)"
+    },
+    {
+      "id": "video-NEG-009",
+      "reason_code": "OTHER",
+      "reason": "框架无 UPnP 协议面注入通道(transportState 三态/非常规值不可注入)+无多机编排通道(投屏中浮窗需真实第二设备会话)"
+    },
+    {
+      "id": "video-NEG-010",
+      "reason_code": "OTHER",
+      "reason": "框架无多机编排/受控投屏会话通道(投屏中设备离线与恢复自愈需真实第二设备)+无断网控制通道"
+    },
+    {
+      "id": "video-NEG-011",
+      "reason_code": "OTHER",
+      "reason": "框架无网络代理注入通道(75:30 超长时长 MV 桩数据不可构造;时长直传核对为投屏命令字段面)"
+    },
+    {
+      "id": "video-NEG-013",
+      "reason_code": "OTHER",
+      "reason": "跨壳构建缺口:执行器无 OHOS 壳(openVideo 三形态返回/原生 Ability 返回刷新链为 OHOS 侧,Android 执行器不可达)"
+    },
+    {
+      "id": "video-POS-006",
+      "reason_code": "OTHER",
+      "reason": "框架无日志断言通道(榜单 raw 响应五字段/播放 URL 比对为日志面)且无代理注入通道(仅低清非空的回退链数据形态不可构造)"
+    },
+    {
+      "id": "video-POS-009",
+      "reason_code": "OTHER",
+      "reason": "框架无日志断言通道(coordinator.select 路由写入/playVideo 零调用为日志面)+无受控 screen 设备预置通道(设备池 00c 未预置,选中态 UI 形态无 OCR 锚无模板)"
+    },
+    {
+      "id": "video-POS-010",
+      "reason_code": "OTHER",
+      "reason": "框架无日志断言通道(路由保持/fallback 判定为日志面)+依赖 POS-009 选中路由基线(需受控 screen 设备预置,设备池 00c 未预置)"
+    },
+    {
+      "id": "video-POS-011",
+      "reason_code": "OTHER",
+      "reason": "框架无多机编排/受控投屏会话通道(浮窗出现与信息承载需真实第二设备在播会话;轮询暂停/恢复为日志面;无会话负面的浮窗缺省无 OCR 断言锚)"
+    },
+    {
+      "id": "video-POS-012",
+      "reason_code": "OTHER",
+      "reason": "框架无多机编排/受控投屏会话通道(浮窗可见前提需真实第二设备在播;isProjection 分支与进度承载为日志/轮询态面)"
+    },
+    {
+      "id": "video-POS-013",
+      "reason_code": "OTHER",
+      "reason": "框架无单测/白盒通道(设备桩 {hardware,routeType} 判定断言为单测数据桩,零 UI 面;运行面注记为日志断言通道)"
+    },
+    {
+      "id": "video-POS-014",
+      "reason_code": "OTHER",
+      "reason": "框架无源码静态审计通道+无单测通道(OHOS 端口常量/三形态返回桩为静态/单测断言)且跨壳 OHOS 真机轮不可达"
+    }
+  ],
+  "new_methods": [
+    {
+      "name": "open_rights_center",
+      "file": "utils/aw/business/swan_r_p10.py",
+      "used_by": [
+        "settings-POS-008"
+      ]
+    },
+    {
+      "name": "close_rights_center",
+      "file": "utils/aw/business/swan_r_p10.py",
+      "used_by": [
+        "settings-POS-008"
+      ]
+    },
+    {
+      "name": "open_qq_video_classify",
+      "file": "utils/aw/business/swan_r_p10.py",
+      "used_by": [
+        "video-NEG-006",
+        "video-POS-001",
+        "video-POS-002",
+        "video-POS-003",
+        "video-POS-004",
+        "video-POS-005",
+        "video-POS-007",
+        "video-POS-008"
+      ]
+    },
+    {
+      "name": "assert_video_search_bar",
+      "file": "utils/aw/business/swan_r_p10.py",
+      "used_by": [
+        "video-POS-001"
+      ]
+    },
+    {
+      "name": "assert_video_tab_order",
+      "file": "utils/aw/business/swan_r_p10.py",
+      "used_by": [
+        "video-POS-001",
+        "video-POS-002"
+      ]
+    },
+    {
+      "name": "cycle_video_tabs",
+      "file": "utils/aw/business/swan_r_p10.py",
+      "used_by": [
+        "video-POS-002",
+        "video-POS-003"
+      ]
+    },
+    {
+      "name": "assert_video_list_loaded",
+      "file": "utils/aw/business/swan_r_p10.py",
+      "used_by": [
+        "video-NEG-006",
+        "video-POS-001",
+        "video-POS-003",
+        "video-POS-005",
+        "video-POS-007"
+      ]
+    },
+    {
+      "name": "first_video_card_title",
+      "file": "utils/aw/business/swan_r_p10.py",
+      "used_by": [
+        "video-NEG-006",
+        "video-POS-005",
+        "video-POS-007"
+      ]
+    },
+    {
+      "name": "tap_video_card",
+      "file": "utils/aw/business/swan_r_p10.py",
+      "used_by": [
+        "video-NEG-006",
+        "video-POS-005",
+        "video-POS-007"
+      ]
+    },
+    {
+      "name": "tap_video_card_twice",
+      "file": "utils/aw/business/swan_r_p10.py",
+      "used_by": [
+        "video-NEG-006"
+      ]
+    },
+    {
+      "name": "exit_video_player_restore_check",
+      "file": "utils/aw/business/swan_r_p10.py",
+      "used_by": [
+        "video-NEG-006",
+        "video-POS-005",
+        "video-POS-007"
+      ]
+    },
+    {
+      "name": "open_video_search",
+      "file": "utils/aw/business/swan_r_p10.py",
+      "used_by": [
+        "video-POS-004"
+      ]
+    },
+    {
+      "name": "clear_video_search",
+      "file": "utils/aw/business/swan_r_p10.py",
+      "used_by": [
+        "video-POS-004"
+      ]
+    },
+    {
+      "name": "open_cast_sheet",
+      "file": "utils/aw/business/swan_r_p10.py",
+      "used_by": [
+        "video-POS-008"
+      ]
+    },
+    {
+      "name": "dismiss_cast_sheet_check_route",
+      "file": "utils/aw/business/swan_r_p10.py",
+      "used_by": [
+        "video-POS-008"
+      ]
+    },
+    {
+      "name": "probe_any_text",
+      "file": "utils/aw/business/swan_r_p10.py",
+      "used_by": [
+        "video-POS-008"
+      ]
+    },
+    {
+      "name": "assert_landscape_orientation",
+      "file": "utils/aw/business/swan_r_p10.py",
+      "used_by": [
+        "video-POS-005",
+        "video-POS-007"
+      ]
+    },
+    {
+      "name": "assert_portrait_orientation",
+      "file": "utils/aw/business/swan_r_p10.py",
+      "used_by": [
+        "video-NEG-006",
+        "video-POS-005",
+        "video-POS-007"
+      ]
+    },
+    {
+      "name": "open_about_detail",
+      "file": "utils/aw/business/swan_r_p10.py",
+      "used_by": [
+        "settings-NEG-005",
+        "settings-NEG-007",
+        "settings-POS-002",
+        "settings-POS-003"
+      ]
+    },
+    {
+      "name": "probe_tap_server_logo",
+      "file": "utils/aw/business/swan_r_p10.py",
+      "used_by": [
+        "settings-NEG-005",
+        "settings-NEG-007",
+        "settings-POS-002",
+        "settings-POS-003"
+      ]
+    },
+    {
+      "name": "assert_server_switch_sheet",
+      "file": "utils/aw/business/swan_r_p10.py",
+      "used_by": [
+        "settings-NEG-005",
+        "settings-NEG-007",
+        "settings-POS-002",
+        "settings-POS-003"
+      ]
+    },
+    {
+      "name": "close_server_switch_sheet",
+      "file": "utils/aw/business/swan_r_p10.py",
+      "used_by": [
+        "settings-NEG-005",
+        "settings-NEG-007",
+        "settings-POS-002",
+        "settings-POS-003"
+      ]
+    }
+  ],
+  "template_needs": [
+    {
+      "name": "视频播放页控制条(播放/暂停控件)",
+      "purpose": "video-POS-005 步骤3 本机播放控制条断言;当前模板未截取注册,暂以横屏+标题 OCR 承载"
+    },
+    {
+      "name": "投放弹层标题/空态专属文案锚",
+      "purpose": "video-POS-008 步骤2 弹层渲染断言;弹层标题与空态文案待执行轮校准后截取注册"
+    },
+    {
+      "name": "切服弹层 Logo 入口图像(198×80)",
+      "purpose": "settings-POS-002/NEG-005/NEG-007/POS-003 四例唯一入口(198×80 资产,关于我们三级页);draft 名 swan_关于我们页_切服Logo.png,截获入库后四例自动由条件 skip 转实跑"
+    },
+    {
+      "name": "关于我们三级页(/me/about/detail)页面锚与切服弹层标题/选项文案校准",
+      "purpose": "页面未探索:三级页本体无 OCR 锚(由 Logo 模板门禁承载);弹层标题「选择服务器」与选项 测试服/正式服/本地环境 取 YAML l10n 锚,首跑校准,覆盖 settings-POS-002/NEG-005/NEG-007/POS-003"
+    }
+  ],
+  "notes": "10 转 50 跳(ADD1 OTHER 复审:6 条捞回转 B 轨,converted+skipped=60 全覆盖)。复审口径:切服弹层 Logo 入口族(settings-POS-002/NEG-005/NEG-007/POS-003)按「图像模板未截获」捞回——产出 py+template_needs 登记,运行期条件 skip;video-NEG-012 冗余跳理由不成立,正常退出三重恢复+进程回收经 relaunch_app 冷启动承载转 B;video-NEG-014 搜索态分轨可走(POS-004 同源方法)转 B。保留 44 条 OTHER(含 3 条 PHYSICAL)中 41 条 OTHER 全部点名具体框架能力:WebView 桥 JS 注入+桥日志断言通道、单测/白盒通道、源码静态审计通道、网络代理/UPnP 注入通道、断网控制通道、多机编排/受控投屏会话、跨壳构建(iOS/OHOS)、应用安装卸载双包通道、构建期 dart-define 注入、系统语言设置控制通道、Release 构建安装通道。video-NEG-004 前任 reason(UPnP/SSDP)与 YAML 实文(断网降级自愈)不符,已按实文改判断网控制通道缺口。物理音量键 3 条(settings-NEG-010/NEG-012/POS-015)维持 PHYSICAL 不动。M18 视频已转 10 条:统一入口 open_qq_video_classify 授权门禁条件 skip;横竖屏以截图宽高比承载(M18 禁区 4);投放弹层只开不选(禁区 1)。新方法全部收在 SwanRP10Mixin(纯类,不继承),只调基础 AW 层+图常量,未动 swan.py 等任何既有文件。"
+}

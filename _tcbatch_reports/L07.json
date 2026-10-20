@@ -1,0 +1,713 @@
+{
+  "pkg": "L07",
+  "converted": [
+    "music-NEG-001",
+    "music-NEG-002",
+    "music-NEG-003",
+    "music-NEG-004",
+    "music-NEG-006",
+    "music-NEG-009",
+    "music-NEG-010",
+    "music-NEG-015",
+    "music-NEG-018",
+    "music-NEG-019",
+    "music-NEG-037",
+    "music-NEG-038",
+    "music-NEG-040",
+    "music-NEG-043",
+    "music-NEG-048",
+    "music-NEG-049",
+    "music-NEG-054",
+    "music-POS-005",
+    "music-POS-006",
+    "music-POS-007",
+    "music-POS-008",
+    "music-POS-009",
+    "music-POS-010",
+    "music-POS-011",
+    "music-POS-012",
+    "music-POS-013",
+    "music-POS-014",
+    "music-POS-015",
+    "music-POS-016",
+    "music-POS-017",
+    "music-POS-018",
+    "music-POS-019",
+    "music-POS-020",
+    "music-POS-021",
+    "music-POS-022",
+    "music-POS-023",
+    "music-POS-024",
+    "music-POS-025",
+    "music-POS-026",
+    "music-POS-027",
+    "music-POS-028",
+    "music-POS-029",
+    "music-POS-030",
+    "music-POS-031",
+    "music-POS-032",
+    "music-POS-033",
+    "music-POS-034",
+    "music-POS-035",
+    "music-POS-036",
+    "music-POS-037",
+    "music-POS-038",
+    "music-POS-039",
+    "music-POS-040",
+    "music-POS-041",
+    "music-POS-042",
+    "music-POS-043",
+    "music-POS-045",
+    "music-POS-046",
+    "music-POS-047",
+    "music-POS-058",
+    "music-POS-059"
+  ],
+  "skipped": [
+    {
+      "id": "music-NEG-005",
+      "reason_code": "OTHER",
+      "reason": "需 WebView 进程级/中途时机注入通道(崩溃/断网注入),框架无注入能力"
+    },
+    {
+      "id": "music-NEG-007",
+      "reason_code": "OTHER",
+      "reason": "深链 URI 构造通道缺失:driver.start_action 仅 am start -a 不支持 data URI,框架无畸形深链构造能力"
+    },
+    {
+      "id": "music-NEG-008",
+      "reason_code": "OTHER",
+      "reason": "深链 URI 构造通道缺失:driver.start_action 仅 am start -a 不支持 data URI,框架无畸形深链构造能力"
+    },
+    {
+      "id": "music-NEG-011",
+      "reason_code": "THIRD_PARTY_REAL",
+      "reason": "真实第三方凭据回跳+人工断网时机(凭据交换窗口),均不可自动化"
+    },
+    {
+      "id": "music-NEG-012",
+      "reason_code": "OTHER",
+      "reason": "前置『全部平台未授权』与自动化账号网易云恒已授权冲突(解绑还源被禁),账号态不可达;Catalog 异常另需服务端构造通道"
+    },
+    {
+      "id": "music-NEG-013",
+      "reason_code": "OTHER",
+      "reason": "需代理改包/响应注入通道,框架无 mitm/hook 能力"
+    },
+    {
+      "id": "music-NEG-014",
+      "reason_code": "OTHER",
+      "reason": "OHOS 专属分支(-ohos 版本头行为),框架无 OHOS 设备与驱动"
+    },
+    {
+      "id": "music-NEG-016",
+      "reason_code": "OTHER",
+      "reason": "iOS 专属分支,框架无 iOS 设备与驱动"
+    },
+    {
+      "id": "music-NEG-017",
+      "reason_code": "OTHER",
+      "reason": "需应用未安装+商店跳转拦截环境,框架无卸载/安装态控制与拦截通道"
+    },
+    {
+      "id": "music-NEG-020",
+      "reason_code": "OTHER",
+      "reason": "需凭据交换/回跳窗口级断网时机通道,框架无网络时机操控能力"
+    },
+    {
+      "id": "music-NEG-021",
+      "reason_code": "OTHER",
+      "reason": "需代理改包/响应注入通道,框架无 mitm/hook 能力"
+    },
+    {
+      "id": "music-NEG-022",
+      "reason_code": "OTHER",
+      "reason": "深链 URI 构造通道缺失:driver.start_action 仅 am start -a 不支持 data URI,框架无深链参数构造能力"
+    },
+    {
+      "id": "music-NEG-023",
+      "reason_code": "OTHER",
+      "reason": "深链 URI 构造通道缺失:driver.start_action 仅 am start -a 不支持 data URI,框架无畸形曲风参数构造能力"
+    },
+    {
+      "id": "music-NEG-024",
+      "reason_code": "OTHER",
+      "reason": "深链 URI 构造通道缺失:driver.start_action 仅 am start -a 不支持 data URI,框架无深链参数构造能力"
+    },
+    {
+      "id": "music-NEG-025",
+      "reason_code": "OTHER",
+      "reason": "深链 URI 构造通道缺失:driver.start_action 仅 am start -a 不支持 data URI,框架无深链参数构造能力"
+    },
+    {
+      "id": "music-NEG-026",
+      "reason_code": "OTHER",
+      "reason": "深链 URI 构造通道缺失:driver.start_action 仅 am start -a 不支持 data URI,框架无深链参数构造能力"
+    },
+    {
+      "id": "music-NEG-027",
+      "reason_code": "OTHER",
+      "reason": "深链 URI 构造通道缺失:driver.start_action 仅 am start -a 不支持 data URI,框架无深链参数构造能力"
+    },
+    {
+      "id": "music-NEG-028",
+      "reason_code": "OTHER",
+      "reason": "需 PackageManager 探测异常进程内注入通道,框架无注入能力"
+    },
+    {
+      "id": "music-NEG-029",
+      "reason_code": "OTHER",
+      "reason": "需纯净未安装环境+商店跳转拦截通道,框架无卸载/安装态控制与拦截能力"
+    },
+    {
+      "id": "music-NEG-030",
+      "reason_code": "OTHER",
+      "reason": "需酷狗未安装环境,框架无卸载/安装态控制能力"
+    },
+    {
+      "id": "music-NEG-031",
+      "reason_code": "OTHER",
+      "reason": "OHOS 专属分支,框架无 OHOS 设备与驱动"
+    },
+    {
+      "id": "music-NEG-032",
+      "reason_code": "OTHER",
+      "reason": "需纯净未安装环境+商店 URI 拦截通道,框架无卸载/安装态控制与拦截能力"
+    },
+    {
+      "id": "music-NEG-033",
+      "reason_code": "OTHER",
+      "reason": "需酷狗 fastSnapshot vipLevel 代理改包注入+酷狗已授权预置(真实凭据),框架无改包通道"
+    },
+    {
+      "id": "music-NEG-034",
+      "reason_code": "OTHER",
+      "reason": "需酷狗 fastSnapshot vipLevel 代理改包注入+酷狗已授权预置(真实凭据),框架无改包通道"
+    },
+    {
+      "id": "music-NEG-035",
+      "reason_code": "OTHER",
+      "reason": "需酷狗 fastSnapshot vipLevel 代理改包注入+酷狗已授权预置(真实凭据),框架无改包通道"
+    },
+    {
+      "id": "music-NEG-036",
+      "reason_code": "OTHER",
+      "reason": "需 AM developerToken 过期缓存/下发注入通道,框架无令牌注入能力"
+    },
+    {
+      "id": "music-NEG-039",
+      "reason_code": "OTHER",
+      "reason": "需授权通道未注册构建环境(MissingPluginException 场景),框架无构建变体控制能力"
+    },
+    {
+      "id": "music-NEG-041",
+      "reason_code": "OTHER",
+      "reason": "需 Add-to-App 宿主包构建环境(manifest metadata 变体),框架无构建变体控制能力"
+    },
+    {
+      "id": "music-NEG-042",
+      "reason_code": "OTHER",
+      "reason": "需 Spotify 已授权服务端预置+spotify:open scheme 拦截环境,均不可达"
+    },
+    {
+      "id": "music-NEG-044",
+      "reason_code": "OTHER",
+      "reason": "前置需除 Spotify 外全平台已授权(多平台真实凭据)且对照步骤需解绑还源,账号态不可达"
+    },
+    {
+      "id": "music-NEG-045",
+      "reason_code": "OTHER",
+      "reason": "OHOS 专属+双型号快照注入,框架无 OHOS 设备与注入通道"
+    },
+    {
+      "id": "music-NEG-046",
+      "reason_code": "OTHER",
+      "reason": "需本机 MusicKit token 清除通道+服务端 AM 已绑定预置(真实凭据),框架均无"
+    },
+    {
+      "id": "music-NEG-047",
+      "reason_code": "OTHER",
+      "reason": "需服务端已授权但凭据失效态构造(401 响应注入通道),框架无 mitm/hook 能力"
+    },
+    {
+      "id": "music-NEG-050",
+      "reason_code": "OTHER",
+      "reason": "OHOS 专属+代理改包注入,框架无 OHOS 设备与注入通道"
+    },
+    {
+      "id": "music-NEG-051",
+      "reason_code": "OTHER",
+      "reason": "需网络延迟注入通道拖长快照请求(在途窗口),框架无网络时机操控能力"
+    },
+    {
+      "id": "music-NEG-052",
+      "reason_code": "OTHER",
+      "reason": "需设备公共目录文件推送(合成音频)+端口占用工具通道,框架均无"
+    },
+    {
+      "id": "music-NEG-053",
+      "reason_code": "OTHER",
+      "reason": "需凭据交换阶段窗口级断网时机通道,框架无网络时机操控能力"
+    },
+    {
+      "id": "music-NEG-055",
+      "reason_code": "OTHER",
+      "reason": "七类失败码注入通道缺失(仅 no_activity 探针可达),其余消费点入口需 AM 授权/设备页等不可达预置,框架无注入能力"
+    },
+    {
+      "id": "music-POS-044",
+      "reason_code": "THIRD_PARTY_REAL",
+      "reason": "第三方侧登录确认需人工在 WebView 内输入真实凭据(用例自身 human_interruption_point),自动化止于回跳前"
+    },
+    {
+      "id": "music-POS-048",
+      "reason_code": "OTHER",
+      "reason": "前置需从未初始化音乐权益的全新账号(人工预置),自动化账号恒已初始化,账号态不可达"
+    },
+    {
+      "id": "music-POS-049",
+      "reason_code": "OTHER",
+      "reason": "前置需零授权账号触发搜索门禁提示,自动化账号网易云恒已授权且解绑被禁,账号态不可达"
+    },
+    {
+      "id": "music-POS-051",
+      "reason_code": "THIRD_PARTY_REAL",
+      "reason": "酷狗已授权需真实凭据预置+vipLevel 非 4/11 服务端账号配置,均不可自动化"
+    },
+    {
+      "id": "music-POS-052",
+      "reason_code": "THIRD_PARTY_REAL",
+      "reason": "酷狗已授权需真实凭据预置+vipLevel∈{4,11} 服务端账号配置,均不可自动化"
+    },
+    {
+      "id": "music-POS-053",
+      "reason_code": "OTHER",
+      "reason": "需设备公共目录推送合成音频(adb push 通道缺失)+本地库入口归 M13 未实测,框架无文件推送能力"
+    },
+    {
+      "id": "music-POS-054",
+      "reason_code": "THIRD_PARTY_REAL",
+      "reason": "AM MusicKit 实调需 AM 已授权真实凭据+token 有效(人工预置);Android 主链仅纯 Flutter Runner 可用,宿主包内不可用"
+    },
+    {
+      "id": "music-POS-057",
+      "reason_code": "OTHER",
+      "reason": "AI 分组补拉仅 -ohos 版本头触发,Android 主链无该行为分支,框架无 OHOS 设备与构建通道"
+    }
+  ],
+  "new_methods": [
+    {
+      "name": "platform_row_state",
+      "file": "utils/aw/business/swan_r_m07.py",
+      "used_by": [
+        "music-NEG-001",
+        "music-NEG-002",
+        "music-NEG-003",
+        "music-NEG-004",
+        "music-NEG-006",
+        "music-NEG-009",
+        "music-NEG-010",
+        "music-NEG-015",
+        "music-NEG-018",
+        "music-NEG-019",
+        "music-NEG-037",
+        "music-NEG-038",
+        "music-NEG-043",
+        "music-NEG-048",
+        "music-NEG-049",
+        "music-NEG-054",
+        "music-POS-007",
+        "music-POS-008",
+        "music-POS-009",
+        "music-POS-010",
+        "music-POS-011",
+        "music-POS-012",
+        "music-POS-013",
+        "music-POS-014",
+        "music-POS-015",
+        "music-POS-016",
+        "music-POS-038",
+        "music-POS-039",
+        "music-POS-040",
+        "music-POS-041",
+        "music-POS-042",
+        "music-POS-043",
+        "music-POS-045"
+      ]
+    },
+    {
+      "name": "open_platform_home",
+      "file": "utils/aw/business/swan_r_m07.py",
+      "used_by": [
+        "music-NEG-010",
+        "music-NEG-040",
+        "music-POS-005",
+        "music-POS-006",
+        "music-POS-007",
+        "music-POS-008",
+        "music-POS-009",
+        "music-POS-010",
+        "music-POS-011",
+        "music-POS-012",
+        "music-POS-013",
+        "music-POS-014",
+        "music-POS-015",
+        "music-POS-016",
+        "music-POS-017",
+        "music-POS-018",
+        "music-POS-019",
+        "music-POS-020",
+        "music-POS-021",
+        "music-POS-022",
+        "music-POS-023",
+        "music-POS-024",
+        "music-POS-025",
+        "music-POS-026",
+        "music-POS-027",
+        "music-POS-028",
+        "music-POS-029",
+        "music-POS-030",
+        "music-POS-031",
+        "music-POS-032",
+        "music-POS-033",
+        "music-POS-034",
+        "music-POS-035",
+        "music-POS-036",
+        "music-POS-037",
+        "music-POS-058",
+        "music-POS-059"
+      ]
+    },
+    {
+      "name": "tap_platform_row_plus",
+      "file": "utils/aw/business/swan_r_m07.py",
+      "used_by": [
+        "music-NEG-001",
+        "music-NEG-002",
+        "music-NEG-003",
+        "music-NEG-004",
+        "music-NEG-006",
+        "music-NEG-015",
+        "music-NEG-018",
+        "music-NEG-019",
+        "music-NEG-043",
+        "music-NEG-048",
+        "music-NEG-049",
+        "music-NEG-054",
+        "music-POS-038",
+        "music-POS-039",
+        "music-POS-040",
+        "music-POS-041",
+        "music-POS-042",
+        "music-POS-043"
+      ]
+    },
+    {
+      "name": "tap_platform_row_minus",
+      "file": "utils/aw/business/swan_r_m07.py",
+      "used_by": [
+        "music-NEG-037",
+        "music-NEG-038",
+        "music-POS-045"
+      ]
+    },
+    {
+      "name": "scroll_to_text",
+      "file": "utils/aw/business/swan_r_m07.py",
+      "used_by": [
+        "music-POS-009",
+        "music-POS-010",
+        "music-POS-011",
+        "music-POS-012",
+        "music-POS-014",
+        "music-POS-022",
+        "music-POS-023",
+        "music-POS-024",
+        "music-POS-025",
+        "music-POS-026",
+        "music-POS-058",
+        "music-POS-059"
+      ]
+    },
+    {
+      "name": "open_qq_artist_page_from_home",
+      "file": "utils/aw/business/swan_r_m07.py",
+      "used_by": [
+        "music-POS-007",
+        "music-POS-009"
+      ]
+    },
+    {
+      "name": "confirm_auth_dialog",
+      "file": "utils/aw/business/swan_r_m07.py",
+      "used_by": [
+        "music-NEG-001",
+        "music-NEG-002",
+        "music-NEG-003",
+        "music-NEG-004",
+        "music-NEG-006",
+        "music-NEG-015",
+        "music-NEG-018",
+        "music-NEG-019",
+        "music-NEG-048",
+        "music-NEG-049",
+        "music-NEG-054",
+        "music-POS-038",
+        "music-POS-039",
+        "music-POS-040",
+        "music-POS-043"
+      ]
+    },
+    {
+      "name": "dismiss_auth_popup",
+      "file": "utils/aw/business/swan_r_m07.py",
+      "used_by": [
+        "music-NEG-001",
+        "music-NEG-002",
+        "music-NEG-003",
+        "music-NEG-006",
+        "music-NEG-018",
+        "music-NEG-019",
+        "music-NEG-043",
+        "music-NEG-048",
+        "music-NEG-054",
+        "music-POS-038",
+        "music-POS-039",
+        "music-POS-040",
+        "music-POS-042",
+        "music-POS-043"
+      ]
+    },
+    {
+      "name": "assert_no_auth_error",
+      "file": "utils/aw/business/swan_r_m07.py",
+      "used_by": [
+        "music-NEG-001",
+        "music-NEG-002",
+        "music-NEG-003",
+        "music-NEG-004",
+        "music-NEG-006",
+        "music-NEG-015",
+        "music-NEG-018",
+        "music-NEG-019",
+        "music-NEG-037",
+        "music-NEG-038",
+        "music-NEG-043",
+        "music-NEG-048",
+        "music-NEG-049",
+        "music-NEG-054",
+        "music-POS-005",
+        "music-POS-006",
+        "music-POS-022",
+        "music-POS-023",
+        "music-POS-024",
+        "music-POS-029",
+        "music-POS-031",
+        "music-POS-038",
+        "music-POS-039",
+        "music-POS-040",
+        "music-POS-041",
+        "music-POS-042",
+        "music-POS-043",
+        "music-POS-045",
+        "music-POS-058"
+      ]
+    },
+    {
+      "name": "observe_auth_launch",
+      "file": "utils/aw/business/swan_r_m07.py",
+      "used_by": [
+        "music-POS-038",
+        "music-POS-039",
+        "music-POS-040",
+        "music-POS-043"
+      ]
+    },
+    {
+      "name": "back_to_platform_page",
+      "file": "utils/aw/business/swan_r_m07.py",
+      "used_by": [
+        "music-NEG-010",
+        "music-NEG-018",
+        "music-NEG-019",
+        "music-POS-038",
+        "music-POS-039",
+        "music-POS-040",
+        "music-POS-041",
+        "music-POS-042",
+        "music-POS-058"
+      ]
+    },
+    {
+      "name": "open_system_settings",
+      "file": "utils/aw/business/swan_r_m07.py",
+      "used_by": []
+    },
+    {
+      "name": "foreground_package",
+      "file": "utils/aw/business/swan_r_m07.py",
+      "used_by": [
+        "music-NEG-018",
+        "music-POS-039"
+      ]
+    },
+    {
+      "name": "force_stop_app",
+      "file": "utils/aw/business/swan_r_m07.py",
+      "used_by": [
+        "music-NEG-019"
+      ]
+    },
+    {
+      "name": "toggle_airplane_mode",
+      "file": "utils/aw/business/swan_r_m07.py",
+      "used_by": [
+        "music-NEG-009",
+        "music-NEG-010"
+      ]
+    }
+  ],
+  "template_needs": [
+    {
+      "id": "music-NEG-015",
+      "element": "平台页 QQ/网易云/酷狗/Spotify/Apple Music/Qobuz 各行右侧 [+] 授权钮模板(未授权态,OCR 将方框加号误读为 +/-/?)",
+      "page": "平台页"
+    },
+    {
+      "id": "music-NEG-001",
+      "element": "授权挂起/授权中进度弹层文案锚(runWithPlatformAuthProgress)",
+      "page": "授权进度弹层"
+    },
+    {
+      "id": "music-NEG-002",
+      "element": "授权重发定向 toast 文案锚(挂起重发提示)",
+      "page": "平台页·授权挂起"
+    },
+    {
+      "id": "music-NEG-004",
+      "element": "网易云 H5 OAuth 登录页锚(WebView 内文案;[+] 模板 SWAN_NETEASE_PLUS_BTN 已注册)",
+      "page": "网易云 H5 授权 WebView"
+    },
+    {
+      "id": "music-NEG-006",
+      "element": "Qobuz OAuth 登录页锚词校准(忘记密码/Email 等)",
+      "page": "Qobuz OAuth 登录页"
+    },
+    {
+      "id": "music-NEG-009",
+      "element": "飞行模式设置页开关行精确定位图+余额卡 0.000000 文字锚(OCR 小字号数字校准)",
+      "page": "系统飞行模式设置页/平台页余额卡"
+    },
+    {
+      "id": "music-NEG-010",
+      "element": "三平台离线错误态真实文案锚(网络/加载失败/重试变体校准)+QQ/Qobuz 内容主页入口锚",
+      "page": "平台内容主页(netease/qq/qobuz)"
+    },
+    {
+      "id": "music-NEG-018",
+      "element": "no_activity 定向提示真实文案锚(非静默类专属提示,与 user_cancel 可区分)",
+      "page": "平台页·授权返回"
+    },
+    {
+      "id": "music-NEG-019",
+      "element": "qq_service_not_ready 定向提示真实文案锚",
+      "page": "平台页·授权发起"
+    },
+    {
+      "id": "music-NEG-043",
+      "element": "Spotify 安装引导弹层锚(安装/下载引导)",
+      "page": "Spotify 安装引导弹层"
+    },
+    {
+      "id": "music-POS-007",
+      "element": "QQ 主页歌手推荐头像卡 [图] 模板(服务端轮换 desc 缺失时 OCR 兜底用)",
+      "page": "QQ 音乐主页"
+    },
+    {
+      "id": "music-POS-010",
+      "element": "QQ 精选视频分类页 tag 集合锚(分类 tag 动态族)",
+      "page": "QQ 视频分类页"
+    },
+    {
+      "id": "music-POS-019",
+      "element": "网易云播客分类页专属锚",
+      "page": "网易云播客页"
+    },
+    {
+      "id": "music-POS-022",
+      "element": "网易云用户收藏区四卡锚校准(我喜欢/自建歌单/收藏歌单/我的播客)",
+      "page": "网易云主页·用户收藏区"
+    },
+    {
+      "id": "music-POS-024",
+      "element": "私享漫游卡播放钮 [图] 模板(卡片 OCR 无稳定播放字形);迷你播放条 SWAN_BOTTOM_PLAYER_BAR 已注册",
+      "page": "QQ 音乐主页/播放条"
+    },
+    {
+      "id": "music-POS-025",
+      "element": "酷狗歌单更多页/电台分类页专属锚",
+      "page": "酷狗主页族"
+    },
+    {
+      "id": "music-POS-027",
+      "element": "Qobuz 主页区块锚+曲风筛选页锚+勾选态+奖项月桂图标",
+      "page": "Qobuz 主页/筛选页/奖项弹层"
+    },
+    {
+      "id": "music-NEG-040",
+      "element": "QQ/酷狗主页无映射二级入口定位(PlatformContentNavigationResolver 未注册入口清单或图标模板;当前用 B 口径运行时候选扫描兜底)",
+      "page": "QQ 音乐主页/酷狗主页"
+    },
+    {
+      "id": "music-POS-032",
+      "element": "AM 主页入口族锚(每周 Top/播客/视频 Live/歌曲榜/专辑榜/歌单榜)+六详情页专属锚(weekly_top/podcast/video_live/song/album/playlist_chart_detail)",
+      "page": "Apple Music 主页/详情页族"
+    },
+    {
+      "id": "music-POS-038",
+      "element": "QQ 行 [+] 钮模板+qq_auth_bg legacy 弹层背景图+授权中进度弹层文案锚",
+      "page": "平台页/授权确认弹层/授权进度弹层"
+    },
+    {
+      "id": "music-POS-039",
+      "element": "网易云授权中进度弹层文案锚+未装分支 H5 WebView 形态锚;[+] 模板 SWAN_NETEASE_PLUS_BTN 已注册",
+      "page": "授权进度弹层/网易云 H5 WebView"
+    },
+    {
+      "id": "music-POS-040",
+      "element": "酷狗行 [+] 钮模板+kugou_auth_bg 弹层背景图+进度弹层文案锚",
+      "page": "平台页/授权弹层族"
+    },
+    {
+      "id": "music-POS-041",
+      "element": "Apple Music 行 [+] 钮模板+MusicKit 授权弹窗锚+apple_auth_bg",
+      "page": "平台页/MusicKit 弹窗"
+    },
+    {
+      "id": "music-POS-042",
+      "element": "Qobuz 行 [+] 钮模板+专属型弹层锚+OAuth 外域登录页锚词",
+      "page": "平台页/Qobuz OAuth WebView"
+    },
+    {
+      "id": "music-POS-043",
+      "element": "授权中进度弹层文案锚(runWithPlatformAuthProgress)+auth_in_progress 残留态锚",
+      "page": "授权进度弹层"
+    },
+    {
+      "id": "music-POS-045",
+      "element": "已授权行 [−] 解绑钮模板(细横线 OCR 不稳,六平台行各一)",
+      "page": "平台页"
+    },
+    {
+      "id": "music-POS-046",
+      "element": "歌单页第三方平台 Tab 选中态图/内容区专属锚;SWAN_PLAYLIST_TAB_SWAN 已注册",
+      "page": "歌单页"
+    },
+    {
+      "id": "music-POS-047",
+      "element": "首页音乐区块头专属锚(服务端目录动态渲染)",
+      "page": "首页·音乐 Tab"
+    }
+  ],
+  "notes": "L07=M07 音乐平台聚合,107 条 todo:61 转 46 跳(OTHER 41+THIRD_PARTY_REAL 5)。ADD1 口径复审(2026-10-20):全部 51 条原跳过逐条重判——NEG-009/010(飞行模式断网族)经设置页 UI 通道(toggle_airplane_mode)解锁转 B;NEG-018/019(拉起时机族)经设备级原语(foreground_package/force_stop_app)解锁转 B;POS-039(网易云授权至跳转发起)按 POS-038/040 同款授权态闸门+深链/H5 双分支转 B。保留 OTHER 的 reason 均点名具体框架能力缺口(start_action 无 data URI/无 mitm 改包/无 OHOS/iOS 设备/无构建变体控制/无文件推送/无网络时机操控/账号态不可达类),POS-051/052/054 修正为 THIRD_PARTY_REAL(真实凭据依赖)。授权态类用例统一以 platform_row_state 行授权态闸门自适配:自动化账号网易云恒已授权(2026-10-13 拍板禁止解绑还源),需未授权态的行如已授权则 pytest.skip。mixin swan_r_m07.py 15 个公开方法,定位口径 OCR 文本优先,行带几何仅做 OCR 项聚合,全程无屏幕绝对坐标;driver 原语包装(start_action/get_foreground_package/stop_app)沿用 swan.py:2688 self.driver 直调先例;open_system_settings 为 toggle_airplane_mode 的内部复用方法(used_by 按测试直调面统计故为空);[+]/[−] 钮 OCR 字形链+模板兜底,模板真机补截后按 template_needs 回填实参即可。mixin 挂入 SwanBusiness MRO 由集成方统一完成。package_report.json 被 .gitignore:171(*_report.json)忽略,集成时需 git add -f。"
+}

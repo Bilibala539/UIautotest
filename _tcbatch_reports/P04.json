@@ -1,0 +1,412 @@
+{
+  "pkg": "P04",
+  "converted": [
+    "player-NEG-001",
+    "player-NEG-006",
+    "player-NEG-008",
+    "player-NEG-025",
+    "player-NEG-026",
+    "player-NEG-030",
+    "player-NEG-034",
+    "player-POS-002",
+    "player-POS-003",
+    "player-POS-005",
+    "player-POS-010",
+    "player-POS-012",
+    "player-POS-013",
+    "player-POS-015",
+    "player-POS-017",
+    "player-POS-018",
+    "player-POS-019",
+    "player-POS-020",
+    "player-POS-021",
+    "player-POS-023",
+    "player-POS-024",
+    "player-POS-025",
+    "player-POS-028",
+    "player-POS-030",
+    "player-POS-031",
+    "player-POS-036",
+    "player-POS-039"
+  ],
+  "skipped": [
+    {
+      "id": "player-NEG-002",
+      "reason_code": "OTHER",
+      "reason": "Apple Music AirPlay 卡为 iOS/OHOS 形态，Android rig 无该卡片元素（平台缺型而非未截图）——框架仅具 Android 真机执行通道，无 iOS 端执行能力；另需 AM 未授权账号人工预置"
+    },
+    {
+      "id": "player-POS-034",
+      "reason_code": "OTHER",
+      "reason": "Apple Music AirPlay 卡为 iOS/OHOS 形态，Android rig 无该卡片元素（平台缺型而非未截图）——框架仅具 Android 真机执行通道，无 iOS 端执行能力；另需 AM 未授权账号人工预置"
+    },
+    {
+      "id": "player-NEG-004",
+      "reason_code": "OTHER",
+      "reason": "Apple Music AirPlay 卡为 iOS/OHOS 形态，Android rig 无该卡片元素（平台缺型而非未截图）——框架仅具 Android 真机执行通道，无 iOS 端执行能力；另需 AM 已授权专用账号人工预置（避免触发真实授权流）"
+    },
+    {
+      "id": "player-NEG-009",
+      "reason_code": "OTHER",
+      "reason": "YAML 自标「iOS 或 OHOS 构建执行，Android 豁免执行」——框架无 iOS/OHOS 执行通道，本机 Android 不适用"
+    },
+    {
+      "id": "player-NEG-003",
+      "reason_code": "OTHER",
+      "reason": "设备响应延迟注入（拉长互暂停等待窗）——框架无设备侧响应延迟注入通道，UI 层无法构造 latest-wins 竞态窗"
+    },
+    {
+      "id": "player-NEG-005",
+      "reason_code": "OTHER",
+      "reason": "设备响应延迟注入（拉长事务窗）——框架无设备侧响应延迟注入通道，无法构造事务中途取消窗口"
+    },
+    {
+      "id": "player-NEG-007",
+      "reason_code": "OTHER",
+      "reason": "App 沙盒持久层写入通道（脏 lastDeviceUUID/routeType）——框架无持久层写入能力"
+    },
+    {
+      "id": "player-NEG-010",
+      "reason_code": "OTHER",
+      "reason": "UPnP/SOAP GetInfoEx 假响应注入（{\"slaves\":0} 空壳帧）——框架无 UPnP 协议帧注入通道；另需多房间组人工预置"
+    },
+    {
+      "id": "player-NEG-011",
+      "reason_code": "OTHER",
+      "reason": "核心断言为 Linkplay 切源三连帧/停止计数协议语义——框架无 Linkplay/UPnP 协议帧观测通道（步骤1-2 UI 可走，断言面不可观测）"
+    },
+    {
+      "id": "player-NEG-012",
+      "reason_code": "OTHER",
+      "reason": "App 沙盒持久层写入通道（含脏 track 的队列持久化数据）——框架无持久层写入能力"
+    },
+    {
+      "id": "player-NEG-013",
+      "reason_code": "OTHER",
+      "reason": "UPnP 轮询帧注入（瞬态 STOPPED/NO_MEDIA/LOADING 帧）——框架无 UPnP 协议帧注入通道"
+    },
+    {
+      "id": "player-NEG-014",
+      "reason_code": "OTHER",
+      "reason": "UPnP RelTime 帧序列注入（每秒同值重复上报）——框架无 UPnP 协议帧注入通道"
+    },
+    {
+      "id": "player-NEG-015",
+      "reason_code": "OTHER",
+      "reason": "GENA LastChange 事件注入（缺 volume/带 volume 对照）——框架无 GENA 事件注入通道"
+    },
+    {
+      "id": "player-NEG-016",
+      "reason_code": "OTHER",
+      "reason": "弱网构造（干扰设备上行、保持 SID 续租）——框架无设备网络干扰/弱网编排通道；另需 H76D/H76G 设备人工预置"
+    },
+    {
+      "id": "player-NEG-017",
+      "reason_code": "OTHER",
+      "reason": "HTTP 响应注入（代理改包返回缺字段半响应）——框架无网络代理改包通道"
+    },
+    {
+      "id": "player-NEG-018",
+      "reason_code": "OTHER",
+      "reason": "Linkplay 设备状态帧注入（load/transitioning/无媒质帧对照）——框架无协议状态帧注入通道"
+    },
+    {
+      "id": "player-NEG-020",
+      "reason_code": "OTHER",
+      "reason": "GENA 订阅失败制造（SUBSCRIBE 拒绝/超时，干扰事件端口）——框架无 UPnP 事件端口干扰通道"
+    },
+    {
+      "id": "player-NEG-021",
+      "reason_code": "OTHER",
+      "reason": "Flutter 方法通道故障注入（通道未注册/MissingPluginException）——框架无 App 内方法通道级故障注入能力"
+    },
+    {
+      "id": "player-NEG-022",
+      "reason_code": "OTHER",
+      "reason": "设备网络断流控制（热点/路由断网编排与恢复）——框架无设备侧网络控制通道"
+    },
+    {
+      "id": "player-NEG-029",
+      "reason_code": "OTHER",
+      "reason": "命令通道延迟/死亡制造（同步断设备网络）——框架无设备侧网络控制通道"
+    },
+    {
+      "id": "player-NEG-035",
+      "reason_code": "OTHER",
+      "reason": "Flutter 方法通道故障注入（appleMusic 通道未注册态）——框架无方法通道级故障注入能力"
+    },
+    {
+      "id": "player-NEG-027",
+      "reason_code": "OTHER",
+      "reason": "空队列前置不可程序化构造：框架无队列清空/编辑通道（队列编辑 UI 未注册模板），换新账号违反测试账号纪律（自动化仅限 135 专用账号）；队列按钮模板亦未注册——待队列域模板解锁后转 B"
+    },
+    {
+      "id": "player-POS-014",
+      "reason_code": "OTHER",
+      "reason": "空队列前置不可程序化构造：框架无队列清空/编辑通道（队列编辑 UI 未注册模板），换新账号违反测试账号纪律（自动化仅限 135 专用账号）；专用空态节点亦未注册模板——待队列域模板解锁后转 B"
+    },
+    {
+      "id": "player-POS-029",
+      "reason_code": "MULTI_DEVICE",
+      "reason": "需已存在的多房间主从分组（≥2 台真机组网，人工预置）——框架无多设备组网编排能力；空壳 payload 场景另需 GetInfoEx 假响应注入通道"
+    },
+    {
+      "id": "player-NEG-019",
+      "reason_code": "MULTI_DEVICE",
+      "reason": "需网络内 ≥2 台多端口 UPnP 设备（人工预置，天然触发 N 端口×10s 超时迟滞面）——框架无多设备环境编排能力"
+    },
+    {
+      "id": "player-NEG-024",
+      "reason_code": "PHYSICAL",
+      "reason": "需真实蓝牙配对/连接（硬件侧物理操作）——框架无系统蓝牙栈控制/配对能力，无蓝牙输出通道"
+    },
+    {
+      "id": "player-NEG-031",
+      "reason_code": "PHYSICAL",
+      "reason": "需真实蓝牙配对/连接（硬件侧物理操作）——框架无系统蓝牙栈控制/配对能力，无蓝牙输出通道"
+    },
+    {
+      "id": "player-NEG-032",
+      "reason_code": "PHYSICAL",
+      "reason": "需真实蓝牙配对/连接（硬件侧物理操作）——框架无系统蓝牙栈控制/配对能力，无蓝牙输出通道"
+    },
+    {
+      "id": "player-NEG-033",
+      "reason_code": "PHYSICAL",
+      "reason": "需真实蓝牙配对/连接（硬件侧物理操作）——框架无系统蓝牙栈控制/配对能力，无蓝牙输出通道"
+    },
+    {
+      "id": "player-POS-011",
+      "reason_code": "PHYSICAL",
+      "reason": "需真实蓝牙配对/连接（硬件侧物理操作）——框架无系统蓝牙栈控制/配对能力，无蓝牙输出通道"
+    },
+    {
+      "id": "player-POS-035",
+      "reason_code": "PHYSICAL",
+      "reason": "需真实蓝牙配对/连接（硬件侧物理操作）——框架无系统蓝牙栈控制/配对能力，无蓝牙输出通道"
+    },
+    {
+      "id": "player-NEG-023",
+      "reason_code": "HUMAN_ONLY",
+      "reason": "长曲名排版折行/省略为主观视觉判定——OCR 与图像模板均无法断言布局观感"
+    },
+    {
+      "id": "player-POS-009",
+      "reason_code": "HUMAN_ONLY",
+      "reason": "黑胶唱片环/果冻环动效为主观视觉判定——无客观断言面"
+    },
+    {
+      "id": "player-POS-016",
+      "reason_code": "HUMAN_ONLY",
+      "reason": "歌词左对齐/居中对齐观感为主观视觉判定——OCR 无法断言对齐方式"
+    }
+  ],
+  "new_methods": [
+    {
+      "name": "restart_app",
+      "file": "utils/aw/business/swan_r_p04.py",
+      "used_by": [
+        "player-NEG-006",
+        "player-NEG-034",
+        "player-POS-036"
+      ]
+    },
+    {
+      "name": "rig_device_name",
+      "file": "utils/aw/business/swan_r_p04.py",
+      "used_by": [
+        "player-NEG-001",
+        "player-POS-005",
+        "player-POS-023",
+        "player-POS-030",
+        "player-POS-031",
+        "player-POS-036"
+      ]
+    },
+    {
+      "name": "read_player_title",
+      "file": "utils/aw/business/swan_r_p04.py",
+      "used_by": [
+        "player-POS-003",
+        "player-POS-005",
+        "player-POS-012",
+        "player-POS-013",
+        "player-POS-015",
+        "player-POS-018",
+        "player-POS-019",
+        "player-POS-023"
+      ]
+    },
+    {
+      "name": "read_player_progress",
+      "file": "utils/aw/business/swan_r_p04.py",
+      "used_by": [
+        "player-NEG-025",
+        "player-NEG-030",
+        "player-POS-018",
+        "player-POS-019",
+        "player-POS-020",
+        "player-POS-021",
+        "player-POS-025",
+        "player-POS-028"
+      ]
+    },
+    {
+      "name": "open_volume_popup",
+      "file": "utils/aw/business/swan_r_p04.py",
+      "used_by": [
+        "player-NEG-008",
+        "player-POS-039"
+      ]
+    },
+    {
+      "name": "close_full_player",
+      "file": "utils/aw/business/swan_r_p04.py",
+      "used_by": [
+        "player-POS-002",
+        "player-POS-005",
+        "player-POS-010",
+        "player-POS-023"
+      ]
+    },
+    {
+      "name": "open_device_sheet",
+      "file": "utils/aw/business/swan_r_p04.py",
+      "used_by": [
+        "player-POS-030",
+        "player-POS-031"
+      ]
+    },
+    {
+      "name": "assert_bottom_bar_session",
+      "file": "utils/aw/business/swan_r_p04.py",
+      "used_by": [
+        "player-POS-002",
+        "player-POS-010",
+        "player-POS-036"
+      ]
+    },
+    {
+      "name": "open_queue_sheet",
+      "file": "utils/aw/business/swan_r_p04.py",
+      "used_by": [
+        "player-POS-003",
+        "player-POS-012",
+        "player-POS-013",
+        "player-POS-015"
+      ]
+    },
+    {
+      "name": "start_external_app",
+      "file": "utils/aw/business/swan_r_p04.py",
+      "used_by": [
+        "player-NEG-026"
+      ]
+    },
+    {
+      "name": "stop_external_app",
+      "file": "utils/aw/business/swan_r_p04.py",
+      "used_by": [
+        "player-NEG-026"
+      ]
+    }
+  ],
+  "template_needs": [
+    {
+      "id": "player-NEG-008",
+      "element": "FM 底部栏音量弹层入口",
+      "page": "FM 播放页/底部栏"
+    },
+    {
+      "id": "player-NEG-008",
+      "element": "设备卡片音量弹层入口",
+      "page": "设备详情页"
+    },
+    {
+      "id": "player-POS-039",
+      "element": "FM 底部栏音量弹层入口",
+      "page": "FM 播放页/底部栏"
+    },
+    {
+      "id": "player-POS-039",
+      "element": "设备卡片音量弹层入口",
+      "page": "设备详情页"
+    },
+    {
+      "id": "player-POS-030",
+      "element": "AM AirPlay 区卡片",
+      "page": "统一设备弹窗"
+    },
+    {
+      "id": "player-POS-031",
+      "element": "蓝牙路由卡/Apple Music 路由卡（iOS）/remoteMqtt 路由卡",
+      "page": "统一设备弹窗"
+    },
+    {
+      "id": "player-POS-003",
+      "element": "队列弹层锚/关闭钮 current_queue_close_button",
+      "page": "播放队列弹层"
+    },
+    {
+      "id": "player-POS-003",
+      "element": "歌词视图锚（TBD·语义区域）",
+      "page": "播放页歌词视图"
+    },
+    {
+      "id": "player-POS-012",
+      "element": "队列列表容器锚（滚动浏览用）",
+      "page": "播放队列弹层"
+    },
+    {
+      "id": "player-POS-013",
+      "element": "当前曲目标记 current_queue_current_marker",
+      "page": "播放队列弹层"
+    },
+    {
+      "id": "player-POS-015",
+      "element": "队列弹层锚/关闭钮 current_queue_close_button",
+      "page": "播放队列弹层"
+    },
+    {
+      "id": "player-POS-010",
+      "element": "底栏 expanded 大卡锚/收起操作锚（TBD·语义）",
+      "page": "首页底栏"
+    },
+    {
+      "id": "player-POS-017",
+      "element": "全词页锚",
+      "page": "播放页歌词视图"
+    },
+    {
+      "id": "player-POS-024",
+      "element": "电台行播放链路锚（行点击后页面形态）",
+      "page": "首页电台 Tab"
+    },
+    {
+      "id": "player-NEG-026",
+      "element": "AI 实时通话入口（场景 B，TBD·语义）",
+      "page": "App 内"
+    },
+    {
+      "id": "player-POS-003",
+      "element": "队列按钮 player_queue_button（无文案图标，待截）",
+      "page": "全屏播放页五键控制条"
+    },
+    {
+      "id": "player-POS-012",
+      "element": "队列按钮 player_queue_button（无文案图标，待截）",
+      "page": "全屏播放页五键控制条"
+    },
+    {
+      "id": "player-POS-013",
+      "element": "队列按钮 player_queue_button（无文案图标，待截）",
+      "page": "全屏播放页五键控制条"
+    },
+    {
+      "id": "player-POS-015",
+      "element": "队列按钮 player_queue_button（无文案图标，待截）",
+      "page": "全屏播放页五键控制条"
+    }
+  ],
+  "notes": "M06 播放器域（ADD1 口径复审后）。断言口径：OCR 文本/已注册图像模板收口，播放态用 assert_playing/assert_paused 双证据（控制键 [图]+封面动检/进度递增），无声学断言。B 标定项（原误判 OTHER 已改判出 py）：队列域 4 条（POS-003/012/013/015，open_queue_sheet OCR 候选词尽力定位，队列按钮 SWAN_PLAYER_QUEUE_BTN 待注册）、POS-010（long_press_image 模板锚长按）、POS-017/POS-024（歌词/电台 OCR 链）、NEG-026（start/stop_external_app 场景A，SWAN_FOCUS_PROBE_APP 环境项）、POS-028（SWAN_DLNA_DEVICE_NAME 环境项，GENA 协议级子断言留 OTHER 注记）。保留 OTHER 均已点名具体能力缺口（协议帧注入/持久层写入/网络控制/方法通道故障注入/iOS 通道缺失，见各 reason）。NEG-027/POS-014 空队列状态不可程序化构造（无队列清空通道+135 账号纪律），待队列域模板解锁后转 B。弹窗单实例以「锚命中→关闭后锚消失→复开成功」为 UI 层单飞口径。真机标定点：设备弹层「本机扬声器」行文案、rig 型号名 OCR l/I 失真、曲目区 band (0,180,720,180)、队列弹层行文案。"
+}

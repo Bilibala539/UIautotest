@@ -1,0 +1,701 @@
+{
+  "pkg": "P07",
+  "converted": [
+    "library-NEG-001",
+    "library-NEG-003",
+    "library-NEG-004",
+    "library-NEG-005",
+    "library-NEG-021",
+    "library-NEG-026",
+    "library-NEG-028",
+    "library-NEG-032",
+    "library-NEG-036",
+    "library-NEG-043",
+    "library-NEG-045",
+    "library-POS-001",
+    "library-POS-002",
+    "library-POS-003",
+    "library-POS-006",
+    "library-POS-007",
+    "library-POS-008",
+    "library-POS-011",
+    "library-POS-013",
+    "library-POS-014",
+    "library-POS-015",
+    "library-POS-016",
+    "library-POS-017",
+    "library-POS-018",
+    "library-POS-019",
+    "library-POS-021",
+    "library-POS-022",
+    "library-POS-028",
+    "library-POS-029",
+    "library-POS-030",
+    "library-POS-031",
+    "library-POS-033",
+    "library-POS-034",
+    "library-POS-035",
+    "library-POS-038",
+    "library-POS-042"
+  ],
+  "skipped": [
+    {
+      "id": "library-NEG-002",
+      "reason_code": "OTHER",
+      "reason": "框架键入通道(input_text=adb input text)无 emoji/零宽连接符/补充平面字符注入能力,无 ADBKeyboard 类可注入 IME 集成——ZWJ 家庭组合字符无法稳定上屏,表情显示现状断言无 OCR 可锚判据"
+    },
+    {
+      "id": "library-NEG-006",
+      "reason_code": "OTHER",
+      "reason": "框架无系统剪贴板读写/粘贴注入通道(基础 AW 无 clipboard 方法),超长文本粘贴源与对照粘贴源均无法预置"
+    },
+    {
+      "id": "library-NEG-007",
+      "reason_code": "THIRD_PARTY_REAL",
+      "reason": "聚合来源上限 10:需 ≥12 个已授权第三方平台未关联歌单候选,依赖真实第三方平台账号数据人工预置,沙箱无第三方凭据"
+    },
+    {
+      "id": "library-NEG-008",
+      "reason_code": "THIRD_PARTY_REAL",
+      "reason": "上限双份防御:路径 B 需第三方歌单详情与 ≥12 个第三方候选歌单(真实第三方数据预置)"
+    },
+    {
+      "id": "library-NEG-009",
+      "reason_code": "THIRD_PARTY_REAL",
+      "reason": "去重键同数值 ID:平台 A/B 须各预置同数值 ID 歌单(human_interruption_point 第三方平台账号数据预置)"
+    },
+    {
+      "id": "library-NEG-010",
+      "reason_code": "THIRD_PARTY_REAL",
+      "reason": "已关联过滤/重复关联:需含第三方来源 S 的聚合歌单与第三方候选(复用 NEG-007/009 预置数据)"
+    },
+    {
+      "id": "library-NEG-011",
+      "reason_code": "THIRD_PARTY_REAL",
+      "reason": "Qobuz 分页:需 Qobuz 已授权与 ≥11 个收藏/自建歌单分页数据(平台授权与数据预置)"
+    },
+    {
+      "id": "library-NEG-012",
+      "reason_code": "THIRD_PARTY_REAL",
+      "reason": "Qobuz 哨兵末项:需 Qobuz 授权与平台侧哨兵歌单预置"
+    },
+    {
+      "id": "library-NEG-013",
+      "reason_code": "THIRD_PARTY_REAL",
+      "reason": "酷狗收藏契约:需酷狗专用授权账号与名下收藏数据(第三方凭据预置)"
+    },
+    {
+      "id": "library-NEG-014",
+      "reason_code": "THIRD_PARTY_REAL",
+      "reason": "推荐歌单前缀 id:收藏生效核对需平台收藏列表回读,推荐位歌单平台归属运行时才定,为第三方平台歌单时依赖真实第三方数据与平台收藏态"
+    },
+    {
+      "id": "library-NEG-015",
+      "reason_code": "OTHER",
+      "reason": "框架无专用隔离测试账号供给通道(单账号环境变量注入,无账号池/多账号编排);YAML 前置明确要求专用 TEST-SYNTHETIC 账号并禁止共享账号执行批量真删(共享账号收藏数据为多包公共前置,真删不可安全还原)"
+    },
+    {
+      "id": "library-NEG-016",
+      "reason_code": "THIRD_PARTY_REAL",
+      "reason": "酷狗禁删混选:需 songExtraId 为空的酷狗真实收藏数据预置(human_interruption_point)与专用账号批量真删"
+    },
+    {
+      "id": "library-NEG-017",
+      "reason_code": "THIRD_PARTY_REAL",
+      "reason": "酷狗居首禁删:需酷狗真实收藏数据预置(human_interruption_point)与专用账号"
+    },
+    {
+      "id": "library-NEG-018",
+      "reason_code": "OTHER",
+      "reason": "框架 OCR 探测-点击周期(约 1s/次)不可达 500ms 防抖窗口内 2-3 次连点节奏——无亚秒级连点编排通道;S4 还涉及批量真删"
+    },
+    {
+      "id": "library-NEG-019",
+      "reason_code": "THIRD_PARTY_REAL",
+      "reason": "网易云『喜欢的音乐』后缀误判:需网易云授权+平台侧预置同名自建歌单(human_interruption_point)及英文 locale 环境"
+    },
+    {
+      "id": "library-NEG-020",
+      "reason_code": "OTHER",
+      "reason": "框架无响应延迟/弱网网络注入通道(proxy-required 或弱网替代均不可构造,基础 AW 无网络操控方法),星标门控空窗断言不可降级为只读"
+    },
+    {
+      "id": "library-NEG-022",
+      "reason_code": "OTHER",
+      "reason": "框架无 HTTP 响应改写/代理注入通道(human_interruption_point:需响应改写制造成功判定与业务态错位)"
+    },
+    {
+      "id": "library-NEG-023",
+      "reason_code": "OTHER",
+      "reason": "框架无点击后 300ms 内进程终止的并发编排通道(OCR 点击与 adb force-stop 串行延迟超窗口);批量真删另需专用隔离账号(无账号池,同 NEG-015)"
+    },
+    {
+      "id": "library-NEG-024",
+      "reason_code": "OTHER",
+      "reason": "框架无断网/弱网网络注入通道(基础 AW 无网络操控方法),聚合批量提交断网失败态不可构造;来源候选另依赖第三方平台歌单数据"
+    },
+    {
+      "id": "library-NEG-025",
+      "reason_code": "THIRD_PARTY_REAL",
+      "reason": "串行半提交:候选须已授权第三方平台歌单(人工预置),且第 3 条请求级失败注入需代理改写/断网时序通道(框架无)"
+    },
+    {
+      "id": "library-NEG-027",
+      "reason_code": "OTHER",
+      "reason": "框架 OCR 探测-点击周期(约 1s/次)不可达 650ms 屏障内 3 次连点节奏——无亚秒级连点编排通道(屏障穿透为本用例主体)"
+    },
+    {
+      "id": "library-NEG-029",
+      "reason_code": "OTHER",
+      "reason": "框架无断网/弱网网络注入通道(断网不误报断言不可降级为只读)"
+    },
+    {
+      "id": "library-NEG-030",
+      "reason_code": "OTHER",
+      "reason": "框架无断网/网络异常注入通道(聚合详情拉取失败降级态不可构造)"
+    },
+    {
+      "id": "library-NEG-031",
+      "reason_code": "THIRD_PARTY_REAL",
+      "reason": "Qobuz 收藏态落盘:需 Qobuz 授权与杀进程断网编排(框架无断网通道)"
+    },
+    {
+      "id": "library-NEG-033",
+      "reason_code": "MULTI_DEVICE",
+      "reason": "双端会话 latest-wins:需两台设备/两端会话并发操作同一账号,框架无多机编排通道"
+    },
+    {
+      "id": "library-NEG-035",
+      "reason_code": "OTHER",
+      "reason": "框架 OCR 探测-点击周期(约 1s/次)不可达 300ms 完成按钮连点窗口——无亚秒级连点编排通道"
+    },
+    {
+      "id": "library-NEG-034",
+      "reason_code": "THIRD_PARTY_REAL",
+      "reason": "网易云播客翻页冲掉星标:需网易云播客已收藏数据预置(human_interruption_point)"
+    },
+    {
+      "id": "library-NEG-037",
+      "reason_code": "THIRD_PARTY_REAL",
+      "reason": "解除关联还原链:聚合 3 条来源须第三方歌单(真实第三方数据预置);220ms 防抖窗口另超 OCR 点击周期"
+    },
+    {
+      "id": "library-NEG-038",
+      "reason_code": "HUMAN_ONLY",
+      "reason": "Hero 转场平滑度/封面闪变为视觉主观判断,无 OCR/图像模板可锚判据"
+    },
+    {
+      "id": "library-NEG-039",
+      "reason_code": "OTHER",
+      "reason": "框架无专用隔离测试账号供给通道(同 NEG-015);YAML 禁止共享账号执行 5 条收藏批量真删"
+    },
+    {
+      "id": "library-NEG-040",
+      "reason_code": "OTHER",
+      "reason": "框架无断网/弱网网络注入通道(S2 断网提交核心段)与亚秒级 pop 黑屏采样通道(S4);聚合来源勾选另依赖已授权第三方平台歌单候选"
+    },
+    {
+      "id": "library-NEG-041",
+      "reason_code": "THIRD_PARTY_REAL",
+      "reason": "网易云播客 cursor 深分页:需播客收藏量深数据预置(human_interruption_point)"
+    },
+    {
+      "id": "library-NEG-042",
+      "reason_code": "THIRD_PARTY_REAL",
+      "reason": "Qobuz 创建最终一致性:需 Qobuz 授权与选择歌单页 Qobuz 加歌数据"
+    },
+    {
+      "id": "library-NEG-044",
+      "reason_code": "OTHER",
+      "reason": "Core 仓工程面用例:需 MAP-SWAN-002 基线 Core 仓 checkout 与 flutter analyze/flutter test 工具链执行编排,本任务工作区限定单仓且框架无跨仓工程构建/静态检查/单测执行通道"
+    },
+    {
+      "id": "library-POS-004",
+      "reason_code": "THIRD_PARTY_REAL",
+      "reason": "第三方歌单详情分流:需已授权第三方平台(QQ/网易云)名下歌单详情(人工预置第三方凭据与数据)"
+    },
+    {
+      "id": "library-POS-012",
+      "reason_code": "THIRD_PARTY_REAL",
+      "reason": "Qobuz 双 Tab:需 Qobuz 授权与两 Tab 歌单数据"
+    },
+    {
+      "id": "library-POS-020",
+      "reason_code": "THIRD_PARTY_REAL",
+      "reason": "聚合来源上限勾选即拦:需 ≥11 个第三方候选歌单(human_interruption_point 人工预置)"
+    },
+    {
+      "id": "library-POS-023",
+      "reason_code": "THIRD_PARTY_REAL",
+      "reason": "第三方歌单详情更多弹层:需已授权第三方平台歌单详情(第三方凭据与数据预置)"
+    },
+    {
+      "id": "library-POS-024",
+      "reason_code": "THIRD_PARTY_REAL",
+      "reason": "第三方歌单关联聚合串行轨:需第三方平台授权与歌单数据"
+    },
+    {
+      "id": "library-POS-025",
+      "reason_code": "THIRD_PARTY_REAL",
+      "reason": "管理关联弹层内容断言:需含 ≥1 个已关联第三方来源的聚合歌单"
+    },
+    {
+      "id": "library-POS-026",
+      "reason_code": "THIRD_PARTY_REAL",
+      "reason": "去重键正向吸收:需第三方来源关联数据(第三方授权与预置)"
+    },
+    {
+      "id": "library-POS-027",
+      "reason_code": "THIRD_PARTY_REAL",
+      "reason": "第三方歌单详情浏览与星标保持:需已授权第三方平台歌单(第三方数据预置)"
+    },
+    {
+      "id": "library-POS-039",
+      "reason_code": "THIRD_PARTY_REAL",
+      "reason": "Apple Music 资源库:需 Apple Music 授权与资源库数据"
+    },
+    {
+      "id": "library-POS-040",
+      "reason_code": "OTHER",
+      "reason": "收藏→定位→播放链基线不可构造:可达数据面中歌单内曲目均为已收藏态(加歌流唯一来源为我喜欢已收藏曲),未收藏歌曲仅存在于播放历史/内容页且无已知歌单归属——框架无『未收藏歌曲+已知歌单归属』受控数据供给通道;播放页红心 [图] 已可锚,但曲目名与我喜欢列表稳定比对的取词通道未锚定"
+    },
+    {
+      "id": "library-POS-041",
+      "reason_code": "THIRD_PARTY_REAL",
+      "reason": "聚合跨平台混合展示:需 QQ+网易云双平台授权与歌单数据"
+    },
+    {
+      "id": "library-POS-043",
+      "reason_code": "THIRD_PARTY_REAL",
+      "reason": "第三方歌单收藏主链:需已授权第三方平台歌单(第三方星标与平台收藏列表回读)"
+    }
+  ],
+  "new_methods": [
+    {
+      "name": "probe_any_text",
+      "file": "utils/aw/business/swan_r_p07.py",
+      "used_by": [
+        "library-NEG-001",
+        "library-NEG-003",
+        "library-NEG-004",
+        "library-NEG-005",
+        "library-NEG-021",
+        "library-NEG-026",
+        "library-NEG-028",
+        "library-NEG-036",
+        "library-NEG-043",
+        "library-NEG-045",
+        "library-POS-006",
+        "library-POS-007",
+        "library-POS-011",
+        "library-POS-013",
+        "library-POS-014",
+        "library-POS-017",
+        "library-POS-018",
+        "library-POS-019",
+        "library-POS-021",
+        "library-POS-022",
+        "library-POS-028",
+        "library-POS-029",
+        "library-POS-030",
+        "library-POS-031",
+        "library-POS-033",
+        "library-POS-034",
+        "library-POS-042"
+      ]
+    },
+    {
+      "name": "click_any_text",
+      "file": "utils/aw/business/swan_r_p07.py",
+      "used_by": [
+        "library-NEG-001",
+        "library-NEG-003",
+        "library-NEG-004",
+        "library-NEG-005",
+        "library-NEG-021",
+        "library-NEG-026",
+        "library-NEG-028",
+        "library-NEG-036",
+        "library-NEG-043",
+        "library-NEG-045",
+        "library-POS-007",
+        "library-POS-011",
+        "library-POS-013",
+        "library-POS-017",
+        "library-POS-018",
+        "library-POS-019",
+        "library-POS-021",
+        "library-POS-022",
+        "library-POS-028",
+        "library-POS-029",
+        "library-POS-030",
+        "library-POS-031",
+        "library-POS-034",
+        "library-POS-042"
+      ]
+    },
+    {
+      "name": "open_my_collects_page",
+      "file": "utils/aw/business/swan_r_p07.py",
+      "used_by": [
+        "library-NEG-003",
+        "library-NEG-043",
+        "library-POS-001",
+        "library-POS-011"
+      ]
+    },
+    {
+      "name": "open_composite_segment",
+      "file": "utils/aw/business/swan_r_p07.py",
+      "used_by": [
+        "library-NEG-021",
+        "library-NEG-036",
+        "library-POS-019",
+        "library-POS-021",
+        "library-POS-022",
+        "library-POS-031"
+      ]
+    },
+    {
+      "name": "open_create_playlist_dialog",
+      "file": "utils/aw/business/swan_r_p07.py",
+      "used_by": [
+        "library-NEG-001",
+        "library-NEG-003",
+        "library-NEG-004",
+        "library-NEG-005",
+        "library-NEG-028",
+        "library-POS-013",
+        "library-POS-014",
+        "library-POS-019"
+      ]
+    },
+    {
+      "name": "open_collect_create_dialog",
+      "file": "utils/aw/business/swan_r_p07.py",
+      "used_by": [
+        "library-NEG-003",
+        "library-POS-011"
+      ]
+    },
+    {
+      "name": "close_create_dialog",
+      "file": "utils/aw/business/swan_r_p07.py",
+      "used_by": [
+        "library-NEG-003",
+        "library-NEG-004",
+        "library-NEG-028",
+        "library-POS-014"
+      ]
+    },
+    {
+      "name": "create_local_playlist",
+      "file": "utils/aw/business/swan_r_p07.py",
+      "used_by": [
+        "library-NEG-001",
+        "library-NEG-004",
+        "library-NEG-026",
+        "library-NEG-043",
+        "library-POS-003",
+        "library-POS-013",
+        "library-POS-029",
+        "library-POS-030",
+        "library-POS-042"
+      ]
+    },
+    {
+      "name": "create_composite_playlist",
+      "file": "utils/aw/business/swan_r_p07.py",
+      "used_by": [
+        "library-NEG-004",
+        "library-NEG-026",
+        "library-NEG-028",
+        "library-NEG-036",
+        "library-NEG-043",
+        "library-POS-019",
+        "library-POS-021",
+        "library-POS-022",
+        "library-POS-031"
+      ]
+    },
+    {
+      "name": "open_composite_detail",
+      "file": "utils/aw/business/swan_r_p07.py",
+      "used_by": [
+        "library-NEG-004",
+        "library-NEG-026",
+        "library-NEG-036",
+        "library-NEG-043",
+        "library-POS-019",
+        "library-POS-021",
+        "library-POS-022",
+        "library-POS-031"
+      ]
+    },
+    {
+      "name": "open_composite_edit_dialog",
+      "file": "utils/aw/business/swan_r_p07.py",
+      "used_by": [
+        "library-NEG-004",
+        "library-NEG-036",
+        "library-POS-019",
+        "library-POS-021",
+        "library-POS-022",
+        "library-POS-031"
+      ]
+    },
+    {
+      "name": "composite_rename",
+      "file": "utils/aw/business/swan_r_p07.py",
+      "used_by": [
+        "library-NEG-026",
+        "library-NEG-043",
+        "library-POS-021"
+      ]
+    },
+    {
+      "name": "composite_delete_to_confirm",
+      "file": "utils/aw/business/swan_r_p07.py",
+      "used_by": [
+        "library-NEG-004",
+        "library-NEG-026",
+        "library-NEG-028",
+        "library-NEG-036",
+        "library-NEG-043",
+        "library-POS-019",
+        "library-POS-021",
+        "library-POS-022",
+        "library-POS-031"
+      ]
+    },
+    {
+      "name": "composite_delete_confirm",
+      "file": "utils/aw/business/swan_r_p07.py",
+      "used_by": [
+        "library-NEG-004",
+        "library-NEG-026",
+        "library-NEG-028",
+        "library-NEG-036",
+        "library-NEG-043",
+        "library-POS-019",
+        "library-POS-021",
+        "library-POS-022",
+        "library-POS-031"
+      ]
+    },
+    {
+      "name": "delete_playlist_via_detail_menu",
+      "file": "utils/aw/business/swan_r_p07.py",
+      "used_by": [
+        "library-NEG-001",
+        "library-NEG-004",
+        "library-NEG-005",
+        "library-NEG-026",
+        "library-NEG-043",
+        "library-POS-003",
+        "library-POS-011",
+        "library-POS-013",
+        "library-POS-028",
+        "library-POS-029",
+        "library-POS-030",
+        "library-POS-042"
+      ]
+    },
+    {
+      "name": "rename_playlist_via_menu",
+      "file": "utils/aw/business/swan_r_p07.py",
+      "used_by": [
+        "library-NEG-004",
+        "library-POS-030",
+        "library-POS-042"
+      ]
+    },
+    {
+      "name": "open_batch_mode",
+      "file": "utils/aw/business/swan_r_p07.py",
+      "used_by": [
+        "library-POS-007",
+        "library-POS-035",
+        "library-POS-042"
+      ]
+    },
+    {
+      "name": "open_library_song_menu",
+      "file": "utils/aw/business/swan_r_p07.py",
+      "used_by": [
+        "library-POS-028",
+        "library-POS-033"
+      ]
+    },
+    {
+      "name": "open_select_playlist_page",
+      "file": "utils/aw/business/swan_r_p07.py",
+      "used_by": [
+        "library-POS-028"
+      ]
+    },
+    {
+      "name": "create_playlist_in_select_page",
+      "file": "utils/aw/business/swan_r_p07.py",
+      "used_by": [
+        "library-POS-028"
+      ]
+    },
+    {
+      "name": "visit_play_history_tabs",
+      "file": "utils/aw/business/swan_r_p07.py",
+      "used_by": [
+        "library-NEG-032"
+      ]
+    },
+    {
+      "name": "assert_history_clear_entry_exists",
+      "file": "utils/aw/business/swan_r_p07.py",
+      "used_by": [
+        "library-NEG-032",
+        "library-POS-038"
+      ]
+    },
+    {
+      "name": "visit_mylike_page_tabs",
+      "file": "utils/aw/business/swan_r_p07.py",
+      "used_by": [
+        "library-POS-034"
+      ],
+      "desc": "我喜欢页(统一音乐库)页内 Tab 遍历:播放全部锚上缘条带 OCR 短文本候选逐个点击,返回点击文案列表"
+    }
+  ],
+  "template_needs": [
+    {
+      "id": "library-NEG-001",
+      "element": "创建歌单保存按钮(确认 playlistSave 实际文案)",
+      "page": "歌单创建弹窗"
+    },
+    {
+      "id": "library-NEG-003",
+      "element": "判空反馈文案(不能为空精确文案)+新建歌单弹窗关闭钮",
+      "page": "我的收藏新建歌单弹窗"
+    },
+    {
+      "id": "library-NEG-005",
+      "element": "特殊字符歌单名行 OCR 可读性复核",
+      "page": "歌单页创建段列表"
+    },
+    {
+      "id": "library-NEG-032",
+      "element": "播放历史分类 Tab 条内 Tab 文案可读性复核",
+      "page": "播放历史页"
+    },
+    {
+      "id": "library-NEG-036",
+      "element": "删除确认弹层标题与按钮精确文案",
+      "page": "聚合删除确认弹层"
+    },
+    {
+      "id": "library-POS-007",
+      "element": "批量模式提交入口按钮+批量操作页标题",
+      "page": "我喜欢勾选态/批量操作页"
+    },
+    {
+      "id": "library-POS-011",
+      "element": "我的收藏添加歌单按钮落点弹窗保存按钮",
+      "page": "我的收藏新建歌单弹窗"
+    },
+    {
+      "id": "library-POS-014",
+      "element": "创建弹窗平台清单完整项(授权子集口径)",
+      "page": "歌单创建弹窗"
+    },
+    {
+      "id": "library-POS-016",
+      "element": "歌单页平台 Tab 行未授权平台 Tab 项",
+      "page": "歌单页"
+    },
+    {
+      "id": "library-POS-019",
+      "element": "来源选择弹层标题/完成按钮精确文案",
+      "page": "聚合创建来源选择弹层"
+    },
+    {
+      "id": "library-POS-021",
+      "element": "聚合详情更多入口(聚合详情页更多按钮形态)",
+      "page": "聚合歌单详情页"
+    },
+    {
+      "id": "library-POS-022",
+      "element": "聚合删除确认弹层警示文案",
+      "page": "聚合删除确认弹层"
+    },
+    {
+      "id": "library-POS-028",
+      "element": "歌曲条目动作菜单形态+选择歌单页锚(新建歌单入口)",
+      "page": "我喜欢条目动作菜单/选择歌单页"
+    },
+    {
+      "id": "library-POS-029",
+      "element": "本地歌单删除入口(详情更多菜单删除歌单项)",
+      "page": "歌单详情页更多菜单"
+    },
+    {
+      "id": "library-POS-030",
+      "element": "本地歌单改名入口(详情更多菜单改名项)",
+      "page": "歌单详情页更多菜单"
+    },
+    {
+      "id": "library-POS-031",
+      "element": "聚合详情 boundCount 计数区锚",
+      "page": "聚合歌单详情页"
+    },
+    {
+      "id": "library-POS-033",
+      "element": "歌曲条目动作菜单形态",
+      "page": "我喜欢条目动作菜单"
+    },
+    {
+      "id": "library-POS-035",
+      "element": "批量勾选框两态+已选计数条",
+      "page": "我喜欢勾选态"
+    },
+    {
+      "id": "library-POS-042",
+      "element": "批量提交入口+目标歌单选择器+加入歌单按钮",
+      "page": "我喜欢勾选态/目标歌单选择弹层"
+    },
+    {
+      "id": "library-NEG-021",
+      "element": "未授权平台段空态专属文案与空态页截样",
+      "page": "歌单页未授权平台段"
+    },
+    {
+      "id": "library-POS-017",
+      "element": "未授权段空态文案(如『暂无歌单』)与授权引导位截样",
+      "page": "歌单页未授权平台段"
+    },
+    {
+      "id": "library-NEG-045",
+      "element": "授权按钮与授权进度弹窗模板(标题/取消钮)",
+      "page": "歌单页未授权平台段/授权弹层"
+    },
+    {
+      "id": "library-POS-018",
+      "element": "授权进度弹窗专属标题文案与模板",
+      "page": "授权确认/进度弹层"
+    },
+    {
+      "id": "library-POS-034",
+      "element": "我喜欢页内 Tab 条模板(同 SWAN_HISTORY_TABBAR 族)",
+      "page": "我喜欢页(统一音乐库)"
+    },
+    {
+      "id": "library-NEG-043",
+      "element": "本地歌单详情收藏星标两态确认(若与 SWAN_PD_FAV_ON/OFF 同图则免)",
+      "page": "歌单详情页"
+    },
+    {
+      "id": "library-NEG-004",
+      "element": "本地/聚合重名预检提示文案(如『歌单名已存在』)",
+      "page": "创建歌单弹窗/编辑歌单弹层"
+    }
+  ],
+  "notes": "ADD1 口径复审(2026-10-20):原判 OTHER 逐条按『缺失具体框架能力须点名/OCR 可走通即转 B』复核。改判 B 转新增 9 条:library-NEG-004/021/026/028/043/045、library-POS-017/018/034——原 skip 理由与 YAML 实际内容错位或 blocker 属元素未锚定/文案未核准类,按新口径归 B,部分转换的降级段(现状断言双分支、SKIP-BRANCH/SKIP-DATA、亚秒窗口不可达)写入各 py docstring。保留 OTHER 16 条均点名缺失的框架能力(键入/剪贴板/网络与弱网注入/代理改写/亚秒连点与进程编排/隔离账号池/跨仓工程工具链/受控未收藏曲数据供给)。THIRD_PARTY_REAL 28 条理由全部按 digest 实际依赖重写(此前多条描述错位);MULTI_DEVICE/HUMAN_ONLY 各 1 条维持。主会话预跳 6 条(library-POS-005/009/010/032/036/037)不在本包 todo——经 digest 复核 POS-005/009/036/037 疑似 B 可转,建议主会话按同口径复审。一次性 TESTSYN 数据创建即删口径不变;禁区 8(不真授权)/禁区 9(不点清空)在 POS-018/NEG-045/NEG-032/POS-038 中保持。"
+}
